@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, MessageCircle } from "lucide-react";
+import logoImage from "@/assets/logo-prime-fh.png";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,7 +22,11 @@ const Header = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-brand-dark">Prime F&H</h1>
+            <img 
+              src={logoImage} 
+              alt="Prime F&H - Kinesiología y Entrenamiento" 
+              className="h-10 w-auto"
+            />
           </div>
 
           {/* Desktop Navigation */}
