@@ -1,95 +1,100 @@
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Star, Users, Clock } from "lucide-react";
+import { MessageCircle, ArrowDown, Star, Users, Clock, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
 import heroImage from "@/assets/hero-training.jpg";
 
 const Hero = () => {
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre Prime F%26H. Me gustaría agendar una evaluación inicial.";
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre Prime Fit %26 Health. Me gustaría agendar una evaluación inicial.";
 
   return (
-    <section className="relative min-h-screen flex items-center bg-gradient-to-br from-brand-primary via-brand-primary to-primary/80">
-      {/* Background Image Overlay */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
-        style={{ backgroundImage: `url(${heroImage})` }}
-      />
-      
-      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center text-white">
-          {/* Social Proof Pills */}
-          <div className="flex flex-wrap justify-center gap-4 mb-8">
-            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-              <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="text-sm">5.0 estrellas</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-              <Users className="w-4 h-4" />
-              <span className="text-sm">+200 clientes</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-              <Clock className="w-4 h-4" />
-              <span className="text-sm">Resultados en 4 semanas</span>
-            </div>
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-dark">
+      {/* Parallax Background */}
+      <motion.div 
+        className="absolute inset-0 z-0"
+        initial={{ scale: 1.1 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 10, ease: "easeOut" }}
+      >
+        <img 
+          src={heroImage}
+          alt="Professional training and physiotherapy at Prime Fit & Health"
+          className="w-full h-full object-cover opacity-30"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-brand-primary/60 via-brand-primary/40 to-brand-primary/80"></div>
+      </motion.div>
+
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        {/* Social Proof Bar */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="flex flex-wrap justify-center items-center gap-8 mb-12 bg-white/10 backdrop-blur-md rounded-2xl py-4 px-8 border border-white/20"
+        >
+          <div className="flex items-center gap-2 text-brand-light">
+            <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+            <span className="font-semibold">4.9/5</span>
+            <span className="text-sm opacity-80">Rating</span>
           </div>
-
-          {/* Main Headlines */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-            Entrena mejor en
-            <span className="block text-yellow-300">menos de 1 hora</span>
-          </h1>
-          
-          <p className="text-xl lg:text-2xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed">
-            Kinesiología y entrenamiento en Puerto Montt. Rehabilitación basada en ejercicio 
-            y rutinas efectivas para gente ocupada.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Button 
-              variant="hero" 
-              size="lg"
-              onClick={() => window.open(whatsappUrl, '_blank')}
-              className="text-lg px-8 py-4 h-auto"
-            >
-              <MessageCircle className="w-5 h-5" />
-              Agenda por WhatsApp
-            </Button>
-            
-            <Button 
-              variant="ghost"
-              size="lg"
-              onClick={() => {
-                const element = document.getElementById('como-funciona');
-                if (element) element.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="text-white border-white hover:bg-white/20 text-lg px-8 py-4 h-auto"
-            >
-              Conocer más
-            </Button>
+          <div className="flex items-center gap-2 text-brand-light">
+            <Users className="w-5 h-5" />
+            <span className="font-semibold">1000+</span>
+            <span className="text-sm opacity-80">Happy Clients</span>
           </div>
-
-          {/* Trust Indicators */}
-          <div className="flex flex-wrap justify-center gap-8 text-white/80">
-            <div className="text-center">
-              <div className="text-2xl font-bold">7+</div>
-              <div className="text-sm">años experiencia</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">98%</div>
-              <div className="text-sm">satisfacción</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">30min</div>
-              <div className="text-sm">sesiones promedio</div>
-            </div>
+          <div className="flex items-center gap-2 text-brand-light">
+            <Clock className="w-5 h-5" />
+            <span className="font-semibold">&lt;60min</span>
+            <span className="text-sm opacity-80">Sessions</span>
           </div>
-        </div>
-      </div>
+        </motion.div>
 
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-        <div className="w-6 h-10 border-2 border-white/50 rounded-full flex justify-center">
-          <div className="w-1 h-3 bg-white/50 rounded-full mt-2"></div>
-        </div>
+        {/* Main Headline */}
+        <motion.h1 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.4 }}
+          className="text-5xl md:text-6xl lg:text-7xl font-bold text-brand-light mb-8 leading-tight"
+        >
+          Recover your body.
+          <br />
+          <span className="text-brand-secondary">Train without wasting time.</span>
+        </motion.h1>
+
+        {/* Subheading */}
+        <motion.p 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.6 }}
+          className="text-xl md:text-2xl text-brand-light/90 max-w-4xl mx-auto mb-12 leading-relaxed font-light"
+        >
+          Expert physiotherapy and semi-personalized training in Puerto Montt. 
+          <br className="hidden md:block" />
+          Rehabilitation based on exercise and effective routines for busy people.
+        </motion.p>
+
+        {/* CTA Buttons */}
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.8 }}
+          className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16"
+        >
+          <Button
+            onClick={() => window.open(whatsappUrl, '_blank')}
+            size="lg"
+            className="bg-brand-secondary hover:bg-brand-secondary/90 text-white px-8 py-6 text-lg font-semibold shadow-cta transform hover:scale-105 transition-all duration-300"
+          >
+            <MessageCircle className="w-6 h-6 mr-2" />
+            Book via WhatsApp
+          </Button>
+        </motion.div>
       </div>
     </section>
   );

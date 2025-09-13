@@ -8,31 +8,31 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Prime F&H Brand Colors */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 15%;
+    /* Prime Fit & Health Brand Colors - New Identity */
+    /* Primary: #181619 (Dark) */
+    --background: 50 100% 95%; /* Light cream background */
+    --foreground: 270 8% 10%; /* Dark text */
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 15%;
+    --card-foreground: 270 8% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 15%;
+    --popover-foreground: 270 8% 10%;
 
-    /* Primary: #398CA2 */
-    --primary: 194 45% 44%;
+    /* Primary: #181619 (Dark) */
+    --primary: 270 8% 10%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: #DE7654 */
-    --secondary: 17 64% 59%;
+    /* Secondary: #398CA2 (Teal) */
+    --secondary: 194 45% 44%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Soft background: #FFF8E4 */
+    /* Tertiary: #FFF8E4 (Cream) */
     --muted: 50 100% 95%;
-    --muted-foreground: 240 10% 45%;
+    --muted-foreground: 270 8% 10%;
 
-    /* Dark: #181619 */
-    --accent: 240 10% 95%;
-    --accent-foreground: 270 8% 10%;
+    --accent: 194 45% 44%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
@@ -43,19 +43,21 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
-    /* Brand specific tokens */
-    --brand-primary: 194 45% 44%;
-    --brand-secondary: 17 64% 59%;
-    --brand-dark: 270 8% 10%;
-    --brand-soft: 50 100% 95%;
+    /* Brand specific tokens - New Identity */
+    --brand-primary: 270 8% 10%; /* #181619 Dark */
+    --brand-secondary: 194 45% 44%; /* #398CA2 Teal */
+    --brand-tertiary: 50 100% 95%; /* #FFF8E4 Cream */
+    --brand-light: 0 0% 100%; /* Pure white */
     
     /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(194 45% 44%), hsl(194 55% 54%));
-    --gradient-cta: linear-gradient(135deg, hsl(17 64% 59%), hsl(17 74% 65%));
+    --gradient-hero: linear-gradient(135deg, hsl(270 8% 10%), hsl(270 8% 20%));
+    --gradient-cta: linear-gradient(135deg, hsl(194 45% 44%), hsl(194 55% 54%));
+    --gradient-dark: linear-gradient(135deg, hsl(270 8% 8%), hsl(270 8% 15%));
     
     /* Shadows */
-    --shadow-card: 0 4px 20px -2px hsl(194 45% 44% / 0.1);
-    --shadow-cta: 0 8px 25px -8px hsl(17 64% 59% / 0.4);
+    --shadow-card: 0 10px 40px -10px hsl(270 8% 10% / 0.15);
+    --shadow-cta: 0 8px 25px -8px hsl(194 45% 44% / 0.4);
+    --shadow-elevated: 0 20px 60px -20px hsl(270 8% 10% / 0.25);
     
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -81,16 +83,16 @@ All colors MUST be HSL.
     --background: 270 8% 10%;
     --foreground: 0 0% 98%;
 
-    --card: 270 8% 10%;
+    --card: 270 8% 15%;
     --card-foreground: 0 0% 98%;
 
     --popover: 270 8% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 194 45% 44%;
+    --primary: 270 8% 10%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 17 64% 59%;
+    --secondary: 194 45% 44%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 270 8% 15%;
@@ -107,10 +109,10 @@ All colors MUST be HSL.
     --ring: 194 45% 44%;
     
     /* Dark mode brand tokens */
-    --brand-primary: 194 45% 44%;
-    --brand-secondary: 17 64% 59%;
-    --brand-dark: 0 0% 98%;
-    --brand-soft: 270 8% 15%;
+    --brand-primary: 0 0% 98%;
+    --brand-secondary: 194 45% 44%;
+    --brand-tertiary: 270 8% 15%;
+    --brand-light: 270 8% 10%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -143,6 +145,10 @@ All colors MUST be HSL.
     background: var(--gradient-cta);
   }
   
+  .gradient-dark {
+    background: var(--gradient-dark);
+  }
+  
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
@@ -151,7 +157,52 @@ All colors MUST be HSL.
     box-shadow: var(--shadow-cta);
   }
   
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+  
   .transition-smooth {
     transition: var(--transition-smooth);
+  }
+  
+  /* Scroll animations */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0.7;
+      transform: translateY(-10px);
+    }
+  }
+  
+  .animate-fade-in-up {
+    animation: fadeInUp 0.8s ease-out;
+  }
+  
+  .animate-fade-out {
+    animation: fadeOut 0.6s ease-out;
+  }
+  
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up,
+    .animate-fade-out,
+    .transition-smooth {
+      animation: none !important;
+      transition: none !important;
+    }
   }
 }

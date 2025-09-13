@@ -1,10 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, MessageCircle } from "lucide-react";
 import logoImage from "@/assets/prime-fh-logo.png";
+import { motion } from "framer-motion";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 100);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -14,71 +25,81 @@ const Header = () => {
     }
   };
 
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre Prime F%26H. Me gustaría agendar una evaluación inicial.";
+  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre Prime Fit %26 Health. Me gustaría agendar una evaluación inicial.";
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border">
+    <motion.header 
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        isScrolled 
+          ? 'bg-white/95 backdrop-blur-md shadow-elevated py-2' 
+          : 'bg-white/90 backdrop-blur-sm py-4'
+      } border-b border-brand-primary/10`}
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center">
+          <motion.div 
+            className="flex items-center"
+            whileHover={{ scale: 1.05 }}
+            transition={{ duration: 0.2 }}
+          >
             <img 
               src={logoImage} 
-              alt="Prime F&H - Kinesiología y Entrenamiento" 
-              className="h-10 w-auto"
+              alt="Prime Fit & Health - Physiotherapy and Training" 
+              className={`transition-all duration-300 ${
+                isScrolled ? 'h-8' : 'h-12'
+              } w-auto`}
             />
-          </div>
+          </motion.div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <button 
-              onClick={() => scrollToSection('servicios')}
-              className="text-foreground hover:text-brand-primary transition-smooth"
-            >
-              Servicios
-            </button>
-            <button 
-              onClick={() => scrollToSection('como-funciona')}
-              className="text-foreground hover:text-brand-primary transition-smooth"
-            >
-              Cómo funciona
-            </button>
-            <button 
-              onClick={() => scrollToSection('equipo')}
-              className="text-foreground hover:text-brand-primary transition-smooth"
-            >
-              Equipo
-            </button>
-            <button 
-              onClick={() => scrollToSection('precios')}
-              className="text-foreground hover:text-brand-primary transition-smooth"
-            >
-              Precios
-            </button>
-            <button 
-              onClick={() => scrollToSection('ubicacion')}
-              className="text-foreground hover:text-brand-primary transition-smooth"
-            >
-              Ubicación
-            </button>
+            {[
+              { label: "Services", id: "servicios" },
+              { label: "How it Works", id: "como-funciona" },
+              { label: "Team", id: "equipo" },
+              { label: "Pricing", id: "precios" },
+              { label: "Location", id: "ubicacion" }
+            ].map((item, index) => (
+              <motion.button
+                key={item.id}
+                onClick={() => scrollToSection(item.id)}
+                className="text-brand-primary hover:text-brand-secondary transition-colors font-medium"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                {item.label}
+              </motion.button>
+            ))}
           </nav>
 
           {/* WhatsApp CTA */}
           <div className="flex items-center space-x-4">
-            <Button 
-              variant="whatsapp" 
-              size="sm"
-              onClick={() => window.open(whatsappUrl, '_blank')}
-              className="hidden sm:inline-flex"
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <MessageCircle className="w-4 h-4" />
-              Agenda por WhatsApp
-            </Button>
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={() => window.open(whatsappUrl, '_blank')}
+                className="hidden sm:inline-flex bg-brand-secondary hover:bg-brand-secondary/90 text-white"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Book via WhatsApp
+              </Button>
+            </motion.div>
 
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2"
+              className="md:hidden p-2 text-brand-primary"
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -87,52 +108,43 @@ const Header = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-border bg-white">
+          <motion.div 
+            className="md:hidden py-6 border-t border-brand-primary/10 bg-white/95 backdrop-blur-sm mt-4 rounded-lg"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
             <nav className="flex flex-col space-y-4">
-              <button 
-                onClick={() => scrollToSection('servicios')}
-                className="text-left text-foreground hover:text-brand-primary transition-smooth"
-              >
-                Servicios
-              </button>
-              <button 
-                onClick={() => scrollToSection('como-funciona')}
-                className="text-left text-foreground hover:text-brand-primary transition-smooth"
-              >
-                Cómo funciona
-              </button>
-              <button 
-                onClick={() => scrollToSection('equipo')}
-                className="text-left text-foreground hover:text-brand-primary transition-smooth"
-              >
-                Equipo
-              </button>
-              <button 
-                onClick={() => scrollToSection('precios')}
-                className="text-left text-foreground hover:text-brand-primary transition-smooth"
-              >
-                Precios
-              </button>
-              <button 
-                onClick={() => scrollToSection('ubicacion')}
-                className="text-left text-foreground hover:text-brand-primary transition-smooth"
-              >
-                Ubicación
-              </button>
+              {[
+                { label: "Services", id: "servicios" },
+                { label: "How it Works", id: "como-funciona" },
+                { label: "Team", id: "equipo" },
+                { label: "Pricing", id: "precios" },
+                { label: "Location", id: "ubicacion" }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="text-left text-brand-primary hover:text-brand-secondary transition-colors font-medium py-2"
+                >
+                  {item.label}
+                </button>
+              ))}
               <Button 
-                variant="whatsapp" 
+                variant="default" 
                 size="sm"
                 onClick={() => window.open(whatsappUrl, '_blank')}
-                className="w-full"
+                className="w-full mt-4 bg-brand-secondary hover:bg-brand-secondary/90 text-white"
               >
-                <MessageCircle className="w-4 h-4" />
-                Agenda por WhatsApp
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Book via WhatsApp
               </Button>
             </nav>
-          </div>
+          </motion.div>
         )}
       </div>
-    </header>
+    </motion.header>
   );
 };
 
