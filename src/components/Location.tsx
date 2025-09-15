@@ -2,9 +2,9 @@ import { MapPin, Phone, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Location = () => {
-  const address = "Av. Diego Portales 1234, Puerto Montt, Los Lagos";
-  const phone = "+56 9 1234 5678";
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me gustaría conocer la ubicación de Prime F%26H y agendar una visita.";
+  const address = "Avenida Volcán Puntiagudo 100, Mall La Paloma, Puerto Montt, Los Lagos, Chile";
+  const phone = "+56 9 5628 6651";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me gustaría conocer la ubicación de Prime F%26H y agendar una visita.";
 
   return (
     <section id="ubicacion" className="py-20 bg-background">
@@ -68,8 +68,8 @@ const Location = () => {
                   <div>
                     <h4 className="font-semibold text-brand-dark mb-1">Horarios</h4>
                     <div className="text-muted-foreground space-y-1">
-                      <p>Lun - Vie: 06:00 - 22:00</p>
-                      <p>Sábados: 08:00 - 14:00</p>
+                      <p>Lun - Vie: 06:00 - 21:00</p>
+                      <p>Sábados: 09:00 - 13:00</p>
                       <p>Domingos: Cerrado</p>
                     </div>
                   </div>
@@ -83,8 +83,8 @@ const Location = () => {
                 ¿Cómo llegar?
               </h4>
               <p className="text-muted-foreground mb-6">
-                Estamos ubicados en pleno centro de Puerto Montt, cerca del mall Paseo Costanera. 
-                Contamos con estacionamiento gratuito para nuestros clientes.
+                Estamos ubicados en Mall La Paloma, Puerto Montt, con fácil acceso y estacionamiento disponible. 
+                La ubicación es ideal para combinar tu entrenamiento con otras actividades.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">

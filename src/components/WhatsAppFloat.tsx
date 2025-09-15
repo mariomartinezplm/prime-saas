@@ -2,7 +2,7 @@ import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const WhatsAppFloat = () => {
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre Prime F%26H.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre Prime F%26H.";
 
   return (
     <>

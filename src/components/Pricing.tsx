@@ -2,17 +2,17 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, Check, Clock, Calendar } from "lucide-react";
 
 const Pricing = () => {
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre los planes de Prime F%26H.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre los planes de Prime F%26H.";
 
   const plans = [
     {
-      name: "Plan Básico",
-      type: "Entrenamiento",
+      name: "Plan 2x Semana",
+      type: "Entrenamiento Semi-personalizado",
       price: "89.990",
       period: "mensual",
-      description: "Ideal para comenzar tu transformación",
+      description: "Entrenamientos efectivos dos veces por semana",
       features: [
-        "12 sesiones mensuales",
+        "8 sesiones mensuales",
         "Grupos de máx. 4 personas",
         "Evaluación inicial gratuita",
         "Plan personalizado",
@@ -22,44 +22,43 @@ const Pricing = () => {
       ctaText: "Comenzar ahora"
     },
     {
-      name: "Plan Premium",
-      type: "Entrenamiento + Kine",
-      price: "149.990",
+      name: "Plan 3x Semana",
+      type: "Entrenamiento Semi-personalizado",
+      price: "129.990",
       period: "mensual",
       description: "La opción más completa para resultados óptimos",
       features: [
-        "16 sesiones mensuales",
-        "Kinesiología incluida",
+        "12 sesiones mensuales",
+        "Grupos de máx. 4 personas",
         "Evaluación completa",
         "Plan 100% personalizado",
-        "Seguimiento diario",
-        "Nutrición básica",
-        "Soporte WhatsApp 24/7"
+        "Seguimiento semanal",
+        "Soporte WhatsApp"
       ],
       popular: true,
       ctaText: "Plan más popular"
     },
     {
-      name: "Sesiones Kine",
-      type: "Solo Kinesiología",
-      price: "25.000",
-      period: "por sesión",
+      name: "10 Sesiones Kine",
+      type: "Kinesiología",
+      price: "190.990",
+      period: "paquete",
       description: "Rehabilitación y recuperación especializada",
       features: [
-        "Sesión individual 45min",
+        "10 sesiones individuales",
         "Evaluación kinesiológica",
         "Ejercicios terapéuticos",
         "Plan de recuperación",
         "Seguimiento personalizado"
       ],
       popular: false,
-      ctaText: "Agendar sesión"
+      ctaText: "Agendar sesiones"
     }
   ];
 
   const schedule = [
-    { day: "Lunes - Viernes", time: "06:00 - 22:00" },
-    { day: "Sábados", time: "08:00 - 14:00" },
+    { day: "Lunes - Viernes", time: "06:00 - 21:00" },
+    { day: "Sábados", time: "09:00 - 13:00" },
     { day: "Domingos", time: "Cerrado" }
   ];
 
