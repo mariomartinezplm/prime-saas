@@ -30,7 +30,7 @@ Mi objetivo/situación es: ${formData.objetivo}
 
 Me gustaría agendar una evaluación inicial.`;
 
-    const whatsappUrl = `https://wa.me/56912345678?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://wa.me/56956286651?text=${encodeURIComponent(message)}`;
     
     // Open WhatsApp
     window.open(whatsappUrl, '_blank');
@@ -57,9 +57,9 @@ Me gustaría agendar una evaluación inicial.`;
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
-              Agenda tu Evaluación Gratuita
-            </h2>
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
+            Agenda tu Evaluación Gratuita
+          </h2>
             <p className="text-xl text-muted-foreground">
               Completa el formulario y te contactaremos por WhatsApp para coordinar tu cita
             </p>
@@ -68,7 +68,7 @@ Me gustaría agendar una evaluación inicial.`;
           <div className="bg-card rounded-2xl p-8 shadow-card">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <Label htmlFor="nombre" className="text-base font-semibold text-brand-dark">
+                <Label htmlFor="nombre" className="text-base font-semibold text-brand-primary">
                   Tu nombre completo *
                 </Label>
                 <Input
@@ -83,7 +83,7 @@ Me gustaría agendar una evaluación inicial.`;
               </div>
 
               <div>
-                <Label htmlFor="telefono" className="text-base font-semibold text-brand-dark">
+                <Label htmlFor="telefono" className="text-base font-semibold text-brand-primary">
                   Teléfono / WhatsApp *
                 </Label>
                 <Input
@@ -98,7 +98,7 @@ Me gustaría agendar una evaluación inicial.`;
               </div>
 
               <div>
-                <Label htmlFor="objetivo" className="text-base font-semibold text-brand-dark">
+                <Label htmlFor="objetivo" className="text-base font-semibold text-brand-primary">
                   ¿Cuál es tu objetivo principal o situación actual? *
                 </Label>
                 <Select onValueChange={(value) => handleInputChange("objetivo", value)}>
@@ -122,7 +122,7 @@ Me gustaría agendar una evaluación inicial.`;
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-brand-primary flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-muted-foreground">
-                    <p className="font-semibold text-brand-dark mb-1">¿Qué pasa después?</p>
+                    <p className="font-semibold text-brand-primary mb-1">¿Qué pasa después?</p>
                     <ul className="space-y-1">
                       <li>• Te enviaremos un mensaje por WhatsApp</li>
                       <li>• Coordinaremos tu evaluación inicial gratuita</li>
@@ -149,12 +149,12 @@ Me gustaría agendar una evaluación inicial.`;
             <p className="text-sm text-muted-foreground">
               También puedes escribirnos directamente al{" "}
               <a 
-                href="https://wa.me/56912345678" 
+                href="https://wa.me/56956286651" 
                 className="text-brand-primary font-semibold hover:underline"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                +56 9 1234 5678
+                +56 9 5628 6651
               </a>
             </p>
           </div>

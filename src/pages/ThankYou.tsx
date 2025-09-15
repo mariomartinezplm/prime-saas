@@ -4,7 +4,7 @@ import { CheckCircle, MessageCircle, Home } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const ThankYou = () => {
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Acabo de completar el formulario y me gustaría confirmar mi evaluación inicial.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Acabo de completar el formulario y me gustaría confirmar mi evaluación inicial.";
 
   useEffect(() => {
     // Analytics event
@@ -89,10 +89,10 @@ const ThankYou = () => {
             <p className="text-sm text-muted-foreground">
               ¿Prefieres llamar? También puedes contactarnos directamente al{" "}
               <a 
-                href="tel:+56912345678" 
+                href="tel:+56956286651" 
                 className="text-brand-primary font-semibold hover:underline"
               >
-                +56 9 1234 5678
+                +56 9 5628 6651
               </a>
             </p>
           </div>

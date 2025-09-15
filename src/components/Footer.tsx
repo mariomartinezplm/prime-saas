@@ -1,7 +1,7 @@
 import { MessageCircle, MapPin, Phone, Clock, Instagram, Facebook } from "lucide-react";
 
 const Footer = () => {
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre Prime F%26H.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre Prime F%26H.";
 
   return (
     <footer className="bg-brand-dark text-white py-16">
@@ -49,13 +49,13 @@ const Footer = () => {
               <div className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-brand-secondary flex-shrink-0 mt-0.5" />
                 <span className="text-white/80 text-sm">
-                  Av. Diego Portales 1234<br />
-                  Puerto Montt, Los Lagos
+                  Avenida Volcán Puntiagudo 100<br />
+                  Mall La Paloma, Puerto Montt
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-brand-secondary flex-shrink-0" />
-                <span className="text-white/80 text-sm">+56 9 1234 5678</span>
+                <span className="text-white/80 text-sm">+56 9 5628 6651</span>
               </div>
             </div>
           </div>
@@ -66,11 +66,11 @@ const Footer = () => {
             <div className="space-y-2 text-sm text-white/80">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-brand-secondary" />
-                <span>Lun - Vie: 06:00 - 22:00</span>
+                <span>Lun - Vie: 06:00 - 21:00</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-brand-secondary" />
-                <span>Sáb: 08:00 - 14:00</span>
+                <span>Sáb: 09:00 - 13:00</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-brand-secondary" />

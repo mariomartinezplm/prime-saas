@@ -11,48 +11,48 @@ const Team = () => {
   const team = [
     {
       name: "Dr. Carlos Mendoza",
-      role: "Kinesiologist",
-      specialty: "Sports Rehabilitation",
+      role: "Kinesiólogo",
+      specialty: "Rehabilitación Deportiva",
       image: teamKinesiologo,
-      description: "Specialized in injury recovery and sports performance optimization through evidence-based exercise therapy.",
-      credentials: "Kinesiologist UC • Masters in Sports Medicine"
+      description: "Especializado en recuperación de lesiones y optimización del rendimiento deportivo mediante terapia de ejercicio basada en evidencia.",
+      credentials: "Kinesiólogo UC • Magíster en Medicina Deportiva"
     },
     {
       name: "María González", 
-      role: "Personal Trainer",
-      specialty: "Strength & Conditioning",
+      role: "Entrenadora Personal",
+      specialty: "Fuerza y Acondicionamiento",
       image: teamTrainer,
-      description: "Expert in time-efficient training programs designed for busy professionals seeking maximum results.",
-      credentials: "Physical Education UACh • Certified Strength & Conditioning"
+      description: "Experta en programas de entrenamiento eficientes en tiempo diseñados para profesionales ocupados que buscan máximos resultados.",
+      credentials: "Educación Física UACh • Certificada en Fuerza y Acondicionamiento"
     },
     {
       name: "Sofía Torres",
-      role: "Client Coordinator", 
-      specialty: "Customer Success",
+      role: "Coordinadora de Clientes", 
+      specialty: "Éxito del Cliente",
       image: teamCoordinator,
-      description: "Your dedicated point of contact for scheduling, progress tracking, and ongoing support throughout your journey.",
-      credentials: "Business Administration • Customer Success Specialist"
+      description: "Tu punto de contacto dedicado para agendamiento, seguimiento del progreso y apoyo continuo durante tu proceso.",
+      credentials: "Administración de Empresas • Especialista en Éxito del Cliente"
     },
     {
       name: "Dr. Ana Ruiz",
-      role: "Physical Therapist",
-      specialty: "Pain Management", 
+      role: "Fisioterapeuta",
+      specialty: "Manejo del Dolor", 
       image: teamKinesiologo,
-      description: "Focused on chronic pain relief and movement optimization through targeted therapeutic interventions.",
-      credentials: "Physical Therapy UC • Pain Management Certification"
+      description: "Enfocada en alivio del dolor crónico y optimización del movimiento a través de intervenciones terapéuticas dirigidas.",
+      credentials: "Fisioterapia UC • Certificación en Manejo del Dolor"
     },
     {
       name: "Roberto Silva",
-      role: "Athletic Performance Coach",
-      specialty: "Sports Training",
+      role: "Entrenador de Rendimiento Atlético",
+      specialty: "Entrenamiento Deportivo",
       image: teamTrainer, 
-      description: "Specialized in athletic performance enhancement and return-to-sport protocols for all skill levels.",
-      credentials: "Exercise Science • Certified Performance Enhancement Specialist"
+      description: "Especializado en mejora del rendimiento atlético y protocolos de retorno al deporte para todos los niveles.",
+      credentials: "Ciencias del Ejercicio • Especialista Certificado en Mejora del Rendimiento"
     }
   ];
 
   const handleBookWithProfessional = (name: string) => {
-    const whatsappUrl = `https://wa.me/56912345678?text=Hola! Me interesa agendar una sesión con ${name}. ¿Podrían ayudarme con la disponibilidad?`;
+    const whatsappUrl = `https://wa.me/56956286651?text=Hola! Me interesa agendar una sesión con ${name}. ¿Podrían ayudarme con la disponibilidad?`;
     window.open(whatsappUrl, '_blank');
   };
 
@@ -61,10 +61,10 @@ const Team = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-4xl lg:text-5xl font-bold text-brand-primary mb-6">
-            Our Expert Team
+            Nuestro Equipo Experto
           </h2>
           <p className="text-xl text-brand-primary/80 max-w-3xl mx-auto leading-relaxed">
-            Meet our dedicated professionals committed to your health, recovery, and peak performance
+            Conoce a nuestros profesionales dedicados a tu salud, recuperación y máximo rendimiento
           </p>
         </div>
 
@@ -121,7 +121,7 @@ const Team = () => {
                   size="sm"
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
-                  Book with {member.name.split(' ')[0]}
+                  Reservar con {member.name.split(' ')[0]}
                 </Button>
               </div>
             </div>
@@ -132,19 +132,19 @@ const Team = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 bg-brand-primary rounded-3xl p-10">
           <div className="text-center">
             <div className="text-4xl font-bold text-brand-light mb-2">25+</div>
-            <div className="text-brand-light/80 font-medium">Years Combined Experience</div>
+            <div className="text-brand-light/80 font-medium">Años de Experiencia Combinada</div>
           </div>
           <div className="text-center">
             <div className="text-4xl font-bold text-brand-light mb-2">1000+</div>
-            <div className="text-brand-light/80 font-medium">Clients Served</div>
+            <div className="text-brand-light/80 font-medium">Clientes Atendidos</div>
           </div>
           <div className="text-center">
             <div className="text-4xl font-bold text-brand-light mb-2">98%</div>
-            <div className="text-brand-light/80 font-medium">Success Rate</div>
+            <div className="text-brand-light/80 font-medium">Tasa de Éxito</div>
           </div>
           <div className="text-center">
             <div className="text-4xl font-bold text-brand-light mb-2">24/7</div>
-            <div className="text-brand-light/80 font-medium">WhatsApp Support</div>
+            <div className="text-brand-light/80 font-medium">Soporte WhatsApp</div>
           </div>
         </div>
       </div>

@@ -25,7 +25,7 @@ const Header = () => {
     }
   };
 
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre Prime Fit %26 Health. Me gustaría agendar una evaluación inicial.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre Prime Fit %26 Health. Me gustaría agendar una evaluación inicial.";
 
   return (
     <motion.header 
@@ -58,11 +58,11 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             {[
-              { label: "Services", id: "servicios" },
-              { label: "How it Works", id: "como-funciona" },
-              { label: "Team", id: "equipo" },
-              { label: "Pricing", id: "precios" },
-              { label: "Location", id: "ubicacion" }
+              { label: "Servicios", id: "servicios" },
+              { label: "Cómo Funciona", id: "como-funciona" },
+              { label: "Equipo", id: "equipo" },
+              { label: "Precios", id: "precios" },
+              { label: "Ubicación", id: "ubicacion" }
             ].map((item, index) => (
               <motion.button
                 key={item.id}
@@ -92,7 +92,7 @@ const Header = () => {
                 className="hidden sm:inline-flex bg-brand-secondary hover:bg-brand-secondary/90 text-white"
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
-                Book via WhatsApp
+                Reservar por WhatsApp
               </Button>
             </motion.div>
 
@@ -117,11 +117,11 @@ const Header = () => {
           >
             <nav className="flex flex-col space-y-4">
               {[
-                { label: "Services", id: "servicios" },
-                { label: "How it Works", id: "como-funciona" },
-                { label: "Team", id: "equipo" },
-                { label: "Pricing", id: "precios" },
-                { label: "Location", id: "ubicacion" }
+                { label: "Servicios", id: "servicios" },
+                { label: "Cómo Funciona", id: "como-funciona" },
+                { label: "Equipo", id: "equipo" },
+                { label: "Precios", id: "precios" },
+                { label: "Ubicación", id: "ubicacion" }
               ].map((item) => (
                 <button
                   key={item.id}
@@ -138,7 +138,7 @@ const Header = () => {
                 className="w-full mt-4 bg-brand-secondary hover:bg-brand-secondary/90 text-white"
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
-                Book via WhatsApp
+                Reservar por WhatsApp
               </Button>
             </nav>
           </motion.div>

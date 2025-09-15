@@ -73,12 +73,12 @@ const Index = () => {
             "@context": "https://schema.org",
             "@type": "LocalBusiness",
             "name": "Prime Fit & Health",
-            "description": "Physiotherapy and semi-personalized training center in Puerto Montt. Effective workouts in less than 1 hour and exercise-based rehabilitation.",
+            "description": "Kinesiología y entrenamiento semi-personalizado en Puerto Montt. Entrenamientos efectivos en menos de 1 hora y rehabilitación basada en ejercicio.",
             "url": "https://primefitandhealth.cl",
-            "telephone": "+56912345678",
+            "telephone": "+56956286651",
             "address": {
               "@type": "PostalAddress",
-              "streetAddress": "Av. Diego Portales 1234",
+              "streetAddress": "Avenida Volcán Puntiagudo 100, Mall La Paloma",
               "addressLocality": "Puerto Montt",
               "addressRegion": "Los Lagos",
               "addressCountry": "CL"
@@ -89,8 +89,8 @@ const Index = () => {
               "longitude": -72.9424
             },
             "openingHours": [
-              "Mo-Fr 06:00-22:00",
-              "Sa 08:00-14:00"
+              "Mo-Fr 06:00-21:00",
+              "Sa 09:00-13:00"
             ],
             "priceRange": "$89990-$149990",
             "servedCuisine": [],
@@ -102,16 +102,16 @@ const Index = () => {
                   "@type": "Offer",
                   "itemOffered": {
                     "@type": "Service",
-                    "name": "Semi-personalized Training",
-                    "description": "Effective workouts of maximum 60 minutes"
+                    "name": "Entrenamiento Semi-personalizado",
+                    "description": "Entrenamientos efectivos de máximo 60 minutos"
                   }
                 },
                 {
                   "@type": "Offer", 
                   "itemOffered": {
                     "@type": "Service",
-                    "name": "Sports Physiotherapy",
-                    "description": "Exercise-based rehabilitation"
+                    "name": "Kinesiología Deportiva",
+                    "description": "Rehabilitación basada en ejercicio"
                   }
                 }
               ]

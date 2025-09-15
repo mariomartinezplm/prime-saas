@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 const FAQ = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Tengo una consulta que no encontré en las preguntas frecuentes.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Tengo una consulta que no encontré en las preguntas frecuentes.";
 
   const faqs = [
     {
@@ -30,7 +30,7 @@ const FAQ = () => {
     },
     {
       question: "¿Cómo agendo mi primera sesión por WhatsApp?",
-      answer: "Solo haz clic en cualquier botón de WhatsApp de esta página o envía un mensaje al +56 9 1234 5678. Te responderemos inmediatamente para coordinar tu evaluación inicial gratuita."
+      answer: "Solo haz clic en cualquier botón de WhatsApp de esta página o envía un mensaje al +56 9 5628 6651. Te responderemos inmediatamente para coordinar tu evaluación inicial gratuita."
     },
     {
       question: "¿Qué necesito traer para entrenar?",

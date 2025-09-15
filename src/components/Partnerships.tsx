@@ -49,7 +49,7 @@ const Partnerships = () => {
   };
 
   const handleWhatsAppContact = () => {
-    const whatsappUrl = "https://wa.me/56912345678?text=Hola! Nos interesa explorar una alianza corporativa con Prime Fit %26 Health. ¿Podrían contactarnos para conversar sobre opciones?";
+    const whatsappUrl = "https://wa.me/56956286651?text=Hola! Nos interesa explorar una alianza corporativa con Prime Fit %26 Health. ¿Podrían contactarnos para conversar sobre opciones?";
     window.open(whatsappUrl, '_blank');
   };
 
@@ -58,10 +58,10 @@ const Partnerships = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-4xl lg:text-5xl font-bold text-brand-light mb-6">
-            Trusted Corporate Partners
+            Socios Corporativos de Confianza
           </h2>
           <p className="text-xl text-brand-light/80 max-w-3xl mx-auto leading-relaxed">
-            Leading companies trust us to keep their teams healthy, fit, and performing at their best
+            Empresas líderes confían en nosotros para mantener a sus equipos saludables, en forma y rindiendo al máximo
           </p>
         </div>
 
@@ -114,17 +114,17 @@ const Partnerships = () => {
         <div className="text-center mt-16">
           <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 max-w-2xl mx-auto border border-white/20">
             <h3 className="text-2xl font-bold text-brand-light mb-4">
-              Want a Corporate Partnership?
+              ¿Quieres una Alianza Corporativa?
             </h3>
             <p className="text-brand-light/80 mb-6 leading-relaxed">
-              Join industry leaders in prioritizing employee wellness. We offer customized corporate health programs designed to boost productivity and employee satisfaction.
+              Únete a líderes de la industria priorizando el bienestar de empleados. Ofrecemos programas corporativos de salud personalizados diseñados para aumentar la productividad y satisfacción laboral.
             </p>
             <Button
               onClick={handleWhatsAppContact}
               className="bg-brand-secondary hover:bg-brand-secondary/90 text-white px-8 py-4 text-lg font-semibold"
             >
               <MessageCircle className="w-5 h-5 mr-2" />
-              Contact us on WhatsApp
+              Contáctanos por WhatsApp
             </Button>
           </div>
         </div>

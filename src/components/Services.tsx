@@ -3,7 +3,7 @@ import { MessageCircle, Dumbbell, Heart, Activity } from "lucide-react";
 import physiotherapyImage from "@/assets/physiotherapy.jpg";
 
 const Services = () => {
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre los servicios de Prime F%26H.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre los servicios de Prime F%26H.";
 
   return (
     <section id="servicios" className="py-20 bg-brand-light">

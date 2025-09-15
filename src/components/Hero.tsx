@@ -11,7 +11,7 @@ const Hero = () => {
     }
   };
 
-  const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre Prime Fit %26 Health. Me gustaría agendar una evaluación inicial.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre Prime Fit %26 Health. Me gustaría agendar una evaluación inicial.";
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-dark">
@@ -41,17 +41,17 @@ const Hero = () => {
           <div className="flex items-center gap-2 text-brand-light">
             <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
             <span className="font-semibold">4.9/5</span>
-            <span className="text-sm opacity-80">Rating</span>
+            <span className="text-sm opacity-80">Calificación</span>
           </div>
           <div className="flex items-center gap-2 text-brand-light">
             <Users className="w-5 h-5" />
             <span className="font-semibold">1000+</span>
-            <span className="text-sm opacity-80">Happy Clients</span>
+            <span className="text-sm opacity-80">Clientes Satisfechos</span>
           </div>
           <div className="flex items-center gap-2 text-brand-light">
             <Clock className="w-5 h-5" />
             <span className="font-semibold">&lt;60min</span>
-            <span className="text-sm opacity-80">Sessions</span>
+            <span className="text-sm opacity-80">Sesiones</span>
           </div>
         </motion.div>
 
@@ -62,9 +62,9 @@ const Hero = () => {
           transition={{ duration: 1, delay: 0.4 }}
           className="text-5xl md:text-6xl lg:text-7xl font-bold text-brand-light mb-8 leading-tight"
         >
-          Recover your body.
+          Recupera tu cuerpo.
           <br />
-          <span className="text-brand-secondary">Train without wasting time.</span>
+          <span className="text-brand-secondary">Entrena sin perder tiempo.</span>
         </motion.h1>
 
         {/* Subheading */}
@@ -74,9 +74,9 @@ const Hero = () => {
           transition={{ duration: 1, delay: 0.6 }}
           className="text-xl md:text-2xl text-brand-light/90 max-w-4xl mx-auto mb-12 leading-relaxed font-light"
         >
-          Expert physiotherapy and semi-personalized training in Puerto Montt. 
+          Kinesiología experta y entrenamiento semi-personalizado en Puerto Montt. 
           <br className="hidden md:block" />
-          Rehabilitation based on exercise and effective routines for busy people.
+          Rehabilitación basada en ejercicio y rutinas efectivas para personas ocupadas.
         </motion.p>
 
         {/* CTA Buttons */}
@@ -92,7 +92,7 @@ const Hero = () => {
             className="bg-brand-secondary hover:bg-brand-secondary/90 text-white px-8 py-6 text-lg font-semibold shadow-cta transform hover:scale-105 transition-all duration-300"
           >
             <MessageCircle className="w-6 h-6 mr-2" />
-            Book via WhatsApp
+            Reservar por WhatsApp
           </Button>
         </motion.div>
       </div>

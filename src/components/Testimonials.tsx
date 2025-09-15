@@ -32,7 +32,7 @@ const Testimonials = () => {
     <section className="py-20 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
             Historias de Éxito
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -60,7 +60,7 @@ const Testimonials = () => {
 
               {/* Client Info */}
               <div className="border-t border-border pt-6">
-                <h4 className="font-bold text-brand-dark mb-1">
+                <h4 className="font-bold text-brand-primary mb-1">
                   {testimonial.name}
                 </h4>
                 <p className="text-sm text-muted-foreground mb-3">
@@ -81,7 +81,7 @@ const Testimonials = () => {
         </div>
 
         {/* Overall Stats */}
-        <div className="mt-16 text-center bg-brand-soft rounded-2xl p-12">
+        <div className="mt-16 text-center bg-brand-light rounded-2xl p-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
               <div className="text-3xl font-bold text-brand-primary mb-2">4.9/5</div>

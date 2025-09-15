@@ -10,7 +10,7 @@ const Location = () => {
     <section id="ubicacion" className="py-20 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
             Nuestra Ubicación
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -36,7 +36,7 @@ const Location = () => {
           {/* Contact Info */}
           <div className="space-y-8">
             <div className="bg-card rounded-2xl p-8 shadow-card">
-              <h3 className="text-2xl font-bold text-brand-dark mb-6">
+              <h3 className="text-2xl font-bold text-brand-primary mb-6">
                 Información de Contacto
               </h3>
               
@@ -46,7 +46,7 @@ const Location = () => {
                     <MapPin className="w-6 h-6 text-brand-primary" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-brand-dark mb-1">Dirección</h4>
+                    <h4 className="font-semibold text-brand-primary mb-1">Dirección</h4>
                     <p className="text-muted-foreground">{address}</p>
                   </div>
                 </div>
@@ -56,7 +56,7 @@ const Location = () => {
                     <Phone className="w-6 h-6 text-brand-primary" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-brand-dark mb-1">Teléfono</h4>
+                    <h4 className="font-semibold text-brand-primary mb-1">Teléfono</h4>
                     <p className="text-muted-foreground">{phone}</p>
                   </div>
                 </div>
@@ -66,7 +66,7 @@ const Location = () => {
                     <Clock className="w-6 h-6 text-brand-primary" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-brand-dark mb-1">Horarios</h4>
+                    <h4 className="font-semibold text-brand-primary mb-1">Horarios</h4>
                     <div className="text-muted-foreground space-y-1">
                       <p>Lun - Vie: 06:00 - 21:00</p>
                       <p>Sábados: 09:00 - 13:00</p>
@@ -79,7 +79,7 @@ const Location = () => {
 
             {/* Directions & Contact */}
             <div className="bg-brand-soft rounded-2xl p-8">
-              <h4 className="text-xl font-bold text-brand-dark mb-4">
+              <h4 className="text-xl font-bold text-brand-primary mb-4">
                 ¿Cómo llegar?
               </h4>
               <p className="text-muted-foreground mb-6">
@@ -109,7 +109,7 @@ const Location = () => {
 
             {/* Accessibility & Parking */}
             <div className="bg-card rounded-2xl p-6 shadow-card">
-              <h4 className="font-semibold text-brand-dark mb-4">Facilidades</h4>
+              <h4 className="font-semibold text-brand-primary mb-4">Facilidades</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
