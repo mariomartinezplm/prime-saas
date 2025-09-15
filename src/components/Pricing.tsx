@@ -63,10 +63,10 @@ const Pricing = () => {
   ];
 
   return (
-    <section id="precios" className="py-20 bg-brand-soft">
+    <section id="precios" className="py-20 bg-brand-light">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
             Planes y Horarios
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -79,27 +79,27 @@ const Pricing = () => {
           {plans.map((plan, index) => (
             <div 
               key={index} 
-              className={`bg-white rounded-2xl p-8 shadow-card relative ${
-                plan.popular ? 'ring-2 ring-brand-primary' : ''
+              className={`bg-card rounded-2xl p-8 shadow-card relative ${
+                plan.popular ? 'ring-2 ring-brand-secondary' : ''
               }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-brand-primary text-white px-6 py-2 rounded-full text-sm font-semibold">
+                  <span className="bg-brand-secondary text-white px-6 py-2 rounded-full text-sm font-semibold">
                     Más Popular
                   </span>
                 </div>
               )}
               
               <div className="text-center mb-8">
-                <h3 className="text-xl font-bold text-brand-dark mb-2">
+                <h3 className="text-xl font-bold text-brand-primary mb-2">
                   {plan.name}
                 </h3>
-                <p className="text-brand-primary font-medium mb-4">
+                <p className="text-brand-secondary font-medium mb-4">
                   {plan.type}
                 </p>
                 <div className="mb-4">
-                  <span className="text-4xl font-bold text-brand-dark">
+                  <span className="text-4xl font-bold text-brand-primary">
                     ${plan.price.toLocaleString()}
                   </span>
                   <span className="text-muted-foreground"> /{plan.period}</span>
@@ -112,7 +112,7 @@ const Pricing = () => {
               <div className="space-y-4 mb-8">
                 {plan.features.map((feature, idx) => (
                   <div key={idx} className="flex items-center gap-3">
-                    <Check className="w-5 h-5 text-brand-primary flex-shrink-0" />
+                    <Check className="w-5 h-5 text-brand-secondary flex-shrink-0" />
                     <span className="text-foreground">{feature}</span>
                   </div>
                 ))}
@@ -131,10 +131,10 @@ const Pricing = () => {
         </div>
 
         {/* Schedule */}
-        <div className="bg-white rounded-2xl p-8 shadow-card max-w-2xl mx-auto">
+        <div className="bg-card rounded-2xl p-8 shadow-card max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-brand-dark mb-4 flex items-center justify-center gap-3">
-              <Clock className="w-6 h-6 text-brand-primary" />
+            <h3 className="text-2xl font-bold text-brand-primary mb-4 flex items-center justify-center gap-3">
+              <Clock className="w-6 h-6 text-brand-secondary" />
               Horarios de Atención
             </h3>
             <p className="text-muted-foreground">
@@ -146,15 +146,15 @@ const Pricing = () => {
             {schedule.map((slot, index) => (
               <div key={index} className="flex justify-between items-center py-3 border-b border-border last:border-0">
                 <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-brand-primary" />
-                  <span className="font-medium text-brand-dark">{slot.day}</span>
+                  <Calendar className="w-5 h-5 text-brand-secondary" />
+                  <span className="font-medium text-brand-primary">{slot.day}</span>
                 </div>
                 <span className="text-muted-foreground font-medium">{slot.time}</span>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 p-4 bg-brand-soft rounded-lg">
+          <div className="mt-8 p-4 bg-brand-light rounded-lg">
             <p className="text-sm text-center text-muted-foreground">
               <strong>Nota:</strong> Horarios pueden variar en días festivos. 
               Confirma tu horario preferido al agendar por WhatsApp.

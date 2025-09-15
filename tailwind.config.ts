@@ -55,6 +55,7 @@ export default {
           secondary: "hsl(var(--brand-secondary))",
           tertiary: "hsl(var(--brand-tertiary))",
           light: "hsl(var(--brand-light))",
+          dark: "hsl(var(--brand-dark))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

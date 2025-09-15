@@ -53,7 +53,7 @@ const Benefits = () => {
         {/* Training Benefits */}
         <div className="mb-20">
           <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+            <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
               Entrenamiento Semi-personalizado
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -64,10 +64,10 @@ const Benefits = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {trainingBenefits.map((benefit, index) => (
               <div key={index} className="bg-card rounded-lg p-6 shadow-card hover:shadow-lg transition-smooth">
-                <div className="bg-brand-soft rounded-lg p-3 w-fit mb-4">
+                <div className="bg-brand-light rounded-lg p-3 w-fit mb-4">
                   <benefit.icon className="w-6 h-6 text-brand-primary" />
                 </div>
-                <h3 className="text-lg font-semibold text-brand-dark mb-3">
+                <h3 className="text-lg font-semibold text-brand-primary mb-3">
                   {benefit.title}
                 </h3>
                 <p className="text-muted-foreground">
@@ -81,7 +81,7 @@ const Benefits = () => {
         {/* Kinesiología Benefits */}
         <div>
           <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+            <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
               Kinesiología Deportiva
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -92,10 +92,10 @@ const Benefits = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {kineBenefits.map((benefit, index) => (
               <div key={index} className="bg-card rounded-lg p-6 shadow-card hover:shadow-lg transition-smooth">
-                <div className="bg-brand-soft rounded-lg p-3 w-fit mb-4">
+                <div className="bg-brand-light rounded-lg p-3 w-fit mb-4">
                   <benefit.icon className="w-6 h-6 text-brand-secondary" />
                 </div>
-                <h3 className="text-lg font-semibold text-brand-dark mb-3">
+                <h3 className="text-lg font-semibold text-brand-primary mb-3">
                   {benefit.title}
                 </h3>
                 <p className="text-muted-foreground">

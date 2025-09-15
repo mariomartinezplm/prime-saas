@@ -43,10 +43,10 @@ const FAQ = () => {
   ];
 
   return (
-    <section className="py-20 bg-brand-soft">
+    <section className="py-20 bg-brand-light">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
             Preguntas Frecuentes
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -60,9 +60,9 @@ const FAQ = () => {
               <div key={index} className="bg-white rounded-lg shadow-card overflow-hidden">
                 <button
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-brand-soft/50 transition-smooth"
+                  className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-brand-light/50 transition-smooth"
                 >
-                  <h3 className="text-lg font-semibold text-brand-dark pr-4">
+                  <h3 className="text-lg font-semibold text-brand-primary pr-4">
                     {faq.question}
                   </h3>
                   <ChevronDown 
@@ -85,7 +85,7 @@ const FAQ = () => {
 
           {/* Still have questions CTA */}
           <div className="text-center bg-white rounded-2xl p-8 shadow-card">
-            <h3 className="text-xl font-bold text-brand-dark mb-4">
+            <h3 className="text-xl font-bold text-brand-primary mb-4">
               ¿Tienes más preguntas?
             </h3>
             <p className="text-muted-foreground mb-6">

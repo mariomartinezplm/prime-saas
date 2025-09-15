@@ -9,27 +9,27 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Prime Fit & Health Brand Colors - New Identity */
+    /* Primary: #181619 (Dark) - Now as main background */
+    --background: 270 8% 8%; /* Dark black background */
+    --foreground: 0 0% 98%; /* Almost white text for high contrast */
+
+    --card: 270 8% 12%; /* Slightly lighter dark for cards */
+    --card-foreground: 0 0% 95%; /* Light text on cards */
+
+    --popover: 270 8% 10%;
+    --popover-foreground: 0 0% 98%;
+
     /* Primary: #181619 (Dark) */
-    --background: 50 100% 95%; /* Light cream background */
-    --foreground: 270 8% 10%; /* Dark text */
-
-    --card: 0 0% 100%;
-    --card-foreground: 270 8% 10%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 270 8% 10%;
-
-    /* Primary: #181619 (Dark) */
-    --primary: 270 8% 10%;
+    --primary: 270 8% 15%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary: #398CA2 (Teal) */
     --secondary: 194 45% 44%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Tertiary: #FFF8E4 (Cream) */
-    --muted: 50 100% 95%;
-    --muted-foreground: 270 8% 10%;
+    /* Tertiary: #FFF8E4 (Cream) - Used sparingly for accents */
+    --muted: 270 8% 15%;
+    --muted-foreground: 0 0% 75%; /* Better contrast on dark */
 
     --accent: 194 45% 44%;
     --accent-foreground: 0 0% 100%;
@@ -37,27 +37,28 @@ All colors MUST be HSL.
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --border: 270 8% 20%; /* Subtle borders on dark */
+    --input: 270 8% 15%;
     --ring: 194 45% 44%;
 
     --radius: 0.75rem;
 
     /* Brand specific tokens - New Identity */
-    --brand-primary: 270 8% 10%; /* #181619 Dark */
+    --brand-primary: 0 0% 98%; /* White text on dark backgrounds */
     --brand-secondary: 194 45% 44%; /* #398CA2 Teal */
-    --brand-tertiary: 50 100% 95%; /* #FFF8E4 Cream */
-    --brand-light: 0 0% 100%; /* Pure white */
+    --brand-tertiary: 50 100% 95%; /* #FFF8E4 Cream for accents */
+    --brand-light: 270 8% 12%; /* Dark card background */
+    --brand-dark: 270 8% 8%; /* Main dark background */
     
     /* Gradients */
     --gradient-hero: linear-gradient(135deg, hsl(270 8% 10%), hsl(270 8% 20%));
     --gradient-cta: linear-gradient(135deg, hsl(194 45% 44%), hsl(194 55% 54%));
     --gradient-dark: linear-gradient(135deg, hsl(270 8% 8%), hsl(270 8% 15%));
     
-    /* Shadows */
-    --shadow-card: 0 10px 40px -10px hsl(270 8% 10% / 0.15);
-    --shadow-cta: 0 8px 25px -8px hsl(194 45% 44% / 0.4);
-    --shadow-elevated: 0 20px 60px -20px hsl(270 8% 10% / 0.25);
+    /* Shadows - Enhanced for dark theme */
+    --shadow-card: 0 10px 40px -10px hsl(0 0% 0% / 0.3);
+    --shadow-cta: 0 8px 25px -8px hsl(194 45% 44% / 0.6);
+    --shadow-elevated: 0 20px 60px -20px hsl(0 0% 0% / 0.4);
     
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -80,39 +81,41 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 270 8% 10%;
+    /* Same as light theme - we use dark as default now */
+    --background: 270 8% 8%;
     --foreground: 0 0% 98%;
 
-    --card: 270 8% 15%;
-    --card-foreground: 0 0% 98%;
+    --card: 270 8% 12%;
+    --card-foreground: 0 0% 95%;
 
     --popover: 270 8% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 270 8% 10%;
+    --primary: 270 8% 15%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 194 45% 44%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 270 8% 15%;
-    --muted-foreground: 240 5% 65%;
+    --muted-foreground: 0 0% 75%;
 
-    --accent: 270 8% 15%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 194 45% 44%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 270 8% 15%;
+    --border: 270 8% 20%;
     --input: 270 8% 15%;
     --ring: 194 45% 44%;
     
     /* Dark mode brand tokens */
     --brand-primary: 0 0% 98%;
     --brand-secondary: 194 45% 44%;
-    --brand-tertiary: 270 8% 15%;
-    --brand-light: 270 8% 10%;
+    --brand-tertiary: 50 100% 95%;
+    --brand-light: 270 8% 12%;
+    --brand-dark: 270 8% 8%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;

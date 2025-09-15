@@ -6,10 +6,10 @@ const Services = () => {
   const whatsappUrl = "https://wa.me/56912345678?text=Hola! Me interesa conocer más sobre los servicios de Prime F%26H.";
 
   return (
-    <section id="servicios" className="py-20 bg-brand-soft">
+    <section id="servicios" className="py-20 bg-brand-light">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
             Nuestros Servicios
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
