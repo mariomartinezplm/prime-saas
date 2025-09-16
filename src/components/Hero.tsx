@@ -45,7 +45,7 @@ const Hero = () => {
           </div>
           <div className="flex items-center gap-2 text-brand-light">
             <Users className="w-5 h-5" />
-            <span className="font-semibold">1000+</span>
+            <span className="font-semibold">+100</span>
             <span className="text-sm opacity-80">Clientes Satisfechos</span>
           </div>
           <div className="flex items-center gap-2 text-brand-light">
