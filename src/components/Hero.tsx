@@ -29,7 +29,7 @@ const Hero = () => {
           playsInline
           className="w-full h-full object-cover opacity-30"
         >
-          <source src="https://cdn.pixabay.com/video/2023/04/25/158094-822049803_large.mp4" type="video/mp4" />
+          <source src="https://cdn.pixabay.com/video/2022/01/18/104419-666010486_large.mp4" type="video/mp4" />
           <img 
             src={heroImage}
             alt="Entrenamiento profesional y fisioterapia en Prime Fit & Health"
