@@ -11,7 +11,7 @@ const Hero = () => {
     }
   };
 
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre Prime Fit %26 Health. Me gustaría agendar una evaluación inicial.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-dark">
@@ -83,9 +83,9 @@ const Hero = () => {
           transition={{ duration: 1, delay: 0.6 }}
           className="text-xl md:text-2xl text-brand-light/90 max-w-4xl mx-auto mb-12 leading-relaxed font-light"
         >
-          Kinesiología experta y entrenamiento semi-personalizado en Puerto Montt. 
+          Kinesiología y entrenamiento personal en Puerto Montt.
           <br className="hidden md:block" />
-          Rehabilitación basada en ejercicio y rutinas efectivas para personas ocupadas.
+          Rehabilitación basada en ejercicio y rutinas efectivas para personas ocupadas y que valoran su tiempo.
         </motion.p>
 
         {/* CTA Buttons */}

@@ -2,9 +2,9 @@ import { MapPin, Phone, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Location = () => {
-  const address = "Avenida Volcán Puntiagudo 100, Mall La Paloma, Puerto Montt, Los Lagos, Chile";
+  const address = "Avenida Volcán Puntiagudo 100, Puerto Montt, Los Lagos, Chile";
   const phone = "+56 9 5628 6651";
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me gustaría conocer la ubicación de Prime F%26H y agendar una visita.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
 
   return (
     <section id="ubicacion" className="py-20 bg-background">
@@ -22,7 +22,7 @@ const Location = () => {
           {/* Map */}
           <div className="bg-card rounded-2xl overflow-hidden shadow-card">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.8354345093754!2d-72.94247892501436!3d-41.46890117129649!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x961422c6e21b8f2b%3A0x8d9b8e63e42b5c25!2sPuerto%20Montt%2C%20Los%20Lagos!5e0!3m2!1ses!2scl!4v1704902400000!5m2!1ses!2scl"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2881.4685915088027!2d-72.94479368426982!3d-41.46895597925968!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x961422c736c7c60b%3A0x8a2c867b8238b2c7!2sAv.%20Volc%C3%A1n%20Puntiagudo%20100%2C%20Puerto%20Montt%2C%20Los%20Lagos!5e0!3m2!1ses!2scl!4v1704902500000!5m2!1ses!2scl"
               width="100%"
               height="400"
               style={{ border: 0 }}
@@ -83,7 +83,7 @@ const Location = () => {
                 ¿Cómo llegar?
               </h4>
               <p className="text-muted-foreground mb-6">
-                Estamos ubicados en Mall La Paloma, Puerto Montt, con fácil acceso y estacionamiento disponible. 
+                Estamos ubicados en Avenida Volcán Puntiagudo 100, Puerto Montt, con fácil acceso y estacionamiento disponible. 
                 La ubicación es ideal para combinar tu entrenamiento con otras actividades.
               </p>
               

@@ -3,7 +3,7 @@ import { MessageCircle, Dumbbell, Heart, Activity } from "lucide-react";
 import physiotherapyImage from "@/assets/physiotherapy.jpg";
 
 const Services = () => {
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre los servicios de Prime F%26H.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
 
   return (
     <section id="servicios" className="py-20 bg-brand-light">
@@ -30,15 +30,10 @@ const Services = () => {
             </div>
             
             <p className="text-lg text-muted-foreground mb-6">
-              Entrenamientos efectivos de máximo 60 minutos diseñados para personas ocupadas 
-              que buscan resultados reales sin perder tiempo.
+              Entrenamientos efectivos de cuerpo completo de máximo 60 minutos diseñados para personas que valoran su tiempo y buscan resultados reales.
             </p>
 
             <div className="space-y-3 mb-8">
-              <div className="flex items-center gap-3">
-                <Activity className="w-5 h-5 text-brand-primary" />
-                <span>Evaluación inicial completa</span>
-              </div>
               <div className="flex items-center gap-3">
                 <Activity className="w-5 h-5 text-brand-primary" />
                 <span>Rutinas personalizadas a tu objetivo</span>
@@ -70,7 +65,7 @@ const Services = () => {
                 <Heart className="w-8 h-8 text-brand-secondary" />
               </div>
               <h3 className="text-2xl font-bold text-brand-dark">
-                Kinesiología Deportiva
+                Kinesiología
               </h3>
             </div>
             
@@ -107,18 +102,6 @@ const Services = () => {
               Necesito rehabilitación
             </Button>
           </div>
-        </div>
-
-        {/* Image Section */}
-        <div className="mt-16 text-center">
-          <img 
-            src={physiotherapyImage} 
-            alt="Sesión de kinesiología en Prime F&H"
-            className="rounded-2xl shadow-lg mx-auto max-w-2xl w-full"
-          />
-          <p className="text-sm text-muted-foreground mt-4">
-            Atención personalizada con enfoque en ejercicio terapéutico
-          </p>
         </div>
       </div>
     </section>

@@ -3,27 +3,27 @@ import { Star, Quote } from "lucide-react";
 const Testimonials = () => {
   const testimonials = [
     {
-      name: "Andrea Morales",
-      age: "32 años",
-      problem: "Dolor lumbar crónico",
-      result: "Sin dolor después de 6 semanas",
-      text: "Llegué con dolor lumbar que tenía hace 2 años. Con el enfoque de ejercicio terapéutico de Prime F&H logré eliminar completamente el dolor y ahora entreno sin problemas.",
+      name: "",
+      age: "",
+      problem: "",
+      result: "",
+      text: "",
       rating: 5
     },
     {
-      name: "Roberto Silva",
-      age: "28 años", 
-      problem: "Falta de tiempo para entrenar",
-      result: "Bajó 8kg en 3 meses",
-      text: "Como ingeniero trabajo muchas horas. Los entrenamientos de 45 minutos fueron perfectos para mi horario. Bajé 8kg y gané mucha fuerza sin sacrificar tiempo familiar.",
+      name: "", 
+      age: "",
+      problem: "",
+      result: "",
+      text: "",
       rating: 5
     },
     {
-      name: "Carolina Pérez",
-      age: "45 años",
-      problem: "Lesión de rodilla post-cirugía",
-      result: "Volvió a correr en 4 meses",
-      text: "Después de mi cirugía de menisco pensé que no volvería a correr. El equipo me ayudó paso a paso y ahora corro medio maratón sin molestias. Increíble.",
+      name: "",
+      age: "",
+      problem: "",
+      result: "",
+      text: "",
       rating: 5
     }
   ];
@@ -80,27 +80,6 @@ const Testimonials = () => {
           ))}
         </div>
 
-        {/* Overall Stats */}
-        <div className="mt-16 text-center bg-brand-light rounded-2xl p-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <div className="text-3xl font-bold text-brand-primary mb-2">4.9/5</div>
-              <div className="text-sm text-muted-foreground">Calificación promedio</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-brand-primary mb-2">98%</div>
-              <div className="text-sm text-muted-foreground">Clientes satisfechos</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-brand-primary mb-2">6 sem</div>
-              <div className="text-sm text-muted-foreground">Tiempo promedio resultados</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-brand-primary mb-2">200+</div>
-              <div className="text-sm text-muted-foreground">Casos de éxito</div>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );

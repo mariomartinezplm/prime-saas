@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, Calendar, User, TrendingUp } from "lucide-react";
 
 const HowItWorks = () => {
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me gustaría agendar mi evaluación inicial en Prime F%26H.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
 
   const steps = [
     {
@@ -10,7 +10,7 @@ const HowItWorks = () => {
       number: "01",
       title: "Evaluación inicial",
       description: "Analizamos tus objetivos, historial médico y nivel actual para diseñar tu plan personalizado",
-      highlight: "Gratuita y sin compromiso"
+      highlight: "100% adaptada a ti"
     },
     {
       icon: User,
@@ -84,7 +84,7 @@ const HowItWorks = () => {
             ¿Listo para comenzar?
           </h3>
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            Agenda tu evaluación inicial gratuita y descubre cómo podemos ayudarte 
+            Agenda una cita y descubre cómo podemos ayudarte 
             a alcanzar tus objetivos de forma eficiente.
           </p>
           
@@ -96,7 +96,7 @@ const HowItWorks = () => {
               className="text-lg px-8 py-4"
             >
               <MessageCircle className="w-5 h-5" />
-              Quiero mi evaluación gratuita
+              Agendar cita
             </Button>
             
             <Button 

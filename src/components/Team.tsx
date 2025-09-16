@@ -10,49 +10,33 @@ const Team = () => {
 
   const team = [
     {
-      name: "Dr. Carlos Mendoza",
+      name: "",
       role: "Kinesiólogo",
-      specialty: "Rehabilitación Deportiva",
+      specialty: "Rehabilitación",
       image: teamKinesiologo,
-      description: "Especializado en recuperación de lesiones y optimización del rendimiento deportivo mediante terapia de ejercicio basada en evidencia.",
-      credentials: "Kinesiólogo UC • Magíster en Medicina Deportiva"
+      description: "",
+      credentials: ""
     },
     {
-      name: "María González", 
-      role: "Entrenadora Personal",
-      specialty: "Fuerza y Acondicionamiento",
+      name: "", 
+      role: "Kinesiólogo",
+      specialty: "Entrenamiento Terapéutico",
       image: teamTrainer,
-      description: "Experta en programas de entrenamiento eficientes en tiempo diseñados para profesionales ocupados que buscan máximos resultados.",
-      credentials: "Educación Física UACh • Certificada en Fuerza y Acondicionamiento"
+      description: "",
+      credentials: ""
     },
     {
-      name: "Sofía Torres",
-      role: "Coordinadora de Clientes", 
-      specialty: "Éxito del Cliente",
+      name: "",
+      role: "Kinesiólogo", 
+      specialty: "Kinesiología Deportiva",
       image: teamCoordinator,
-      description: "Tu punto de contacto dedicado para agendamiento, seguimiento del progreso y apoyo continuo durante tu proceso.",
-      credentials: "Administración de Empresas • Especialista en Éxito del Cliente"
-    },
-    {
-      name: "Dr. Ana Ruiz",
-      role: "Fisioterapeuta",
-      specialty: "Manejo del Dolor", 
-      image: teamKinesiologo,
-      description: "Enfocada en alivio del dolor crónico y optimización del movimiento a través de intervenciones terapéuticas dirigidas.",
-      credentials: "Fisioterapia UC • Certificación en Manejo del Dolor"
-    },
-    {
-      name: "Roberto Silva",
-      role: "Entrenador de Rendimiento Atlético",
-      specialty: "Entrenamiento Deportivo",
-      image: teamTrainer, 
-      description: "Especializado en mejora del rendimiento atlético y protocolos de retorno al deporte para todos los niveles.",
-      credentials: "Ciencias del Ejercicio • Especialista Certificado en Mejora del Rendimiento"
+      description: "",
+      credentials: ""
     }
   ];
 
-  const handleBookWithProfessional = (name: string) => {
-    const whatsappUrl = `https://wa.me/56956286651?text=Hola! Me interesa agendar una sesión con ${name}. ¿Podrían ayudarme con la disponibilidad?`;
+  const handleBookWithProfessional = () => {
+    const whatsappUrl = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
     window.open(whatsappUrl, '_blank');
   };
 
@@ -116,37 +100,18 @@ const Team = () => {
                   : 'opacity-0 translate-y-4'
               }`}>
                 <Button
-                  onClick={() => handleBookWithProfessional(member.name)}
+                  onClick={() => handleBookWithProfessional()}
                   className="w-full bg-brand-secondary hover:bg-brand-secondary/90 text-white"
                   size="sm"
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
-                  Reservar con {member.name.split(' ')[0]}
+                  Reservar
                 </Button>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Team Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 bg-brand-primary rounded-3xl p-10">
-          <div className="text-center">
-            <div className="text-4xl font-bold text-brand-light mb-2">25+</div>
-            <div className="text-brand-light/80 font-medium">Años de Experiencia Combinada</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-brand-light mb-2">1000+</div>
-            <div className="text-brand-light/80 font-medium">Clientes Atendidos</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-brand-light mb-2">98%</div>
-            <div className="text-brand-light/80 font-medium">Tasa de Éxito</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-brand-light mb-2">24/7</div>
-            <div className="text-brand-light/80 font-medium">Soporte WhatsApp</div>
-          </div>
-        </div>
       </div>
     </section>
   );

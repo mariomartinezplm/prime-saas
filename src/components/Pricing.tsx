@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, Check, Clock, Calendar } from "lucide-react";
 
 const Pricing = () => {
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre los planes de Prime F%26H.";
+  const whatsappUrl = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
 
   const plans = [
     {
@@ -14,7 +14,6 @@ const Pricing = () => {
       features: [
         "8 sesiones mensuales",
         "Grupos de máx. 4 personas",
-        "Evaluación inicial gratuita",
         "Plan personalizado",
         "Seguimiento semanal"
       ],
@@ -30,10 +29,8 @@ const Pricing = () => {
       features: [
         "12 sesiones mensuales",
         "Grupos de máx. 4 personas",
-        "Evaluación completa",
         "Plan 100% personalizado",
-        "Seguimiento semanal",
-        "Soporte WhatsApp"
+        "Seguimiento semanal"
       ],
       popular: true,
       ctaText: "Plan más popular"
@@ -41,15 +38,14 @@ const Pricing = () => {
     {
       name: "10 Sesiones Kine",
       type: "Kinesiología",
-      price: "190.990",
+      price: "199.990",
       period: "paquete",
       description: "Rehabilitación y recuperación especializada",
       features: [
         "10 sesiones individuales",
         "Evaluación kinesiológica",
         "Ejercicios terapéuticos",
-        "Plan de recuperación",
-        "Seguimiento personalizado"
+        "Plan de recuperación"
       ],
       popular: false,
       ctaText: "Agendar sesiones"
