@@ -15,18 +15,27 @@ const Hero = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-dark">
-      {/* Parallax Background */}
+      {/* Video Background */}
       <motion.div 
         className="absolute inset-0 z-0"
         initial={{ scale: 1.1 }}
         animate={{ scale: 1 }}
         transition={{ duration: 10, ease: "easeOut" }}
       >
-        <img 
-          src={heroImage}
-          alt="Professional training and physiotherapy at Prime Fit & Health"
+        <video 
+          autoPlay
+          muted
+          loop
+          playsInline
           className="w-full h-full object-cover opacity-30"
-        />
+        >
+          <source src="https://cdn.pixabay.com/video/2023/04/25/158094-822049803_large.mp4" type="video/mp4" />
+          <img 
+            src={heroImage}
+            alt="Entrenamiento profesional y fisioterapia en Prime Fit & Health"
+            className="w-full h-full object-cover opacity-30"
+          />
+        </video>
         <div className="absolute inset-0 bg-gradient-to-b from-brand-primary/60 via-brand-primary/40 to-brand-primary/80"></div>
       </motion.div>
 
