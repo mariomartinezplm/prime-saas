@@ -1,4 +1,12 @@
-# Welcome to your Lovable project
+# 🏥 Prime F&H - Sistema de Gestión de Pacientes
+
+Sistema completo de gestión de pacientes para kinesiología y entrenamiento.
+
+**Desarrollado para:** Mario Martínez - Prime F&H, Puerto Montt, Chile
+
+## 🚀 Inicio Rápido
+
+**¡IMPORTANTE!** Lee primero el archivo **[SETUP.md](./SETUP.md)** para instrucciones completas de instalación y configuración.
 
 ## Project info
 
