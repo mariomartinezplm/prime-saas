@@ -89,14 +89,14 @@ appointmentSchema.pre('save', function(next) {
   next();
 });
 
-// Método para verificar si la cita puede ser cancelada
+// Método para verificar si la cita puede ser cancelada (24 horas de anticipación)
 appointmentSchema.methods.canBeCancelled = function() {
   const appointmentDateTime = new Date(`${this.date.toISOString().split('T')[0]}T${this.startTime}`);
   const now = new Date();
-  const fourHoursFromNow = addHours(now, 4);
+  const twentyFourHoursFromNow = addHours(now, 24);
 
-  // Debe ser al menos 4 horas antes de la cita
-  return isBefore(fourHoursFromNow, appointmentDateTime) && this.status === 'scheduled';
+  // Debe ser al menos 24 horas antes de la cita
+  return isBefore(twentyFourHoursFromNow, appointmentDateTime) && this.status === 'scheduled';
 };
 
 // Virtual para obtener la fecha y hora completa

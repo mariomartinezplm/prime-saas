@@ -1,25 +1,22 @@
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import transmarkoLogo from "@/assets/transmarko.png";
+import skorpiosLogo from "@/assets/skorpios.png";
+import bienestarLogo from "@/assets/bienestar-san-javier.jpg";
 
 const Partnerships = () => {
   const [isPlaying, setIsPlaying] = useState(true);
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  // Placeholder logos - replace with actual company logos
   const partners = [
-    { name: "Microsoft", logo: "https://images.unsplash.com/photo-1633409361618-c73427e4e206?w=200&h=100&fit=crop&crop=center" },
-    { name: "Google", logo: "https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=200&h=100&fit=crop&crop=center" },
-    { name: "Apple", logo: "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=200&h=100&fit=crop&crop=center" },
-    { name: "Amazon", logo: "https://images.unsplash.com/photo-1523474253046-8cd2748b5fd2?w=200&h=100&fit=crop&crop=center" },
-    { name: "Tesla", logo: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=100&fit=crop&crop=center" },
-    { name: "Netflix", logo: "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200&h=100&fit=crop&crop=center" },
-    { name: "Spotify", logo: "https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?w=200&h=100&fit=crop&crop=center" },
-    { name: "Meta", logo: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=200&h=100&fit=crop&crop=center" },
+    { name: "Transmarko", logo: transmarkoLogo },
+    { name: "Skorpios", logo: skorpiosLogo },
+    { name: "Bienestar San Javier", logo: bienestarLogo },
   ];
 
   // Duplicate for infinite scroll effect
-  const duplicatedPartners = [...partners, ...partners];
+  const duplicatedPartners = [...partners, ...partners, ...partners];
 
   useEffect(() => {
     const carousel = carouselRef.current;
@@ -38,19 +35,20 @@ const Partnerships = () => {
 
   const handlePrevious = () => {
     if (carouselRef.current) {
-      carouselRef.current.scrollBy({ left: -200, behavior: 'smooth' });
+      carouselRef.current.scrollBy({ left: -200, behavior: "smooth" });
     }
   };
 
   const handleNext = () => {
     if (carouselRef.current) {
-      carouselRef.current.scrollBy({ left: 200, behavior: 'smooth' });
+      carouselRef.current.scrollBy({ left: 200, behavior: "smooth" });
     }
   };
 
   const handleWhatsAppContact = () => {
-    const whatsappUrl = "https://wa.me/56956286651?text=Hola! Nos interesa explorar una alianza corporativa con Prime Fit %26 Health. ¿Podrían contactarnos para conversar sobre opciones?";
-    window.open(whatsappUrl, '_blank');
+    const whatsappUrl =
+      "https://wa.me/56956286651?text=Hola!%20Me%20gustar%C3%ADa%20hacer%20un%20convenio%20con%20ustedes";
+    window.open(whatsappUrl, "_blank");
   };
 
   return (
@@ -61,7 +59,8 @@ const Partnerships = () => {
             Socios Corporativos de Confianza
           </h2>
           <p className="text-xl text-brand-light/80 max-w-3xl mx-auto leading-relaxed">
-            Empresas líderes confían en nosotros para mantener a sus equipos saludables, en forma y rindiendo al máximo
+            Empresas líderes confían en nosotros para mantener a sus equipos
+            saludables, en forma y rindiendo al máximo
           </p>
         </div>
 
@@ -76,10 +75,10 @@ const Partnerships = () => {
           >
             <ChevronLeft className="w-6 h-6" />
           </Button>
-          
+
           <Button
             variant="outline"
-            size="icon" 
+            size="icon"
             className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/10 border-white/20 hover:bg-white/20 text-white"
             onClick={handleNext}
           >
@@ -89,20 +88,20 @@ const Partnerships = () => {
           {/* Carousel */}
           <div
             ref={carouselRef}
-            className="flex gap-8 overflow-x-hidden py-8 cursor-grab active:cursor-grabbing"
+            className="flex gap-12 overflow-x-hidden py-8 px-16 items-center justify-center"
             onMouseEnter={() => setIsPlaying(false)}
             onMouseLeave={() => setIsPlaying(true)}
-            style={{ scrollBehavior: 'smooth' }}
+            style={{ scrollBehavior: "smooth" }}
           >
             {duplicatedPartners.map((partner, index) => (
               <div
                 key={`${partner.name}-${index}`}
-                className="flex-shrink-0 w-48 h-24 bg-white/10 backdrop-blur-sm rounded-2xl p-4 flex items-center justify-center hover:bg-white/20 transition-all duration-300 border border-white/20"
+                className="flex-shrink-0 w-56 h-28 bg-white rounded-2xl p-5 flex items-center justify-center hover:shadow-lg transition-all duration-300 border border-gray-100"
               >
                 <img
                   src={partner.logo}
                   alt={partner.name}
-                  className="max-w-full max-h-full object-contain filter brightness-0 invert opacity-80 hover:opacity-100 transition-opacity duration-300"
+                  className="max-w-full max-h-full object-contain"
                   loading="lazy"
                 />
               </div>
@@ -117,7 +116,9 @@ const Partnerships = () => {
               ¿Quieres una Alianza Corporativa?
             </h3>
             <p className="text-brand-light/80 mb-6 leading-relaxed">
-              Únete a líderes de la industria priorizando el bienestar de empleados. Ofrecemos programas corporativos de salud personalizados diseñados para aumentar la productividad y satisfacción laboral.
+              Únete a líderes de la industria priorizando el bienestar de
+              empleados. Ofrecemos programas corporativos de salud personalizados
+              diseñados para aumentar la productividad y satisfacción laboral.
             </p>
             <Button
               onClick={handleWhatsAppContact}

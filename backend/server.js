@@ -11,6 +11,8 @@ import appointmentRoutes from './routes/appointmentRoutes.js';
 import measurementRoutes from './routes/measurementRoutes.js';
 import exerciseRoutes from './routes/exerciseRoutes.js';
 import evaRoutes from './routes/evaRoutes.js';
+import availabilityRoutes from './routes/availabilityRoutes.js';
+import planRoutes from './routes/planRoutes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -23,7 +25,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:8080'].filter(Boolean),
   credentials: true
 }));
 
@@ -42,7 +44,9 @@ app.get('/', (req, res) => {
       appointments: '/api/appointments',
       measurements: '/api/measurements',
       exercises: '/api/exercises',
-      eva: '/api/eva'
+      eva: '/api/eva',
+      availability: '/api/availability',
+      plans: '/api/plans'
     }
   });
 });
@@ -54,6 +58,8 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/measurements', measurementRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/eva', evaRoutes);
+app.use('/api/availability', availabilityRoutes);
+app.use('/api/plans', planRoutes);
 
 // Middleware de manejo de errores
 app.use(notFound);
@@ -72,7 +78,9 @@ const server = app.listen(PORT, () => {
   console.log(`   - Appointments: http://localhost:${PORT}/api/appointments`);
   console.log(`   - Measurements: http://localhost:${PORT}/api/measurements`);
   console.log(`   - Exercises: http://localhost:${PORT}/api/exercises`);
-  console.log(`   - EVA: http://localhost:${PORT}/api/eva\n`);
+  console.log(`   - EVA: http://localhost:${PORT}/api/eva`);
+  console.log(`   - Availability: http://localhost:${PORT}/api/availability`);
+  console.log(`   - Plans: http://localhost:${PORT}/api/plans\n`);
 });
 
 // Manejo de promesas no capturadas

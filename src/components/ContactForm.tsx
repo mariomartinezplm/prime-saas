@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageCircle, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -58,7 +57,7 @@ Me gustaría agendar una evaluación inicial.`;
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-12">
           <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
-            Agenda tu Evaluación Gratuita
+            Agenda tu Entrenamiento de Prueba
           </h2>
             <p className="text-xl text-muted-foreground">
               Completa el formulario y te contactaremos por WhatsApp para coordinar tu cita

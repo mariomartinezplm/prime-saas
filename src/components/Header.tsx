@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, MessageCircle } from "lucide-react";
+import { Menu, X, Calendar } from "lucide-react";
 import logoImage from "@/assets/prime-fh-logo.png";
 import { motion } from "framer-motion";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,8 +26,6 @@ const Header = () => {
       setIsMenuOpen(false);
     }
   };
-
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre Prime Fit %26 Health. Me gustaría agendar una evaluación inicial.";
 
   return (
     <motion.header 
@@ -85,14 +85,14 @@ const Header = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 size="sm"
-                onClick={() => window.open(whatsappUrl, '_blank')}
                 className="hidden sm:inline-flex bg-brand-secondary hover:bg-brand-secondary/90 text-white"
+                onClick={() => navigate('/login')}
               >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Reservar por WhatsApp
+                <Calendar className="w-4 h-4 mr-2" />
+                Reservar mi sesión
               </Button>
             </motion.div>
 
@@ -131,14 +131,14 @@ const Header = () => {
                   {item.label}
                 </button>
               ))}
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 size="sm"
-                onClick={() => window.open(whatsappUrl, '_blank')}
                 className="w-full mt-4 bg-brand-secondary hover:bg-brand-secondary/90 text-white"
+                onClick={() => navigate('/login')}
               >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Reservar por WhatsApp
+                <Calendar className="w-4 h-4 mr-2" />
+                Reservar mi sesión
               </Button>
             </nav>
           </motion.div>

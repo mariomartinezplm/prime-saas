@@ -3,12 +3,11 @@ import Hero from "@/components/Hero";
 import Benefits from "@/components/Benefits";
 import Services from "@/components/Services";
 import HowItWorks from "@/components/HowItWorks";
-import Testimonials from "@/components/Testimonials";
 import Team from "@/components/Team";
 import Partnerships from "@/components/Partnerships";
+import InsuranceBenefits from "@/components/InsuranceBenefits";
 import Pricing from "@/components/Pricing";
 import Location from "@/components/Location";
-import FAQ from "@/components/FAQ";
 import ContactForm from "@/components/ContactForm";
 import Footer from "@/components/Footer";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
@@ -20,51 +19,45 @@ const Index = () => {
       <Header />
       <main>
         <Hero />
-        
+
         <ScrollAnimatedSection>
           <Benefits />
         </ScrollAnimatedSection>
-        
+
         <ScrollAnimatedSection delay={0.1}>
           <Services />
         </ScrollAnimatedSection>
-        
+
         <ScrollAnimatedSection delay={0.2}>
           <HowItWorks />
         </ScrollAnimatedSection>
-        
-        <ScrollAnimatedSection delay={0.3}>
-          <Testimonials />
-        </ScrollAnimatedSection>
-        
+
         <ScrollAnimatedSection delay={0.1}>
           <Team />
         </ScrollAnimatedSection>
-        
+
         <ScrollAnimatedSection delay={0.2}>
           <Partnerships />
         </ScrollAnimatedSection>
-        
+
+        <InsuranceBenefits />
+
         <ScrollAnimatedSection delay={0.1}>
           <Pricing />
         </ScrollAnimatedSection>
-        
+
         <ScrollAnimatedSection delay={0.2}>
           <Location />
         </ScrollAnimatedSection>
-        
-        <ScrollAnimatedSection delay={0.3}>
-          <FAQ />
-        </ScrollAnimatedSection>
-        
+
         <ScrollAnimatedSection delay={0.1}>
           <ContactForm />
         </ScrollAnimatedSection>
       </main>
-      
+
       <Footer />
       <WhatsAppFloat />
-      
+
       {/* JSON-LD Schema for Local Business */}
       <script
         type="application/ld+json"
@@ -73,7 +66,7 @@ const Index = () => {
             "@context": "https://schema.org",
             "@type": "LocalBusiness",
             "name": "Prime Fit & Health",
-            "description": "Kinesiología y entrenamiento semi-personalizado en Puerto Montt. Entrenamientos efectivos en menos de 1 hora y rehabilitación basada en ejercicio.",
+            "description": "Kinesiología y entrenamiento personalizado en Puerto Montt. Entrenamientos efectivos en menos de 1 hora y rehabilitación basada en ejercicio.",
             "url": "https://primefitandhealth.cl",
             "telephone": "+56956286651",
             "address": {
@@ -89,7 +82,7 @@ const Index = () => {
               "longitude": -72.9424
             },
             "openingHours": [
-              "Mo-Fr 06:00-21:00",
+              "Mo-Fr 07:00-21:00",
               "Sa 09:00-13:00"
             ],
             "priceRange": "$89990-$149990",
@@ -102,15 +95,15 @@ const Index = () => {
                   "@type": "Offer",
                   "itemOffered": {
                     "@type": "Service",
-                    "name": "Entrenamiento Semi-personalizado",
+                    "name": "Entrenamiento Personalizado",
                     "description": "Entrenamientos efectivos de máximo 60 minutos"
                   }
                 },
                 {
-                  "@type": "Offer", 
+                  "@type": "Offer",
                   "itemOffered": {
                     "@type": "Service",
-                    "name": "Kinesiología Deportiva",
+                    "name": "Kinesiología",
                     "description": "Rehabilitación basada en ejercicio"
                   }
                 }

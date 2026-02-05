@@ -27,11 +27,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (token && storedUser) {
         try {
-          // Verificar que el token siga siendo válido
           const currentUser = await authService.getCurrentUser();
           setUser(currentUser);
-        } catch (error) {
-          // Token inválido o expirado
+        } catch {
           authService.logout();
           setUser(null);
         }
@@ -66,7 +64,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
-    } catch (error) {
+    } catch {
       logout();
     }
   };

@@ -63,21 +63,14 @@ All colors MUST be HSL.
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 270 8% 10%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 194 45% 44%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 270 8% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 270 8% 18%;
+    --sidebar-ring: 194 45% 44%;
   }
 
   .dark {

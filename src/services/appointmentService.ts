@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { Appointment, CreateAppointmentData, APIResponse } from '../types';
+import type { Appointment, CreateAppointmentData, BulkBookingData, APIResponse } from '../types';
 
 export const appointmentService = {
   // Crear nueva cita
@@ -55,6 +55,18 @@ export const appointmentService = {
       availableSlots: string[];
       bookedSlots: string[];
     }>>(`/appointments/availability/${professionalId}/${date}`);
+    return response.data.data;
+  },
+
+  // Crear citas masivas
+  bulkCreate: async (data: BulkBookingData): Promise<{
+    appointments: Appointment[];
+    errors: Array<{ date: string; startTime: string; error: string }>;
+  }> => {
+    const response = await api.post<APIResponse<{
+      appointments: Appointment[];
+      errors: Array<{ date: string; startTime: string; error: string }>;
+    }>>('/appointments/bulk', data);
     return response.data.data;
   },
 

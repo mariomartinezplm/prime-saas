@@ -2,9 +2,12 @@ import api from '../lib/api';
 import type { AuthResponse, LoginCredentials, RegisterData, User, APIResponse } from '../types';
 
 export const authService = {
-  // Iniciar sesión
+  // Iniciar sesión (por email o RUT via campo identifier)
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
+    const response = await api.post<AuthResponse>('/auth/login', {
+      identifier: credentials.identifier,
+      password: credentials.password,
+    });
     if (response.data.success && response.data.data.token) {
       localStorage.setItem('token', response.data.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.data.user));

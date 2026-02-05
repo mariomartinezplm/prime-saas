@@ -5,12 +5,13 @@ export interface User {
   lastName: string;
   fullName: string;
   email: string;
-  role: 'admin' | 'patient';
+  role: 'admin' | 'professional' | 'patient';
   phone?: string;
   dateOfBirth?: string;
   rut?: string;
   address?: string;
   profileImage?: string;
+  specialty?: string;
   emergencyContact?: EmergencyContact;
   medicalInfo?: MedicalInfo;
   isActive: boolean;
@@ -36,7 +37,7 @@ export interface MedicalInfo {
 
 // Tipos de Autenticación
 export interface LoginCredentials {
-  email: string;
+  identifier: string;
   password: string;
 }
 
@@ -92,6 +93,76 @@ export interface CreateAppointmentData {
   startTime: string;
   endTime: string;
   type: 'kinesiologia' | 'entrenamiento' | 'evaluacion';
+  notes?: string;
+}
+
+export interface BulkBookingData {
+  appointments: Array<{
+    professional: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    type: 'kinesiologia' | 'entrenamiento' | 'evaluacion';
+  }>;
+  patient?: string;
+}
+
+// Tipos de Disponibilidad
+export interface TimeSlot {
+  startTime: string;
+  endTime: string;
+}
+
+export interface DaySchedule {
+  dayOfWeek: number;
+  slots: TimeSlot[];
+}
+
+export interface BlockedDate {
+  _id?: string;
+  date: string;
+  slots?: TimeSlot[];
+  allDay: boolean;
+  reason?: string;
+}
+
+export interface Availability {
+  _id: string;
+  professional: User | string;
+  weeklySchedule: DaySchedule[];
+  blockedDates: BlockedDate[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AvailableSlots {
+  date: string;
+  availableSlots: string[];
+  bookedSlots: string[];
+  blockedSlots?: string[];
+}
+
+// Tipos de Plan
+export interface Plan {
+  _id: string;
+  patient: User | string;
+  professional: User | string;
+  type: 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  sessionsPerWeek: number;
+  startDate: string;
+  endDate: string;
+  status: 'active' | 'expired' | 'cancelled';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePlanData {
+  patient: string;
+  professional: string;
+  type: 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  sessionsPerWeek: number;
+  startDate: string;
   notes?: string;
 }
 

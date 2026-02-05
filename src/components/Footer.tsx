@@ -1,4 +1,6 @@
-import { MessageCircle, MapPin, Phone, Clock, Instagram, Facebook } from "lucide-react";
+import { MessageCircle, MapPin, Phone, Clock, Facebook } from "lucide-react";
+import instagramIcon from "@/assets/instagram-icon.png";
+import tiktokIcon from "@/assets/tiktok-icon.png";
 
 const Footer = () => {
   const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre Prime F%26H.";
@@ -11,29 +13,37 @@ const Footer = () => {
           <div className="lg:col-span-2">
             <h3 className="text-2xl font-bold mb-4">Prime F&H</h3>
             <p className="text-white/80 mb-6 leading-relaxed">
-              Centro de entrenamiento y kinesiología en Puerto Montt. Especializados en 
+              Centro de entrenamiento y kinesiología en Puerto Montt. Especializados en
               entrenamientos efectivos de menos de 1 hora y rehabilitación basada en ejercicio.
             </p>
-            <div className="flex gap-4">
-              <a 
-                href="https://instagram.com/primefh" 
-                target="_blank" 
+            <div className="flex gap-5">
+              <a
+                href="https://instagram.com/primefh"
+                target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white/10 p-3 rounded-lg hover:bg-white/20 transition-smooth"
+                className="bg-white/10 p-3 rounded-xl hover:bg-white/20 transition-smooth"
               >
-                <Instagram className="w-5 h-5" />
+                <img src={instagramIcon} alt="Instagram" className="w-10 h-10 rounded-lg" />
               </a>
-              <a 
-                href="https://facebook.com/primefh" 
-                target="_blank" 
+              <a
+                href="https://www.tiktok.com/@prime_fh"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white/10 p-3 rounded-xl hover:bg-white/20 transition-smooth"
+              >
+                <img src={tiktokIcon} alt="TikTok" className="w-10 h-10 rounded-lg" />
+              </a>
+              <a
+                href="https://facebook.com/primefh"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white/10 p-3 rounded-lg hover:bg-white/20 transition-smooth"
               >
                 <Facebook className="w-5 h-5" />
               </a>
-              <a 
+              <a
                 href={whatsappUrl}
-                target="_blank" 
+                target="_blank"
                 rel="noopener noreferrer"
                 className="bg-green-600 p-3 rounded-lg hover:bg-green-700 transition-smooth"
               >
@@ -66,7 +76,7 @@ const Footer = () => {
             <div className="space-y-2 text-sm text-white/80">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-brand-secondary" />
-                <span>Lun - Vie: 06:00 - 21:00</span>
+                <span>Lun - Vie: 07:00 - 21:00</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-brand-secondary" />
@@ -86,16 +96,16 @@ const Footer = () => {
             <div className="text-sm text-white/60">
               © 2024 Prime F&H. Todos los derechos reservados.
             </div>
-            
+
             <div className="flex gap-6 text-sm">
-              <a 
-                href="/privacidad" 
+              <a
+                href="/privacidad"
                 className="text-white/60 hover:text-white transition-smooth"
               >
                 Política de Privacidad
               </a>
-              <a 
-                href="/terminos" 
+              <a
+                href="/terminos"
                 className="text-white/60 hover:text-white transition-smooth"
               >
                 Términos y Condiciones

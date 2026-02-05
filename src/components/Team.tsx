@@ -1,117 +1,167 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { MessageCircle } from "lucide-react";
-import teamKinesiologo from "@/assets/team-kinesiologo.jpg";
-import teamTrainer from "@/assets/team-trainer.jpg";
-import teamCoordinator from "@/assets/team-coordinator.jpg";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, User } from "lucide-react";
+import { motion } from "framer-motion";
+import marioMartinez from "@/assets/mario-martinez.jpg";
+import tomasEspinoza from "@/assets/tomas-espinoza.jpg";
 
 const Team = () => {
-  const [hoveredMember, setHoveredMember] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const isPaused = useRef(false);
 
   const team = [
     {
-      name: "",
-      role: "Kinesiólogo",
-      specialty: "Rehabilitación",
-      image: teamKinesiologo,
-      description: "",
-      credentials: ""
+      name: "Mario Martínez P.",
+      role: "Kinesiólogo - Entrenador",
+      image: marioMartinez,
     },
     {
-      name: "", 
-      role: "Kinesiólogo",
-      specialty: "Entrenamiento Terapéutico",
-      image: teamTrainer,
-      description: "",
-      credentials: ""
+      name: "Felipe Vega",
+      role: "Kinesiólogo - Entrenador",
+      image: null,
     },
     {
-      name: "",
-      role: "Kinesiólogo", 
-      specialty: "Kinesiología Deportiva",
-      image: teamCoordinator,
-      description: "",
-      credentials: ""
-    }
+      name: "Tomás Espinoza",
+      role: "Kinesiólogo - Entrenador",
+      image: tomasEspinoza,
+    },
+    {
+      name: "Rafael Castañeda",
+      role: "Kinesiólogo",
+      image: null,
+    },
   ];
 
-  const handleBookWithProfessional = () => {
-    const whatsappUrl = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
-    window.open(whatsappUrl, '_blank');
+  // Duplicate for infinite loop effect
+  const duplicatedTeam = [...team, ...team];
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    let animationId: number;
+    const speed = 0.8;
+
+    const step = () => {
+      if (!isPaused.current && container) {
+        container.scrollLeft += speed;
+        // Reset seamlessly when we've scrolled through the first set
+        const halfScroll = container.scrollWidth / 2;
+        if (container.scrollLeft >= halfScroll) {
+          container.scrollLeft = 0;
+        }
+      }
+      animationId = requestAnimationFrame(step);
+    };
+
+    animationId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationId);
+  }, []);
+
+  const scrollBy = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const amount = direction === "left" ? -360 : 360;
+      scrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
   };
 
   return (
-    <section id="equipo" className="py-24 bg-brand-tertiary">
+    <section id="equipo" className="py-24 bg-brand-dark">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-brand-primary mb-6">
-            Nuestro Equipo Experto
+          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
+            Nuestro Equipo
           </h2>
-          <p className="text-xl text-brand-primary/80 max-w-3xl mx-auto leading-relaxed">
-            Conoce a nuestros profesionales dedicados a tu salud, recuperación y máximo rendimiento
+          <p className="text-xl text-white/70 max-w-3xl mx-auto leading-relaxed">
+            Conoce a nuestros profesionales dedicados a tu salud, recuperación y
+            máximo rendimiento
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8 max-w-7xl mx-auto">
-          {team.map((member, index) => (
-            <div 
-              key={index}
-              className="relative group bg-white rounded-3xl p-8 text-center shadow-card hover:shadow-elevated transition-all duration-300 transform hover:-translate-y-2"
-              onMouseEnter={() => setHoveredMember(index)}
-              onMouseLeave={() => setHoveredMember(null)}
-            >
-              <div className="relative mb-6">
-                <div className="w-32 h-32 mx-auto relative overflow-hidden rounded-full border-4 border-brand-secondary/20">
-                  <img 
-                    src={member.image}
-                    alt={`${member.name} - ${member.role}`}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-brand-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div className="relative overflow-hidden">
+          {/* Arrow left */}
+          <button
+            onClick={() => scrollBy("left")}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-brand-secondary hover:text-white shadow-elevated rounded-full p-3 text-brand-primary transition-all duration-300"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+
+          {/* Arrow right */}
+          <button
+            onClick={() => scrollBy("right")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-brand-secondary hover:text-white shadow-elevated rounded-full p-3 text-brand-primary transition-all duration-300"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+
+          <div
+            ref={scrollRef}
+            className="flex gap-8 overflow-hidden px-14"
+            onMouseEnter={() => { isPaused.current = true; }}
+            onMouseLeave={() => { isPaused.current = false; setHoveredIndex(null); }}
+          >
+            {duplicatedTeam.map((member, index) => (
+              <motion.div
+                key={index}
+                className="relative flex-shrink-0 w-[340px] h-[440px] rounded-3xl overflow-hidden cursor-pointer"
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                animate={{
+                  scale: hoveredIndex === index ? 1.08 : 1,
+                  zIndex: hoveredIndex === index ? 20 : 1,
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              >
+                {/* Card background */}
+                <div className="absolute inset-0 bg-brand-secondary rounded-3xl" />
+
+                {/* Photo / Placeholder — fills entire card */}
+                <div className="absolute inset-0 z-[1] overflow-hidden rounded-3xl">
+                  {member.image ? (
+                    <motion.img
+                      src={member.image}
+                      alt={member.name}
+                      className="w-full h-full object-cover"
+                      animate={{
+                        scale: hoveredIndex === index ? 1.1 : 1,
+                      }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-brand-secondary flex items-center justify-center">
+                      <User className="w-24 h-24 text-white/30" />
+                    </div>
+                  )}
                 </div>
-              </div>
-              
-              <h3 className="text-xl font-bold text-brand-primary mb-2">
-                {member.name}
-              </h3>
-              
-              <div className="bg-brand-secondary/10 rounded-xl px-4 py-2 inline-block mb-3">
-                <span className="text-brand-secondary font-semibold text-sm">
-                  {member.role}
-                </span>
-              </div>
 
-              <div className="text-brand-secondary font-medium text-sm mb-4">
-                {member.specialty}
-              </div>
-              
-              <p className="text-brand-primary/70 mb-4 leading-relaxed text-sm">
-                {member.description}
-              </p>
-              
-              <div className="text-xs text-brand-primary/60 border-t border-brand-primary/10 pt-4 mb-4">
-                {member.credentials}
-              </div>
+                {/* Name strip at bottom */}
+                <div className="absolute bottom-0 left-0 right-0 z-[5] px-4 py-4 rounded-b-3xl">
+                  <div className="bg-brand-primary/90 backdrop-blur-sm rounded-xl px-4 py-3">
+                    <h3 className="text-xl font-bold text-white">
+                      {member.name}
+                    </h3>
+                    <p className="text-brand-secondary text-sm mt-1">{member.role}</p>
+                  </div>
+                </div>
 
-              {/* Hover Button */}
-              <div className={`transition-all duration-300 ${
-                hoveredMember === index 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-4'
-              }`}>
-                <Button
-                  onClick={() => handleBookWithProfessional()}
-                  className="w-full bg-brand-secondary hover:bg-brand-secondary/90 text-white"
-                  size="sm"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Reservar
-                </Button>
-              </div>
-            </div>
-          ))}
+                {/* Progress bar accent */}
+                <motion.div
+                  className="absolute bottom-0 left-0 h-1 bg-brand-secondary z-[10] rounded-bl-3xl"
+                  initial={{ width: "0%" }}
+                  animate={{
+                    width: hoveredIndex === index ? "100%" : "30%",
+                  }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Fade edges */}
+          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[hsl(var(--brand-dark))] to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[hsl(var(--brand-dark))] to-transparent z-10 pointer-events-none" />
         </div>
-
       </div>
     </section>
   );

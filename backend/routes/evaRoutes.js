@@ -18,7 +18,7 @@ router.use(protect);
 
 // Rutas de EVA
 router.route('/')
-  .post(authorize('admin'), createEVARecord);
+  .post(authorize('admin', 'professional'), createEVARecord);
 
 router.get('/patient/:patientId', getPatientEVARecords);
 router.get('/evolution/:patientId/:bodyArea', getPainEvolution);
@@ -27,7 +27,7 @@ router.get('/summary/:patientId', getPainSummary);
 
 router.route('/:id')
   .get(getEVARecord)
-  .put(authorize('admin'), updateEVARecord)
-  .delete(authorize('admin'), deleteEVARecord);
+  .put(authorize('admin', 'professional'), updateEVARecord)
+  .delete(authorize('admin', 'professional'), deleteEVARecord);
 
 export default router;

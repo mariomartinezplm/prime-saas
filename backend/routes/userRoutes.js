@@ -12,9 +12,9 @@ import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Todas las rutas requieren autenticación y rol de admin
+// Todas las rutas requieren autenticación y rol de admin o professional
 router.use(protect);
-router.use(authorize('admin'));
+router.use(authorize('admin', 'professional'));
 
 // Rutas de gestión de usuarios
 router.route('/')

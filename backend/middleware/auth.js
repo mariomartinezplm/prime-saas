@@ -84,6 +84,9 @@ export const authorizeOwnerOrAdmin = (resourceUserIdField = 'patient') => {
   };
 };
 
+// Helper para autorizar staff (admin + professional)
+export const authorizeStaff = authorize('admin', 'professional');
+
 // Generar JWT Token
 export const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {

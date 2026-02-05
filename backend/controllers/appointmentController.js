@@ -21,9 +21,9 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // Validar que el profesional existe y es admin
+    // Validar que el profesional existe y tiene rol admin o professional
     const professionalUser = await User.findById(professional);
-    if (!professionalUser || professionalUser.role !== 'admin') {
+    if (!professionalUser || !['admin', 'professional'].includes(professionalUser.role)) {
       return res.status(404).json({
         success: false,
         message: 'Profesional no encontrado'
@@ -42,16 +42,13 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // Si es paciente, verificar que pueda agendar (antes de las 21:00 del día anterior)
+    // Si es paciente, verificar regla de 24 horas de anticipación
     if (req.user.role === 'patient') {
-      const yesterday21 = new Date(appointmentDate);
-      yesterday21.setDate(yesterday21.getDate() - 1);
-      yesterday21.setHours(21, 0, 0, 0);
-
-      if (isBefore(now, yesterday21) === false && isBefore(yesterday21, now)) {
+      const twentyFourHoursFromNow = addHours(now, 24);
+      if (!isBefore(twentyFourHoursFromNow, appointmentDateTime)) {
         return res.status(400).json({
           success: false,
-          message: 'Las citas deben agendarse antes de las 21:00 hrs del día anterior'
+          message: 'Las citas deben agendarse con al menos 24 horas de anticipación'
         });
       }
     }
@@ -115,6 +112,16 @@ export const getAppointments = async (req, res) => {
     // Si es paciente, solo ver sus propias citas
     if (req.user.role === 'patient') {
       query.patient = req.user._id;
+    }
+
+    // Si es professional, ver sus citas asignadas (y puede filtrar por paciente)
+    if (req.user.role === 'professional') {
+      query.professional = req.user._id;
+    }
+
+    // Filtrar por profesional (admin puede filtrar por cualquier profesional)
+    if (req.query.professional && req.user.role === 'admin') {
+      query.professional = req.query.professional;
     }
 
     // Filtros
@@ -221,11 +228,11 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
-    // Si es paciente, verificar la regla de 4 horas
+    // Si es paciente, verificar la regla de 24 horas
     if (req.user.role === 'patient' && !appointment.canBeCancelled()) {
       return res.status(400).json({
         success: false,
-        message: 'Las citas deben cancelarse con al menos 4 horas de anticipación'
+        message: 'Las citas deben cancelarse con al menos 24 horas de anticipación'
       });
     }
 
@@ -349,6 +356,91 @@ export const getAvailability = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error al obtener disponibilidad'
+    });
+  }
+};
+
+// @desc    Crear múltiples citas (reserva masiva)
+// @route   POST /api/appointments/bulk
+// @access  Private
+export const bulkCreateAppointments = async (req, res) => {
+  try {
+    const { appointments: appointmentsData } = req.body;
+
+    if (!appointmentsData || !Array.isArray(appointmentsData) || appointmentsData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debe proporcionar un arreglo de citas'
+      });
+    }
+
+    const patientId = req.user.role === 'patient' ? req.user._id : req.body.patient;
+    const now = new Date();
+    const created = [];
+    const errors = [];
+
+    for (const apt of appointmentsData) {
+      try {
+        const { professional, date, startTime, endTime, type } = apt;
+
+        // Validate professional
+        const professionalUser = await User.findById(professional);
+        if (!professionalUser || !['admin', 'professional'].includes(professionalUser.role)) {
+          errors.push({ date, startTime, error: 'Profesional no encontrado' });
+          continue;
+        }
+
+        const appointmentDate = new Date(date);
+        const appointmentDateTime = new Date(`${appointmentDate.toISOString().split('T')[0]}T${startTime}`);
+
+        // 24hr rule for patients
+        if (req.user.role === 'patient') {
+          const twentyFourHoursFromNow = addHours(now, 24);
+          if (!isBefore(twentyFourHoursFromNow, appointmentDateTime)) {
+            errors.push({ date, startTime, error: 'Debe ser con al menos 24 horas de anticipación' });
+            continue;
+          }
+        }
+
+        // Check conflicts
+        const conflict = await Appointment.findOne({
+          professional,
+          date: { $gte: startOfDay(appointmentDate), $lte: endOfDay(appointmentDate) },
+          startTime,
+          status: { $ne: 'cancelled' }
+        });
+
+        if (conflict) {
+          errors.push({ date, startTime, error: 'Horario no disponible' });
+          continue;
+        }
+
+        const appointment = await Appointment.create({
+          patient: patientId,
+          professional,
+          date: appointmentDate,
+          startTime,
+          endTime,
+          type: type || 'entrenamiento'
+        });
+
+        await appointment.populate('patient', 'firstName lastName email phone');
+        await appointment.populate('professional', 'firstName lastName');
+        created.push(appointment);
+      } catch (err) {
+        errors.push({ date: apt.date, startTime: apt.startTime, error: err.message });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `${created.length} citas creadas${errors.length > 0 ? `, ${errors.length} errores` : ''}`,
+      data: { appointments: created, errors }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error al crear citas masivas'
     });
   }
 };

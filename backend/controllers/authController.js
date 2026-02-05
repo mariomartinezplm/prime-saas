@@ -57,23 +57,31 @@ export const register = async (req, res) => {
   }
 };
 
-// @desc    Login de usuario
+// @desc    Login de usuario (por email o RUT)
 // @route   POST /api/auth/login
 // @access  Public
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, identifier } = req.body;
 
-    // Validar email y password
-    if (!email || !password) {
+    // Soportar campo "identifier" (email o RUT) además de "email" por retrocompatibilidad
+    const loginIdentifier = identifier || email;
+
+    // Validar identifier y password
+    if (!loginIdentifier || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Por favor ingrese email y contraseña'
+        message: 'Por favor ingrese email/RUT y contraseña'
       });
     }
 
-    // Buscar usuario y incluir password para validación
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    // Determinar si es email o RUT y buscar usuario
+    const isEmail = loginIdentifier.includes('@');
+    const query = isEmail
+      ? { email: loginIdentifier.toLowerCase() }
+      : { rut: loginIdentifier.trim() };
+
+    const user = await User.findOne(query).select('+password');
 
     if (!user) {
       return res.status(401).json({

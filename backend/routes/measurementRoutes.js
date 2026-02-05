@@ -17,7 +17,7 @@ router.use(protect);
 
 // Rutas de mediciones
 router.route('/')
-  .post(authorize('admin'), createMeasurement);
+  .post(authorize('admin', 'professional'), createMeasurement);
 
 router.get('/patient/:patientId', getPatientMeasurements);
 router.get('/compare/:id1/:id2', compareMeasurements);
@@ -25,7 +25,7 @@ router.get('/progress/:patientId/:perimeter', getPerimeterProgress);
 
 router.route('/:id')
   .get(getMeasurement)
-  .put(authorize('admin'), updateMeasurement)
-  .delete(authorize('admin'), deleteMeasurement);
+  .put(authorize('admin', 'professional'), updateMeasurement)
+  .delete(authorize('admin', 'professional'), deleteMeasurement);
 
 export default router;
