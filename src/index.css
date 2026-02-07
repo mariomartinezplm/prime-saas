@@ -10,11 +10,15 @@ All colors MUST be HSL.
   :root {
     /* Prime Fit & Health Brand Colors - New Identity */
     /* Primary: #181619 (Dark) - Now as main background */
-    --background: 270 8% 8%; /* Dark black background */
-    --foreground: 0 0% 98%; /* Almost white text for high contrast */
+    --background: 270 8% 8%;
+    /* Dark black background */
+    --foreground: 0 0% 98%;
+    /* Almost white text for high contrast */
 
-    --card: 270 8% 12%; /* Slightly lighter dark for cards */
-    --card-foreground: 0 0% 95%; /* Light text on cards */
+    --card: 270 8% 12%;
+    /* Slightly lighter dark for cards */
+    --card-foreground: 0 0% 95%;
+    /* Light text on cards */
 
     --popover: 270 8% 10%;
     --popover-foreground: 0 0% 98%;
@@ -29,7 +33,8 @@ All colors MUST be HSL.
 
     /* Tertiary: #FFF8E4 (Cream) - Used sparingly for accents */
     --muted: 270 8% 15%;
-    --muted-foreground: 0 0% 75%; /* Better contrast on dark */
+    --muted-foreground: 0 0% 85%;
+    /* Increased brightness for better readability */
 
     --accent: 194 45% 44%;
     --accent-foreground: 0 0% 100%;
@@ -37,29 +42,35 @@ All colors MUST be HSL.
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 270 8% 20%; /* Subtle borders on dark */
+    --border: 270 8% 20%;
+    /* Subtle borders on dark */
     --input: 270 8% 15%;
     --ring: 194 45% 44%;
 
     --radius: 0.75rem;
 
     /* Brand specific tokens - New Identity */
-    --brand-primary: 0 0% 98%; /* White text on dark backgrounds */
-    --brand-secondary: 194 45% 44%; /* #398CA2 Teal */
-    --brand-tertiary: 50 100% 95%; /* #FFF8E4 Cream for accents */
-    --brand-light: 270 8% 12%; /* Dark card background */
-    --brand-dark: 270 8% 8%; /* Main dark background */
-    
+    --brand-primary: 0 0% 98%;
+    /* White text on dark backgrounds */
+    --brand-secondary: 194 45% 44%;
+    /* #398CA2 Teal */
+    --brand-tertiary: 50 100% 95%;
+    /* #FFF8E4 Cream for accents */
+    --brand-light: 270 8% 12%;
+    /* Dark card background */
+    --brand-dark: 270 8% 8%;
+    /* Main dark background */
+
     /* Gradients */
     --gradient-hero: linear-gradient(135deg, hsl(270 8% 10%), hsl(270 8% 20%));
     --gradient-cta: linear-gradient(135deg, hsl(194 45% 44%), hsl(194 55% 54%));
     --gradient-dark: linear-gradient(135deg, hsl(270 8% 8%), hsl(270 8% 15%));
-    
+
     /* Shadows - Enhanced for dark theme */
     --shadow-card: 0 10px 40px -10px hsl(0 0% 0% / 0.3);
     --shadow-cta: 0 8px 25px -8px hsl(194 45% 44% / 0.6);
     --shadow-elevated: 0 20px 60px -20px hsl(0 0% 0% / 0.4);
-    
+
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -91,7 +102,7 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 100%;
 
     --muted: 270 8% 15%;
-    --muted-foreground: 0 0% 75%;
+    --muted-foreground: 0 0% 85%;
 
     --accent: 194 45% 44%;
     --accent-foreground: 0 0% 100%;
@@ -102,7 +113,7 @@ All colors MUST be HSL.
     --border: 270 8% 20%;
     --input: 270 8% 15%;
     --ring: 194 45% 44%;
-    
+
     /* Dark mode brand tokens */
     --brand-primary: 0 0% 98%;
     --brand-secondary: 194 45% 44%;
@@ -128,72 +139,75 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
-  
+
   html {
     scroll-behavior: smooth;
   }
-  
+
   .gradient-hero {
     background: var(--gradient-hero);
   }
-  
+
   .gradient-cta {
     background: var(--gradient-cta);
   }
-  
+
   .gradient-dark {
     background: var(--gradient-dark);
   }
-  
+
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
-  
+
   .shadow-cta {
     box-shadow: var(--shadow-cta);
   }
-  
+
   .shadow-elevated {
     box-shadow: var(--shadow-elevated);
   }
-  
+
   .transition-smooth {
     transition: var(--transition-smooth);
   }
-  
+
   /* Scroll animations */
   @keyframes fadeInUp {
     from {
       opacity: 0;
       transform: translateY(30px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
-  
+
   @keyframes fadeOut {
     from {
       opacity: 1;
       transform: translateY(0);
     }
+
     to {
       opacity: 0.7;
       transform: translateY(-10px);
     }
   }
-  
+
   .animate-fade-in-up {
     animation: fadeInUp 0.8s ease-out;
   }
-  
+
   .animate-fade-out {
     animation: fadeOut 0.6s ease-out;
   }
-  
+
   /* Reduce motion for accessibility */
   @media (prefers-reduced-motion: reduce) {
+
     .animate-fade-in-up,
     .animate-fade-out,
     .transition-smooth {
