@@ -34,7 +34,7 @@ const Pricing = () => {
   };
 
   return (
-    <section id="precios" className="py-20 bg-brand-light relative overflow-hidden">
+    <section id="precios" className="py-20 bg-brand-dark relative overflow-hidden">
       {/* Animated background */}
       <motion.div
         className="absolute top-0 right-0 w-[600px] h-[600px] bg-brand-secondary/5 rounded-full blur-3xl"
@@ -78,7 +78,7 @@ const Pricing = () => {
           >
             💰 Invierte en Ti
           </motion.span>
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-light mb-4">
             Planes y Horarios
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -128,7 +128,7 @@ const Pricing = () => {
 
             <div className="text-center mb-8 relative z-10">
               <motion.h3
-                className="text-2xl font-bold text-brand-primary mb-2"
+                className="text-2xl font-bold text-brand-light mb-2"
                 initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -146,7 +146,7 @@ const Pricing = () => {
                 viewport={{ once: true }}
                 transition={{ delay: 0.3, type: "spring" }}
               >
-                <span className="text-6xl font-bold text-brand-primary">
+                <span className="text-6xl font-bold text-brand-light">
                   $89.990
                 </span>
                 <span className="text-muted-foreground"> /mensual</span>
@@ -216,7 +216,7 @@ const Pricing = () => {
               >
                 <Clock className="w-8 h-8 text-brand-secondary" />
               </motion.div>
-              <h3 className="text-2xl font-bold text-brand-primary">
+              <h3 className="text-2xl font-bold text-brand-light">
                 Horarios de Atención
               </h3>
             </div>
@@ -229,7 +229,7 @@ const Pricing = () => {
             {schedule.map((slot, index) => (
               <motion.div
                 key={index}
-                className="flex justify-between items-center py-4 px-4 border-b border-border last:border-0 rounded-lg hover:bg-brand-light/50 transition-colors duration-300"
+                className="flex justify-between items-center py-4 px-4 border-b border-border last:border-0 rounded-lg hover:bg-brand-secondary/10 transition-colors duration-300"
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
@@ -243,9 +243,9 @@ const Pricing = () => {
                   >
                     <Calendar className="w-5 h-5 text-brand-secondary" />
                   </motion.div>
-                  <span className="font-medium text-brand-primary">{slot.day}</span>
+                  <span className="font-medium text-brand-light">{slot.day}</span>
                 </div>
-                <span className="text-muted-foreground font-semibold bg-brand-light px-3 py-1 rounded-full">
+                <span className="text-muted-foreground font-semibold bg-brand-secondary/20 px-3 py-1 rounded-full">
                   {slot.time}
                 </span>
               </motion.div>
@@ -253,7 +253,7 @@ const Pricing = () => {
           </div>
 
           <motion.div
-            className="mt-8 p-4 bg-gradient-to-r from-brand-light to-brand-soft rounded-xl"
+            className="mt-8 p-4 bg-brand-secondary/10 rounded-xl"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}

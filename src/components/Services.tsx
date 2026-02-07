@@ -20,7 +20,7 @@ const Services = () => {
   };
 
   return (
-    <section id="servicios" className="py-20 bg-brand-light relative overflow-hidden">
+    <section id="servicios" className="py-20 bg-brand-dark relative overflow-hidden">
       {/* Animated background shapes */}
       <motion.div
         className="absolute -top-20 -right-20 w-80 h-80 bg-brand-primary/5 rounded-full blur-3xl"
@@ -56,7 +56,7 @@ const Services = () => {
           transition={{ duration: 0.6 }}
         >
           <motion.span
-            className="inline-block bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-full text-sm font-semibold mb-4"
+            className="inline-block bg-brand-secondary/20 text-brand-secondary px-4 py-2 rounded-full text-sm font-semibold mb-4"
             initial={{ opacity: 0, scale: 0.8 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -64,7 +64,7 @@ const Services = () => {
           >
             🎯 Servicios Especializados
           </motion.span>
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-light mb-4">
             Nuestros Servicios
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -75,7 +75,7 @@ const Services = () => {
         <div className="grid lg:grid-cols-2 gap-12 items-stretch">
           {/* Entrenamiento Personalizado */}
           <motion.div
-            className="bg-white rounded-2xl p-8 shadow-card hover:shadow-2xl transition-shadow duration-500 group relative overflow-hidden"
+            className="bg-brand-dark/80 backdrop-blur-sm rounded-2xl p-8 shadow-card hover:shadow-2xl transition-shadow duration-500 group relative overflow-hidden border border-brand-secondary/10"
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
@@ -90,13 +90,13 @@ const Services = () => {
             <div className="relative z-10">
               <div className="flex items-center gap-4 mb-6">
                 <motion.div
-                  className="bg-brand-primary/10 rounded-xl p-4 group-hover:bg-brand-primary transition-colors duration-300"
+                  className="bg-brand-light/10 rounded-xl p-4 group-hover:bg-brand-secondary transition-colors duration-300"
                   whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <Dumbbell className="w-8 h-8 text-brand-primary group-hover:text-white transition-colors duration-300" />
+                  <Dumbbell className="w-8 h-8 text-brand-light group-hover:text-white transition-colors duration-300" />
                 </motion.div>
-                <h3 className="text-2xl font-bold text-brand-dark">
+                <h3 className="text-2xl font-bold text-brand-light">
                   Entrenamiento Personalizado
                 </h3>
               </div>
@@ -124,7 +124,7 @@ const Services = () => {
                       whileHover={{ scale: 1.3, rotate: 360 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <Activity className="w-5 h-5 text-brand-primary" />
+                      <Activity className="w-5 h-5 text-brand-secondary" />
                     </motion.div>
                     <span>{feature}</span>
                   </motion.div>
@@ -149,7 +149,7 @@ const Services = () => {
 
           {/* Kinesiología */}
           <motion.div
-            className="bg-white rounded-2xl p-8 shadow-card hover:shadow-2xl transition-shadow duration-500 group relative overflow-hidden"
+            className="bg-brand-dark/80 backdrop-blur-sm rounded-2xl p-8 shadow-card hover:shadow-2xl transition-shadow duration-500 group relative overflow-hidden border border-brand-secondary/10"
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
@@ -170,7 +170,7 @@ const Services = () => {
                 >
                   <Heart className="w-8 h-8 text-brand-secondary group-hover:text-white transition-colors duration-300" />
                 </motion.div>
-                <h3 className="text-2xl font-bold text-brand-dark">
+                <h3 className="text-2xl font-bold text-brand-light">
                   Kinesiología
                 </h3>
               </div>

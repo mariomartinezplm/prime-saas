@@ -146,11 +146,11 @@ const Benefits = () => {
                 className="bg-card rounded-xl p-6 shadow-card hover:shadow-xl transition-shadow duration-300 cursor-default group"
               >
                 <motion.div
-                  className="bg-brand-light rounded-xl p-3 w-fit mb-4 group-hover:bg-brand-primary transition-colors duration-300"
+                  className="bg-brand-secondary/10 rounded-xl p-3 w-fit mb-4 group-hover:bg-brand-secondary transition-colors duration-300"
                   whileHover={{ rotate: [0, -5, 5, 0] }}
                   transition={{ duration: 0.4 }}
                 >
-                  <benefit.icon className="w-6 h-6 text-brand-primary group-hover:text-white transition-colors duration-300" />
+                  <benefit.icon className="w-6 h-6 text-brand-secondary group-hover:text-white transition-colors duration-300" />
                 </motion.div>
                 <h3 className="text-lg font-semibold text-brand-primary mb-3">
                   {benefit.title}
@@ -208,7 +208,7 @@ const Benefits = () => {
                 className="bg-card rounded-xl p-6 shadow-card hover:shadow-xl transition-shadow duration-300 cursor-default group"
               >
                 <motion.div
-                  className="bg-brand-light rounded-xl p-3 w-fit mb-4 group-hover:bg-brand-secondary transition-colors duration-300"
+                  className="bg-brand-secondary/10 rounded-xl p-3 w-fit mb-4 group-hover:bg-brand-secondary transition-colors duration-300"
                   whileHover={{ rotate: [0, -5, 5, 0] }}
                   transition={{ duration: 0.4 }}
                 >

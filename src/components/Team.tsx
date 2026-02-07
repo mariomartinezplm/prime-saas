@@ -82,7 +82,7 @@ const Team = () => {
           {/* Arrow left */}
           <button
             onClick={() => scrollBy("left")}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-brand-secondary hover:text-white shadow-elevated rounded-full p-3 text-brand-primary transition-all duration-300"
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-brand-dark/90 hover:bg-brand-secondary hover:text-white shadow-elevated rounded-full p-3 text-brand-light border border-brand-secondary/20 transition-all duration-300"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -90,7 +90,7 @@ const Team = () => {
           {/* Arrow right */}
           <button
             onClick={() => scrollBy("right")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-brand-secondary hover:text-white shadow-elevated rounded-full p-3 text-brand-primary transition-all duration-300"
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-brand-dark/90 hover:bg-brand-secondary hover:text-white shadow-elevated rounded-full p-3 text-brand-light border border-brand-secondary/20 transition-all duration-300"
           >
             <ChevronRight className="w-6 h-6" />
           </button>

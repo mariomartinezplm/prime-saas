@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 const FAQ = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
-  
+
   const whatsappUrl = "https://wa.me/56956286651?text=Hola! Tengo una consulta que no encontré en las preguntas frecuentes.";
 
   const faqs = [
@@ -43,10 +43,10 @@ const FAQ = () => {
   ];
 
   return (
-    <section className="py-20 bg-brand-light">
+    <section className="py-20 bg-brand-dark">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-brand-light mb-4">
             Preguntas Frecuentes
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -57,21 +57,20 @@ const FAQ = () => {
         <div className="max-w-3xl mx-auto">
           <div className="space-y-4 mb-12">
             {faqs.map((faq, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-card overflow-hidden">
+              <div key={index} className="bg-brand-dark/80 backdrop-blur-sm rounded-lg shadow-card overflow-hidden border border-brand-secondary/10">
                 <button
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-brand-light/50 transition-smooth"
+                  className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-brand-secondary/10 transition-smooth"
                 >
-                  <h3 className="text-lg font-semibold text-brand-primary pr-4">
+                  <h3 className="text-lg font-semibold text-brand-light pr-4">
                     {faq.question}
                   </h3>
-                  <ChevronDown 
-                    className={`w-5 h-5 text-brand-primary transition-transform ${
-                      openIndex === index ? 'rotate-180' : ''
-                    }`} 
+                  <ChevronDown
+                    className={`w-5 h-5 text-brand-light transition-transform ${openIndex === index ? 'rotate-180' : ''
+                      }`}
                   />
                 </button>
-                
+
                 {openIndex === index && (
                   <div className="px-6 pb-4">
                     <p className="text-muted-foreground leading-relaxed">
@@ -84,14 +83,14 @@ const FAQ = () => {
           </div>
 
           {/* Still have questions CTA */}
-          <div className="text-center bg-white rounded-2xl p-8 shadow-card">
-            <h3 className="text-xl font-bold text-brand-primary mb-4">
+          <div className="text-center bg-brand-dark/80 backdrop-blur-sm rounded-2xl p-8 shadow-card border border-brand-secondary/10">
+            <h3 className="text-xl font-bold text-brand-light mb-4">
               ¿Tienes más preguntas?
             </h3>
             <p className="text-muted-foreground mb-6">
               Nuestro equipo está disponible para resolver cualquier duda específica sobre tu caso
             </p>
-            <Button 
+            <Button
               variant="whatsapp"
               onClick={() => window.open(whatsappUrl, '_blank')}
               className="mx-auto"
