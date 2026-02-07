@@ -69,7 +69,7 @@ const Team = () => {
     <section id="equipo" className="py-24 bg-brand-dark">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
+          <h2 className="text-4xl lg:text-5xl font-serif font-bold text-white mb-6">
             Nuestro Equipo
           </h2>
           <p className="text-xl text-white/70 max-w-3xl mx-auto leading-relaxed">

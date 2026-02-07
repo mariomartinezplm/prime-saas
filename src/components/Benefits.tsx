@@ -119,7 +119,7 @@ const Benefits = () => {
             >
               💪 Entrenamiento
             </motion.span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
+            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-primary mb-4">
               Entrenamiento Personalizado
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -181,7 +181,7 @@ const Benefits = () => {
             >
               🩺 Rehabilitación
             </motion.span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
+            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-primary mb-4">
               Kinesiología
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
