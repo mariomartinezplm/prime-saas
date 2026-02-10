@@ -77,7 +77,7 @@ appointmentSchema.index({ professional: 1, date: 1 });
 appointmentSchema.index({ date: 1, status: 1 });
 
 // Validación personalizada: no permitir reservas en el pasado (excepto admin)
-appointmentSchema.pre('save', function(next) {
+appointmentSchema.pre('save', function (next) {
   if (this.isNew && this.status === 'scheduled') {
     const appointmentDateTime = new Date(`${this.date.toISOString().split('T')[0]}T${this.startTime}`);
     const now = new Date();
@@ -89,18 +89,20 @@ appointmentSchema.pre('save', function(next) {
   next();
 });
 
-// Método para verificar si la cita puede ser cancelada (24 horas de anticipación)
-appointmentSchema.methods.canBeCancelled = function() {
+// Método para verificar si la cita puede ser cancelada (4 horas de anticipación para pacientes)
+appointmentSchema.methods.canBeCancelled = function (isStaffUser = false) {
+  if (isStaffUser) return this.status === 'scheduled'; // Staff puede cancelar siempre
+
   const appointmentDateTime = new Date(`${this.date.toISOString().split('T')[0]}T${this.startTime}`);
   const now = new Date();
-  const twentyFourHoursFromNow = addHours(now, 24);
+  const fourHoursFromNow = addHours(now, 4);
 
-  // Debe ser al menos 24 horas antes de la cita
-  return isBefore(twentyFourHoursFromNow, appointmentDateTime) && this.status === 'scheduled';
+  // Pacientes: debe ser al menos 4 horas antes de la cita
+  return isBefore(fourHoursFromNow, appointmentDateTime) && this.status === 'scheduled';
 };
 
 // Virtual para obtener la fecha y hora completa
-appointmentSchema.virtual('fullDateTime').get(function() {
+appointmentSchema.virtual('fullDateTime').get(function () {
   return new Date(`${this.date.toISOString().split('T')[0]}T${this.startTime}`);
 });
 

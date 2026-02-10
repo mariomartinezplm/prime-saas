@@ -1,6 +1,53 @@
 import Appointment from '../models/Appointment.js';
+import Plan from '../models/Plan.js';
 import User from '../models/User.js';
-import { startOfDay, endOfDay, addDays, parseISO, format, isBefore, addHours } from 'date-fns';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, addDays, parseISO, format, isBefore, addHours } from 'date-fns';
+
+// ─── Constantes de reglas ────────────────────────────────────────────────────
+const MAX_PATIENTS_PER_SLOT = 4;         // Máximo 4 pacientes por hora por kinesiólogo
+const PATIENT_BOOK_AHEAD_HOURS = 24;     // Pacientes: mínimo 24h de anticipación para agendar
+const PATIENT_CANCEL_AHEAD_HOURS = 4;    // Pacientes: mínimo 4h de anticipación para cancelar
+
+// ─── Helper: verificar si el usuario es staff ────────────────────────────────
+function isStaff(user) {
+  return ['admin', 'professional'].includes(user.role);
+}
+
+// ─── Helper: contar agendamientos del paciente en una semana ─────────────────
+async function countWeeklyAppointments(patientId, date, type) {
+  const weekStart = startOfWeek(new Date(date), { weekStartsOn: 1 }); // Lunes
+  const weekEnd = endOfWeek(new Date(date), { weekStartsOn: 1 });     // Domingo
+
+  return await Appointment.countDocuments({
+    patient: patientId,
+    date: { $gte: weekStart, $lte: weekEnd },
+    type: type,
+    status: { $ne: 'cancelled' }
+  });
+}
+
+// ─── Helper: contar total sesiones usadas de kinesiología ────────────────────
+async function countKineSessions(patientId, planId) {
+  return await Appointment.countDocuments({
+    patient: patientId,
+    type: 'kinesiologia',
+    status: { $in: ['scheduled', 'completed'] }
+  });
+}
+
+// ─── Helper: contar pacientes en un slot específico ──────────────────────────
+async function countPatientsInSlot(professionalId, date, startTime) {
+  const targetDate = new Date(date);
+  return await Appointment.countDocuments({
+    professional: professionalId,
+    date: {
+      $gte: startOfDay(targetDate),
+      $lte: endOfDay(targetDate)
+    },
+    startTime,
+    status: { $ne: 'cancelled' }
+  });
+}
 
 // @desc    Crear nueva cita
 // @route   POST /api/appointments
@@ -30,11 +77,12 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // Verificar que la fecha no sea en el pasado
+    // ─── Reglas solo para PACIENTES (staff puede agendar sin restricciones) ───
     const appointmentDate = new Date(date);
     const appointmentDateTime = new Date(`${appointmentDate.toISOString().split('T')[0]}T${startTime}`);
     const now = new Date();
 
+    // No permitir citas en el pasado (para todos)
     if (isBefore(appointmentDateTime, now)) {
       return res.status(400).json({
         success: false,
@@ -42,32 +90,74 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // Si es paciente, verificar regla de 24 horas de anticipación
-    if (req.user.role === 'patient') {
-      const twentyFourHoursFromNow = addHours(now, 24);
-      if (!isBefore(twentyFourHoursFromNow, appointmentDateTime)) {
+    if (!isStaff(req.user)) {
+      // ──── REGLA 1: Pacientes deben agendar con 24h de anticipación ────
+      const minBookingTime = addHours(now, PATIENT_BOOK_AHEAD_HOURS);
+      if (isBefore(appointmentDateTime, minBookingTime)) {
         return res.status(400).json({
           success: false,
-          message: 'Las citas deben agendarse con al menos 24 horas de anticipación'
+          message: `Las citas deben agendarse con al menos ${PATIENT_BOOK_AHEAD_HOURS} horas de anticipación`
         });
+      }
+
+      // ──── REGLA 2: Verificar plan del paciente ────
+      const activePlan = await Plan.findOne({
+        patient: patientId,
+        status: 'active',
+        endDate: { $gte: now }
+      });
+
+      if (!activePlan) {
+        return res.status(400).json({
+          success: false,
+          message: 'No tienes un plan activo. Contacta al equipo para activar tu plan.'
+        });
+      }
+
+      // ──── REGLA 3: Validar tipo de sesión según plan ────
+      if (activePlan.planType === 'kinesiologia') {
+        // Solo puede agendar tipo "kinesiologia"
+        if (type !== 'kinesiologia') {
+          return res.status(400).json({
+            success: false,
+            message: 'Tu plan es de kinesiología. Solo puedes agendar sesiones de kinesiología.'
+          });
+        }
+
+        // Verificar que no haya superado las 10 sesiones
+        const usedSessions = await countKineSessions(patientId);
+        if (usedSessions >= activePlan.totalSessions) {
+          return res.status(400).json({
+            success: false,
+            message: `Has completado tus ${activePlan.totalSessions} sesiones de kinesiología. Tu bono ha terminado.`
+          });
+        }
+      } else {
+        // Planes de entrenamiento: solo pueden agendar "entrenamiento"
+        if (type !== 'entrenamiento') {
+          return res.status(400).json({
+            success: false,
+            message: 'Tu plan es de entrenamiento. Solo puedes agendar sesiones de entrenamiento.'
+          });
+        }
+
+        // ──── REGLA 4: Límite semanal según plan ────
+        const weeklyCount = await countWeeklyAppointments(patientId, date, 'entrenamiento');
+        if (weeklyCount >= activePlan.sessionsPerWeek) {
+          return res.status(400).json({
+            success: false,
+            message: `Ya tienes ${weeklyCount} sesiones esta semana. Tu plan permite ${activePlan.sessionsPerWeek} sesiones por semana.`
+          });
+        }
       }
     }
 
-    // Verificar disponibilidad (no debe haber otra cita en ese horario)
-    const conflictingAppointment = await Appointment.findOne({
-      professional,
-      date: {
-        $gte: startOfDay(appointmentDate),
-        $lte: endOfDay(appointmentDate)
-      },
-      startTime,
-      status: { $ne: 'cancelled' }
-    });
-
-    if (conflictingAppointment) {
+    // ──── REGLA 5: Máximo 4 pacientes por hora por kinesiólogo (para todos) ────
+    const patientsInSlot = await countPatientsInSlot(professional, date, startTime);
+    if (patientsInSlot >= MAX_PATIENTS_PER_SLOT) {
       return res.status(400).json({
         success: false,
-        message: 'El horario seleccionado no está disponible'
+        message: `El horario ${startTime} ya tiene ${MAX_PATIENTS_PER_SLOT} pacientes. Selecciona otro horario.`
       });
     }
 
@@ -78,9 +168,17 @@ export const createAppointment = async (req, res) => {
       date: appointmentDate,
       startTime,
       endTime,
-      type,
+      type: type || 'entrenamiento',
       notes
     });
+
+    // Si es kinesiología, incrementar el contador del plan
+    if (type === 'kinesiologia' && !isStaff(req.user)) {
+      await Plan.findOneAndUpdate(
+        { patient: patientId, status: 'active', planType: 'kinesiologia' },
+        { $inc: { sessionsUsed: 1 } }
+      );
+    }
 
     // Poblar datos del paciente y profesional
     await appointment.populate('patient', 'firstName lastName email phone');
@@ -114,7 +212,7 @@ export const getAppointments = async (req, res) => {
       query.patient = req.user._id;
     }
 
-    // Si es professional, ver sus citas asignadas (y puede filtrar por paciente)
+    // Si es professional, ver sus citas asignadas
     if (req.user.role === 'professional') {
       query.professional = req.user._id;
     }
@@ -125,22 +223,13 @@ export const getAppointments = async (req, res) => {
     }
 
     // Filtros
-    if (status) {
-      query.status = status;
-    }
-
-    if (type) {
-      query.type = type;
-    }
+    if (status) query.status = status;
+    if (type) query.type = type;
 
     if (from || to) {
       query.date = {};
-      if (from) {
-        query.date.$gte = parseISO(from);
-      }
-      if (to) {
-        query.date.$lte = parseISO(to);
-      }
+      if (from) query.date.$gte = parseISO(from);
+      if (to) query.date.$lte = parseISO(to);
     }
 
     const appointments = await Appointment.find(query)
@@ -228,12 +317,19 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
-    // Si es paciente, verificar la regla de 24 horas
-    if (req.user.role === 'patient' && !appointment.canBeCancelled()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Las citas deben cancelarse con al menos 24 horas de anticipación'
-      });
+    // ──── REGLA: Pacientes deben cancelar con 4h de anticipación ────
+    // Staff puede cancelar en cualquier momento
+    if (!isStaff(req.user)) {
+      const appointmentDateTime = new Date(`${appointment.date.toISOString().split('T')[0]}T${appointment.startTime}`);
+      const now = new Date();
+      const minCancelTime = addHours(now, PATIENT_CANCEL_AHEAD_HOURS);
+
+      if (!isBefore(minCancelTime, appointmentDateTime)) {
+        return res.status(400).json({
+          success: false,
+          message: `Las citas deben cancelarse con al menos ${PATIENT_CANCEL_AHEAD_HOURS} horas de anticipación`
+        });
+      }
     }
 
     // Actualizar estado
@@ -243,6 +339,14 @@ export const cancelAppointment = async (req, res) => {
     appointment.cancelledAt = new Date();
 
     await appointment.save();
+
+    // Si era kinesiología, devolver la sesión al plan
+    if (appointment.type === 'kinesiologia') {
+      await Plan.findOneAndUpdate(
+        { patient: appointment.patient, status: 'active', planType: 'kinesiologia' },
+        { $inc: { sessionsUsed: -1 } }
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -257,7 +361,7 @@ export const cancelAppointment = async (req, res) => {
   }
 };
 
-// @desc    Actualizar una cita (solo admin)
+// @desc    Actualizar una cita (solo staff)
 // @route   PUT /api/appointments/:id
 // @access  Private/Admin
 export const updateAppointment = async (req, res) => {
@@ -310,16 +414,16 @@ export const getAvailability = async (req, res) => {
 
     const targetDate = parseISO(date);
 
-    // Horarios disponibles de Mario Martínez
+    // Horarios disponibles
     const weekdaySlots = [
-      '07:00', '08:00', '09:00', // Mañana
-      '12:00', '13:00', // Mediodía
-      '16:00', '17:00', '18:00', '19:00' // Tarde
+      '07:00', '08:00', '09:00',
+      '12:00', '13:00',
+      '16:00', '17:00', '18:00', '19:00'
     ];
 
-    const dayOfWeek = targetDate.getDay(); // 0 = Domingo, 6 = Sábado
+    const dayOfWeek = targetDate.getDay();
 
-    // Verificar que sea día de semana (Lunes-Viernes)
+    // No hay horarios fines de semana
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       return res.status(200).json({
         success: true,
@@ -340,16 +444,33 @@ export const getAvailability = async (req, res) => {
       status: { $ne: 'cancelled' }
     });
 
-    // Filtrar horarios ocupados
-    const bookedSlots = existingAppointments.map(apt => apt.startTime);
-    const availableSlots = weekdaySlots.filter(slot => !bookedSlots.includes(slot));
+    // Contar pacientes por slot
+    const slotCounts = {};
+    existingAppointments.forEach(apt => {
+      slotCounts[apt.startTime] = (slotCounts[apt.startTime] || 0) + 1;
+    });
+
+    // Un slot está disponible si tiene menos de 4 pacientes
+    const availableSlots = weekdaySlots.filter(slot => {
+      const count = slotCounts[slot] || 0;
+      return count < MAX_PATIENTS_PER_SLOT;
+    });
+
+    // Slots con info de cuántos quedan
+    const slotsWithAvailability = weekdaySlots.map(slot => ({
+      time: slot,
+      booked: slotCounts[slot] || 0,
+      available: MAX_PATIENTS_PER_SLOT - (slotCounts[slot] || 0),
+      isFull: (slotCounts[slot] || 0) >= MAX_PATIENTS_PER_SLOT
+    }));
 
     res.status(200).json({
       success: true,
       data: {
         date: format(targetDate, 'yyyy-MM-dd'),
         availableSlots,
-        bookedSlots
+        slotsWithAvailability,
+        maxPerSlot: MAX_PATIENTS_PER_SLOT
       }
     });
   } catch (error) {
@@ -394,24 +515,18 @@ export const bulkCreateAppointments = async (req, res) => {
         const appointmentDateTime = new Date(`${appointmentDate.toISOString().split('T')[0]}T${startTime}`);
 
         // 24hr rule for patients
-        if (req.user.role === 'patient') {
-          const twentyFourHoursFromNow = addHours(now, 24);
-          if (!isBefore(twentyFourHoursFromNow, appointmentDateTime)) {
-            errors.push({ date, startTime, error: 'Debe ser con al menos 24 horas de anticipación' });
+        if (!isStaff(req.user)) {
+          const minBookingTime = addHours(now, PATIENT_BOOK_AHEAD_HOURS);
+          if (isBefore(appointmentDateTime, minBookingTime)) {
+            errors.push({ date, startTime, error: `Debe ser con al menos ${PATIENT_BOOK_AHEAD_HOURS} horas de anticipación` });
             continue;
           }
         }
 
-        // Check conflicts
-        const conflict = await Appointment.findOne({
-          professional,
-          date: { $gte: startOfDay(appointmentDate), $lte: endOfDay(appointmentDate) },
-          startTime,
-          status: { $ne: 'cancelled' }
-        });
-
-        if (conflict) {
-          errors.push({ date, startTime, error: 'Horario no disponible' });
+        // Check slot capacity (4 per slot)
+        const patientsInSlot = await countPatientsInSlot(professional, date, startTime);
+        if (patientsInSlot >= MAX_PATIENTS_PER_SLOT) {
+          errors.push({ date, startTime, error: `Horario lleno (${MAX_PATIENTS_PER_SLOT}/${MAX_PATIENTS_PER_SLOT})` });
           continue;
         }
 
@@ -441,6 +556,62 @@ export const bulkCreateAppointments = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error al crear citas masivas'
+    });
+  }
+};
+
+// @desc    Obtener info del plan del paciente y sus restricciones
+// @route   GET /api/appointments/plan-info/:patientId
+// @access  Private
+export const getPlanInfo = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const now = new Date();
+
+    const activePlan = await Plan.findOne({
+      patient: patientId,
+      status: 'active',
+      endDate: { $gte: now }
+    }).populate('professional', 'firstName lastName');
+
+    if (!activePlan) {
+      return res.status(200).json({
+        success: true,
+        data: { plan: null, message: 'No hay plan activo' }
+      });
+    }
+
+    let weeklyUsed = 0;
+    let kineSessions = 0;
+
+    if (activePlan.planType === 'kinesiologia') {
+      kineSessions = await countKineSessions(patientId);
+    } else {
+      weeklyUsed = await countWeeklyAppointments(patientId, now, 'entrenamiento');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        plan: activePlan,
+        restrictions: {
+          planType: activePlan.planType,
+          sessionsPerWeek: activePlan.sessionsPerWeek,
+          weeklyUsed,
+          weeklyRemaining: activePlan.planType !== 'kinesiologia' ? activePlan.sessionsPerWeek - weeklyUsed : null,
+          totalSessions: activePlan.totalSessions,
+          sessionsUsed: activePlan.planType === 'kinesiologia' ? kineSessions : null,
+          sessionsRemaining: activePlan.planType === 'kinesiologia' ? activePlan.totalSessions - kineSessions : null,
+          bookAheadHours: PATIENT_BOOK_AHEAD_HOURS,
+          cancelAheadHours: PATIENT_CANCEL_AHEAD_HOURS,
+          maxPatientsPerSlot: MAX_PATIENTS_PER_SLOT
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error al obtener info del plan'
     });
   }
 };

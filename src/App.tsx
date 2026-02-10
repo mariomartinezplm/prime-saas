@@ -11,10 +11,15 @@ import AppLayout from "@/components/layouts/AppLayout";
 // Public pages
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import LoginDual from "./pages/LoginDual";
+import RecoverPassword from "./pages/RecoverPassword";
 import ThankYou from "./pages/ThankYou";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
+
+// New Staff Dashboard
+import StaffDashboard from "./pages/StaffDashboard";
 
 // Patient pages
 import PatientDashboard from "./pages/patient/Dashboard";
@@ -49,10 +54,17 @@ const App = () => (
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={<LoginDual />} />
+            <Route path="/recuperar-contrasena" element={<RecoverPassword />} />
             <Route path="/gracias" element={<ThankYou />} />
             <Route path="/privacidad" element={<Privacy />} />
             <Route path="/terminos" element={<Terms />} />
+
+            {/* Staff Dashboard (protected route without AppLayout) */}
+            <Route path="/staff-dashboard" element={<StaffDashboard />} />
+
+            {/* Patient Portal redirection */}
+            <Route path="/patient-portal" element={<Navigate to="/app/dashboard" replace />} />
 
             {/* Protected app routes */}
             <Route

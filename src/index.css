@@ -2,133 +2,125 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* 
+  Prime Fit & Health - Fixed Light Theme
+  Todos los colores son fijos y explícitos - NO reactivos al dark mode del sistema
+  Mobile-first design
 */
 
 @layer base {
   :root {
-    /* Prime Fit & Health Brand Colors - New Identity */
-    /* Primary: #181619 (Dark) - Now as main background */
-    --background: 270 8% 8%;
-    /* Dark black background */
-    --foreground: 0 0% 98%;
-    /* Almost white text for high contrast */
+    /* FORCE LIGHT MODE - No dark mode allowed */
+    color-scheme: light only;
 
-    --card: 270 8% 12%;
-    /* Slightly lighter dark for cards */
-    --card-foreground: 0 0% 95%;
-    /* Light text on cards */
+    /* ====================
+       COLORES FIJOS (HEX CONVERTIDOS A HSL)
+       ==================== */
 
-    --popover: 270 8% 10%;
-    --popover-foreground: 0 0% 98%;
+    /* Fondo principal: Blanco puro */
+    --background: 0 0% 100%;
+    /* #FFFFFF */
 
-    /* Primary: #181619 (Dark) */
-    --primary: 270 8% 15%;
+    /* Texto principal: Gris muy oscuro para lectura */
+    --foreground: 210 12% 16%;
+    /* #252B33 - Excelente contraste */
+
+    /* Cards y secciones: Gris muy claro */
+    --card: 210 20% 98%;
+    /* #F7F9FC */
+    --card-foreground: 210 12% 16%;
+    /* #252B33 */
+
+    /* Popovers */
+    --popover: 0 0% 100%;
+    /* #FFFFFF */
+    --popover-foreground: 210 12% 16%;
+    /* #252B33 */
+
+    /* Primary: Teal/Turquesa - Color de marca */
+    --primary: 194 45% 44%;
+    /* #398CA2 */
     --primary-foreground: 0 0% 100%;
+    /* #FFFFFF */
 
-    /* Secondary: #398CA2 (Teal) */
-    --secondary: 194 45% 44%;
-    --secondary-foreground: 0 0% 100%;
+    /* Secondary: Versión más clara del teal */
+    --secondary: 194 45% 92%;
+    /* #E5F4F7 */
+    --secondary-foreground: 194 45% 30%;
+    /* #2B6A7F */
 
-    /* Tertiary: #FFF8E4 (Cream) - Used sparingly for accents */
-    --muted: 270 8% 15%;
-    --muted-foreground: 0 0% 85%;
-    /* Increased brightness for better readability */
+    /* Muted: Gris claro para fondos secundarios */
+    --muted: 210 20% 96%;
+    /* #F5F7FA */
+    --muted-foreground: 210 8% 46%;
+    /* #6B7280 */
 
+    /* Accent: Teal vibrante para CTAs */
     --accent: 194 45% 44%;
+    /* #398CA2 */
     --accent-foreground: 0 0% 100%;
+    /* #FFFFFF */
 
-    --destructive: 0 84.2% 60.2%;
+    /* Destructive: Rojo para errores */
+    --destructive: 0 72% 51%;
+    /* #E03E3E */
     --destructive-foreground: 0 0% 100%;
+    /* #FFFFFF */
 
-    --border: 270 8% 20%;
-    /* Subtle borders on dark */
-    --input: 270 8% 15%;
+    /* Borders: Gris muy claro */
+    --border: 210 20% 90%;
+    /* #E1E6ED */
+
+    /* Inputs */
+    --input: 210 20% 90%;
+    /* #E1E6ED */
+
+    /* Focus ring */
     --ring: 194 45% 44%;
+    /* #398CA2 */
 
+    /* Border radius */
     --radius: 0.75rem;
 
-    /* Brand specific tokens - New Identity */
-    --brand-primary: 0 0% 98%;
-    /* White text on dark backgrounds */
-    --brand-secondary: 194 45% 44%;
-    /* #398CA2 Teal */
-    --brand-tertiary: 50 100% 95%;
-    /* #FFF8E4 Cream for accents */
-    --brand-light: 270 8% 12%;
-    /* Dark card background */
-    --brand-dark: 270 8% 8%;
-    /* Main dark background */
+    /* ====================
+       BRAND COLORS - FIJOS
+       ==================== */
+    --brand-primary: 194 45% 44%;
+    /* #398CA2 - Teal principal */
+    --brand-secondary: 194 45% 38%;
+    /* #2F7A8F - Teal oscuro */
+    --brand-tertiary: 194 45% 92%;
+    /* #E5F4F7 - Teal claro */
+    --brand-light: 0 0% 100%;
+    /* #FFFFFF - Blanco */
+    --brand-dark: 210 12% 16%;
+    /* #252B33 - Texto oscuro */
 
-    /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(270 8% 10%), hsl(270 8% 20%));
-    --gradient-cta: linear-gradient(135deg, hsl(194 45% 44%), hsl(194 55% 54%));
-    --gradient-dark: linear-gradient(135deg, hsl(270 8% 8%), hsl(270 8% 15%));
-
-    /* Shadows - Enhanced for dark theme */
-    --shadow-card: 0 10px 40px -10px hsl(0 0% 0% / 0.3);
-    --shadow-cta: 0 8px 25px -8px hsl(194 45% 44% / 0.6);
-    --shadow-elevated: 0 20px 60px -20px hsl(0 0% 0% / 0.4);
-
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-    --sidebar-background: 270 8% 10%;
-    --sidebar-foreground: 0 0% 90%;
+    /* ====================
+       SIDEBAR COLORS - FIJOS
+       ==================== */
+    --sidebar-background: 0 0% 100%;
+    /* #FFFFFF */
+    --sidebar-foreground: 210 12% 16%;
+    /* #252B33 */
     --sidebar-primary: 194 45% 44%;
+    /* #398CA2 */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 8% 18%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 270 8% 18%;
+    /* #FFFFFF */
+    --sidebar-accent: 210 20% 98%;
+    /* #F7F9FC */
+    --sidebar-accent-foreground: 210 12% 16%;
+    /* #252B33 */
+    --sidebar-border: 210 20% 90%;
+    /* #E1E6ED */
     --sidebar-ring: 194 45% 44%;
+    /* #398CA2 */
   }
 
-  .dark {
-    /* Same as light theme - we use dark as default now */
-    --background: 270 8% 8%;
-    --foreground: 0 0% 98%;
-
-    --card: 270 8% 12%;
-    --card-foreground: 0 0% 95%;
-
-    --popover: 270 8% 10%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 270 8% 15%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 194 45% 44%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 270 8% 15%;
-    --muted-foreground: 0 0% 85%;
-
-    --accent: 194 45% 44%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 270 8% 20%;
-    --input: 270 8% 15%;
-    --ring: 194 45% 44%;
-
-    /* Dark mode brand tokens */
-    --brand-primary: 0 0% 98%;
-    --brand-secondary: 194 45% 44%;
-    --brand-tertiary: 50 100% 95%;
-    --brand-light: 270 8% 12%;
-    --brand-dark: 270 8% 8%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+  /* 
+    NO DARK MODE - Removida completamente
+    La clase .dark no hace nada ahora
+  */
 }
 
 @layer base {
@@ -138,41 +130,60 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    /* Force light mode */
+    color-scheme: light only;
   }
 
   html {
     scroll-behavior: smooth;
+    /* Force light mode */
+    color-scheme: light only;
   }
 
+  /* ====================
+     UTILITY CLASSES CON COLORES FIJOS
+     ==================== */
+
+  /* Hero gradient - Fondo claro con sutil degradado */
   .gradient-hero {
-    background: var(--gradient-hero);
+    background: linear-gradient(135deg, #FFFFFF 0%, #F7F9FC 100%);
   }
 
+  /* CTA gradient - Teal vibrante */
   .gradient-cta {
-    background: var(--gradient-cta);
+    background: linear-gradient(135deg, #398CA2 0%, #4BA5BC 100%);
   }
 
-  .gradient-dark {
-    background: var(--gradient-dark);
+  /* Gradient suave para secciones */
+  .gradient-section {
+    background: linear-gradient(135deg, #F7F9FC 0%, #E5F4F7 100%);
   }
 
+  /* Sombras fijas - optimizadas para tema claro */
   .shadow-card {
-    box-shadow: var(--shadow-card);
+    box-shadow: 0 4px 20px -4px rgba(57, 140, 162, 0.1),
+      0 2px 8px -2px rgba(37, 43, 51, 0.05);
   }
 
   .shadow-cta {
-    box-shadow: var(--shadow-cta);
+    box-shadow: 0 8px 25px -8px rgba(57, 140, 162, 0.4),
+      0 4px 12px -4px rgba(57, 140, 162, 0.2);
   }
 
   .shadow-elevated {
-    box-shadow: var(--shadow-elevated);
+    box-shadow: 0 20px 60px -20px rgba(57, 140, 162, 0.15),
+      0 8px 24px -8px rgba(37, 43, 51, 0.08);
   }
 
+  /* Transiciones suaves */
   .transition-smooth {
-    transition: var(--transition-smooth);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Scroll animations */
+  /* ====================
+     ANIMACIONES
+     ==================== */
+
   @keyframes fadeInUp {
     from {
       opacity: 0;
@@ -197,6 +208,18 @@ All colors MUST be HSL.
     }
   }
 
+  @keyframes pulse {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.8;
+    }
+  }
+
   .animate-fade-in-up {
     animation: fadeInUp 0.8s ease-out;
   }
@@ -205,14 +228,61 @@ All colors MUST be HSL.
     animation: fadeOut 0.6s ease-out;
   }
 
+  .animate-pulse-slow {
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  /* ====================
+     ACCESIBILIDAD
+     ==================== */
+
   /* Reduce motion for accessibility */
   @media (prefers-reduced-motion: reduce) {
 
     .animate-fade-in-up,
     .animate-fade-out,
+    .animate-pulse-slow,
     .transition-smooth {
       animation: none !important;
       transition: none !important;
+    }
+  }
+
+  /* 
+    NO MEDIA QUERIES PARA COLORES
+    Solo media queries para layout/spacing permitidos
+  */
+}
+
+/* ====================
+   MOBILE-FIRST UTILITIES
+   ==================== */
+
+/* Espaciado mobile-first */
+@layer utilities {
+  .container-mobile {
+    @apply px-4 mx-auto;
+  }
+
+  /* Tablet: 640px+ */
+  @media (min-width: 640px) {
+    .container-mobile {
+      @apply px-6;
+    }
+  }
+
+  /* Desktop: 1024px+ */
+  @media (min-width: 1024px) {
+    .container-mobile {
+      @apply px-8;
+    }
+  }
+
+  /* Large Desktop: 1280px+ */
+  @media (min-width: 1280px) {
+    .container-mobile {
+      max-width: 1280px;
+      @apply px-12;
     }
   }
 }

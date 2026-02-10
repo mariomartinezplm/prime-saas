@@ -147,12 +147,16 @@ export interface Plan {
   _id: string;
   patient: User | string;
   professional: User | string;
-  type: 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  planType: 'kinesiologia' | 'entrenamiento-2x' | 'entrenamiento-3x';
+  duration: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   sessionsPerWeek: number;
+  totalSessions: number;
+  sessionsUsed: number;
   startDate: string;
   endDate: string;
-  status: 'active' | 'expired' | 'cancelled';
+  status: 'active' | 'expired' | 'cancelled' | 'completed';
   notes?: string;
+  displayName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -160,25 +164,52 @@ export interface Plan {
 export interface CreatePlanData {
   patient: string;
   professional: string;
-  type: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  sessionsPerWeek: number;
+  planType: 'kinesiologia' | 'entrenamiento-2x' | 'entrenamiento-3x';
+  duration?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   startDate: string;
+  totalSessions?: number;
   notes?: string;
+}
+
+export interface PlanRestrictions {
+  planType: 'kinesiologia' | 'entrenamiento-2x' | 'entrenamiento-3x';
+  sessionsPerWeek: number;
+  weeklyUsed: number;
+  weeklyRemaining: number | null;
+  totalSessions: number;
+  sessionsUsed: number | null;
+  sessionsRemaining: number | null;
+  bookAheadHours: number;
+  cancelAheadHours: number;
+  maxPatientsPerSlot: number;
 }
 
 // Tipos de Mediciones
 export interface Perimeters {
   bicepLeft?: number;
   bicepRight?: number;
-  chest?: number;
-  waist?: number;
-  hips?: number;
-  thighLeft?: number;
-  thighRight?: number;
-  calfLeft?: number;
-  calfRight?: number;
   forearmLeft?: number;
   forearmRight?: number;
+  shoulders?: number; // Hombros
+  chest?: number; // Pecho
+  neck?: number; // Cuello
+  waist?: number; // Cintura
+  hips?: number; // Cadera
+  thighLeft?: number; // Pierna
+  thighRight?: number;
+  calfLeft?: number; // Gemelo
+  calfRight?: number;
+}
+
+// Tests de saltos
+export interface JumpTests {
+  cmj?: number; // Counter Movement Jump (cm)
+  sj?: number; // Squat Jump (cm)
+  cmjLeftLeg?: number; // CMJ unipodal pie izquierdo (cm)
+  cmjRightLeg?: number; // CMJ unipodal pie derecho (cm)
+  sjLeftLeg?: number; // SJ unipodal pie izquierdo (cm)
+  sjRightLeg?: number; // SJ unipodal pie derecho (cm)
+  dropJump?: number; // Drop Jump (cm)
 }
 
 export interface Measurement {
@@ -187,6 +218,7 @@ export interface Measurement {
   recordedBy: User | string;
   date: string;
   perimeters: Perimeters;
+  jumpTests?: JumpTests; // Tests de salto
   weight?: number;
   height?: number;
   bodyFatPercentage?: number;

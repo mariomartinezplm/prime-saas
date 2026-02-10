@@ -54,3 +54,5 @@ Prime F&H is a full-stack healthcare patient management system for physiotherapy
 
 ### Current State
 The backend API is fully implemented. The frontend has the landing page, service layer, auth context, and types complete. Dashboard pages (admin/patient), login/register pages, protected routes, calendar (react-big-calendar), and chart components (Recharts) are not yet built.
+algo paso con la pagina web, que no la puedo ver
+dime que pasó con la pagina web que no la puedo ver

@@ -39,7 +39,7 @@ const AppSidebar = () => {
 
   const patientMenuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/app/dashboard' },
-    { label: 'Reservar Hora', icon: CalendarPlus, path: '/app/reservar' },
+    { label: 'Portal del Paciente', icon: CalendarPlus, path: '/app/reservar' },
     { label: 'Mis Citas', icon: Clock, path: '/app/mis-citas' },
     { label: 'Mi Perfil', icon: User, path: '/app/mi-perfil' },
     { label: 'Mediciones', icon: Ruler, path: '/app/mediciones' },

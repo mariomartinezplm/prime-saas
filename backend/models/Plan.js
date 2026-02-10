@@ -11,28 +11,43 @@ const planSchema = new mongoose.Schema({
     ref: 'User',
     required: [true, 'El profesional es requerido']
   },
-  type: {
+  // Tipo de plan: kinesiología (10 sesiones), entrenamiento 2x o 3x por semana
+  planType: {
     type: String,
-    enum: ['mensual', 'trimestral', 'semestral', 'anual'],
+    enum: ['kinesiologia', 'entrenamiento-2x', 'entrenamiento-3x'],
     required: [true, 'El tipo de plan es requerido']
   },
+  // Duración del plan
+  duration: {
+    type: String,
+    enum: ['mensual', 'trimestral', 'semestral', 'anual'],
+    default: 'mensual'
+  },
+  // Sesiones por semana (auto-calculado según planType)
   sessionsPerWeek: {
     type: Number,
-    required: [true, 'Las sesiones por semana son requeridas'],
-    min: [1, 'Mínimo 1 sesión por semana'],
-    max: [7, 'Máximo 7 sesiones por semana']
+    default: 2
+  },
+  // Solo para kinesiología: total de sesiones del bono
+  totalSessions: {
+    type: Number,
+    default: 10 // Bono de 10 sesiones para kinesiología
+  },
+  // Sesiones usadas (para kinesiología)
+  sessionsUsed: {
+    type: Number,
+    default: 0
   },
   startDate: {
     type: Date,
     required: [true, 'La fecha de inicio es requerida']
   },
   endDate: {
-    type: Date,
-    required: [true, 'La fecha de fin es requerida']
+    type: Date
   },
   status: {
     type: String,
-    enum: ['active', 'expired', 'cancelled'],
+    enum: ['active', 'expired', 'cancelled', 'completed'],
     default: 'active'
   },
   notes: {
@@ -46,27 +61,81 @@ const planSchema = new mongoose.Schema({
 planSchema.index({ patient: 1, status: 1 });
 planSchema.index({ patient: 1, startDate: 1, endDate: 1 });
 
-// Auto-calculate endDate based on type and startDate
-planSchema.pre('validate', function(next) {
-  if (this.isModified('startDate') || this.isModified('type')) {
+// Auto-configurar según tipo de plan
+planSchema.pre('validate', function (next) {
+  // Configurar sessionsPerWeek según planType
+  if (this.planType === 'kinesiologia') {
+    // Kine: sin límite semanal, solo 10 sesiones totales
+    this.sessionsPerWeek = 7; // puede agendar cualquier día
+    this.totalSessions = this.totalSessions || 10;
+  } else if (this.planType === 'entrenamiento-2x') {
+    this.sessionsPerWeek = 2;
+    this.totalSessions = 0; // sin límite de total, solo semanal
+  } else if (this.planType === 'entrenamiento-3x') {
+    this.sessionsPerWeek = 3;
+    this.totalSessions = 0;
+  }
+
+  // Calcular endDate basado en duración (solo si no existe o cambió)
+  if (this.isModified('startDate') || this.isModified('duration')) {
     const start = new Date(this.startDate);
-    switch (this.type) {
-      case 'mensual':
-        this.endDate = new Date(start.setMonth(start.getMonth() + 1));
-        break;
-      case 'trimestral':
-        this.endDate = new Date(start.setMonth(start.getMonth() + 3));
-        break;
-      case 'semestral':
-        this.endDate = new Date(start.setMonth(start.getMonth() + 6));
-        break;
-      case 'anual':
-        this.endDate = new Date(start.setFullYear(start.getFullYear() + 1));
-        break;
+
+    if (this.planType === 'kinesiologia') {
+      // Kine: el plan no expira por tiempo, solo por sesiones
+      // Ponemos un endDate lejano (6 meses por defecto)
+      this.endDate = new Date(start.setMonth(start.getMonth() + 6));
+    } else {
+      switch (this.duration) {
+        case 'mensual':
+          this.endDate = new Date(start.setMonth(start.getMonth() + 1));
+          break;
+        case 'trimestral':
+          this.endDate = new Date(start.setMonth(start.getMonth() + 3));
+          break;
+        case 'semestral':
+          this.endDate = new Date(start.setMonth(start.getMonth() + 6));
+          break;
+        case 'anual':
+          this.endDate = new Date(start.setFullYear(start.getFullYear() + 1));
+          break;
+      }
     }
   }
+
   next();
 });
+
+// Método: verificar si el plan tiene sesiones disponibles
+planSchema.methods.hasAvailableSessions = function () {
+  if (this.planType === 'kinesiologia') {
+    return this.sessionsUsed < this.totalSessions;
+  }
+  // Para entrenamiento, no hay límite total, solo semanal
+  return true;
+};
+
+// Método: obtener sesiones restantes (solo kine)
+planSchema.methods.getRemainingKineSessions = function () {
+  if (this.planType !== 'kinesiologia') return null;
+  return this.totalSessions - this.sessionsUsed;
+};
+
+// Virtual: nombre legible del plan
+planSchema.virtual('displayName').get(function () {
+  switch (this.planType) {
+    case 'kinesiologia':
+      return `Kinesiología (${this.getRemainingKineSessions()} de ${this.totalSessions} sesiones)`;
+    case 'entrenamiento-2x':
+      return 'Entrenamiento 2x/semana';
+    case 'entrenamiento-3x':
+      return 'Entrenamiento 3x/semana';
+    default:
+      return this.planType;
+  }
+});
+
+planSchema.set('toJSON', { virtuals: true });
+planSchema.set('toObject', { virtuals: true });
 
 const Plan = mongoose.model('Plan', planSchema);
 

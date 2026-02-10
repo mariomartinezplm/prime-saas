@@ -144,7 +144,20 @@ const Login = () => {
               </form>
             </Tabs>
 
-            <div className="mt-6 text-center">
+            <div className="mt-4 text-center space-y-2">
+              <button
+                type="button"
+                onClick={() => navigate('/recuperar-contrasena')}
+                className="text-sm text-secondary hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+              <p className="text-xs text-muted-foreground">
+                ¿Primera vez? Crea tu contraseña desde "Recuperar contraseña"
+              </p>
+            </div>
+
+            <div className="mt-4 text-center">
               <button
                 onClick={() => navigate('/')}
                 className="text-sm text-muted-foreground hover:text-secondary transition-colors"

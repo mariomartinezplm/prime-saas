@@ -5,7 +5,7 @@ import Plan from '../models/Plan.js';
 // @access  Private/Staff
 export const createPlan = async (req, res) => {
   try {
-    const { patient, professional, type, sessionsPerWeek, startDate, notes } = req.body;
+    const { patient, professional, planType, duration, totalSessions, startDate, notes } = req.body;
 
     // Check if patient already has an active plan
     const existingPlan = await Plan.findOne({
@@ -17,18 +17,29 @@ export const createPlan = async (req, res) => {
     if (existingPlan) {
       return res.status(400).json({
         success: false,
-        message: 'El paciente ya tiene un plan activo'
+        message: 'El paciente ya tiene un plan activo. Cancela o espera que expire el plan actual.'
       });
     }
 
-    const plan = await Plan.create({
+    const planData = {
       patient,
       professional,
-      type,
-      sessionsPerWeek,
+      planType,
       startDate: new Date(startDate),
       notes
-    });
+    };
+
+    // Duración solo para planes de entrenamiento
+    if (planType !== 'kinesiologia' && duration) {
+      planData.duration = duration;
+    }
+
+    // Total de sesiones personalizado para kinesiología
+    if (planType === 'kinesiologia' && totalSessions) {
+      planData.totalSessions = totalSessions;
+    }
+
+    const plan = await Plan.create(planData);
 
     await plan.populate('patient', 'firstName lastName email rut');
     await plan.populate('professional', 'firstName lastName');

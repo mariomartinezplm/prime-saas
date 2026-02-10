@@ -6,7 +6,9 @@ import {
   updateProfile,
   changePassword,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  verifyIdentity,
+  setNewPassword
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -17,6 +19,8 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/forgot-password', forgotPassword);
 router.put('/reset-password/:resetToken', resetPassword);
+router.post('/verify-identity', verifyIdentity);
+router.put('/set-password/:verifyToken', setNewPassword);
 
 // Rutas protegidas
 router.get('/me', protect, getMe);
@@ -24,3 +28,4 @@ router.put('/profile', protect, updateProfile);
 router.put('/change-password', protect, changePassword);
 
 export default router;
+

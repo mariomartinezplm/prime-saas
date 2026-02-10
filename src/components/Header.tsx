@@ -90,7 +90,7 @@ const Header = () => {
                 onClick={() => navigate('/login')}
               >
                 <Calendar className="w-4 h-4 mr-2" />
-                Reservar mi sesión
+                Portal del Paciente
               </Button>
             </motion.div>
 
@@ -136,7 +136,7 @@ const Header = () => {
                 onClick={() => navigate('/login')}
               >
                 <Calendar className="w-4 h-4 mr-2" />
-                Reservar mi sesión
+                Portal del Paciente
               </Button>
             </nav>
           </motion.div>

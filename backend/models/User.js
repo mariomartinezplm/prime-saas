@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'La contraseña es requerida'],
     minlength: [6, 'La contraseña debe tener al menos 6 caracteres'],
-    select: false // No incluir la contraseña por defecto en las consultas
+    select: false
   },
   role: {
     type: String,
@@ -50,6 +50,27 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  gender: {
+    type: String,
+    enum: ['Masculino', 'Femenino', 'Otro', ''],
+    default: ''
+  },
+  healthInsurance: {
+    type: String,
+    trim: true
+  },
+  objectives: [String],
+  assignedProfessional: {
+    type: String,
+    trim: true
+  },
+  referralSource: {
+    type: String,
+    trim: true
+  },
+  lastPaymentDate: {
+    type: Date
+  },
   emergencyContact: {
     name: String,
     phone: String,
@@ -73,6 +94,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  airtableId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  lastActivityDate: {
+    type: Date
+  },
+  source: {
+    type: String,
+    default: 'web'
+  },
   resetPasswordToken: String,
   resetPasswordExpire: Date
 }, {
@@ -80,7 +113,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Encriptar contraseña antes de guardar
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   // Solo encriptar si la contraseña ha sido modificada
   if (!this.isModified('password')) {
     return next();
@@ -92,12 +125,12 @@ userSchema.pre('save', async function(next) {
 });
 
 // Método para comparar contraseñas
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Método para obtener el nombre completo
-userSchema.virtual('fullName').get(function() {
+userSchema.virtual('fullName').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
 
