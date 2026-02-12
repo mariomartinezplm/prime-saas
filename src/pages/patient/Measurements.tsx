@@ -30,11 +30,13 @@ const PERIMETER_LABELS: Record<string, string> = {
 const JUMP_TEST_LABELS: Record<string, { label: string, description: string, color: string }> = {
   cmj: { label: 'CMJ', description: 'Counter Movement Jump', color: '#398CA2' },
   sj: { label: 'SJ', description: 'Squat Jump', color: '#2F7A8F' },
-  cmjLeftLeg: { label: 'CMJ Izquierdo', description: 'CMJ Unipodal Pie Izquierdo', color: '#4BA5BC' },
-  cmjRightLeg: { label: 'CMJ Derecho', description: 'CMJ Unipodal Pie Derecho', color: '#5BB5CC' },
-  sjLeftLeg: { label: 'SJ Izquierdo', description: 'SJ Unipodal Pie Izquierdo', color: '#6BC5DC' },
-  sjRightLeg: { label: 'SJ Derecho', description: 'SJ Unipodal Pie Derecho', color: '#7BD5EC' },
+  cmjLeftLeg: { label: 'CMJ Unipodal Izq', description: 'CMJ Unipodal Pie Izquierdo', color: '#4BA5BC' },
+  cmjRightLeg: { label: 'CMJ Unipodal Der', description: 'CMJ Unipodal Pie Derecho', color: '#5BB5CC' },
+  sjLeftLeg: { label: 'SJ Unipodal Izq', description: 'SJ Unipodal Pie Izquierdo', color: '#6BC5DC' },
+  sjRightLeg: { label: 'SJ Unipodal Der', description: 'SJ Unipodal Pie Derecho', color: '#7BD5EC' },
   dropJump: { label: 'Drop Jump', description: 'Salto desde altura', color: '#F59E0B' },
+  abalakov: { label: 'Abalakov', description: 'Salto con impulso de brazos', color: '#8B5CF6' },
+  horizontalJump: { label: 'Salto Horizontal', description: 'Salto longitudinal', color: '#D946EF' },
 };
 
 const MeasurementsEnhanced = () => {

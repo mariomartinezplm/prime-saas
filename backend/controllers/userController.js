@@ -9,6 +9,11 @@ import EVA from '../models/EVA.js';
 // @access  Private/Admin
 export const getAllUsers = async (req, res) => {
   try {
+    // Seguridad: Si es paciente, solo puede ver profesionales
+    if (req.user.role === 'patient') {
+      req.query.role = 'professional';
+    }
+
     const { role, isActive, search, limit = 50, page = 1 } = req.query;
 
     // Construir query

@@ -29,9 +29,9 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
     thighRight: '',
     calfLeft: '',
     calfRight: '',
-    forearmLeft: '',
-    forearmRight: '',
-    notes: '',
+    forearmLeft: '', forearmRight: '', notes: '',
+    cmj: '', sj: '', cmjLeftLeg: '', cmjRightLeg: '',
+    sjLeftLeg: '', sjRightLeg: '', dropJump: '', abalakov: '', horizontalJump: '',
   });
 
   const handleChange = (field: string, value: string) => {
@@ -50,9 +50,18 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
         }
       });
 
+      const jumpTests: Record<string, number> = {};
+      const jumpFields = ['cmj', 'sj', 'cmjLeftLeg', 'cmjRightLeg', 'sjLeftLeg', 'sjRightLeg', 'dropJump', 'abalakov', 'horizontalJump'];
+      jumpFields.forEach((f) => {
+        if (form[f as keyof typeof form]) {
+          jumpTests[f] = parseFloat(form[f as keyof typeof form]);
+        }
+      });
+
       await api.post('/measurements', {
         patient: patientId,
         perimeters,
+        jumpTests, // Add jump tests to payload
         weight: form.weight ? parseFloat(form.weight) : undefined,
         height: form.height ? parseFloat(form.height) : undefined,
         bodyFatPercentage: form.bodyFatPercentage ? parseFloat(form.bodyFatPercentage) : undefined,
@@ -66,6 +75,8 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
         chest: '', waist: '', hips: '', bicepLeft: '', bicepRight: '',
         thighLeft: '', thighRight: '', calfLeft: '', calfRight: '',
         forearmLeft: '', forearmRight: '', notes: '',
+        cmj: '', sj: '', cmjLeftLeg: '', cmjRightLeg: '',
+        sjLeftLeg: '', sjRightLeg: '', dropJump: '', abalakov: '', horizontalJump: '',
       });
       onSuccess();
     } catch (err: unknown) {
@@ -114,6 +125,31 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
               { key: 'calfRight', label: 'Pantorrilla Der' },
               { key: 'forearmLeft', label: 'Antebrazo Izq' },
               { key: 'forearmRight', label: 'Antebrazo Der' },
+            ].map(({ key, label }) => (
+              <div key={key} className="space-y-1">
+                <Label className="text-xs">{label}</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={form[key as keyof typeof form]}
+                  onChange={(e) => handleChange(key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+
+          <h4 className="text-sm font-medium pt-2">Tests de Salto (cm)</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { key: 'cmj', label: 'CMJ' },
+              { key: 'sj', label: 'SJ' },
+              { key: 'cmjLeftLeg', label: 'CMJ Unipod. Izq' },
+              { key: 'cmjRightLeg', label: 'CMJ Unipod. Der' },
+              { key: 'sjLeftLeg', label: 'SJ Unipod. Izq' },
+              { key: 'sjRightLeg', label: 'SJ Unipod. Der' },
+              { key: 'dropJump', label: 'Drop Jump' },
+              { key: 'abalakov', label: 'Abalakov' },
+              { key: 'horizontalJump', label: 'Salto Horizontal' },
             ].map(({ key, label }) => (
               <div key={key} className="space-y-1">
                 <Label className="text-xs">{label}</Label>

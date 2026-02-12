@@ -37,6 +37,20 @@ const BookAppointment = () => {
         const combined = [...allUsers.users, ...allProf.users];
         setProfessionals(combined);
 
+        // Auto-select assigned professional
+        if (user && user.assignedProfessional) {
+          // Normalizar strings para búsqueda
+          const targetName = user.assignedProfessional.toLowerCase().trim();
+          const found = combined.find(p =>
+            `${p.firstName} ${p.lastName}`.toLowerCase().includes(targetName) ||
+            targetName.includes(p.lastName.toLowerCase())
+          );
+
+          if (found) {
+            setSelectedProfessional(found);
+          }
+        }
+
         if (user) {
           const plan = await planService.getActive(user.id);
           setActivePlan(plan);
@@ -49,18 +63,6 @@ const BookAppointment = () => {
     };
     fetchData();
   }, [user]);
-
-  useEffect(() => {
-    if (selectedProfessional && selectedDate) {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      availabilityService.getSlots(selectedProfessional.id, dateStr)
-        .then(setSlots)
-        .catch(() => toast.error('Error al cargar horarios'));
-    } else {
-      setSlots(null);
-    }
-    setSelectedSlot(null);
-  }, [selectedProfessional, selectedDate]);
 
   // Determinar tipo de sesión basado en el plan activo
   const getSessionType = (): 'kinesiologia' | 'entrenamiento' | 'evaluacion' => {
@@ -121,28 +123,43 @@ const BookAppointment = () => {
 
   // ─── Calcular info del plan para mostrar ───────────────────────────────
   const getPlanStatusInfo = () => {
-    if (!activePlan) return null;
+    // Si tiene plan formal en MongoDB
+    if (activePlan) {
+      if (activePlan.planType === 'kinesiologia') {
+        const remaining = activePlan.totalSessions - activePlan.sessionsUsed;
+        const canBook = remaining > 0;
+        return {
+          label: '🏥 Kinesiología',
+          description: `${remaining} de ${activePlan.totalSessions} sesiones restantes`,
+          canBook,
+          blockMessage: remaining <= 0 ? 'Has completado todas tus sesiones de kinesiología. Contacta al equipo para renovar tu bono.' : null,
+          color: canBook ? 'border-teal-300 bg-teal-50' : 'border-red-300 bg-red-50'
+        };
+      }
 
-    if (activePlan.planType === 'kinesiologia') {
-      const remaining = activePlan.totalSessions - activePlan.sessionsUsed;
-      const canBook = remaining > 0;
+      const sessionsPerWeek = activePlan.planType === 'entrenamiento-2x' ? 2 : 3;
       return {
-        label: '🏥 Kinesiología',
-        description: `${remaining} de ${activePlan.totalSessions} sesiones restantes`,
-        canBook,
-        blockMessage: remaining <= 0 ? 'Has completado todas tus sesiones de kinesiología. Contacta al equipo para renovar tu bono.' : null,
-        color: canBook ? 'border-teal-300 bg-teal-50' : 'border-red-300 bg-red-50'
+        label: activePlan.planType === 'entrenamiento-2x' ? '💪 Entrenamiento 2x/semana' : '🔥 Entrenamiento 3x/semana',
+        description: `Puedes agendar ${sessionsPerWeek} veces por semana`,
+        canBook: true,
+        blockMessage: null,
+        color: 'border-blue-300 bg-blue-50'
       };
     }
 
-    const sessionsPerWeek = activePlan.planType === 'entrenamiento-2x' ? 2 : 3;
-    return {
-      label: activePlan.planType === 'entrenamiento-2x' ? '💪 Entrenamiento 2x/semana' : '🔥 Entrenamiento 3x/semana',
-      description: `Puedes agendar ${sessionsPerWeek} veces por semana`,
-      canBook: true, // El backend valida el límite real
-      blockMessage: null,
-      color: 'border-blue-300 bg-blue-50'
-    };
+    // Si NO tiene plan formal, verificamos status del usuario (Airtable migration)
+    if (user?.isActive) {
+      return {
+        label: '✅ Plan Activo',
+        description: 'Usuario habilitado para agendar',
+        canBook: true,
+        blockMessage: null,
+        color: 'border-green-300 bg-green-50'
+      };
+    }
+
+    // Si no tiene plan y no está activo
+    return null;
   };
 
   const planInfo = getPlanStatusInfo();

@@ -29,6 +29,7 @@ import MyProfile from "./pages/patient/MyProfile";
 import PatientMeasurements from "./pages/patient/Measurements";
 import PatientExercises from "./pages/patient/Exercises";
 import PainRecords from "./pages/patient/PainRecords";
+import Subscription from "./pages/patient/Subscription";
 
 // Admin/Staff pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="mediciones" element={<PatientMeasurements />} />
               <Route path="ejercicios" element={<PatientExercises />} />
               <Route path="dolor" element={<PainRecords />} />
+              <Route path="planes" element={<Subscription />} />
 
               {/* Admin/Staff routes */}
               <Route

@@ -12,21 +12,20 @@ import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Todas las rutas requieren autenticación y rol de admin o professional
+// Todas las rutas requieren autenticación
 router.use(protect);
-router.use(authorize('admin', 'professional'));
 
 // Rutas de gestión de usuarios
 router.route('/')
-  .get(getAllUsers)
-  .post(createUser);
+  .get(getAllUsers) // Controller manejará permisos específicos
+  .post(authorize('admin', 'professional'), createUser);
 
-router.get('/stats/dashboard', getDashboardStats);
+router.get('/stats/dashboard', authorize('admin', 'professional'), getDashboardStats);
 
 router.route('/:id')
-  .get(getUserById)
-  .put(updateUser)
-  .delete(deleteUser);
+  .get(getUserById) // Controller manejará permisos (ej: ver propio perfil)
+  .put(authorize('admin', 'professional'), updateUser)
+  .delete(authorize('admin', 'professional'), deleteUser);
 
 router.get('/:id/profile', getPatientProfile);
 

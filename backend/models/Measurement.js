@@ -63,6 +63,18 @@ const measurementSchema = new mongoose.Schema({
       min: [0, 'El valor debe ser positivo']
     }
   },
+  // Tests de Salto (cm)
+  jumpTests: {
+    cmj: Number, // Counter Movement Jump
+    sj: Number, // Squat Jump
+    cmjLeftLeg: Number, // CMJ Unipodal Izquierdo
+    cmjRightLeg: Number, // CMJ Unipodal Derecho
+    sjLeftLeg: Number, // SJ Unipodal Izquierdo
+    sjRightLeg: Number, // SJ Unipodal Derecho
+    dropJump: Number, // Drop Jump (altura de caída controlada)
+    abalakov: Number, // Abalakov Jump (con brazos)
+    horizontalJump: Number // Salto Horizontal
+  },
   // Mediciones adicionales
   weight: {
     type: Number,
@@ -109,7 +121,7 @@ const measurementSchema = new mongoose.Schema({
 measurementSchema.index({ patient: 1, date: -1 });
 
 // Calcular IMC antes de guardar si hay peso y altura
-measurementSchema.pre('save', function(next) {
+measurementSchema.pre('save', function (next) {
   if (this.weight && this.height) {
     const heightInMeters = this.height / 100;
     this.bmi = parseFloat((this.weight / (heightInMeters * heightInMeters)).toFixed(2));
@@ -118,13 +130,13 @@ measurementSchema.pre('save', function(next) {
 });
 
 // Método para obtener el cambio desde la última medición
-measurementSchema.statics.getProgressSinceLastMeasurement = async function(patientId, currentMeasurementId) {
+measurementSchema.statics.getProgressSinceLastMeasurement = async function (patientId, currentMeasurementId) {
   const measurements = await this.find({
     patient: patientId,
     _id: { $ne: currentMeasurementId }
   })
-  .sort({ date: -1 })
-  .limit(1);
+    .sort({ date: -1 })
+    .limit(1);
 
   if (measurements.length === 0) {
     return null;

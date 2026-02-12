@@ -201,7 +201,7 @@ function mapAirtableToPatient(record) {
         firstName: firstName || 'Sin nombre',
         lastName: lastName || 'Sin apellido',
         email: email ? email.toLowerCase().trim() : null,
-        password: 'PrimeFH2024!', // Contraseña temporal
+        password: '123456', // Contraseña temporal
         role: 'patient',
         phone: phone ? String(phone).trim() : undefined,
         rut: rut ? String(rut).trim() : undefined,

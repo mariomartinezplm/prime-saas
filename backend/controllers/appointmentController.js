@@ -101,17 +101,31 @@ export const createAppointment = async (req, res) => {
       }
 
       // ──── REGLA 2: Verificar plan del paciente ────
-      const activePlan = await Plan.findOne({
+      let activePlan = await Plan.findOne({
         patient: patientId,
         status: 'active',
         endDate: { $gte: now }
       });
 
+      // Si no hay plan en sistema, verificar si el usuario es "Activo" (ej. migrado de Airtable)
       if (!activePlan) {
-        return res.status(400).json({
-          success: false,
-          message: 'No tienes un plan activo. Contacta al equipo para activar tu plan.'
-        });
+        // Recargar usuario para asegurar estado actual
+        const userToCheck = isStaff(req.user) ? await User.findById(patientId) : req.user;
+
+        if (!userToCheck.isActive) {
+          return res.status(400).json({
+            success: false,
+            message: 'Tu cuenta no está activa. Debes regularizar tu pago para poder agendar.'
+          });
+        }
+
+        // Si es activo pero no tiene plan doc (ej. migrado), asignamos permisos por defecto
+        activePlan = {
+          planType: 'entrenamiento-3x', // Asumimos plan completo por defecto para migrados
+          sessionsPerWeek: 20, // Límite alto para no bloquear
+          totalSessions: 9999,
+          sessionsUsed: 0
+        };
       }
 
       // ──── REGLA 3: Validar tipo de sesión según plan ────
@@ -124,7 +138,7 @@ export const createAppointment = async (req, res) => {
           });
         }
 
-        // Verificar que no haya superado las 10 sesiones
+        // Verificar que no haya superado las sesiones
         const usedSessions = await countKineSessions(patientId);
         if (usedSessions >= activePlan.totalSessions) {
           return res.status(400).json({
@@ -142,6 +156,7 @@ export const createAppointment = async (req, res) => {
         }
 
         // ──── REGLA 4: Límite semanal según plan ────
+        // Para usuarios migrados (isActive true sin plan), activePlan.sessionsPerWeek es alto (20), así que esto pasa
         const weeklyCount = await countWeeklyAppointments(patientId, date, 'entrenamiento');
         if (weeklyCount >= activePlan.sessionsPerWeek) {
           return res.status(400).json({

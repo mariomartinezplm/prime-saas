@@ -15,6 +15,7 @@ export interface User {
   emergencyContact?: EmergencyContact;
   medicalInfo?: MedicalInfo;
   isActive: boolean;
+  assignedProfessional?: string;
   createdAt: string;
 }
 
@@ -210,6 +211,8 @@ export interface JumpTests {
   sjLeftLeg?: number; // SJ unipodal pie izquierdo (cm)
   sjRightLeg?: number; // SJ unipodal pie derecho (cm)
   dropJump?: number; // Drop Jump (cm)
+  abalakov?: number; // Abalakov Jump (con brazos)
+  horizontalJump?: number; // Salto Horizontal
 }
 
 export interface Measurement {

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, UserPlus, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import type { User } from '@/types';
 
 const PatientList = () => {
@@ -19,8 +20,9 @@ const PatientList = () => {
       try {
         const data = await userService.getPatients();
         setPatients(data);
-      } catch {
-        // ignore
+      } catch (error) {
+        console.error('Error fetching patients:', error);
+        toast.error('Error al cargar la lista de pacientes');
       } finally {
         setLoading(false);
       }
