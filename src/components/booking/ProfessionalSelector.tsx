@@ -12,7 +12,9 @@ interface ProfessionalSelectorProps {
 const ProfessionalSelector = ({ professionals, selected, onSelect }: ProfessionalSelectorProps) => {
   return (
     <div>
-      <h2 className="text-lg font-semibold text-foreground mb-3">Seleccionar Profesional</h2>
+      <h2 className="text-lg font-semibold text-foreground mb-3">
+        {professionals.length === 1 ? 'Tu Profesional Asignado' : 'Seleccionar Profesional'}
+      </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {professionals.map((prof) => (
           <Card

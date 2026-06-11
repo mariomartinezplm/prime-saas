@@ -5,14 +5,16 @@ interface CalendarViewProps {
   selectedDate: Date | undefined;
   onSelect: (date: Date | undefined) => void;
   disabledDate?: (date: Date) => boolean;
+  numberOfMonths?: number;
 }
 
-const CalendarView = ({ selectedDate, onSelect, disabledDate }: CalendarViewProps) => {
+const CalendarView = ({ selectedDate, onSelect, disabledDate, numberOfMonths = 1 }: CalendarViewProps) => {
   return (
     <Calendar
       mode="single"
       selected={selectedDate}
       onSelect={onSelect}
+      numberOfMonths={numberOfMonths}
       locale={es}
       disabled={(date) => {
         // Disable past dates

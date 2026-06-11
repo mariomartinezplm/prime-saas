@@ -81,7 +81,7 @@ const Pricing = () => {
           <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-light mb-4">
             Planes y Horarios
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-white/60 max-w-2xl mx-auto">
             Comienza a entrenar con nosotros y transforma tu salud
           </p>
         </motion.div>
@@ -95,7 +95,7 @@ const Pricing = () => {
           transition={{ duration: 0.6, type: "spring" }}
         >
           <motion.div
-            className="bg-card rounded-3xl p-10 shadow-xl ring-2 ring-brand-secondary relative overflow-hidden group"
+            className="bg-white/5 backdrop-blur-sm rounded-3xl p-10 ring-2 ring-[#398CA2]/40 relative overflow-hidden group border border-white/10"
             whileHover={{
               y: -10,
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
@@ -137,7 +137,7 @@ const Pricing = () => {
                 Entrenamiento Personalizado
               </motion.h3>
               <div className="mb-2">
-                <span className="text-sm text-muted-foreground">desde</span>
+                <span className="text-sm text-white/50">desde</span>
               </div>
               <motion.div
                 className="mb-4"
@@ -149,7 +149,7 @@ const Pricing = () => {
                 <span className="text-6xl font-bold text-brand-light">
                   $89.990
                 </span>
-                <span className="text-muted-foreground"> /mensual</span>
+                <span className="text-white/50"> /mensual</span>
               </motion.div>
             </div>
 
@@ -171,7 +171,7 @@ const Pricing = () => {
                   >
                     <Check className="w-4 h-4 text-brand-secondary group-hover/item:text-white transition-colors duration-300" />
                   </motion.div>
-                  <span className="text-foreground">{benefit}</span>
+                  <span className="text-white/80">{benefit}</span>
                 </motion.div>
               ))}
             </div>
@@ -195,7 +195,7 @@ const Pricing = () => {
 
         {/* Schedule */}
         <motion.div
-          className="bg-card rounded-2xl p-8 shadow-card max-w-2xl mx-auto"
+          className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 max-w-2xl mx-auto"
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
@@ -220,7 +220,7 @@ const Pricing = () => {
                 Horarios de Atención
               </h3>
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-white/60">
               Nos adaptamos a tu horario para que puedas entrenar cuando mejor te convenga
             </p>
           </motion.div>
@@ -245,7 +245,7 @@ const Pricing = () => {
                   </motion.div>
                   <span className="font-medium text-brand-light">{slot.day}</span>
                 </div>
-                <span className="text-muted-foreground font-semibold bg-brand-secondary/20 px-3 py-1 rounded-full">
+                <span className="text-white/60 font-semibold bg-brand-secondary/20 px-3 py-1 rounded-full">
                   {slot.time}
                 </span>
               </motion.div>
@@ -259,7 +259,7 @@ const Pricing = () => {
             viewport={{ once: true }}
             transition={{ delay: 0.7 }}
           >
-            <p className="text-sm text-center text-muted-foreground">
+            <p className="text-sm text-center text-white/40">
               <strong>Nota:</strong> Horarios pueden variar en días festivos.
               Confirma tu horario preferido al agendar por WhatsApp.
             </p>

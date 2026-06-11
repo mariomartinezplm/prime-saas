@@ -73,10 +73,10 @@ const Benefits = () => {
   };
 
   return (
-    <section className="py-20 bg-background relative overflow-hidden">
+    <section className="py-20 bg-[#0B1221] relative overflow-hidden">
       {/* Subtle animated background */}
       <motion.div
-        className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-primary/5 rounded-full blur-3xl"
+        className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#398CA2]/5 rounded-full blur-3xl"
         animate={{
           x: [0, 50, 0],
           y: [0, -30, 0],
@@ -88,7 +88,7 @@ const Benefits = () => {
         }}
       />
       <motion.div
-        className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-brand-secondary/5 rounded-full blur-3xl"
+        className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#2F7A8F]/5 rounded-full blur-3xl"
         animate={{
           x: [0, -30, 0],
           y: [0, 50, 0],
@@ -111,7 +111,7 @@ const Benefits = () => {
             transition={{ duration: 0.6 }}
           >
             <motion.span
-              className="inline-block bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-full text-sm font-semibold mb-4"
+              className="inline-block bg-[#398CA2]/20 text-[#4BA5BC] px-4 py-2 rounded-full text-sm font-semibold mb-4"
               initial={{ opacity: 0, scale: 0.8 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
@@ -119,16 +119,16 @@ const Benefits = () => {
             >
               💪 Entrenamiento
             </motion.span>
-            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-primary mb-4">
+            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-white mb-4">
               Entrenamiento Personalizado
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-white/60 max-w-2xl mx-auto">
               Resultados reales para personas ocupadas que buscan eficiencia
             </p>
           </motion.div>
 
           <motion.div
-            className="grid md:grid-cols-2 lg:grid-cols-4 gap-8"
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
@@ -143,19 +143,19 @@ const Benefits = () => {
                   scale: 1.03,
                   transition: { type: "spring", stiffness: 400, damping: 17 }
                 }}
-                className="bg-card rounded-xl p-6 shadow-card hover:shadow-xl transition-shadow duration-300 cursor-default group"
+                className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:border-[#398CA2]/30 hover:bg-white/8 transition-all duration-300 cursor-default group"
               >
                 <motion.div
-                  className="bg-brand-secondary/10 rounded-xl p-3 w-fit mb-4 group-hover:bg-brand-secondary transition-colors duration-300"
+                  className="bg-[#398CA2]/15 rounded-xl p-3 w-fit mb-4 group-hover:bg-[#398CA2] transition-colors duration-300"
                   whileHover={{ rotate: [0, -5, 5, 0] }}
                   transition={{ duration: 0.4 }}
                 >
-                  <benefit.icon className="w-6 h-6 text-brand-secondary group-hover:text-white transition-colors duration-300" />
+                  <benefit.icon className="w-6 h-6 text-[#4BA5BC] group-hover:text-white transition-colors duration-300" />
                 </motion.div>
-                <h3 className="text-lg font-semibold text-brand-primary mb-3">
+                <h3 className="text-lg font-semibold text-white mb-3">
                   {benefit.title}
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-white/60">
                   {benefit.description}
                 </p>
               </motion.div>
@@ -173,7 +173,7 @@ const Benefits = () => {
             transition={{ duration: 0.6 }}
           >
             <motion.span
-              className="inline-block bg-brand-secondary/10 text-brand-secondary px-4 py-2 rounded-full text-sm font-semibold mb-4"
+              className="inline-block bg-[#2F7A8F]/20 text-[#4BA5BC] px-4 py-2 rounded-full text-sm font-semibold mb-4"
               initial={{ opacity: 0, scale: 0.8 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
@@ -181,16 +181,16 @@ const Benefits = () => {
             >
               🩺 Rehabilitación
             </motion.span>
-            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-primary mb-4">
+            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-white mb-4">
               Kinesiología
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-white/60 max-w-2xl mx-auto">
               Recuperación, retorno deportivo y tratamiento de dolor crónico
             </p>
           </motion.div>
 
           <motion.div
-            className="grid md:grid-cols-2 lg:grid-cols-4 gap-8"
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
@@ -205,19 +205,19 @@ const Benefits = () => {
                   scale: 1.03,
                   transition: { type: "spring", stiffness: 400, damping: 17 }
                 }}
-                className="bg-card rounded-xl p-6 shadow-card hover:shadow-xl transition-shadow duration-300 cursor-default group"
+                className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:border-[#398CA2]/30 hover:bg-white/8 transition-all duration-300 cursor-default group"
               >
                 <motion.div
-                  className="bg-brand-secondary/10 rounded-xl p-3 w-fit mb-4 group-hover:bg-brand-secondary transition-colors duration-300"
+                  className="bg-[#2F7A8F]/15 rounded-xl p-3 w-fit mb-4 group-hover:bg-[#2F7A8F] transition-colors duration-300"
                   whileHover={{ rotate: [0, -5, 5, 0] }}
                   transition={{ duration: 0.4 }}
                 >
-                  <benefit.icon className="w-6 h-6 text-brand-secondary group-hover:text-white transition-colors duration-300" />
+                  <benefit.icon className="w-6 h-6 text-[#4BA5BC] group-hover:text-white transition-colors duration-300" />
                 </motion.div>
-                <h3 className="text-lg font-semibold text-brand-primary mb-3">
+                <h3 className="text-lg font-semibold text-white mb-3">
                   {benefit.title}
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-white/60">
                   {benefit.description}
                 </p>
               </motion.div>

@@ -67,7 +67,7 @@ const Services = () => {
           <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-light mb-4">
             Nuestros Servicios
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-white/60 max-w-2xl mx-auto">
             Soluciones integrales para tu bienestar físico y recuperación
           </p>
         </motion.div>
@@ -101,7 +101,7 @@ const Services = () => {
                 </h3>
               </div>
 
-              <p className="text-lg text-muted-foreground mb-6">
+              <p className="text-lg text-white/60 mb-6">
                 Grupos reducidos de máximo 4 personas por hora. Cada persona sigue su propia rutina según sus objetivos y nivel de entrenamiento.
               </p>
 
@@ -126,7 +126,7 @@ const Services = () => {
                     >
                       <Activity className="w-5 h-5 text-brand-secondary" />
                     </motion.div>
-                    <span>{feature}</span>
+                    <span className="text-white/80">{feature}</span>
                   </motion.div>
                 ))}
               </div>
@@ -175,7 +175,7 @@ const Services = () => {
                 </h3>
               </div>
 
-              <p className="text-lg text-muted-foreground mb-6">
+              <p className="text-lg text-white/60 mb-6">
                 Rehabilitación basada en ejercicio para recuperación de lesiones,
                 retorno deportivo y tratamiento de dolor crónico.
               </p>
@@ -202,7 +202,7 @@ const Services = () => {
                     >
                       <Activity className="w-5 h-5 text-brand-secondary" />
                     </motion.div>
-                    <span>{feature}</span>
+                    <span className="text-white/80">{feature}</span>
                   </motion.div>
                 ))}
               </div>
@@ -213,7 +213,7 @@ const Services = () => {
               >
                 <Button
                   variant="outline"
-                  className="w-full border-brand-secondary text-brand-secondary hover:bg-brand-secondary hover:text-white group/btn"
+                  className="w-full bg-transparent border-brand-secondary text-brand-secondary hover:bg-brand-secondary hover:text-white group/btn"
                   onClick={() => window.open(whatsappUrlRehabilitacion, '_blank')}
                 >
                   <MessageCircle className="w-5 h-5 group-hover/btn:animate-bounce" />

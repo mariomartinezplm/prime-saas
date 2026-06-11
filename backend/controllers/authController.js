@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import { generateToken } from '../middleware/auth.js';
 import crypto from 'crypto';
+import { syncPatientByEmail } from '../utils/airtableSync.js';
 
 // @desc    Registrar nuevo usuario
 // @route   POST /api/auth/register
@@ -81,7 +82,20 @@ export const login = async (req, res) => {
       ? { email: loginIdentifier.toLowerCase() }
       : { rut: loginIdentifier.trim() };
 
-    const user = await User.findOne(query).select('+password');
+    let user = await User.findOne(query).select('+password');
+
+    // Just-In-Time Sync con Airtable si no se encuentra
+    if (!user && isEmail) {
+      try {
+        const syncedUser = await syncPatientByEmail(loginIdentifier);
+        if (syncedUser) {
+          // Volver a buscar para incluir el password seleccionado
+          user = await User.findOne(query).select('+password');
+        }
+      } catch (err) {
+        console.error('Error in JIT Airtable sync:', err);
+      }
+    }
 
     if (!user) {
       return res.status(401).json({

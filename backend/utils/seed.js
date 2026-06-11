@@ -26,7 +26,7 @@ const adminUser = {
 const professionals = [
   {
     firstName: 'Felipe',
-    lastName: 'Rosas',
+    lastName: 'Vega',
     email: 'felipe@primefh.cl',
     password: 'Prime2024!',
     role: 'professional',
@@ -50,7 +50,7 @@ const professionals = [
   },
   {
     firstName: 'Rafael',
-    lastName: 'Silva',
+    lastName: 'Castañeda',
     email: 'rafael@primefh.cl',
     password: 'Prime2024!',
     role: 'professional',
@@ -88,66 +88,76 @@ const samplePatients = [
 
 // Default weekly schedule for professionals
 const defaultWeeklySchedule = [
-  { dayOfWeek: 1, slots: [ // Lunes
-    { startTime: '07:00', endTime: '08:00' },
-    { startTime: '08:00', endTime: '09:00' },
-    { startTime: '09:00', endTime: '10:00' },
-    { startTime: '10:00', endTime: '11:00' },
-    { startTime: '11:00', endTime: '12:00' },
-    { startTime: '15:00', endTime: '16:00' },
-    { startTime: '16:00', endTime: '17:00' },
-    { startTime: '17:00', endTime: '18:00' },
-    { startTime: '18:00', endTime: '19:00' },
-    { startTime: '19:00', endTime: '20:00' }
-  ]},
-  { dayOfWeek: 2, slots: [ // Martes
-    { startTime: '07:00', endTime: '08:00' },
-    { startTime: '08:00', endTime: '09:00' },
-    { startTime: '09:00', endTime: '10:00' },
-    { startTime: '10:00', endTime: '11:00' },
-    { startTime: '11:00', endTime: '12:00' },
-    { startTime: '15:00', endTime: '16:00' },
-    { startTime: '16:00', endTime: '17:00' },
-    { startTime: '17:00', endTime: '18:00' },
-    { startTime: '18:00', endTime: '19:00' },
-    { startTime: '19:00', endTime: '20:00' }
-  ]},
-  { dayOfWeek: 3, slots: [ // Miércoles
-    { startTime: '07:00', endTime: '08:00' },
-    { startTime: '08:00', endTime: '09:00' },
-    { startTime: '09:00', endTime: '10:00' },
-    { startTime: '10:00', endTime: '11:00' },
-    { startTime: '11:00', endTime: '12:00' },
-    { startTime: '15:00', endTime: '16:00' },
-    { startTime: '16:00', endTime: '17:00' },
-    { startTime: '17:00', endTime: '18:00' },
-    { startTime: '18:00', endTime: '19:00' },
-    { startTime: '19:00', endTime: '20:00' }
-  ]},
-  { dayOfWeek: 4, slots: [ // Jueves
-    { startTime: '07:00', endTime: '08:00' },
-    { startTime: '08:00', endTime: '09:00' },
-    { startTime: '09:00', endTime: '10:00' },
-    { startTime: '10:00', endTime: '11:00' },
-    { startTime: '11:00', endTime: '12:00' },
-    { startTime: '15:00', endTime: '16:00' },
-    { startTime: '16:00', endTime: '17:00' },
-    { startTime: '17:00', endTime: '18:00' },
-    { startTime: '18:00', endTime: '19:00' },
-    { startTime: '19:00', endTime: '20:00' }
-  ]},
-  { dayOfWeek: 5, slots: [ // Viernes
-    { startTime: '07:00', endTime: '08:00' },
-    { startTime: '08:00', endTime: '09:00' },
-    { startTime: '09:00', endTime: '10:00' },
-    { startTime: '10:00', endTime: '11:00' },
-    { startTime: '11:00', endTime: '12:00' },
-    { startTime: '15:00', endTime: '16:00' },
-    { startTime: '16:00', endTime: '17:00' },
-    { startTime: '17:00', endTime: '18:00' },
-    { startTime: '18:00', endTime: '19:00' },
-    { startTime: '19:00', endTime: '20:00' }
-  ]}
+  {
+    dayOfWeek: 1, slots: [ // Lunes
+      { startTime: '07:00', endTime: '08:00' },
+      { startTime: '08:00', endTime: '09:00' },
+      { startTime: '09:00', endTime: '10:00' },
+      { startTime: '10:00', endTime: '11:00' },
+      { startTime: '11:00', endTime: '12:00' },
+      { startTime: '15:00', endTime: '16:00' },
+      { startTime: '16:00', endTime: '17:00' },
+      { startTime: '17:00', endTime: '18:00' },
+      { startTime: '18:00', endTime: '19:00' },
+      { startTime: '19:00', endTime: '20:00' }
+    ]
+  },
+  {
+    dayOfWeek: 2, slots: [ // Martes
+      { startTime: '07:00', endTime: '08:00' },
+      { startTime: '08:00', endTime: '09:00' },
+      { startTime: '09:00', endTime: '10:00' },
+      { startTime: '10:00', endTime: '11:00' },
+      { startTime: '11:00', endTime: '12:00' },
+      { startTime: '15:00', endTime: '16:00' },
+      { startTime: '16:00', endTime: '17:00' },
+      { startTime: '17:00', endTime: '18:00' },
+      { startTime: '18:00', endTime: '19:00' },
+      { startTime: '19:00', endTime: '20:00' }
+    ]
+  },
+  {
+    dayOfWeek: 3, slots: [ // Miércoles
+      { startTime: '07:00', endTime: '08:00' },
+      { startTime: '08:00', endTime: '09:00' },
+      { startTime: '09:00', endTime: '10:00' },
+      { startTime: '10:00', endTime: '11:00' },
+      { startTime: '11:00', endTime: '12:00' },
+      { startTime: '15:00', endTime: '16:00' },
+      { startTime: '16:00', endTime: '17:00' },
+      { startTime: '17:00', endTime: '18:00' },
+      { startTime: '18:00', endTime: '19:00' },
+      { startTime: '19:00', endTime: '20:00' }
+    ]
+  },
+  {
+    dayOfWeek: 4, slots: [ // Jueves
+      { startTime: '07:00', endTime: '08:00' },
+      { startTime: '08:00', endTime: '09:00' },
+      { startTime: '09:00', endTime: '10:00' },
+      { startTime: '10:00', endTime: '11:00' },
+      { startTime: '11:00', endTime: '12:00' },
+      { startTime: '15:00', endTime: '16:00' },
+      { startTime: '16:00', endTime: '17:00' },
+      { startTime: '17:00', endTime: '18:00' },
+      { startTime: '18:00', endTime: '19:00' },
+      { startTime: '19:00', endTime: '20:00' }
+    ]
+  },
+  {
+    dayOfWeek: 5, slots: [ // Viernes
+      { startTime: '07:00', endTime: '08:00' },
+      { startTime: '08:00', endTime: '09:00' },
+      { startTime: '09:00', endTime: '10:00' },
+      { startTime: '10:00', endTime: '11:00' },
+      { startTime: '11:00', endTime: '12:00' },
+      { startTime: '15:00', endTime: '16:00' },
+      { startTime: '16:00', endTime: '17:00' },
+      { startTime: '17:00', endTime: '18:00' },
+      { startTime: '18:00', endTime: '19:00' },
+      { startTime: '19:00', endTime: '20:00' }
+    ]
+  }
 ];
 
 // Función para poblar la base de datos

@@ -3,6 +3,7 @@ import Appointment from '../models/Appointment.js';
 import Measurement from '../models/Measurement.js';
 import ExerciseProgress from '../models/Exercise.js';
 import EVA from '../models/EVA.js';
+import { syncAllPatients } from '../utils/airtableSync.js';
 
 // @desc    Obtener todos los usuarios (solo admin)
 // @route   GET /api/users
@@ -347,6 +348,25 @@ export const getDashboardStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error al obtener estadísticas'
+    });
+  }
+};
+
+// @desc    Sincronizar todos los pacientes manualmente desde Airtable
+// @route   POST /api/users/sync-airtable
+// @access  Private/Admin
+export const syncAirtableUsers = async (req, res) => {
+  try {
+    const result = await syncAllPatients();
+    res.status(200).json({
+      success: true,
+      message: 'Sincronización con Airtable completada',
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error al sincronizar con Airtable'
     });
   }
 };

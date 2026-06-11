@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,13 @@ import { toast } from "sonner";
 
 const LoginDual = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, isAuthenticated, user } = useAuth();
+
+    // Si ya está autenticado, redirigir
+    if (isAuthenticated && user) {
+        const redirectPath = user.role === 'patient' ? '/app/dashboard' : '/app/admin';
+        return <Navigate to={redirectPath} replace />;
+    }
     const [activeTab, setActiveTab] = useState("paciente");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -62,7 +68,7 @@ const LoginDual = () => {
             if (type === 'patient') {
                 navigate("/app/dashboard");
             } else {
-                navigate("/staff-dashboard");
+                navigate("/app/admin");
             }
         } catch (error: any) {
             console.error(error);

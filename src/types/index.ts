@@ -151,6 +151,7 @@ export interface Plan {
   planType: 'kinesiologia' | 'entrenamiento-2x' | 'entrenamiento-3x';
   duration: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   sessionsPerWeek: number;
+  sessionsPerMonth: number;
   totalSessions: number;
   sessionsUsed: number;
   startDate: string;
@@ -174,9 +175,9 @@ export interface CreatePlanData {
 
 export interface PlanRestrictions {
   planType: 'kinesiologia' | 'entrenamiento-2x' | 'entrenamiento-3x';
-  sessionsPerWeek: number;
-  weeklyUsed: number;
-  weeklyRemaining: number | null;
+  sessionsPerMonth: number;
+  monthlyUsed: number;
+  monthlyRemaining: number | null;
   totalSessions: number;
   sessionsUsed: number | null;
   sessionsRemaining: number | null;
@@ -300,6 +301,7 @@ export interface EVARecord {
   painType?: string[];
   duration?: 'agudo' | 'subagudo' | 'cronico';
   worstTime?: 'manana' | 'tarde' | 'noche' | 'constante' | 'variable';
+  point?: { x: number; y: number; gender?: 'male' | 'female' };
   aggravatingFactors?: string[];
   relievingFactors?: string[];
   functionalImpact?: number;
@@ -329,6 +331,7 @@ export interface CreateEVAData {
   painType?: string[];
   duration?: 'agudo' | 'subagudo' | 'cronico';
   worstTime?: 'manana' | 'tarde' | 'noche' | 'constante' | 'variable';
+  point?: { x: number; y: number; gender?: 'male' | 'female' };
   aggravatingFactors?: string[];
   relievingFactors?: string[];
   functionalImpact?: number;

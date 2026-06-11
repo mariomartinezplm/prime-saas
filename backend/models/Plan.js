@@ -28,6 +28,11 @@ const planSchema = new mongoose.Schema({
     type: Number,
     default: 2
   },
+  // Sesiones por mes (auto-calculado según planType)
+  sessionsPerMonth: {
+    type: Number,
+    default: 8
+  },
   // Solo para kinesiología: total de sesiones del bono
   totalSessions: {
     type: Number,
@@ -63,16 +68,19 @@ planSchema.index({ patient: 1, startDate: 1, endDate: 1 });
 
 // Auto-configurar según tipo de plan
 planSchema.pre('validate', function (next) {
-  // Configurar sessionsPerWeek según planType
+  // Configurar sessionsPerWeek y sessionsPerMonth según planType
   if (this.planType === 'kinesiologia') {
     // Kine: sin límite semanal, solo 10 sesiones totales
     this.sessionsPerWeek = 7; // puede agendar cualquier día
+    this.sessionsPerMonth = 10; // máximo 10 sesiones totales (no mensual)
     this.totalSessions = this.totalSessions || 10;
   } else if (this.planType === 'entrenamiento-2x') {
     this.sessionsPerWeek = 2;
-    this.totalSessions = 0; // sin límite de total, solo semanal
+    this.sessionsPerMonth = 8; // 2 veces por semana × 4 semanas
+    this.totalSessions = 0; // sin límite de total, solo mensual
   } else if (this.planType === 'entrenamiento-3x') {
     this.sessionsPerWeek = 3;
+    this.sessionsPerMonth = 12; // 3 veces por semana × 4 semanas
     this.totalSessions = 0;
   }
 

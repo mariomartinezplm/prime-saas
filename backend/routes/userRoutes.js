@@ -6,7 +6,8 @@ import {
   updateUser,
   deleteUser,
   getPatientProfile,
-  getDashboardStats
+  getDashboardStats,
+  syncAirtableUsers
 } from '../controllers/userController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -19,6 +20,8 @@ router.use(protect);
 router.route('/')
   .get(getAllUsers) // Controller manejará permisos específicos
   .post(authorize('admin', 'professional'), createUser);
+
+router.post('/sync-airtable', authorize('admin', 'professional'), syncAirtableUsers);
 
 router.get('/stats/dashboard', authorize('admin', 'professional'), getDashboardStats);
 

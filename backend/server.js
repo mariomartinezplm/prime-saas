@@ -25,7 +25,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:8080'].filter(Boolean),
+  origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'].filter(Boolean),
   credentials: true
 }));
 

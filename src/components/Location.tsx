@@ -38,10 +38,10 @@ const Location = () => {
   ];
 
   return (
-    <section id="ubicacion" className="py-20 bg-background relative overflow-hidden">
+    <section id="ubicacion" className="py-20 bg-[#0B1221] relative overflow-hidden">
       {/* Animated background */}
       <motion.div
-        className="absolute top-0 left-0 w-[500px] h-[500px] bg-brand-primary/5 rounded-full blur-3xl"
+        className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#398CA2]/5 rounded-full blur-3xl"
         animate={{
           x: [-50, 50, -50],
           y: [0, 30, 0],
@@ -62,7 +62,7 @@ const Location = () => {
           transition={{ duration: 0.6 }}
         >
           <motion.span
-            className="inline-block bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-full text-sm font-semibold mb-4"
+            className="inline-block bg-[#398CA2]/20 text-[#4BA5BC] px-4 py-2 rounded-full text-sm font-semibold mb-4"
             initial={{ opacity: 0, scale: 0.8 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -70,10 +70,10 @@ const Location = () => {
           >
             📍 Encuéntranos
           </motion.span>
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
             Nuestra Ubicación
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-white/60 max-w-2xl mx-auto">
             Fácil acceso desde cualquier lugar de Puerto Montt con amplio estacionamiento gratis
           </p>
         </motion.div>
@@ -81,7 +81,7 @@ const Location = () => {
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           {/* Map */}
           <motion.div
-            className="bg-card rounded-2xl overflow-hidden shadow-xl"
+            className="bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10"
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-50px" }}
@@ -103,14 +103,14 @@ const Location = () => {
           {/* Contact Info */}
           <div className="space-y-6">
             <motion.div
-              className="bg-card rounded-2xl p-8 shadow-card"
+              className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10"
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.6, type: "spring" }}
               whileHover={{ y: -5 }}
             >
-              <h3 className="text-2xl font-bold text-brand-primary mb-6">
+              <h3 className="text-2xl font-bold text-white mb-6">
                 Información de Contacto
               </h3>
 
@@ -125,19 +125,19 @@ const Location = () => {
                     transition={{ delay: 0.1 * index }}
                   >
                     <motion.div
-                      className="bg-brand-soft rounded-xl p-3 group-hover:bg-brand-primary transition-colors duration-300"
+                      className="bg-[#398CA2]/15 rounded-xl p-3 group-hover:bg-[#398CA2] transition-colors duration-300"
                       whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
                       transition={{ duration: 0.4 }}
                     >
-                      <item.icon className="w-6 h-6 text-brand-primary group-hover:text-white transition-colors duration-300" />
+                      <item.icon className="w-6 h-6 text-[#4BA5BC] group-hover:text-white transition-colors duration-300" />
                     </motion.div>
                     <div>
-                      <h4 className="font-semibold text-brand-primary mb-1">{item.title}</h4>
+                      <h4 className="font-semibold text-white mb-1">{item.title}</h4>
                       {item.content && (
-                        <p className="text-muted-foreground">{item.content}</p>
+                        <p className="text-white/60">{item.content}</p>
                       )}
                       {item.schedule && (
-                        <div className="text-muted-foreground space-y-1">
+                        <div className="text-white/60 space-y-1">
                           {item.schedule.map((s, i) => (
                             <p key={i}>{s}</p>
                           ))}
@@ -151,17 +151,17 @@ const Location = () => {
 
             {/* Directions & Contact */}
             <motion.div
-              className="bg-gradient-to-br from-brand-soft to-brand-light rounded-2xl p-8"
+              className="bg-gradient-to-br from-[#398CA2]/15 to-[#252B33]/50 backdrop-blur-sm rounded-2xl p-8 border border-white/10"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.6, delay: 0.2 }}
               whileHover={{ y: -3 }}
             >
-              <h4 className="text-xl font-bold text-brand-primary mb-4">
+              <h4 className="text-xl font-bold text-white mb-4">
                 ¿Cómo llegar?
               </h4>
-              <p className="text-muted-foreground mb-6">
+              <p className="text-white/60 mb-6">
                 Estamos ubicados en Avenida Volcán Puntiagudo 100, Puerto Montt, con fácil acceso desde cualquier punto de la ciudad.
                 Contamos con amplio estacionamiento gratis para que no te preocupes de nada.
               </p>
@@ -171,10 +171,10 @@ const Location = () => {
                   <Button
                     variant="outline"
                     onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(address)}`, '_blank')}
-                    className="w-full group"
+                    className="w-full group bg-transparent border-white/20 text-white hover:bg-white/10"
                   >
                     <Navigation className="w-5 h-5 group-hover:animate-pulse" />
-                    Ver en Google Maps
+                    Google Maps
                   </Button>
                 </motion.div>
 
@@ -182,10 +182,10 @@ const Location = () => {
                   <Button
                     variant="outline"
                     onClick={() => window.open(`https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`, '_blank')}
-                    className="w-full group"
+                    className="w-full group bg-transparent border-white/20 text-white hover:bg-white/10"
                   >
                     <Navigation className="w-5 h-5 group-hover:animate-pulse" />
-                    Ver en Waze
+                    Waze
                   </Button>
                 </motion.div>
 
@@ -195,7 +195,7 @@ const Location = () => {
                     onClick={() => window.open(whatsappUrl, '_blank')}
                     className="w-full"
                   >
-                    Contactar por WhatsApp
+                    WhatsApp
                   </Button>
                 </motion.div>
               </div>
@@ -203,19 +203,19 @@ const Location = () => {
 
             {/* Accessibility & Parking */}
             <motion.div
-              className="bg-card rounded-2xl p-6 shadow-card"
+              className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.6, delay: 0.3 }}
               whileHover={{ y: -3 }}
             >
-              <h4 className="font-semibold text-brand-primary mb-4">Facilidades</h4>
+              <h4 className="font-semibold text-white mb-4">Facilidades</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {facilities.map((facility, index) => (
                   <motion.div
                     key={index}
-                    className="flex items-center gap-3 group"
+                    className="flex items-center gap-3 group text-white/70"
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -223,11 +223,11 @@ const Location = () => {
                     whileHover={{ x: 5 }}
                   >
                     <motion.div
-                      className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center"
+                      className="w-8 h-8 bg-emerald-500/15 rounded-full flex items-center justify-center"
                       whileHover={{ scale: 1.2, rotate: 360 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <facility.icon className="w-4 h-4 text-green-600" />
+                      <facility.icon className="w-4 h-4 text-emerald-400" />
                     </motion.div>
                     <span>{facility.text}</span>
                   </motion.div>

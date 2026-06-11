@@ -49,6 +49,12 @@ export const userService = {
     await api.delete(`/users/${id}`);
   },
 
+  // Sincronizar pacientes con Airtable
+  syncAirtable: async (): Promise<any> => {
+    const response = await api.post<APIResponse<any>>('/users/sync-airtable');
+    return response.data.data;
+  },
+
   // Obtener perfil completo del paciente
   getPatientProfile: async (id: string): Promise<PatientProfile> => {
     const response = await api.get<APIResponse<PatientProfile>>(`/users/${id}/profile`);

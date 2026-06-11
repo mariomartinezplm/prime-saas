@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
+import PainBodyDiagram from '@/components/body/PainBodyDiagram';
 
 interface EVAFormProps {
   patientId: string;
@@ -37,11 +38,16 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
   const [duration, setDuration] = useState('');
   const [observations, setObservations] = useState('');
   const [treatmentPlan, setTreatmentPlan] = useState('');
+  const [selectedPoint, setSelectedPoint] = useState<{ x: number, y: number, gender: 'male' | 'female' } | null>(null);
+
+  const handleMapClick = (x: number, y: number) => {
+    setSelectedPoint({ x, y, gender: 'male' }); // The gender is handled by local state inside PainBodyDiagram now, but we can pass it later if needed.
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bodyArea) {
-      toast.error('Selecciona una zona del cuerpo');
+    if (!bodyArea && !selectedPoint) {
+      toast.error('Selecciona una zona del cuerpo o pincha en el mapa');
       return;
     }
 
@@ -50,11 +56,12 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
       await api.post('/eva', {
         patient: patientId,
         painLevel,
-        bodyArea,
+        bodyArea: bodyArea || 'otro',
         painType: painType ? [painType] : [],
         duration: duration || undefined,
         observations: observations || undefined,
         treatmentPlan: treatmentPlan || undefined,
+        point: selectedPoint || undefined,
       });
 
       toast.success('Registro EVA creado exitosamente');
@@ -64,6 +71,7 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
       setDuration('');
       setObservations('');
       setTreatmentPlan('');
+      setSelectedPoint(null);
       onSuccess();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -109,13 +117,14 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
             <div className="space-y-2">
               <Label>Zona del cuerpo *</Label>
               <Select value={bodyArea} onValueChange={setBodyArea}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar zona" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Seleccionar zona (o pincha el mapa)" /></SelectTrigger>
                 <SelectContent>
                   {BODY_AREAS.map((area) => (
                     <SelectItem key={area} value={area}>
                       {area.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </SelectItem>
                   ))}
+                  <SelectItem value="otro">Otro (Punto en mapa)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -147,8 +156,24 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
             </Select>
           </div>
 
+          <div className="space-y-4 border-t pt-4">
+            <Label>Mapa de Dolor (Opcional - Selecciona el punto exacto)</Label>
+            <div className="border border-border rounded-xl p-4 bg-muted/20">
+              <PainBodyDiagram
+                selectedZone={bodyArea !== 'otro' ? bodyArea : null}
+                onZoneClick={setBodyArea}
+                onMapClick={handleMapClick}
+                selectedPoint={selectedPoint}
+                gender={selectedPoint?.gender || 'male'}
+                onGenderChange={(g) => {
+                  if (selectedPoint) setSelectedPoint({ ...selectedPoint, gender: g });
+                }}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label>Observaciones</Label>
+            <Label>Notas y Observaciones</Label>
             <Textarea value={observations} onChange={(e) => setObservations(e.target.value)} />
           </div>
 

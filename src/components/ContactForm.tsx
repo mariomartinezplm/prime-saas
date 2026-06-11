@@ -30,10 +30,10 @@ Mi objetivo/situación es: ${formData.objetivo}
 Me gustaría agendar una evaluación inicial.`;
 
     const whatsappUrl = `https://wa.me/56956286651?text=${encodeURIComponent(message)}`;
-    
+
     // Open WhatsApp
     window.open(whatsappUrl, '_blank');
-    
+
     // Show success message
     toast({
       title: "¡Formulario enviado!",
@@ -52,22 +52,22 @@ Me gustaría agendar una evaluación inicial.`;
   const isFormValid = formData.nombre && formData.telefono && formData.objetivo;
 
   return (
-    <section className="py-20 bg-background">
+    <section className="py-20 bg-[#0F1A2E]">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-12">
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-primary mb-4">
-            Agenda tu Entrenamiento de Prueba
-          </h2>
-            <p className="text-xl text-muted-foreground">
+            <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
+              Agenda tu Entrenamiento de Prueba
+            </h2>
+            <p className="text-xl text-white/60">
               Completa el formulario y te contactaremos por WhatsApp para coordinar tu cita
             </p>
           </div>
 
-          <div className="bg-card rounded-2xl p-8 shadow-card">
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <Label htmlFor="nombre" className="text-base font-semibold text-brand-primary">
+                <Label htmlFor="nombre" className="text-base font-semibold text-white">
                   Tu nombre completo *
                 </Label>
                 <Input
@@ -76,13 +76,13 @@ Me gustaría agendar una evaluación inicial.`;
                   placeholder="Ej: María González"
                   value={formData.nombre}
                   onChange={(e) => handleInputChange("nombre", e.target.value)}
-                  className="mt-2"
+                  className="mt-2 bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-[#398CA2]"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="telefono" className="text-base font-semibold text-brand-primary">
+                <Label htmlFor="telefono" className="text-base font-semibold text-white">
                   Teléfono / WhatsApp *
                 </Label>
                 <Input
@@ -91,20 +91,20 @@ Me gustaría agendar una evaluación inicial.`;
                   placeholder="Ej: +56 9 1234 5678"
                   value={formData.telefono}
                   onChange={(e) => handleInputChange("telefono", e.target.value)}
-                  className="mt-2"
+                  className="mt-2 bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-[#398CA2]"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="objetivo" className="text-base font-semibold text-brand-primary">
+                <Label htmlFor="objetivo" className="text-base font-semibold text-white">
                   ¿Cuál es tu objetivo principal o situación actual? *
                 </Label>
                 <Select onValueChange={(value) => handleInputChange("objetivo", value)}>
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger className="mt-2 bg-white/5 border-white/20 text-white">
                     <SelectValue placeholder="Selecciona la opción que más te represente" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-[#1a2744] border-white/20 text-white">
                     <SelectItem value="entrenamiento-general">Entrenamiento general / Mejorar físico</SelectItem>
                     <SelectItem value="perder-peso">Bajar de peso / Tonificar</SelectItem>
                     <SelectItem value="ganar-fuerza">Ganar fuerza y masa muscular</SelectItem>
@@ -117,11 +117,11 @@ Me gustaría agendar una evaluación inicial.`;
                 </Select>
               </div>
 
-              <div className="bg-brand-soft rounded-lg p-4">
+              <div className="bg-[#398CA2]/10 rounded-lg p-4 border border-[#398CA2]/20">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-brand-primary flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-muted-foreground">
-                    <p className="font-semibold text-brand-primary mb-1">¿Qué pasa después?</p>
+                  <CheckCircle className="w-5 h-5 text-[#4BA5BC] flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-white/60">
+                    <p className="font-semibold text-white mb-1">¿Qué pasa después?</p>
                     <ul className="space-y-1">
                       <li>• Te enviaremos un mensaje por WhatsApp</li>
                       <li>• Coordinaremos tu evaluación inicial gratuita</li>
@@ -131,9 +131,9 @@ Me gustaría agendar una evaluación inicial.`;
                 </div>
               </div>
 
-              <Button 
+              <Button
                 type="submit"
-                variant="whatsapp" 
+                variant="whatsapp"
                 size="lg"
                 className="w-full text-lg py-4"
                 disabled={!isFormValid || isSubmitting}
@@ -145,11 +145,11 @@ Me gustaría agendar una evaluación inicial.`;
           </div>
 
           <div className="text-center mt-8">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-white/40">
               También puedes escribirnos directamente al{" "}
-              <a 
-                href="https://wa.me/56956286651" 
-                className="text-brand-primary font-semibold hover:underline"
+              <a
+                href="https://wa.me/56956286651"
+                className="text-[#4BA5BC] font-semibold hover:underline"
                 target="_blank"
                 rel="noopener noreferrer"
               >

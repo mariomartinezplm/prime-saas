@@ -6,14 +6,14 @@ import { toast } from 'sonner';
 
 const plans = [
   {
-    id: 'kine-8',
-    name: 'Kinesiología - 8 Sesiones',
-    price: '$180.000',
+    id: 'kine-10',
+    name: 'Kinesiología - 10 Sesiones',
+    price: '$200.000',
     description: 'Rehabilitación completa y personalizada',
     features: [
       'Evaluación inicial incluida',
-      '8 sesiones de tratamiento',
-      'Atención 1 a 1',
+      '10 sesiones de tratamiento',
+      'Atención en grupos reducidos',
       'Duración 60 minutos',
       'Reembolsable con Isapre'
     ],
@@ -30,10 +30,9 @@ const plans = [
     description: 'Mantente activo y saludable',
     features: [
       '2 sesiones por semana',
-      'Evaluación mensual',
       'Plan personalizado',
       'Grupos reducidos (max 4)',
-      'Acceso a app de seguimiento'
+      'Acompañamiento presencial'
     ],
     icon: Dumbbell,
     popular: true,
@@ -43,15 +42,14 @@ const plans = [
   {
     id: 'training-3x',
     name: 'Entrenamiento 3x',
-    price: '$109.990',
+    price: '$129.990',
     period: '/mes',
     description: 'Máximos resultados',
     features: [
       '3 sesiones por semana',
-      'Evaluación mensual',
       'Plan personalizado',
       'Grupos reducidos (max 4)',
-      'Nutrición básica incluida'
+      'Acompañamiento presencial'
     ],
     icon: Sparkles,
     popular: false,
@@ -88,8 +86,8 @@ const Subscription = () => {
 
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 pt-4">
         {plans.map((plan) => (
-          <Card 
-            key={plan.id} 
+          <Card
+            key={plan.id}
             className={`relative flex flex-col transition-all duration-300 border-2 hover:shadow-xl ${plan.color} ${plan.popular ? 'scale-105 shadow-lg border-blue-500' : ''}`}
           >
             {plan.popular && (
@@ -128,8 +126,8 @@ const Subscription = () => {
             </CardContent>
 
             <CardFooter>
-              <Button 
-                className={`w-full ${plan.btnColor} text-white`} 
+              <Button
+                className={`w-full ${plan.btnColor} text-white`}
                 size="lg"
                 onClick={() => handleSubscribe(plan.id, plan.name)}
                 disabled={loading === plan.id}

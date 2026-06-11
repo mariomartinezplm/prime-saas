@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, ChevronRight } from 'lucide-react';
+import { Search, UserPlus, ChevronRight, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { User } from '@/types';
 
@@ -14,21 +14,39 @@ const PatientList = () => {
   const [patients, setPatients] = useState<User[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const data = await userService.getPatients();
+      setPatients(data);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+      toast.error('Error al cargar la lista de pacientes');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const data = await userService.getPatients();
-        setPatients(data);
-      } catch (error) {
-        console.error('Error fetching patients:', error);
-        toast.error('Error al cargar la lista de pacientes');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchPatients();
   }, []);
+
+  const handleSyncAirtable = async () => {
+    setSyncing(true);
+    try {
+      const result = await userService.syncAirtable();
+      toast.success(`Sincronización completa: ${result.syncedCount} pacientes creados/actualizados.`);
+      // Refrescar la lista para mostrar los nuevos/actualizados
+      await fetchPatients();
+    } catch (error: any) {
+      console.error('Error syncing Airtable:', error);
+      toast.error(error.response?.data?.message || 'Error al conectar con Airtable');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const filtered = patients.filter((p) => {
     const term = search.toLowerCase();
@@ -47,10 +65,16 @@ const PatientList = () => {
           <h1 className="text-2xl font-bold text-foreground">Pacientes</h1>
           <p className="text-muted-foreground">{patients.length} pacientes registrados</p>
         </div>
-        <Button onClick={() => navigate('/app/admin/registro')}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Nuevo paciente
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleSyncAirtable} disabled={syncing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            Sincronizar Airtable
+          </Button>
+          <Button onClick={() => navigate('/app/admin/registro')}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Nuevo paciente
+          </Button>
+        </div>
       </div>
 
       <div className="relative">

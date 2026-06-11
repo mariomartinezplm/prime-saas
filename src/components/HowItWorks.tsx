@@ -56,10 +56,10 @@ const HowItWorks = () => {
   };
 
   return (
-    <section id="como-funciona" className="py-20 bg-background relative overflow-hidden">
+    <section id="como-funciona" className="py-20 bg-[#0F1A2E] relative overflow-hidden">
       {/* Animated background */}
       <motion.div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-primary/3 rounded-full blur-3xl"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#398CA2]/3 rounded-full blur-3xl"
         animate={{
           scale: [1, 1.1, 1],
           opacity: [0.5, 0.3, 0.5],
@@ -80,7 +80,7 @@ const HowItWorks = () => {
           transition={{ duration: 0.6 }}
         >
           <motion.span
-            className="inline-block bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-full text-sm font-semibold mb-4"
+            className="inline-block bg-[#398CA2]/20 text-[#4BA5BC] px-4 py-2 rounded-full text-sm font-semibold mb-4"
             initial={{ opacity: 0, scale: 0.8 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -88,10 +88,10 @@ const HowItWorks = () => {
           >
             📋 Proceso Simple
           </motion.span>
-          <h2 className="text-3xl lg:text-4xl font-bold text-brand-dark mb-4">
+          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
             ¿Cómo funciona?
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-white/60 max-w-2xl mx-auto">
             Proceso simple y efectivo para llevarte a tus objetivos
           </p>
         </motion.div>
@@ -112,7 +112,7 @@ const HowItWorks = () => {
               {/* Animated connection line for desktop */}
               {index < steps.length - 1 && (
                 <motion.div
-                  className="hidden lg:block absolute top-16 left-full w-full h-0.5 bg-brand-primary/20 transform translate-x-4 z-0"
+                  className="hidden lg:block absolute top-16 left-full w-full h-0.5 bg-[#398CA2]/20 transform translate-x-4 z-0"
                   initial={{ scaleX: 0 }}
                   whileInView={{ scaleX: 1 }}
                   viewport={{ once: true }}
@@ -120,7 +120,7 @@ const HowItWorks = () => {
                   style={{ originX: 0 }}
                 >
                   <motion.div
-                    className="absolute right-0 w-3 h-3 bg-brand-primary rounded-full transform translate-x-1.5 -translate-y-1.5"
+                    className="absolute right-0 w-3 h-3 bg-[#398CA2] rounded-full transform translate-x-1.5 -translate-y-1.5"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
                     viewport={{ once: true }}
@@ -130,7 +130,7 @@ const HowItWorks = () => {
               )}
 
               <motion.div
-                className="bg-card rounded-2xl p-8 shadow-card hover:shadow-xl transition-shadow duration-500 relative z-10 group cursor-default"
+                className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-[#398CA2]/30 transition-all duration-500 relative z-10 group cursor-default"
                 whileHover={{
                   y: -10,
                   transition: { type: "spring", stiffness: 400, damping: 17 }
@@ -138,14 +138,14 @@ const HowItWorks = () => {
               >
                 <div className="flex items-center gap-4 mb-6">
                   <motion.div
-                    className="bg-brand-primary rounded-full p-4 group-hover:scale-110 transition-transform duration-300"
+                    className="bg-[#398CA2] rounded-full p-4 group-hover:scale-110 transition-transform duration-300"
                     whileHover={{ rotate: 360 }}
                     transition={{ duration: 0.5 }}
                   >
                     <step.icon className="w-8 h-8 text-white" />
                   </motion.div>
                   <motion.span
-                    className="text-5xl font-bold text-brand-primary/10 group-hover:text-brand-primary/30 transition-colors duration-300"
+                    className="text-5xl font-bold text-white/5 group-hover:text-white/15 transition-colors duration-300"
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
@@ -155,19 +155,19 @@ const HowItWorks = () => {
                   </motion.span>
                 </div>
 
-                <h3 className="text-xl font-bold text-brand-dark mb-4">
+                <h3 className="text-xl font-bold text-white mb-4">
                   {step.title}
                 </h3>
 
-                <p className="text-muted-foreground mb-4 leading-relaxed">
+                <p className="text-white/60 mb-4 leading-relaxed">
                   {step.description}
                 </p>
 
                 <motion.div
-                  className="bg-brand-soft rounded-lg p-3 mb-4"
+                  className="bg-[#398CA2]/10 rounded-lg p-3 mb-4"
                   whileHover={{ scale: 1.02 }}
                 >
-                  <span className="text-sm font-semibold text-brand-primary">
+                  <span className="text-sm font-semibold text-[#4BA5BC]">
                     ✓ {step.highlight}
                   </span>
                 </motion.div>
@@ -194,7 +194,7 @@ const HowItWorks = () => {
 
         {/* CTA Section */}
         <motion.div
-          className="text-center bg-gradient-to-br from-brand-soft to-brand-light rounded-3xl p-12 relative overflow-hidden"
+          className="text-center bg-gradient-to-br from-[#398CA2]/20 to-[#252B33]/80 backdrop-blur-sm rounded-3xl p-12 relative overflow-hidden border border-white/10"
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
@@ -202,7 +202,7 @@ const HowItWorks = () => {
         >
           {/* Animated decorations */}
           <motion.div
-            className="absolute top-4 right-4 w-20 h-20 bg-brand-primary/10 rounded-full"
+            className="absolute top-4 right-4 w-20 h-20 bg-[#398CA2]/10 rounded-full"
             animate={{
               scale: [1, 1.2, 1],
               opacity: [0.5, 0.8, 0.5],
@@ -214,7 +214,7 @@ const HowItWorks = () => {
             }}
           />
           <motion.div
-            className="absolute bottom-4 left-4 w-16 h-16 bg-brand-secondary/10 rounded-full"
+            className="absolute bottom-4 left-4 w-16 h-16 bg-[#2F7A8F]/10 rounded-full"
             animate={{
               scale: [1.2, 1, 1.2],
               opacity: [0.8, 0.5, 0.8],
@@ -227,7 +227,7 @@ const HowItWorks = () => {
           />
 
           <motion.h3
-            className="text-2xl lg:text-3xl font-bold text-brand-dark mb-4 relative z-10"
+            className="text-2xl lg:text-3xl font-bold text-white mb-4 relative z-10"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -236,7 +236,7 @@ const HowItWorks = () => {
             ¿Listo para comenzar?
           </motion.h3>
           <motion.p
-            className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto relative z-10"
+            className="text-lg text-white/60 mb-8 max-w-xl mx-auto relative z-10"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -279,7 +279,7 @@ const HowItWorks = () => {
                   const element = document.getElementById('precios');
                   if (element) element.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="text-lg px-8 py-6"
+                className="text-lg px-8 py-6 bg-transparent border-white/20 text-white hover:bg-white/10"
               >
                 Ver precios
               </Button>

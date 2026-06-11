@@ -113,6 +113,11 @@ const evaSchema = new mongoose.Schema({
     score: Number,
     notes: String
   }],
+  // Punto exacto del dolor en el diagrama (0-100 para X e Y)
+  point: {
+    x: { type: Number, min: 0, max: 100 },
+    y: { type: Number, min: 0, max: 100 }
+  },
   // Observaciones del profesional
   observations: {
     type: String,
@@ -141,34 +146,36 @@ evaSchema.index({ patient: 1, date: -1 });
 evaSchema.index({ patient: 1, bodyArea: 1, date: -1 });
 
 // Método estático para obtener la evolución del dolor en un área específica
-evaSchema.statics.getPainEvolution = async function(patientId, bodyArea, limit = 20) {
+evaSchema.statics.getPainEvolution = async function (patientId, bodyArea, limit = 20) {
   return await this.find({
     patient: patientId,
     bodyArea: bodyArea
   })
-  .sort({ date: -1 })
-  .limit(limit)
-  .select('date painLevel functionalImpact observations')
-  .populate('recordedBy', 'firstName lastName');
+    .sort({ date: -1 })
+    .limit(limit)
+    .select('date painLevel functionalImpact observations')
+    .populate('recordedBy', 'firstName lastName');
 };
 
 // Método estático para obtener todas las áreas con dolor de un paciente
-evaSchema.statics.getAffectedAreas = async function(patientId) {
+evaSchema.statics.getAffectedAreas = async function (patientId) {
   return await this.aggregate([
     { $match: { patient: mongoose.Types.ObjectId(patientId) } },
-    { $group: {
-      _id: '$bodyArea',
-      latestPainLevel: { $last: '$painLevel' },
-      averagePainLevel: { $avg: '$painLevel' },
-      recordCount: { $sum: 1 },
-      lastRecordDate: { $max: '$date' }
-    }},
+    {
+      $group: {
+        _id: '$bodyArea',
+        latestPainLevel: { $last: '$painLevel' },
+        averagePainLevel: { $avg: '$painLevel' },
+        recordCount: { $sum: 1 },
+        lastRecordDate: { $max: '$date' }
+      }
+    },
     { $sort: { lastRecordDate: -1 } }
   ]);
 };
 
 // Método para determinar la severidad del dolor
-evaSchema.methods.getPainSeverity = function() {
+evaSchema.methods.getPainSeverity = function () {
   if (this.painLevel === 0) return 'Sin dolor';
   if (this.painLevel <= 3) return 'Dolor leve';
   if (this.painLevel <= 6) return 'Dolor moderado';
