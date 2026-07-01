@@ -13,6 +13,7 @@ import exerciseRoutes from './routes/exerciseRoutes.js';
 import evaRoutes from './routes/evaRoutes.js';
 import availabilityRoutes from './routes/availabilityRoutes.js';
 import planRoutes from './routes/planRoutes.js';
+import googleCalendarRoutes from './routes/googleCalendarRoutes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -60,6 +61,8 @@ app.use('/api/exercises', exerciseRoutes);
 app.use('/api/eva', evaRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/plans', planRoutes);
+
+app.use('/api/google-calendar', googleCalendarRoutes);
 
 // Middleware de manejo de errores
 app.use(notFound);
