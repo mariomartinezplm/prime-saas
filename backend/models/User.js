@@ -60,9 +60,17 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
   objectives: [String],
+  // Texto libre histórico (viene de la migración de Airtable). No usar para lógica nueva.
   assignedProfessional: {
     type: String,
     trim: true
+  },
+  // Referencia real al profesional asignado. Se setea automáticamente cuando
+  // un profesional crea al paciente. Ver scripts/migrateAssignedProfessional.js
+  // para el respaldo histórico de assignedProfessional (texto) a este campo.
+  assignedProfessionalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   referralSource: {
     type: String,

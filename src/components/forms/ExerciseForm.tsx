@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -63,8 +64,7 @@ const ExerciseForm = ({ patientId, onSuccess }: ExerciseFormProps) => {
       setForm({ exerciseName: '', category: 'fuerza', sets: '', reps: '', weight: '', rpe: '', notes: '' });
       onSuccess();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al registrar ejercicio');
+      showApiError(err, 'Error al registrar ejercicio');
     } finally {
       setLoading(false);
     }

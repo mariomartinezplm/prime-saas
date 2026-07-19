@@ -19,7 +19,7 @@ router.use(protect);
 
 // Rutas de ejercicios
 router.route('/')
-  .post(authorize('admin', 'professional'), createExerciseProgress);
+  .post(authorize('admin', 'professional', 'patient'), createExerciseProgress);
 
 router.get('/patient/:patientId', getPatientExercises);
 router.get('/progress/:patientId/:exerciseName', getExerciseProgressChart);
@@ -29,7 +29,7 @@ router.get('/stats/:patientId', getExerciseStats);
 
 router.route('/:id')
   .get(getExerciseProgress)
-  .put(authorize('admin', 'professional'), updateExerciseProgress)
+  .put(authorize('admin', 'professional', 'patient'), updateExerciseProgress)
   .delete(authorize('admin', 'professional'), deleteExerciseProgress);
 
 export default router;

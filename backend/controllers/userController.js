@@ -16,11 +16,19 @@ export const getAllUsers = async (req, res) => {
     }
 
     const { role, isActive, search, limit = 50, page = 1 } = req.query;
+    let { assignedProfessionalId } = req.query;
+
+    // Seguridad: un profesional SIEMPRE queda restringido a sus propios pacientes
+    // asignados, sin importar qué le mande el frontend (defensa en profundidad).
+    if (req.user.role === 'professional' && role === 'patient') {
+      assignedProfessionalId = req.user._id.toString();
+    }
 
     // Construir query
     const query = {};
     if (role) query.role = role;
     if (isActive !== undefined) query.isActive = isActive === 'true';
+    if (assignedProfessionalId) query.assignedProfessionalId = assignedProfessionalId;
     if (search) {
       query.$or = [
         { firstName: new RegExp(search, 'i') },
@@ -111,6 +119,10 @@ export const createUser = async (req, res) => {
       });
     }
 
+    // Si un profesional crea al paciente, queda asignado automáticamente a él.
+    // (Si es admin quien lo crea, no se asigna nadie por defecto.)
+    const assignedProfessionalId = req.user.role === 'professional' ? req.user._id : undefined;
+
     // Crear usuario
     const user = await User.create({
       firstName,
@@ -123,7 +135,8 @@ export const createUser = async (req, res) => {
       rut,
       address,
       emergencyContact,
-      medicalInfo
+      medicalInfo,
+      assignedProfessionalId
     });
 
     // Remover password de la respuesta

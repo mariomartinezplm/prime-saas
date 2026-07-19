@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -80,8 +81,7 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
       });
       onSuccess();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al registrar medición');
+      showApiError(err, 'Error al registrar medición');
     } finally {
       setLoading(false);
     }

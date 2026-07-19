@@ -4,6 +4,23 @@ import User from '../models/User.js';
 import Availability from '../models/Availability.js';
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, parseISO, format, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../utils/emailService.js';
+import { getSessionBalance } from '../services/clientPlanService.js';
+
+// Bloqueo por plan (ClientPlan) vencido o sin sesiones disponibles.
+// Devuelve null si puede agendar, o un objeto { status, body } listo para responder si no puede.
+async function checkSessionBalanceForBooking(patientId) {
+  const balance = await getSessionBalance(patientId);
+  if (balance.totalAvailable > 0) return null;
+
+  const message = balance.hasActivePlan
+    ? 'Ya utilizaste todas las sesiones de tu plan. Contacta a Prime F&H para renovar.'
+    : 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar.';
+
+  return {
+    status: 403,
+    body: { success: false, message, code: 'NO_ACTIVE_PLAN_SESSIONS' }
+  };
+}
 
 // ─── Constantes de reglas ────────────────────────────────────────────────────
 const MAX_PATIENTS_PER_SLOT = 4;         // Máximo 4 pacientes por hora por kinesiólogo
@@ -123,7 +140,13 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // ──── REGLA 2: Verificar plan del paciente ────
+    // ──── REGLA 1b: Bloqueo por ClientPlan vencido o sin sesiones disponibles ────
+    const balanceCheck = await checkSessionBalanceForBooking(patientId);
+    if (balanceCheck) {
+      return res.status(balanceCheck.status).json(balanceCheck.body);
+    }
+
+    // ──── REGLA 2 (sistema viejo de Plan): Verificar plan del paciente ────
     let activePlan = await Plan.findOne({
       patient: patientId,
       status: 'active',
@@ -618,6 +641,15 @@ export const bulkCreateAppointments = async (req, res) => {
     const now = new Date();
     const created = [];
     const errors = [];
+
+    // ──── Bloqueo por ClientPlan vencido o sin sesiones disponibles ────
+    // Se verifica una sola vez (aplica al mismo paciente durante todo el bloque de citas).
+    if (!isStaff(req.user)) {
+      const balanceCheck = await checkSessionBalanceForBooking(patientId);
+      if (balanceCheck) {
+        return res.status(balanceCheck.status).json(balanceCheck.body);
+      }
+    }
 
     for (const apt of appointmentsData) {
       try {

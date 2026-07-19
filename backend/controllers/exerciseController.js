@@ -1,14 +1,19 @@
 import ExerciseProgress from '../models/Exercise.js';
 import User from '../models/User.js';
 import mongoose from 'mongoose';
+import { hasActivePlan } from '../services/clientPlanService.js';
+
+const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
 
 // @desc    Crear nuevo registro de ejercicio
 // @route   POST /api/exercises
-// @access  Private/Admin
+// @access  Private (paciente registra el suyo; admin/profesional registran el de cualquiera)
 export const createExerciseProgress = async (req, res) => {
   try {
+    // El paciente solo puede crear su propio registro; el profesional/admin puede
+    // registrar el de cualquiera de sus pacientes.
+    const patient = req.user.role === 'patient' ? req.user._id : req.body.patient;
     const {
-      patient,
       exerciseName,
       category,
       date,
@@ -31,6 +36,15 @@ export const createExerciseProgress = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Paciente no encontrado'
+      });
+    }
+
+    // Bloqueo: el paciente solo puede registrar evolución con plan activo. El profesional/admin siempre puede.
+    if (req.user.role === 'patient' && !(await hasActivePlan(patient))) {
+      return res.status(403).json({
+        success: false,
+        message: PLAN_EXPIRED_MESSAGE,
+        code: 'NO_ACTIVE_PLAN_SESSIONS'
       });
     }
 
@@ -151,7 +165,7 @@ export const getExerciseProgress = async (req, res) => {
 
 // @desc    Actualizar un registro de ejercicio
 // @route   PUT /api/exercises/:id
-// @access  Private/Admin
+// @access  Private (paciente edita el suyo; admin/profesional editan cualquiera)
 export const updateExerciseProgress = async (req, res) => {
   try {
     const {
@@ -178,6 +192,23 @@ export const updateExerciseProgress = async (req, res) => {
         success: false,
         message: 'Registro no encontrado'
       });
+    }
+
+    if (req.user.role === 'patient') {
+      if (exerciseProgress.patient.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para editar este registro'
+        });
+      }
+
+      if (!(await hasActivePlan(req.user._id))) {
+        return res.status(403).json({
+          success: false,
+          message: PLAN_EXPIRED_MESSAGE,
+          code: 'NO_ACTIVE_PLAN_SESSIONS'
+        });
+      }
     }
 
     // Actualizar campos

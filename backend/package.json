@@ -10,7 +10,11 @@
     "seed": "node utils/seed.js",
     "migrate": "node scripts/migrate.js",
     "migrate:preview": "node scripts/migrate.js --preview",
-    "migrate:dry-run": "node scripts/migrate.js --dry-run"
+    "migrate:dry-run": "node scripts/migrate.js --dry-run",
+    "expire-plans": "node scripts/expirePlans.js",
+    "migrate-assigned-professional": "node scripts/migrateAssignedProfessional.js",
+    "export-plans-template": "node scripts/exportClientPlansTemplate.js",
+    "import-plans": "node scripts/importClientPlans.js"
   },
   "keywords": [
     "express",

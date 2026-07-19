@@ -16,6 +16,7 @@ export interface User {
   medicalInfo?: MedicalInfo;
   isActive: boolean;
   assignedProfessional?: string;
+  assignedProfessionalId?: User | string;
   createdAt: string;
 }
 
@@ -184,6 +185,58 @@ export interface PlanRestrictions {
   bookAheadHours: number;
   cancelAheadHours: number;
   maxPatientsPerSlot: number;
+}
+
+// Tipos de ClientPlan (sistema nuevo de planes por bono de sesiones)
+export interface ClientPlan {
+  _id: string;
+  patient: User | string;
+  serviceType: 'entrenamiento' | 'kinesiologia';
+  sessionsTotal: number;
+  sessionsUsed: number;
+  startDate: string;
+  endDate: string;
+  status: 'active' | 'expired' | 'cancelled';
+  registeredBy: User | string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateClientPlanData {
+  patientId: string;
+  serviceType: 'entrenamiento' | 'kinesiologia';
+  sessionsTotal: number;
+  startDate?: string;
+  notes?: string;
+  replaceExisting?: boolean;
+}
+
+export interface SessionBalance {
+  hasActivePlan: boolean;
+  plan: ClientPlan | null;
+  planSessionsAvailable: number;
+  extraSessionsAvailable: number;
+  totalAvailable: number;
+}
+
+export interface ExtraSession {
+  _id: string;
+  patient: User | string;
+  serviceType: 'entrenamiento' | 'kinesiologia';
+  grantedBy: User | string;
+  reason?: string;
+  date: string;
+  used: boolean;
+  usedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateExtraSessionData {
+  patientId: string;
+  serviceType: 'entrenamiento' | 'kinesiologia';
+  reason?: string;
 }
 
 // Tipos de Mediciones

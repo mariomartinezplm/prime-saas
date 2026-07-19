@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { availabilityService } from '@/services/availabilityService';
 import { appointmentService } from '@/services/appointmentService';
 import { toast } from 'sonner';
+import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import { format, addWeeks, addDays, parseISO, getDay, isBefore, addHours } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -111,8 +112,7 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
       }
       onClose();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al reservar');
+      showApiError(err, 'Error al reservar');
     } finally {
       setBooking(false);
     }

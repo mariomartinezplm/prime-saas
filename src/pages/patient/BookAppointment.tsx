@@ -12,6 +12,7 @@ import BulkBookingDialog from '@/components/booking/BulkBookingDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { showApiError } from '@/lib/apiError';
 import { CalendarPlus, AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays, Repeat, Calendar as CalendarIcon } from 'lucide-react';
 import { format, addHours, isBefore, parseISO } from 'date-fns';
 import type { User, Plan, AvailableSlots } from '@/types';
@@ -158,8 +159,7 @@ const BookAppointment = () => {
       const newSlots = await availabilityService.getSlots(selectedProfessional.id, dateStr);
       setSlots(newSlots);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al reservar');
+      showApiError(err, 'Error al reservar');
     } finally {
       setBooking(false);
     }

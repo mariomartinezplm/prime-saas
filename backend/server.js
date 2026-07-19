@@ -13,6 +13,8 @@ import exerciseRoutes from './routes/exerciseRoutes.js';
 import evaRoutes from './routes/evaRoutes.js';
 import availabilityRoutes from './routes/availabilityRoutes.js';
 import planRoutes from './routes/planRoutes.js';
+import clientPlanRoutes from './routes/clientPlanRoutes.js';
+import extraSessionRoutes from './routes/extraSessionRoutes.js';
 import googleCalendarRoutes from './routes/googleCalendarRoutes.js';
 
 // Cargar variables de entorno
@@ -47,7 +49,9 @@ app.get('/', (req, res) => {
       exercises: '/api/exercises',
       eva: '/api/eva',
       availability: '/api/availability',
-      plans: '/api/plans'
+      plans: '/api/plans',
+      clientPlans: '/api/client-plans',
+      extraSessions: '/api/extra-sessions'
     }
   });
 });
@@ -61,6 +65,8 @@ app.use('/api/exercises', exerciseRoutes);
 app.use('/api/eva', evaRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/plans', planRoutes);
+app.use('/api/client-plans', clientPlanRoutes);
+app.use('/api/extra-sessions', extraSessionRoutes);
 
 app.use('/api/google-calendar', googleCalendarRoutes);
 

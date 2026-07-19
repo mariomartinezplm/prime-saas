@@ -1,12 +1,18 @@
 import Measurement from '../models/Measurement.js';
 import User from '../models/User.js';
+import { hasActivePlan } from '../services/clientPlanService.js';
+
+const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
 
 // @desc    Crear nueva medición
 // @route   POST /api/measurements
-// @access  Private/Admin
+// @access  Private (paciente registra la suya; admin/profesional registran la de cualquiera)
 export const createMeasurement = async (req, res) => {
   try {
-    const { patient, date, perimeters, weight, height, bodyFatPercentage, muscleMassPercentage, notes, photos } = req.body;
+    // El paciente solo puede crear su propia medición; el profesional/admin puede
+    // registrar la de cualquiera de sus pacientes.
+    const patient = req.user.role === 'patient' ? req.user._id : req.body.patient;
+    const { date, perimeters, weight, height, bodyFatPercentage, muscleMassPercentage, notes, photos } = req.body;
 
     // Validar que el paciente existe
     const patientUser = await User.findById(patient);
@@ -14,6 +20,15 @@ export const createMeasurement = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Paciente no encontrado'
+      });
+    }
+
+    // Bloqueo: el paciente solo puede registrar evolución con plan activo. El profesional/admin siempre puede.
+    if (req.user.role === 'patient' && !(await hasActivePlan(patient))) {
+      return res.status(403).json({
+        success: false,
+        message: PLAN_EXPIRED_MESSAGE,
+        code: 'NO_ACTIVE_PLAN_SESSIONS'
       });
     }
 
@@ -142,7 +157,7 @@ export const getMeasurement = async (req, res) => {
 
 // @desc    Actualizar una medición
 // @route   PUT /api/measurements/:id
-// @access  Private/Admin
+// @access  Private (paciente edita la suya; admin/profesional editan cualquiera)
 export const updateMeasurement = async (req, res) => {
   try {
     const { date, perimeters, weight, height, bodyFatPercentage, muscleMassPercentage, notes, photos } = req.body;
@@ -154,6 +169,23 @@ export const updateMeasurement = async (req, res) => {
         success: false,
         message: 'Medición no encontrada'
       });
+    }
+
+    if (req.user.role === 'patient') {
+      if (measurement.patient.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para editar esta medición'
+        });
+      }
+
+      if (!(await hasActivePlan(req.user._id))) {
+        return res.status(403).json({
+          success: false,
+          message: PLAN_EXPIRED_MESSAGE,
+          code: 'NO_ACTIVE_PLAN_SESSIONS'
+        });
+      }
     }
 
     // Actualizar campos

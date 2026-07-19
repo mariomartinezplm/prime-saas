@@ -2,31 +2,33 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
-import { planService } from '@/services/planService';
+import { clientPlanService } from '@/services/clientPlanService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarPlus, Clock, Activity, Ruler, FileText } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
+import { getWhatsAppUrl } from '@/config/contact';
+import { CalendarPlus, Clock, Activity, Ruler, FileText, MessageCircle } from 'lucide-react';
+import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Appointment, Plan } from '@/types';
+import type { Appointment, SessionBalance } from '@/types';
 
 const PatientDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null);
-  const [activePlan, setActivePlan] = useState<Plan | null>(null);
+  const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
       try {
-        const [upcoming, plan] = await Promise.all([
+        const [upcoming, sessionBalance] = await Promise.all([
           appointmentService.getUpcoming(),
-          planService.getActive(user.id),
+          clientPlanService.getBalance(user.id),
         ]);
         setNextAppointment(upcoming[0] || null);
-        setActivePlan(plan);
+        setBalance(sessionBalance);
       } catch {
         // Silently handle errors
       } finally {
@@ -44,6 +46,12 @@ const PatientDashboard = () => {
     );
   }
 
+  const plan = balance?.plan;
+  const daysLeft = plan ? differenceInCalendarDays(parseISO(plan.endDate), new Date()) : null;
+  const sessionsPct = plan && plan.sessionsTotal > 0
+    ? Math.min(100, Math.round((plan.sessionsUsed / plan.sessionsTotal) * 100))
+    : 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -53,7 +61,57 @@ const PatientDashboard = () => {
         <p className="text-muted-foreground">Bienvenido a tu espacio Prime F&H</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Plan destacado */}
+      <Card className={!balance?.hasActivePlan ? 'border-red-500/50' : undefined}>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-base font-semibold">Mi Plan</CardTitle>
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          {balance?.hasActivePlan && plan ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-lg font-bold">{SERVICE_TYPE_LABELS[plan.serviceType]}</p>
+                <span className="text-sm text-muted-foreground">
+                  {daysLeft !== null && daysLeft >= 0 ? `${daysLeft} día(s) restante(s)` : 'vence hoy'}
+                </span>
+              </div>
+              <div className="space-y-1">
+                <div className="h-2.5 w-full rounded-full bg-gray-500/25 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-teal-500 transition-all"
+                    style={{ width: `${sessionsPct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {plan.sessionsUsed}/{plan.sessionsTotal} sesiones usadas
+                </p>
+              </div>
+              {balance.extraSessionsAvailable > 0 && (
+                <p className="text-xs text-secondary">
+                  +{balance.extraSessionsAvailable} sesión(es) extra disponible(s)
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-red-400 font-medium">
+                Tu plan venció. Contacta a Prime F&H para renovar
+              </p>
+              <Button
+                className="bg-[#25D366] hover:bg-[#20BD5C] text-white"
+                size="sm"
+                onClick={() => window.open(getWhatsAppUrl('Hola, quiero renovar mi plan en Prime F&H'), '_blank')}
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Renovar por WhatsApp
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
         {/* Next appointment */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -75,29 +133,6 @@ const PatientDashboard = () => {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No tienes citas programadas</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Active plan */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Mi Plan</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {activePlan ? (
-              <div>
-                <p className="text-lg font-bold capitalize">{activePlan.type}</p>
-                <p className="text-sm text-muted-foreground">
-                  {activePlan.sessionsPerWeek} sesiones/semana
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Hasta {format(parseISO(activePlan.endDate), "d 'de' MMMM yyyy", { locale: es })}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No tienes un plan activo</p>
             )}
           </CardContent>
         </Card>

@@ -39,3 +39,6 @@ Thumbs.db
 # Build
 dist/
 build/
+
+# Datos con información real de pacientes (PII) — nunca al repo
+scripts/data/

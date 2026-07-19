@@ -9,6 +9,7 @@ export const userService = {
     search?: string;
     limit?: number;
     page?: number;
+    assignedProfessionalId?: string;
   }): Promise<{
     users: User[];
     count: number;
@@ -72,6 +73,7 @@ export const userService = {
     isActive?: boolean;
     search?: string;
     limit?: number;
+    assignedProfessionalId?: string;
   }): Promise<User[]> => {
     const response = await userService.getAll({ ...params, role: 'patient' });
     return response.users;
