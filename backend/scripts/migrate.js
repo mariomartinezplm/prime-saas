@@ -17,6 +17,13 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import Airtable from 'airtable';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+
+// SEGURIDAD (Paso 02 de BLUEPRINT.md): los pacientes migrados nacen SIN contraseña
+// utilizable. Entran solo por la invitación por email (Paso 12).
+function generateUnusablePassword() {
+    return crypto.randomBytes(32).toString('hex');
+}
 
 // ─── 1. Cargar variables de entorno ──────────────────────────────────────────
 dotenv.config();
@@ -201,7 +208,7 @@ function mapAirtableToPatient(record) {
         firstName: firstName || 'Sin nombre',
         lastName: lastName || 'Sin apellido',
         email: email ? email.toLowerCase().trim() : null,
-        password: '123456', // Contraseña temporal
+        password: generateUnusablePassword(), // El paciente la define vía invitación
         role: 'patient',
         phone: phone ? String(phone).trim() : undefined,
         rut: rut ? String(rut).trim() : undefined,

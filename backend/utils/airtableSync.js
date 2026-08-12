@@ -1,5 +1,14 @@
 import Airtable from 'airtable';
+import crypto from 'crypto';
 import User from '../models/User.js';
+
+// SEGURIDAD (Paso 02 de BLUEPRINT.md): las cuentas importadas nacen SIN contraseña
+// utilizable. Se les asigna una aleatoria que nadie conoce (ni siquiera queda
+// registrada), de modo que la única forma de entrar sea la invitación por email
+// que el profesional/admin envía después (Paso 12).
+function generateUnusablePassword() {
+    return crypto.randomBytes(32).toString('hex');
+}
 
 // Helpers para mapeo flexible de Airtable
 function getFieldValue(fields, ...possibleNames) {
@@ -72,7 +81,7 @@ export function mapAirtableToPatient(record) {
         firstName: firstName || 'Sin nombre',
         lastName: lastName || 'Sin apellido',
         email: email ? email.toLowerCase().trim() : null,
-        password: '123456', // Contraseña temporal
+        password: generateUnusablePassword(), // El paciente la define vía invitación
         role: 'patient',
         phone: phone ? String(phone).trim() : undefined,
         rut: rut ? String(rut).trim() : undefined,
@@ -136,41 +145,11 @@ export async function fetchAllAirtableRecords() {
     });
 }
 
-// Para Just-In-Time sync al login
-export async function syncPatientByEmail(email) {
-    if (!email) return null;
-
-    // Al ser un sync rápido para login, traemos todo y lo filtramos en memoria
-    // ya que Airtable views/formulas varían por campo
-    const records = await fetchAllAirtableRecords();
-
-    for (const raw of records) {
-        const mapped = mapAirtableToPatient(raw);
-        if (mapped.email === email.toLowerCase()) {
-
-            // Actualizar o insertar en MongoDB
-            const filter = { email: mapped.email };
-            const options = { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true };
-            const docToUpdate = { ...mapped };
-
-            // Si ya existe, no sobrescribimos la contraseña
-            delete docToUpdate.password;
-
-            // Hacemos el try/catch acá porque mongoose upsert no maneja middlewares pre('save')
-            const existingUser = await User.findOne(filter);
-            if (!existingUser) {
-                // Es un paciente nuevo
-                return await User.create(mapped);
-            } else {
-                // Actualizarlo
-                Object.assign(existingUser, docToUpdate);
-                return await existingUser.save();
-            }
-        }
-    }
-
-    return null;
-}
+// ELIMINADA (Paso 02 de BLUEPRINT.md): syncPatientByEmail().
+// Era el "Just-In-Time sync al login": ante un email desconocido creaba la cuenta
+// en MongoDB con una contraseña fija, sin que nadie se hubiera autenticado. Su
+// único llamador era el login. La importación desde Airtable sigue disponible,
+// pero solo manual y solo para el admin (syncAllPatients, más abajo).
 
 // Para sincronización manual completa
 export async function syncAllPatients() {

@@ -21,7 +21,8 @@ router.route('/')
   .get(getAllUsers) // Controller manejará permisos específicos
   .post(authorize('admin', 'professional'), createUser);
 
-router.post('/sync-airtable', authorize('admin', 'professional'), syncAirtableUsers);
+// Solo admin: la importación masiva crea cuentas, no es una acción de rutina
+router.post('/sync-airtable', authorize('admin'), syncAirtableUsers);
 
 router.get('/stats/dashboard', authorize('admin', 'professional'), getDashboardStats);
 

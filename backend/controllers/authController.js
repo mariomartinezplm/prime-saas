@@ -1,7 +1,6 @@
 import User from '../models/User.js';
 import { generateToken } from '../middleware/auth.js';
 import crypto from 'crypto';
-import { syncPatientByEmail } from '../utils/airtableSync.js';
 
 // NOTA DE SEGURIDAD (Paso 01 de BLUEPRINT.md):
 // El registro público (POST /api/auth/register) fue eliminado. Las cuentas de
@@ -31,20 +30,12 @@ export const login = async (req, res) => {
       ? { email: loginIdentifier.toLowerCase() }
       : { rut: loginIdentifier.trim() };
 
-    let user = await User.findOne(query).select('+password');
+    const user = await User.findOne(query).select('+password');
 
-    // Just-In-Time Sync con Airtable si no se encuentra
-    if (!user && isEmail) {
-      try {
-        const syncedUser = await syncPatientByEmail(loginIdentifier);
-        if (syncedUser) {
-          // Volver a buscar para incluir el password seleccionado
-          user = await User.findOne(query).select('+password');
-        }
-      } catch (err) {
-        console.error('Error in JIT Airtable sync:', err);
-      }
-    }
+    // SEGURIDAD (Paso 02 de BLUEPRINT.md): aquí había un "Just-In-Time Sync" que,
+    // ante un email desconocido, creaba la cuenta desde Airtable con una contraseña
+    // fija. Cualquiera que conociera un email del Airtable entraba sin autorización.
+    // Un email que no existe en la base ahora simplemente falla.
 
     if (!user) {
       return res.status(401).json({

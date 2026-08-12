@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 import User from '../models/User.js';
 import Availability from '../models/Availability.js';
 import connectDB from '../config/database.js';
@@ -9,12 +10,31 @@ dotenv.config();
 // Conectar a la base de datos
 connectDB();
 
+// SEGURIDAD (Paso 02 de BLUEPRINT.md): ninguna contraseña queda escrita en el
+// código. Se toman de variables de entorno locales o, si no existen, se generan
+// al azar y se imprimen UNA sola vez al final para que Mario las guarde.
+const generatedPasswords = [];
+
+function seedPassword(envVarName, label) {
+  const fromEnv = process.env[envVarName];
+  if (fromEnv) return fromEnv;
+
+  // 16 bytes en base64url ≈ 22 caracteres: legible para copiar y pegar una vez.
+  const generated = crypto.randomBytes(16).toString('base64url');
+  generatedPasswords.push({ label, password: generated });
+  return generated;
+}
+
+const adminPassword = seedPassword('SEED_ADMIN_PASSWORD', 'Admin (mariomartinezplm@gmail.com)');
+const professionalPassword = seedPassword('SEED_PROFESSIONAL_PASSWORD', 'Profesionales (felipe/tomas/rafael@primefh.cl)');
+const patientPassword = seedPassword('SEED_PATIENT_PASSWORD', 'Paciente de prueba');
+
 // Datos iniciales - Mario es admin, los demás son professional
 const adminUser = {
   firstName: 'Mario',
   lastName: 'Martínez',
   email: 'mariomartinezplm@gmail.com',
-  password: '123456',
+  password: adminPassword,
   role: 'admin',
   phone: '+56912345678',
   rut: '12.345.678-9',
@@ -28,7 +48,7 @@ const professionals = [
     firstName: 'Felipe',
     lastName: 'Vega',
     email: 'felipe@primefh.cl',
-    password: 'Prime2024!',
+    password: professionalPassword,
     role: 'professional',
     phone: '+56912345679',
     rut: '13.456.789-0',
@@ -40,7 +60,7 @@ const professionals = [
     firstName: 'Tomás',
     lastName: 'Espinoza',
     email: 'tomas@primefh.cl',
-    password: 'Prime2024!',
+    password: professionalPassword,
     role: 'professional',
     phone: '+56912345680',
     rut: '14.567.890-1',
@@ -52,7 +72,7 @@ const professionals = [
     firstName: 'Rafael',
     lastName: 'Castañeda',
     email: 'rafael@primefh.cl',
-    password: 'Prime2024!',
+    password: professionalPassword,
     role: 'professional',
     phone: '+56912345681',
     rut: '15.678.901-2',
@@ -67,7 +87,7 @@ const samplePatients = [
     firstName: 'Cony',
     lastName: 'Bravo',
     email: 'conybravo.cabs@gmail.com',
-    password: '123456',
+    password: patientPassword,
     role: 'patient',
     phone: '+56987654321',
     dateOfBirth: new Date('1992-08-15'),
@@ -228,6 +248,14 @@ const seedDatabase = async () => {
       console.log(`      Password: ${patient.password}`);
     });
     console.log('========================================\n');
+
+    if (generatedPasswords.length > 0) {
+      console.log('⚠️  GUARDA ESTAS CONTRASEÑAS AHORA — no se vuelven a mostrar.');
+      console.log('   Se generaron al azar porque no definiste estas variables en tu .env local:');
+      generatedPasswords.forEach(({ label }) => console.log(`      · ${label}`));
+      console.log('   Para elegirlas tú, define SEED_ADMIN_PASSWORD, SEED_PROFESSIONAL_PASSWORD');
+      console.log('   y SEED_PATIENT_PASSWORD en tu .env local antes de correr el seed.\n');
+    }
 
     process.exit(0);
   } catch (error) {
