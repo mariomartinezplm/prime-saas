@@ -92,6 +92,17 @@ No se descuenta si cancela con 4+ horas de anticipación (la sesión vuelve al p
 - WhatsApp vía N8N (webhook, recordatorios, mensajes post-sesión).
 - Capacitor para app nativa Android/iOS.
 
+## SEGURIDAD — REGLAS DURAS
+
+Prime F&H maneja **datos de salud**. Detalle completo (matriz de permisos, flujos de auth, rate limits, manejo de datos sensibles) en `BLUEPRINT.md` §08 y §14 — esto es el resumen que nunca se debe romper:
+
+- **Toda autorización se verifica en el servidor**, en cada endpoint, antes de hacer el trabajo. Los guards de rutas del frontend son cosméticos — nunca la única protección.
+- **Pertenencia siempre explícita:** un paciente accede solo a lo suyo; un profesional solo a sus pacientes asignados (`assignedProfessionalId`); el admin accede a todo. Ningún endpoint puede devolver datos de un paciente a otro usuario (ni por error de omisión).
+- **Alta de pacientes SOLO por invitación:** el profesional/admin crea al paciente → email con link de un solo uso → el paciente elige su contraseña. Sin registro público, sin recuperación de cuenta basada en RUT o fecha de nacimiento (esas puertas se cerraron por vulnerables — ver `BLUEPRINT.md` Fase A).
+- **Nunca exponer en una respuesta de la API:** contraseñas, tokens de reset/invitación, ni tokens de terceros (Google, etc.) de otro usuario.
+- **Archivos médicos:** almacenamiento privado, nunca público — acceso solo con URLs firmadas y temporales.
+- Los datos de salud son datos sensibles bajo la Ley 19.628 y la Ley 21.719 (vigente desde diciembre de 2026): minimiza qué se guarda, qué se loguea, y qué se cachea en el dispositivo del usuario.
+
 ## REGLAS DE TRABAJO PARA CLAUDE CODE
 
 1. **NUNCA modifiques, crees ni leas archivos `.env`** ni ningún archivo con credenciales. Si falta una variable, dile a Mario cuál crear/agregar (en el repo, o en Railway si es de producción).
@@ -104,7 +115,8 @@ No se descuenta si cancela con 4+ horas de anticipación (la sesión vuelve al p
 8. **Si hay un error**, pide el mensaje de error exacto antes de adivinar.
 9. **Español simple** para explicar decisiones. Código y nombres de variables en inglés.
 10. **Nunca ejecutes `git push --force`, `rm -rf`, ni borres datos** (usuarios, planes, citas, archivos de pacientes) sin confirmación explícita.
+11. **El plan de construcción vigente vive en `BLUEPRINT.md`, sección 09 (ORDEN DE CONSTRUCCIÓN).** Cada sesión ejecuta un paso, en el orden indicado — no saltarse pasos de la Fase A (seguridad) por hacer features nuevas primero.
 
 ## ESTADO DEL PROYECTO
 
-Ver `STATUS.md` en la raíz del repo. Actualízalo al final de cada sesión de trabajo marcando lo completado.
+Ver `STATUS.md` (avance sesión a sesión) y `BLUEPRINT.md` (arquitectura completa, seguridad, y los 28 pasos de construcción) en la raíz del repo. Actualiza `STATUS.md` al final de cada sesión marcando el paso completado.
