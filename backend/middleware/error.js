@@ -47,6 +47,8 @@ export const errorHandler = (err, req, res, next) => {
 // Middleware para rutas no encontradas
 export const notFound = (req, res, next) => {
   const error = new Error(`Ruta no encontrada - ${req.originalUrl}`);
-  res.status(404);
+  // El statusCode debe viajar EN el error: errorHandler lo lee de ahí, no del
+  // res.status() previo. Sin esto, toda ruta inexistente respondía 500.
+  error.statusCode = 404;
   next(error);
 };

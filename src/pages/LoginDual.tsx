@@ -228,7 +228,7 @@ const LoginDual = () => {
                                         ¿Olvidaste tu contraseña?
                                     </button>
                                     <p className="text-xs text-gray-400">
-                                        ¿Primera vez aquí? Usa "Recuperar contraseña" para crear tu acceso.
+                                        ¿Primera vez aquí? Tu profesional te envía la invitación para crear tu acceso.
                                     </p>
                                 </div>
                             </form>

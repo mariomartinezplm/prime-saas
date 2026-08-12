@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../services/authService';
-import type { User, LoginCredentials, RegisterData } from '../types';
+import type { User, LoginCredentials } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -8,7 +8,6 @@ interface AuthContextType {
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   loginWithToken: (token: string, userData: any) => void;
-  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
   refreshUser: () => Promise<void>;
@@ -46,11 +45,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(response.data.user);
   };
 
-  const register = async (data: RegisterData) => {
-    const response = await authService.register(data);
-    setUser(response.data.user);
-  };
-
   const logout = () => {
     authService.logout();
     setUser(null);
@@ -82,7 +76,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isLoading,
     login,
     loginWithToken,
-    register,
     logout,
     updateUser,
     refreshUser,

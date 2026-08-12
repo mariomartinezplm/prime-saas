@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { AuthResponse, LoginCredentials, RegisterData, User, APIResponse } from '../types';
+import type { AuthResponse, LoginCredentials, User, APIResponse } from '../types';
 
 export const authService = {
   // Iniciar sesión (por email o RUT via campo identifier)
@@ -8,16 +8,6 @@ export const authService = {
       identifier: credentials.identifier,
       password: credentials.password,
     });
-    if (response.data.success && response.data.data.token) {
-      localStorage.setItem('token', response.data.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-    }
-    return response.data;
-  },
-
-  // Registrar nuevo usuario
-  register: async (data: RegisterData): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/register', data);
     if (response.data.success && response.data.data.token) {
       localStorage.setItem('token', response.data.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.data.user));
