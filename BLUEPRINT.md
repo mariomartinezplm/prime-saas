@@ -19,7 +19,7 @@
 | V4 | 5+ endpoints sin chequeo de pertenencia (IDOR) | Un paciente puede leer la ficha médica completa de otro cambiando el ID en la URL |
 | V5 | El rol se acepta tal cual desde el formulario | Un profesional puede crearse una cuenta admin |
 | V6 | Sin rate limiting, sin helmet, sin sanitización NoSQL, contraseñas de 6 caracteres | Se pueden probar contraseñas infinitamente |
-| V7 | `.env.production` quedó guardado dentro del historial de git | Hay que **rotar** (cambiar) todas las credenciales |
+| V7 | ~~`.env.production` en el historial de git~~ — **falso positivo, verificado en el Paso 03** | El archivo solo contenía `VITE_API_URL` (dirección pública de la API, visible igual en el bundle). Un barrido del historial completo no encontró **ninguna** credencial real. No hubo filtración ni hace falta rotar |
 | V8 | El descuento de sesiones del plan nuevo **nunca ocurre** (`sessionsUsed` jamás se incrementa) | Los planes no se gastan; conviven 2 sistemas de planes que se contradicen |
 | V9 | Google Calendar no funciona y es inseguro (tokens que se pierden en silencio, cliente OAuth compartido) | Se pone en cuarentena hasta rediseñarlo |
 | V10 | El historial médico completo del usuario se guarda en `localStorage` del navegador | Datos de salud sin protección en el dispositivo |
@@ -390,21 +390,26 @@ test -f backend/scripts/update_passwords.js && echo EXISTE || echo OK   # espera
 
 ---
 
-**Paso 03 — Sacar `.env.production` del repo y rotar credenciales (V7)**
+**Paso 03 — Sacar `.env.production` del repo (V7 — resultó ser falso positivo)**
 
-*Do:* `git rm --cached .env.production` (queda en disco, sale del tracking; `.gitignore` ya lo lista). Documentar en el commit que el historial de git conserva la versión vieja → **rotación obligatoria**. Guiar a Mario (él ejecuta, Claude no toca credenciales): (1) MongoDB Atlas → Database Access → editar usuario → nueva contraseña → actualizar `MONGODB_URI` en Railway; (2) generar nuevo `JWT_SECRET` (`openssl rand -hex 32`) → Railway (nota: invalida sesiones activas, esperado); (3) rotar `SMTP_PASS` si ese buzón se usa; (4) verificar variable por variable en Railway (el Raw Editor trunca strings largos). También rotar `AIRTABLE_API_KEY` o eliminarla si ya no se usa.
+*Do:* `git rm --cached .env.production` (queda en disco, sale del tracking; `.gitignore` ya lo lista). **Antes de pedir cualquier rotación, verificar qué contenía realmente el archivo** extrayendo solo los nombres de variable (nunca los valores) y barrer el historial completo buscando credenciales reales vs. placeholders.
+
+**Resultado de la verificación (2026-08-05):** el archivo solo contenía `VITE_API_URL` — la URL pública de la API, que de todas formas queda incrustada en el bundle del frontend. El barrido del historial (`mongodb://usuario:pass@`, `JWT_SECRET=`, `AIRTABLE_API_KEY=`, `SMTP_PASS=`) no encontró ninguna credencial real: todas las cadenas de conexión del historial son ejemplos con usuario/password ficticios, y `backend/.env` nunca estuvo trackeado. **No hubo filtración → la rotación obligatoria queda cancelada.** Lo único pendiente de Mario es verificar que `JWT_SECRET` en Railway sea largo y aleatorio (un valor corto o adivinable permitiría falsificar sesiones; no es observable desde el repo).
 
 *Done when:*
 - CUANDO se lista el índice de git EL SISTEMA DEBE no incluir `.env.production`.
-- CUANDO Mario termina la rotación EL SISTEMA DEBE seguir arrancando y autenticando con las credenciales nuevas (smoke test de login en producción).
+- CUANDO se barre el historial completo buscando patrones de credenciales EL SISTEMA DEBE no arrojar ninguna coincidencia que no sea un placeholder.
+- CUANDO el archivo sale del tracking EL SISTEMA DEBE seguir existiendo en disco y su variable DEBE estar documentada en `.env.example` (para que un clon nuevo pueda compilar).
 
 *Verify:*
 ```bash
 git ls-files | grep -c '.env.production'   # espera: 0
-curl -s -o /dev/null -w '%{http_code}' https://prime-saas-production.up.railway.app/   # espera: 200 (tras rotar y redeploy)
+test -f .env.production && echo OK          # espera: OK (sigue en disco para los builds)
+grep -c VITE_API_URL .env.example            # espera: >= 1 (documentada para un clon nuevo)
+curl -s -o /dev/null -w '%{http_code}' https://prime-saas-production.up.railway.app/   # espera: 200
 ```
 
-*Checkpoint:* `git add -A && git commit -m "step 03: fix(seguridad): untrack .env.production (credenciales rotadas por Mario)" && git tag step-03-secrets`
+*Checkpoint:* `git add -A && git commit -m "step 03: fix(seguridad): untrack .env.production (sin filtracion de credenciales)" && git tag step-03-secrets`
 
 ---
 
