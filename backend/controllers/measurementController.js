@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Measurement from '../models/Measurement.js';
 import User from '../models/User.js';
 import { hasActivePlan } from '../services/clientPlanService.js';
@@ -90,7 +91,7 @@ export const getPatientMeasurements = async (req, res) => {
 
     // Obtener estadísticas básicas
     const stats = await Measurement.aggregate([
-      { $match: { patient: mongoose.Types.ObjectId(patientId) } },
+      { $match: { patient: new mongoose.Types.ObjectId(patientId) } },
       { $sort: { date: -1 } },
       {
         $group: {

@@ -160,7 +160,7 @@ evaSchema.statics.getPainEvolution = async function (patientId, bodyArea, limit 
 // Método estático para obtener todas las áreas con dolor de un paciente
 evaSchema.statics.getAffectedAreas = async function (patientId) {
   return await this.aggregate([
-    { $match: { patient: mongoose.Types.ObjectId(patientId) } },
+    { $match: { patient: new mongoose.Types.ObjectId(patientId) } },
     {
       $group: {
         _id: '$bodyArea',
