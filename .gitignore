@@ -17,6 +17,12 @@ dist-ssr
 .env.local
 .env.development
 .env.production
+# Copias de respaldo de archivos .env: contienen credenciales igual que el original.
+# Sin patrón sin barra, git los ignora en cualquier carpeta (raíz y backend/).
+.env.backup
+.env.bak
+.env.*.backup
+*.env.backup
 
 # Backend
 backend/node_modules
