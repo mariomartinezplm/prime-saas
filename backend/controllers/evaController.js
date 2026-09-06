@@ -1,6 +1,7 @@
 import EVA from '../models/EVA.js';
 import User from '../models/User.js';
 import mongoose from 'mongoose';
+import { canAccessPatient } from '../middleware/auth.js';
 
 // @desc    Crear nuevo registro EVA
 // @route   POST /api/eva
@@ -128,11 +129,12 @@ export const getEVARecord = async (req, res) => {
       });
     }
 
-    // Verificar permisos
-    if (req.user.role === 'patient' && evaRecord.patient._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
+    // Pertenencia (Paso 04 de BLUEPRINT.md): antes solo se comprobaba al paciente,
+    // así que un profesional podía leer registros de pacientes que no son suyos.
+    if (!(await canAccessPatient(req.user, evaRecord.patient))) {
+      return res.status(404).json({
         success: false,
-        message: 'No tienes permisos para ver este registro'
+        message: 'Registro no encontrado'
       });
     }
 

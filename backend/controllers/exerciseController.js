@@ -2,6 +2,7 @@ import ExerciseProgress from '../models/Exercise.js';
 import User from '../models/User.js';
 import mongoose from 'mongoose';
 import { hasActivePlan } from '../services/clientPlanService.js';
+import { canAccessPatient } from '../middleware/auth.js';
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
 
@@ -143,11 +144,12 @@ export const getExerciseProgress = async (req, res) => {
       });
     }
 
-    // Verificar permisos
-    if (req.user.role === 'patient' && exerciseProgress.patient._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
+    // Pertenencia (Paso 04 de BLUEPRINT.md): antes solo se comprobaba al paciente,
+    // así que un profesional podía leer registros de pacientes que no son suyos.
+    if (!(await canAccessPatient(req.user, exerciseProgress.patient))) {
+      return res.status(404).json({
         success: false,
-        message: 'No tienes permisos para ver este registro'
+        message: 'Registro no encontrado'
       });
     }
 

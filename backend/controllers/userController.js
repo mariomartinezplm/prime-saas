@@ -10,25 +10,48 @@ import { syncAllPatients } from '../utils/airtableSync.js';
 // @access  Private/Admin
 export const getAllUsers = async (req, res) => {
   try {
-    // Seguridad: Si es paciente, solo puede ver profesionales
-    if (req.user.role === 'patient') {
-      req.query.role = 'professional';
-    }
-
     const { role, isActive, search, limit = 50, page = 1 } = req.query;
-    let { assignedProfessionalId } = req.query;
 
-    // Seguridad: un profesional SIEMPRE queda restringido a sus propios pacientes
-    // asignados, sin importar qué le mande el frontend (defensa en profundidad).
-    if (req.user.role === 'professional' && role === 'patient') {
-      assignedProfessionalId = req.user._id.toString();
+    // SEGURIDAD (Paso 04 de BLUEPRINT.md): el alcance lo decide el SERVIDOR según el
+    // rol de quien pregunta, nunca los parámetros que manda el frontend. Antes, un
+    // profesional que llamaba sin `role` recibía la base completa de usuarios.
+    const STAFF_ROLES = ['admin', 'professional'];
+    // Directorio de staff visible para no-admins: lo justo para elegir con quién agendar
+    const STAFF_DIRECTORY_FIELDS = 'firstName lastName role specialty profileImage isActive';
+
+    const query = {};
+    let projection = '-password';
+
+    if (req.user.role === 'admin') {
+      // El admin ve todo; respeta los filtros que le manden
+      if (role) query.role = role;
+      if (req.query.assignedProfessionalId) {
+        query.assignedProfessionalId = req.query.assignedProfessionalId;
+      }
+    } else if (req.user.role === 'professional') {
+      if (role && STAFF_ROLES.includes(role)) {
+        // Directorio de colegas (para agendas y selectores), con datos mínimos
+        query.role = role;
+        projection = STAFF_DIRECTORY_FIELDS;
+      } else {
+        // Cualquier otra consulta = SOLO sus pacientes asignados, forzado aquí
+        query.role = 'patient';
+        query.assignedProfessionalId = req.user._id;
+      }
+    } else {
+      // Paciente: únicamente el directorio de staff, con datos mínimos.
+      // Nunca puede listar a otros pacientes.
+      if (!role || !STAFF_ROLES.includes(role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para listar usuarios'
+        });
+      }
+      query.role = role;
+      projection = STAFF_DIRECTORY_FIELDS;
     }
 
-    // Construir query
-    const query = {};
-    if (role) query.role = role;
     if (isActive !== undefined) query.isActive = isActive === 'true';
-    if (assignedProfessionalId) query.assignedProfessionalId = assignedProfessionalId;
     if (search) {
       query.$or = [
         { firstName: new RegExp(search, 'i') },
@@ -41,7 +64,7 @@ export const getAllUsers = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const users = await User.find(query)
-      .select('-password')
+      .select(projection)
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip(skip);

@@ -9,7 +9,7 @@ import {
   getDashboardStats,
   syncAirtableUsers
 } from '../controllers/userController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -26,11 +26,14 @@ router.post('/sync-airtable', authorize('admin'), syncAirtableUsers);
 
 router.get('/stats/dashboard', authorize('admin', 'professional'), getDashboardStats);
 
+// Pertenencia obligatoria: un paciente solo se ve a sí mismo, un profesional solo
+// a sus pacientes asignados. Sin esto, cambiar el id en la URL exponía la ficha
+// clínica completa de cualquier persona (Paso 04 de BLUEPRINT.md).
 router.route('/:id')
-  .get(getUserById) // Controller manejará permisos (ej: ver propio perfil)
+  .get(authorizePatientAccess('id'), getUserById)
   .put(authorize('admin', 'professional'), updateUser)
   .delete(authorize('admin', 'professional'), deleteUser);
 
-router.get('/:id/profile', getPatientProfile);
+router.get('/:id/profile', authorizePatientAccess('id'), getPatientProfile);
 
 export default router;

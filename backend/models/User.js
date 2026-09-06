@@ -142,8 +142,21 @@ userSchema.virtual('fullName').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
 
-// Asegurar que los virtuals se incluyan cuando se convierta a JSON
-userSchema.set('toJSON', { virtuals: true });
+// Asegurar que los virtuals se incluyan cuando se convierta a JSON.
+// SEGURIDAD (Paso 04 de BLUEPRINT.md): último filtro antes de que un usuario salga
+// por la API. Aunque una consulta olvide el .select('-password'), estos campos NO
+// se serializan nunca. Se aplica solo a toJSON (que es lo que usa res.json), no a
+// toObject, para no interferir con la lógica interna del servidor.
+userSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.resetPasswordToken;
+    delete ret.resetPasswordExpire;
+    delete ret.invite; // token de invitación (Paso 12)
+    return ret;
+  }
+});
 userSchema.set('toObject', { virtuals: true });
 
 const User = mongoose.model('User', userSchema);

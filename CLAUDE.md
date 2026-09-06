@@ -13,7 +13,7 @@ Prime F&H es un centro de kinesiología y entrenamiento en Puerto Montt, Chile. 
 - **Frontend:** Vite + React (SPA, no Next.js) + TypeScript + Tailwind + shadcn/ui. Router: React Router v6. Es también una **PWA** (vite-plugin-pwa, service worker, ya funcionando).
 - **Backend:** Node.js + Express (ES Modules).
 - **Base de datos:** MongoDB Atlas vía Mongoose (no Postgres/Supabase).
-- **Auth:** JWT. Middleware en `backend/middleware/auth.js`: `protect` (verifica token), `authorize` (chequea rol), `authorizeOwnerOrAdmin` (dueño del recurso o admin).
+- **Auth:** JWT. Middleware en `backend/middleware/auth.js`: `protect` (verifica token), `authorize` (chequea rol), `authorizePatientAccess` / `canAccessPatient` (pertenencia: paciente solo lo suyo, profesional solo sus asignados, admin todo), `authorizeSelfOrAdmin` (configuración propia del profesional).
 - **Roles:** `admin`, `professional`, `patient` (así están en el enum de `User.js` — no "staff"/"client").
 - **Deploy:**
   - Backend en **Railway** (`prime-saas-production.up.railway.app`), auto-deploy al hacer push a `main`.

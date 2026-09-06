@@ -7,14 +7,14 @@ import {
   updatePlan,
   deletePlan
 } from '../controllers/planController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.use(protect);
 
-// Obtener plan activo de un paciente (accesible para todos)
-router.get('/active/:patientId', getActivePlan);
+// Obtener plan activo de un paciente (solo el propio paciente, su profesional o admin)
+router.get('/active/:patientId', authorizePatientAccess('patientId'), getActivePlan);
 
 // CRUD de planes
 router.route('/')

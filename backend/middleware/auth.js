@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 
 // Proteger rutas - verificar JWT
@@ -62,25 +63,70 @@ export const authorize = (...roles) => {
   };
 };
 
-// Middleware para verificar que el usuario es el propietario del recurso o es admin
-export const authorizeOwnerOrAdmin = (resourceUserIdField = 'patient') => {
+// ─────────────────────────────────────────────────────────────────────────────
+// PERTENENCIA — regla única de acceso a datos de un paciente (BLUEPRINT.md §8.5)
+//
+//   admin        → todo
+//   professional → sus pacientes asignados (assignedProfessionalId) y sus propios datos
+//   patient      → solo lo suyo
+//
+// Se responde 404 (no 403) cuando no hay permiso: un 403 confirmaría que ese
+// paciente existe, y eso ya es información que no corresponde entregar.
+// ─────────────────────────────────────────────────────────────────────────────
+export const canAccessPatient = async (requester, patientId) => {
+  if (!requester || !patientId) return false;
+
+  // El id puede venir crudo o dentro de un documento ya poblado
+  const targetId = (patientId._id || patientId).toString();
+  if (!mongoose.Types.ObjectId.isValid(targetId)) return false;
+
+  if (requester.role === 'admin') return true;
+
+  // Cualquiera accede siempre a sus propios datos
+  if (targetId === requester._id.toString()) return true;
+
+  if (requester.role === 'professional') {
+    const patient = await User.findById(targetId).select('assignedProfessionalId');
+    if (!patient || !patient.assignedProfessionalId) return false;
+    return patient.assignedProfessionalId.toString() === requester._id.toString();
+  }
+
+  return false;
+};
+
+// Versión middleware: lee el id del paciente desde los params (o el body) de la ruta
+export const authorizePatientAccess = (field = 'patientId') => {
+  return async (req, res, next) => {
+    try {
+      const patientId = req.params[field] || req.body[field];
+
+      if (await canAccessPatient(req.user, patientId)) {
+        return next();
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: 'Recurso no encontrado'
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+};
+
+// Middleware: solo el propio profesional (o un admin) puede tocar su configuración
+export const authorizeSelfOrAdmin = (field = 'professionalId') => {
   return (req, res, next) => {
-    // Si es admin, permitir acceso
-    if (req.user.role === 'admin') {
+    if (req.user.role === 'admin') return next();
+
+    if (req.params[field] && req.params[field].toString() === req.user._id.toString()) {
       return next();
     }
 
-    // Verificar si el usuario es el propietario del recurso
-    const resourceUserId = req.params[resourceUserIdField] || req.body[resourceUserIdField];
-
-    if (!resourceUserId || resourceUserId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para acceder a este recurso'
-      });
-    }
-
-    next();
+    return res.status(403).json({
+      success: false,
+      message: 'Solo puedes modificar tu propia configuración'
+    });
   };
 };
 

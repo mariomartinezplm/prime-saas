@@ -9,7 +9,7 @@ import {
   getAffectedAreas,
   getPainSummary
 } from '../controllers/evaController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -20,10 +20,11 @@ router.use(protect);
 router.route('/')
   .post(authorize('admin', 'professional'), createEVARecord);
 
-router.get('/patient/:patientId', getPatientEVARecords);
-router.get('/evolution/:patientId/:bodyArea', getPainEvolution);
-router.get('/affected-areas/:patientId', getAffectedAreas);
-router.get('/summary/:patientId', getPainSummary);
+// Pertenencia verificada en la ruta (Paso 04 de BLUEPRINT.md)
+router.get('/patient/:patientId', authorizePatientAccess('patientId'), getPatientEVARecords);
+router.get('/evolution/:patientId/:bodyArea', authorizePatientAccess('patientId'), getPainEvolution);
+router.get('/affected-areas/:patientId', authorizePatientAccess('patientId'), getAffectedAreas);
+router.get('/summary/:patientId', authorizePatientAccess('patientId'), getPainSummary);
 
 router.route('/:id')
   .get(getEVARecord)
