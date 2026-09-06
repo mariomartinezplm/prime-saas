@@ -895,13 +895,27 @@ curl -s https://api.primefh.cl/api/health   # espera: {"status":"ok","db":"conne
 
 ---
 
-**Paso 28 (OPCIONAL) — Google Calendar bien hecho**
+**Paso 28 — Calendario: sincronización para staff y pacientes**
 
-*Do:* Solo si Mario lo pide: `googleTokens` como campo real del schema `User` (cifrado AES-256-GCM con `ENCRYPTION_KEY` de env, `select:false`), `googleEventId` en `Appointment`, cliente OAuth **por request** (no singleton), `state` firmado anti-CSRF en el flujo OAuth, scope mínimo `calendar.events`, sync con ownership (solo citas propias) y campos correctos (`type/startTime/endTime`). Retirar el flag de cuarentena del paso 07.
+> **Requisito de Mario (2026-09-06):** el calendario debe servir para él, para los
+> otros kinesiólogos **y también para los pacientes**. Esto sube el paso de
+> "opcional" a parte del alcance, y obliga a separarlo en dos mecanismos distintos,
+> porque staff y pacientes tienen necesidades y costos muy diferentes.
+
+**28.A — Staff (Mario + kinesiólogos): OAuth real de Google.** `googleTokens` como campo real del schema `User` (cifrado AES-256-GCM con `ENCRYPTION_KEY` de env, `select:false`), `googleEventId` en `Appointment`, cliente OAuth **por request** (no singleton), `state` firmado anti-CSRF, scope mínimo `calendar.events`, sync con verificación de pertenencia y campos correctos (`type/startTime/endTime`). Son pocas cuentas, todas del centro → caben de sobra en el modo "uso interno" de Google, sin verificación.
+
+**28.B — Pacientes: archivo de calendario (.ics), no OAuth.** Cada cita genera un evento descargable / adjunto por email que el paciente añade con un clic a **cualquier** calendario (Google, Apple, Outlook). Razones para no usar OAuth con pacientes:
+- Con OAuth, la app pasa a ser "externa" ante Google y necesita un **proceso de verificación** (semanas, revisión de políticas de privacidad) por pedir acceso al calendario de terceros; sin eso hay un tope de ~100 usuarios de prueba.
+- Obligaría a guardar tokens de Google de **cada paciente** — más datos sensibles que custodiar, en un sistema que ya maneja datos de salud.
+- El paciente no necesita sincronización bidireccional: necesita que la cita le aparezca en su teléfono. Un `.ics` hace exactamente eso, funciona con cualquier calendario y no requiere que el paciente autorice nada.
+
+Si más adelante Mario quiere OAuth también para pacientes, se retoma como paso aparte, con la verificación de Google como prerrequisito explícito.
 
 *Done when:*
 - CUANDO un profesional conecta su Google Calendar EL SISTEMA DEBE persistir los tokens cifrados y nunca exponerlos en ninguna respuesta de la API.
 - CUANDO se sincroniza una cita EL SISTEMA DEBE crear el evento con fecha/hora correctas y solo para citas del propio usuario.
+- CUANDO un paciente agenda una cita EL SISTEMA DEBE ofrecerle un evento `.ics` con fecha, hora, duración de 60 min y el nombre del profesional.
+- CUANDO el `.ics` se abre en iPhone o Android EL SISTEMA DEBE crear el evento en el calendario del teléfono sin pedir ninguna autorización adicional.
 
 *Verify:*
 ```bash
