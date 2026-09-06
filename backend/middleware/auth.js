@@ -86,8 +86,14 @@ export const canAccessPatient = async (requester, patientId) => {
   if (targetId === requester._id.toString()) return true;
 
   if (requester.role === 'professional') {
-    const patient = await User.findById(targetId).select('assignedProfessionalId');
-    if (!patient || !patient.assignedProfessionalId) return false;
+    const patient = await User.findById(targetId).select('assignedProfessionalId role');
+    if (!patient) return false;
+
+    // Paciente SIN profesional asignado: queda en un "pool" visible para todo el
+    // staff, para que nadie se pierda del sistema por un dato incompleto. En cuanto
+    // se le asigna un profesional, pasa a verlo solo ese profesional (y el admin).
+    if (!patient.assignedProfessionalId) return patient.role === 'patient';
+
     return patient.assignedProfessionalId.toString() === requester._id.toString();
   }
 

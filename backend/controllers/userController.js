@@ -21,6 +21,8 @@ export const getAllUsers = async (req, res) => {
 
     const query = {};
     let projection = '-password';
+    // Cláusula de pertenencia; se combina con la búsqueda más abajo sin pisarla
+    let ownershipOr = null;
 
     if (req.user.role === 'admin') {
       // El admin ve todo; respeta los filtros que le manden
@@ -34,9 +36,15 @@ export const getAllUsers = async (req, res) => {
         query.role = role;
         projection = STAFF_DIRECTORY_FIELDS;
       } else {
-        // Cualquier otra consulta = SOLO sus pacientes asignados, forzado aquí
+        // Sus pacientes asignados + los que aún no tienen profesional asignado.
+        // Estos últimos quedan en un "pool" común para que nadie desaparezca del
+        // sistema por un dato incompleto; al asignarles profesional salen del pool.
         query.role = 'patient';
-        query.assignedProfessionalId = req.user._id;
+        ownershipOr = [
+          { assignedProfessionalId: req.user._id },
+          { assignedProfessionalId: { $exists: false } },
+          { assignedProfessionalId: null }
+        ];
       }
     } else {
       // Paciente: únicamente el directorio de staff, con datos mínimos.
@@ -52,13 +60,25 @@ export const getAllUsers = async (req, res) => {
     }
 
     if (isActive !== undefined) query.isActive = isActive === 'true';
-    if (search) {
-      query.$or = [
-        { firstName: new RegExp(search, 'i') },
-        { lastName: new RegExp(search, 'i') },
-        { email: new RegExp(search, 'i') },
-        { rut: new RegExp(search, 'i') }
-      ];
+
+    const searchOr = search
+      ? [
+          { firstName: new RegExp(search, 'i') },
+          { lastName: new RegExp(search, 'i') },
+          { email: new RegExp(search, 'i') },
+          { rut: new RegExp(search, 'i') }
+        ]
+      : null;
+
+    // Pertenencia y búsqueda son dos condiciones que deben cumplirse AMBAS. Si se
+    // asignaran las dos a query.$or, la segunda pisaría a la primera y la búsqueda
+    // terminaría saltándose el filtro de pertenencia.
+    if (ownershipOr && searchOr) {
+      query.$and = [{ $or: ownershipOr }, { $or: searchOr }];
+    } else if (ownershipOr) {
+      query.$or = ownershipOr;
+    } else if (searchOr) {
+      query.$or = searchOr;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
