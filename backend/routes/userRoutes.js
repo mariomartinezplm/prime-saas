@@ -32,7 +32,8 @@ router.get('/stats/dashboard', authorize('admin', 'professional'), getDashboardS
 router.route('/:id')
   .get(authorizePatientAccess('id'), getUserById)
   .put(authorize('admin', 'professional'), updateUser)
-  .delete(authorize('admin', 'professional'), deleteUser);
+  // Solo admin: desactiva la cuenta (no borra el historial clínico)
+  .delete(authorize('admin'), deleteUser);
 
 router.get('/:id/profile', authorizePatientAccess('id'), getPatientProfile);
 

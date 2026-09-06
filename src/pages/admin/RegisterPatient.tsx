@@ -94,7 +94,7 @@ const RegisterPatient = () => {
             </div>
             <div className="space-y-2">
               <Label>Contraseña *</Label>
-              <Input type="password" required minLength={6} value={form.password} onChange={(e) => handleChange('password', e.target.value)} />
+              <Input type="password" required minLength={8} value={form.password} onChange={(e) => handleChange('password', e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>RUT</Label>

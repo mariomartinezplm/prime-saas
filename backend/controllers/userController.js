@@ -4,6 +4,10 @@ import Measurement from '../models/Measurement.js';
 import ExerciseProgress from '../models/Exercise.js';
 import EVA from '../models/EVA.js';
 import { syncAllPatients } from '../utils/airtableSync.js';
+import { canAccessPatient } from '../middleware/auth.js';
+
+// Debe coincidir con el minlength del modelo User (Paso 05 de BLUEPRINT.md)
+const MIN_PASSWORD_LENGTH = 8;
 
 // @desc    Obtener todos los usuarios (solo admin)
 // @route   GET /api/users
@@ -138,12 +142,14 @@ export const getUserById = async (req, res) => {
 // @access  Private/Admin
 export const createUser = async (req, res) => {
   try {
+    // SEGURIDAD (Paso 05 de BLUEPRINT.md): lista blanca explícita. Solo estos campos
+    // se leen del body; cualquier otro (role, isActive, assignedProfessionalId...) se
+    // ignora y lo decide el servidor más abajo.
     const {
       firstName,
       lastName,
       email,
       password,
-      role,
       phone,
       dateOfBirth,
       rut,
@@ -151,6 +157,21 @@ export const createUser = async (req, res) => {
       emergencyContact,
       medicalInfo
     } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'El email y la contraseña son obligatorios'
+      });
+    }
+
+    // Se valida aquí, antes de Mongoose, para devolver un 400 claro
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`
+      });
+    }
 
     // Verificar si el usuario ya existe
     const userExists = await User.findOne({ email: email.toLowerCase() });
@@ -162,9 +183,25 @@ export const createUser = async (req, res) => {
       });
     }
 
-    // Si un profesional crea al paciente, queda asignado automáticamente a él.
-    // (Si es admin quien lo crea, no se asigna nadie por defecto.)
-    const assignedProfessionalId = req.user.role === 'professional' ? req.user._id : undefined;
+    // El ROL lo decide el servidor, nunca el formulario. Antes se tomaba tal cual
+    // del body: un profesional podía crearse una cuenta de administrador.
+    let role = 'patient';
+    let assignedProfessionalId;
+
+    if (req.user.role === 'admin') {
+      // Solo el admin puede crear staff, y solo con roles válidos
+      if (['admin', 'professional', 'patient'].includes(req.body.role)) {
+        role = req.body.role;
+      }
+      // El admin puede asignar el paciente a un profesional al crearlo
+      if (role === 'patient' && req.body.assignedProfessionalId) {
+        assignedProfessionalId = req.body.assignedProfessionalId;
+      }
+    } else {
+      // Un profesional solo crea PACIENTES, y quedan asignados a él
+      role = 'patient';
+      assignedProfessionalId = req.user._id;
+    }
 
     // Crear usuario
     const user = await User.create({
@@ -172,7 +209,7 @@ export const createUser = async (req, res) => {
       lastName,
       email: email.toLowerCase(),
       password,
-      role: role || 'patient',
+      role,
       phone,
       dateOfBirth,
       rut,
@@ -207,18 +244,16 @@ export const updateUser = async (req, res) => {
       firstName,
       lastName,
       email,
-      role,
       phone,
       dateOfBirth,
       rut,
       address,
       emergencyContact,
       medicalInfo,
-      isActive,
       profileImage
     } = req.body;
 
-    let user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id);
 
     if (!user) {
       return res.status(404).json({
@@ -227,19 +262,46 @@ export const updateUser = async (req, res) => {
       });
     }
 
-    // Actualizar campos
+    // SEGURIDAD (Paso 05 de BLUEPRINT.md): un profesional solo edita pacientes, y
+    // solo los suyos. Antes podía editar (o desactivar) a un admin, o ascenderse.
+    if (req.user.role !== 'admin') {
+      if (user.role !== 'patient') {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo un administrador puede modificar cuentas del equipo'
+        });
+      }
+      if (!(await canAccessPatient(req.user, user._id))) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuario no encontrado'
+        });
+      }
+    }
+
+    // Campos que puede editar cualquiera con permiso sobre este usuario
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (email) user.email = email.toLowerCase();
-    if (role) user.role = role;
     if (phone !== undefined) user.phone = phone;
     if (dateOfBirth) user.dateOfBirth = dateOfBirth;
     if (rut !== undefined) user.rut = rut;
     if (address !== undefined) user.address = address;
     if (emergencyContact) user.emergencyContact = emergencyContact;
     if (medicalInfo) user.medicalInfo = medicalInfo;
-    if (isActive !== undefined) user.isActive = isActive;
     if (profileImage !== undefined) user.profileImage = profileImage;
+
+    // Campos reservados al admin: rol, estado de la cuenta y asignación.
+    // Si los manda un profesional, simplemente se ignoran.
+    if (req.user.role === 'admin') {
+      if (['admin', 'professional', 'patient'].includes(req.body.role)) {
+        user.role = req.body.role;
+      }
+      if (req.body.isActive !== undefined) user.isActive = req.body.isActive;
+      if (req.body.assignedProfessionalId !== undefined) {
+        user.assignedProfessionalId = req.body.assignedProfessionalId || undefined;
+      }
+    }
 
     await user.save();
 
@@ -270,19 +332,32 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    // No permitir que el admin se elimine a sí mismo
+    // No permitir que el admin se desactive a sí mismo
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes eliminar tu propia cuenta'
+        message: 'No puedes desactivar tu propia cuenta'
       });
     }
 
-    await user.deleteOne();
+    // SEGURIDAD Y DATOS CLÍNICOS (Paso 05 de BLUEPRINT.md): se DESACTIVA, no se borra.
+    // Un borrado real destruiría la ficha clínica, las mediciones y el historial de
+    // citas de esa persona, que por normativa sanitaria deben conservarse. Un usuario
+    // inactivo no puede iniciar sesión (lo bloquea el middleware `protect`).
+    if (!user.isActive) {
+      return res.status(200).json({
+        success: true,
+        message: 'La cuenta ya estaba desactivada'
+      });
+    }
+
+    user.isActive = false;
+    await user.save();
 
     res.status(200).json({
       success: true,
-      message: 'Usuario eliminado exitosamente'
+      message: 'Cuenta desactivada. El historial clínico se conserva.',
+      data: { user }
     });
   } catch (error) {
     res.status(500).json({

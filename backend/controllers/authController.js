@@ -2,6 +2,12 @@ import User from '../models/User.js';
 import { generateToken } from '../middleware/auth.js';
 import crypto from 'crypto';
 
+// Política de contraseñas (Paso 05 de BLUEPRINT.md). Debe coincidir con el
+// minlength del modelo User; aquí se valida antes para devolver un 400 claro
+// en vez del 500 que produciría el error de validación de Mongoose.
+const MIN_PASSWORD_LENGTH = 8;
+const PASSWORD_TOO_SHORT = `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`;
+
 // NOTA DE SEGURIDAD (Paso 01 de BLUEPRINT.md):
 // El registro público (POST /api/auth/register) fue eliminado. Las cuentas de
 // pacientes se crean SOLO por invitación del profesional/admin (ver Paso 12).
@@ -183,6 +189,13 @@ export const changePassword = async (req, res) => {
       });
     }
 
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: PASSWORD_TOO_SHORT
+      });
+    }
+
     // Obtener usuario con password
     const user = await User.findById(req.user._id).select('+password');
 
@@ -275,6 +288,13 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
   try {
     const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: PASSWORD_TOO_SHORT
+      });
+    }
 
     // Hash del token recibido
     const resetPasswordToken = crypto
