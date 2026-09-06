@@ -1,6 +1,9 @@
 # Dependencias
 node_modules/
-package-lock.json
+# package-lock.json SÍ va al repositorio: fija las versiones exactas de cada
+# librería. Sin él, Railway instala en cada despliegue "lo más nuevo compatible",
+# que puede no ser lo que se probó — y basta con que una actualización cambie algo
+# para que el servidor deje de funcionar sin haber tocado una línea de código.
 
 # Variables de entorno
 .env
