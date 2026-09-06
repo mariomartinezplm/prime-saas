@@ -8,6 +8,7 @@ import {
   resetPassword
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
+import { loginLimiter, forgotPasswordLimiter, setPasswordLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -15,9 +16,10 @@ const router = express.Router();
 // NOTA DE SEGURIDAD (Paso 01 de BLUEPRINT.md): se eliminaron POST /register,
 // POST /verify-identity y PUT /set-password/:verifyToken. El alta de pacientes
 // es solo por invitación (Paso 12) y el reseteo, solo por email (Paso 13).
-router.post('/login', login);
-router.post('/forgot-password', forgotPassword);
-router.put('/reset-password/:resetToken', resetPassword);
+// Límite de intentos (Paso 06): sin esto se pueden probar contraseñas sin parar
+router.post('/login', loginLimiter, login);
+router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
+router.put('/reset-password/:resetToken', setPasswordLimiter, resetPassword);
 
 // Rutas protegidas
 router.get('/me', protect, getMe);

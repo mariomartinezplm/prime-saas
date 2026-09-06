@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import mongoose from 'mongoose';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { canAccessPatient } from '../middleware/auth.js';
+import { escapeRegex } from '../middleware/sanitize.js';
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
 
@@ -104,7 +105,7 @@ export const getPatientExercises = async (req, res) => {
     // Construir query
     const query = { patient: patientId };
     if (category) query.category = category;
-    if (exerciseName) query.exerciseName = new RegExp(exerciseName, 'i');
+    if (exerciseName) query.exerciseName = new RegExp(escapeRegex(exerciseName), 'i');
 
     const sortOrder = order === 'desc' ? -1 : 1;
     const sortOptions = {};

@@ -1,8 +1,11 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import helmet from 'helmet';
 import connectDB from './config/database.js';
 import { errorHandler, notFound } from './middleware/error.js';
+import { sanitizeMongo } from './middleware/sanitize.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 
 // Importar rutas
 import authRoutes from './routes/authRoutes.js';
@@ -26,14 +29,30 @@ connectDB();
 // Inicializar Express
 const app = express();
 
-// Middleware
+// ─── SEGURIDAD (Paso 06 de BLUEPRINT.md) ────────────────────────────────────
+
+// Railway pone un proxy delante del servidor: sin esto, todas las peticiones
+// parecerían venir de la misma IP y el límite de intentos sería inservible.
+app.set('trust proxy', 1);
+
+// Cabeceras de seguridad estándar (evita que la app se incruste en otro sitio,
+// que el navegador adivine tipos de archivo, etc.)
+app.use(helmet());
+
 app.use(cors({
   origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'].filter(Boolean),
   credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Tope al tamaño de las peticiones: sin límite, alguien puede saturar la memoria
+// del servidor enviando un cuerpo enorme. 1 MB sobra para formularios y fichas.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Descarta operadores de MongoDB ($ne, $gt...) en lo que llega del exterior
+app.use(sanitizeMongo);
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Ruta de prueba
 app.get('/', (req, res) => {
@@ -57,6 +76,10 @@ app.get('/', (req, res) => {
 });
 
 // Rutas de la API
+// Techo general de peticiones para toda la API (los límites estrictos de login y
+// recuperación de contraseña van en sus propias rutas, en authRoutes.js)
+app.use('/api', apiLimiter);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/appointments', appointmentRoutes);

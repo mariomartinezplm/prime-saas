@@ -5,6 +5,7 @@ import ExerciseProgress from '../models/Exercise.js';
 import EVA from '../models/EVA.js';
 import { syncAllPatients } from '../utils/airtableSync.js';
 import { canAccessPatient } from '../middleware/auth.js';
+import { escapeRegex } from '../middleware/sanitize.js';
 
 // Debe coincidir con el minlength del modelo User (Paso 05 de BLUEPRINT.md)
 const MIN_PASSWORD_LENGTH = 8;
@@ -67,10 +68,10 @@ export const getAllUsers = async (req, res) => {
 
     const searchOr = search
       ? [
-          { firstName: new RegExp(search, 'i') },
-          { lastName: new RegExp(search, 'i') },
-          { email: new RegExp(search, 'i') },
-          { rut: new RegExp(search, 'i') }
+          { firstName: new RegExp(escapeRegex(search), 'i') },
+          { lastName: new RegExp(escapeRegex(search), 'i') },
+          { email: new RegExp(escapeRegex(search), 'i') },
+          { rut: new RegExp(escapeRegex(search), 'i') }
         ]
       : null;
 

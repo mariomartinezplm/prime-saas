@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { escapeRegex } from '../middleware/sanitize.js';
 
 const exerciseProgressSchema = new mongoose.Schema({
   patient: {
@@ -105,7 +106,7 @@ exerciseProgressSchema.pre('save', function(next) {
 exerciseProgressSchema.statics.getExerciseProgress = async function(patientId, exerciseName, limit = 10) {
   return await this.find({
     patient: patientId,
-    exerciseName: new RegExp(exerciseName, 'i')
+    exerciseName: new RegExp(escapeRegex(exerciseName), 'i')
   })
   .sort({ date: -1 })
   .limit(limit)
@@ -116,7 +117,7 @@ exerciseProgressSchema.statics.getExerciseProgress = async function(patientId, e
 exerciseProgressSchema.statics.getPersonalRecord = async function(patientId, exerciseName) {
   return await this.findOne({
     patient: patientId,
-    exerciseName: new RegExp(exerciseName, 'i'),
+    exerciseName: new RegExp(escapeRegex(exerciseName), 'i'),
     weight: { $exists: true, $gt: 0 }
   })
   .sort({ oneRepMax: -1, weight: -1 })

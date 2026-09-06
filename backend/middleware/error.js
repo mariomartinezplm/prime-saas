@@ -37,7 +37,12 @@ export const errorHandler = (err, req, res, next) => {
     error = { message, statusCode: 401 };
   }
 
-  res.status(error.statusCode || 500).json({
+  // Muchos errores de Express traen su propio código (413 si el cuerpo es
+  // demasiado grande, 400 si el JSON viene mal formado). Se leen ambos nombres
+  // porque no todas las librerías usan el mismo.
+  const codigo = error.statusCode || err.statusCode || err.status || 500;
+
+  res.status(codigo).json({
     success: false,
     message: error.message || 'Error en el servidor',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })

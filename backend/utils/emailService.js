@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { escapeHtml } from '../middleware/sanitize.js';
 
 // ─── Configuración del transporter ───────────────────────────────────────────
 let transporter = null;
@@ -52,12 +53,12 @@ function appointmentCreatedHTML(data) {
       </div>
       <div style="padding: 30px;">
         <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
-          Hola <strong>${professionalName}</strong>, tienes una nueva cita agendada:
+          Hola <strong>${escapeHtml(professionalName)}</strong>, tienes una nueva cita agendada:
         </p>
         <div style="background: white; border-radius: 8px; padding: 20px; border-left: 4px solid #2d8f7b;">
           <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Paciente:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${patientName}</td></tr>
-            <tr><td style="padding: 8px 0; color: #64748b;">Tipo:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${typeLabel}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Paciente:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${escapeHtml(patientName)}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b;">Tipo:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${escapeHtml(typeLabel)}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Fecha:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${formatDate(date)}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Horario:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${formatTime(startTime)} - ${formatTime(endTime)}</td></tr>
           </table>
@@ -81,15 +82,15 @@ function appointmentCancelledHTML(data) {
       </div>
       <div style="padding: 30px;">
         <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
-          Hola <strong>${professionalName}</strong>, se ha cancelado una cita:
+          Hola <strong>${escapeHtml(professionalName)}</strong>, se ha cancelado una cita:
         </p>
         <div style="background: white; border-radius: 8px; padding: 20px; border-left: 4px solid #dc2626;">
           <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px 0; color: #64748b; width: 130px;">Paciente:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${patientName}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b; width: 130px;">Paciente:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${escapeHtml(patientName)}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Fecha:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${formatDate(date)}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Hora:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${formatTime(startTime)}</td></tr>
-            <tr><td style="padding: 8px 0; color: #64748b;">Cancelado por:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${cancelledByName}</td></tr>
-            ${reason ? `<tr><td style="padding: 8px 0; color: #64748b;">Motivo:</td><td style="padding: 8px 0; color: #1e293b;">${reason}</td></tr>` : ''}
+            <tr><td style="padding: 8px 0; color: #64748b;">Cancelado por:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${escapeHtml(cancelledByName)}</td></tr>
+            ${reason ? `<tr><td style="padding: 8px 0; color: #64748b;">Motivo:</td><td style="padding: 8px 0; color: #1e293b;">${escapeHtml(reason)}</td></tr>` : ''}
           </table>
         </div>
       </div>
@@ -111,14 +112,14 @@ function appointmentUpdatedHTML(data) {
       </div>
       <div style="padding: 30px;">
         <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
-          Hola <strong>${professionalName}</strong>, se ha modificado una cita:
+          Hola <strong>${escapeHtml(professionalName)}</strong>, se ha modificado una cita:
         </p>
         <div style="background: white; border-radius: 8px; padding: 20px; border-left: 4px solid #f59e0b;">
           <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Paciente:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${patientName}</td></tr>
+            <tr><td style="padding: 8px 0; color: #64748b; width: 120px;">Paciente:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${escapeHtml(patientName)}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Fecha:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${formatDate(date)}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b;">Horario:</td><td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${formatTime(startTime)} - ${formatTime(endTime)}</td></tr>
-            ${changes ? `<tr><td style="padding: 8px 0; color: #64748b;">Cambios:</td><td style="padding: 8px 0; color: #1e293b;">${changes}</td></tr>` : ''}
+            ${changes ? `<tr><td style="padding: 8px 0; color: #64748b;">Cambios:</td><td style="padding: 8px 0; color: #1e293b;">${escapeHtml(changes)}</td></tr>` : ''}
           </table>
         </div>
       </div>
