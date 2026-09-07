@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import connectDB from './config/database.js';
+import { ALLOWED_ORIGINS } from './config/allowedOrigins.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { sanitizeMongo } from './middleware/sanitize.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
@@ -39,8 +40,12 @@ app.set('trust proxy', 1);
 // que el navegador adivine tipos de archivo, etc.)
 app.use(helmet());
 
+// Allowlist exacta (Paso 09): solo el dominio de producción + el puerto real
+// de desarrollo. Si el Origin de la petición no está en la lista, el propio
+// middleware `cors` simplemente omite el header Access-Control-Allow-Origin
+// de la respuesta — no hace falta código extra para eso.
 app.use(cors({
-  origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'].filter(Boolean),
+  origin: ALLOWED_ORIGINS,
   credentials: true
 }));
 

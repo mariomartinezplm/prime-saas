@@ -10,6 +10,7 @@ import {
   logout
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
+import { verificarOrigen } from '../middleware/verifyOrigin.js';
 import {
   loginLimiter,
   forgotPasswordLimiter,
@@ -30,7 +31,9 @@ router.put('/reset-password/:resetToken', setPasswordLimiter, resetPassword);
 
 // Solo usan la cookie de refresh, no requieren Bearer token (Paso 08): un
 // access token vencido no debe impedir renovar la sesión ni cerrarla.
-router.post('/refresh', refreshLimiter, refresh);
+// /refresh además exige que el Origin sea el nuestro (Paso 09, defensa extra
+// anti-CSRF): es la única ruta pública que actúa solo con la cookie.
+router.post('/refresh', refreshLimiter, verificarOrigen, refresh);
 router.post('/logout', logout);
 
 // Rutas protegidas
