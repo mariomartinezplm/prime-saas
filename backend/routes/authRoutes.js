@@ -5,10 +5,17 @@ import {
   updateProfile,
   changePassword,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  refresh,
+  logout
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
-import { loginLimiter, forgotPasswordLimiter, setPasswordLimiter } from '../middleware/rateLimiter.js';
+import {
+  loginLimiter,
+  forgotPasswordLimiter,
+  setPasswordLimiter,
+  refreshLimiter
+} from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -20,6 +27,11 @@ const router = express.Router();
 router.post('/login', loginLimiter, login);
 router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.put('/reset-password/:resetToken', setPasswordLimiter, resetPassword);
+
+// Solo usan la cookie de refresh, no requieren Bearer token (Paso 08): un
+// access token vencido no debe impedir renovar la sesión ni cerrarla.
+router.post('/refresh', refreshLimiter, refresh);
+router.post('/logout', logout);
 
 // Rutas protegidas
 router.get('/me', protect, getMe);

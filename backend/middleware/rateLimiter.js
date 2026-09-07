@@ -55,6 +55,15 @@ export const setPasswordLimiter = rateLimit({
   message: respuesta('Demasiados intentos. Inténtalo de nuevo en una hora.')
 });
 
+// Renovar el access token (Paso 08): se identifica por la cookie, no por
+// email/identifier en el body, así que se limita solo por IP.
+export const refreshLimiter = rateLimit({
+  ...base,
+  windowMs: 60 * 60 * 1000,
+  limit: 60,
+  message: respuesta('Demasiadas renovaciones de sesión. Inténtalo de nuevo en un rato.')
+});
+
 // Techo general para toda la API: no estorba el uso normal, pero corta un
 // script que intente recorrer la base de datos entera.
 export const apiLimiter = rateLimit({

@@ -139,9 +139,12 @@ export const authorizeSelfOrAdmin = (field = 'professionalId') => {
 // Helper para autorizar staff (admin + professional)
 export const authorizeStaff = authorize('admin', 'professional');
 
-// Generar JWT Token
-export const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
+// Generar JWT Token (access token, Paso 08 de BLUEPRINT.md: vive 1h, la
+// sesión larga la sostiene el refresh token en cookie). `role` se agrega al
+// payload por el diseño original, pero `protect` (arriba) nunca lo lee: sigue
+// confiando solo en la base de datos para autorizar, así que esto es aditivo.
+export const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '1h'
   });
 };
