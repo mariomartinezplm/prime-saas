@@ -30,9 +30,7 @@ Pero una auditoría completa (2026-08-05) encontró **vulnerabilidades graves en
 - [x] Paso 06 — Hardening del servidor (helmet, rate limiting, sanitización, validación) ✅ 2026-09-06 (`step-06-hardening`)
 - [x] Paso 07 — Cuarentena de Google Calendar + suite de pruebas ✅ 2026-09-06 (`step-07-quarantine`) — **FASE A COMPLETA**
 
-### FASE B — ✅ COMPLETA (7/7)
-### (encabezado original conservado abajo)
-### FASE B — Autenticación definitiva
+### FASE B — Autenticación definitiva ✅ código completo (7/7) — infraestructura de Mario pendiente (Pasos 09/11)
 - [x] Paso 08 — Refresh tokens: modelo y endpoints ✅ 2026-09-07 (`step-08-refresh`)
 - [~] Paso 09 — Dominio `api.primefh.cl` + CORS definitivo — código listo, falta que Mario cree el dominio en Railway + CNAME en Hostinger
 - [x] Paso 10 — Frontend: token en memoria, fin del PHI en localStorage ✅ 2026-09-07 (`step-10-frontend-auth`) — código en `main`, NO subir el build a Hostinger hasta cerrar el Paso 09
