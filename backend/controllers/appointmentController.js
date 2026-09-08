@@ -3,7 +3,7 @@ import Plan from '../models/Plan.js';
 import User from '../models/User.js';
 import Availability from '../models/Availability.js';
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, parseISO, format, isBefore, addHours } from 'date-fns';
-import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../utils/emailService.js';
+import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../services/emailService.js';
 import { getSessionBalance } from '../services/clientPlanService.js';
 
 // Bloqueo por plan (ClientPlan) vencido o sin sesiones disponibles.
