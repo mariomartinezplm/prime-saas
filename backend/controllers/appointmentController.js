@@ -4,17 +4,26 @@ import User from '../models/User.js';
 import Availability from '../models/Availability.js';
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, parseISO, format, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../services/emailService.js';
-import { getSessionBalance } from '../services/clientPlanService.js';
+import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
 
-// Bloqueo por plan (ClientPlan) vencido o sin sesiones disponibles.
+// Tipos de cita que sí consumen una sesión del plan (Paso 15 de BLUEPRINT.md).
+// 'evaluacion' queda fuera a propósito: es un primer contacto, no una sesión
+// del bono (decisión de Mario).
+const DEDUCTIBLE_TYPES = ['kinesiologia', 'entrenamiento'];
+
+// Bloqueo por plan (ClientPlan) vencido o sin sesiones disponibles DE ESE TIPO.
+// Consciente del tipo de cita: un paciente con plan de kinesiología no debe
+// pasar este chequeo para agendar entrenamiento, aunque tenga saldo de kine.
 // Devuelve null si puede agendar, o un objeto { status, body } listo para responder si no puede.
-async function checkSessionBalanceForBooking(patientId) {
-  const balance = await getSessionBalance(patientId);
+async function checkSessionBalanceForBooking(patientId, type) {
+  if (!DEDUCTIBLE_TYPES.includes(type)) return null; // evaluación: sin bloqueo de saldo
+
+  const balance = await getSessionBalanceByType(patientId, type);
   if (balance.totalAvailable > 0) return null;
 
   const message = balance.hasActivePlan
     ? 'Ya utilizaste todas las sesiones de tu plan. Contacta a Prime F&H para renovar.'
-    : 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar.';
+    : 'Tu plan venció, no tienes un plan de este tipo, o no tienes un plan activo. Contacta a Prime F&H para renovar.';
 
   return {
     status: 403,
@@ -130,6 +139,8 @@ export const createAppointment = async (req, res) => {
     });
   }
 
+  const sessionType = type || 'entrenamiento';
+
   if (!isStaff(req.user)) {
     // ──── REGLA 1: Pacientes deben agendar con 24h de anticipación ────
     const minBookingTime = addHours(now, PATIENT_BOOK_AHEAD_HOURS);
@@ -140,75 +151,14 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // ──── REGLA 1b: Bloqueo por ClientPlan vencido o sin sesiones disponibles ────
-    const balanceCheck = await checkSessionBalanceForBooking(patientId);
+    // ──── REGLA 1b: Bloqueo por ClientPlan vencido o sin sesiones DE ESE TIPO ────
+    // Esto reemplaza la vieja validación cruzada (Regla 3/4 legacy): si no hay
+    // plan ni sesión extra de este tipo específico, es indistinguible de "sin
+    // saldo" — mismo código NO_ACTIVE_PLAN_SESSIONS, sin exponer detalles del
+    // motor interno.
+    const balanceCheck = await checkSessionBalanceForBooking(patientId, sessionType);
     if (balanceCheck) {
       return res.status(balanceCheck.status).json(balanceCheck.body);
-    }
-
-    // ──── REGLA 2 (sistema viejo de Plan): Verificar plan del paciente ────
-    let activePlan = await Plan.findOne({
-      patient: patientId,
-      status: 'active',
-      endDate: { $gte: now }
-    });
-
-    // Si no hay plan en sistema, verificar si el usuario es "Activo" (ej. migrado de Airtable)
-    if (!activePlan) {
-      const userToCheck = isStaff(req.user) ? await User.findById(patientId) : req.user;
-
-      if (!userToCheck.isActive) {
-        return res.status(400).json({
-          success: false,
-          message: 'Tu cuenta no está activa. Debes regularizar tu pago para poder agendar.'
-        });
-      }
-
-      // Si es activo pero no tiene plan doc, asignamos permisos por defecto
-      activePlan = {
-        planType: 'entrenamiento-3x',
-        sessionsPerWeek: 20,
-        sessionsPerMonth: 99,
-        totalSessions: 9999,
-        sessionsUsed: 0
-      };
-    }
-
-    // ──── REGLA 3: Validar tipo de sesión según plan ────
-    if (activePlan.planType === 'kinesiologia') {
-      if (type !== 'kinesiologia') {
-        return res.status(400).json({
-          success: false,
-          message: 'Tu plan es de kinesiología. Solo puedes agendar sesiones de kinesiología.'
-        });
-      }
-
-      // Verificar que no haya superado las sesiones totales (10)
-      const usedSessions = await countKineSessions(patientId);
-      if (usedSessions >= activePlan.totalSessions) {
-        return res.status(400).json({
-          success: false,
-          message: `Has completado tus ${activePlan.totalSessions} sesiones de kinesiología. Tu bono ha terminado.`
-        });
-      }
-    } else {
-      // Planes de entrenamiento: solo pueden agendar "entrenamiento"
-      if (type !== 'entrenamiento') {
-        return res.status(400).json({
-          success: false,
-          message: 'Tu plan es de entrenamiento. Solo puedes agendar sesiones de entrenamiento.'
-        });
-      }
-
-      // ──── REGLA 4: Límite MENSUAL según plan ────
-      const monthlyLimit = MONTHLY_LIMITS[activePlan.planType] || activePlan.sessionsPerMonth || 12;
-      const monthlyCount = await countMonthlyAppointments(patientId, date, 'entrenamiento');
-      if (monthlyCount >= monthlyLimit) {
-        return res.status(400).json({
-          success: false,
-          message: `Ya tienes ${monthlyCount} sesiones este mes. Tu plan permite ${monthlyLimit} sesiones por mes.`
-        });
-      }
     }
   }
 
@@ -221,23 +171,43 @@ export const createAppointment = async (req, res) => {
     });
   }
 
-  // Crear cita
-  const appointment = await Appointment.create({
-    patient: patientId,
-    professional,
-    date: appointmentDate,
-    startTime,
-    endTime,
-    type: type || 'entrenamiento',
-    notes
-  });
+  // ──── Descuento atómico (Paso 15 de BLUEPRINT.md) ────
+  // Se hace ANTES de crear la cita, no después: si no queda saldo (alguien
+  // más se llevó el último cupo entre el chequeo de arriba y este instante),
+  // no debe quedar ninguna cita creada — 409, no 500 ni una cita fantasma.
+  let deduction = null;
+  const mustDeduct = !isStaff(req.user) && DEDUCTIBLE_TYPES.includes(sessionType);
 
-  // Si es kinesiología, incrementar el contador del plan
-  if (type === 'kinesiologia' && !isStaff(req.user)) {
-    await Plan.findOneAndUpdate(
-      { patient: patientId, status: 'active', planType: 'kinesiologia' },
-      { $inc: { sessionsUsed: 1 } }
-    );
+  if (mustDeduct) {
+    deduction = await deductSession(patientId, sessionType, null);
+    if (!deduction) {
+      return res.status(409).json({
+        success: false,
+        code: 'SESSION_CONFLICT',
+        message: 'Alguien más acaba de tomar tu último cupo disponible. Intenta de nuevo.'
+      });
+    }
+  }
+
+  // Crear cita
+  let appointment;
+  try {
+    appointment = await Appointment.create({
+      patient: patientId,
+      professional,
+      date: appointmentDate,
+      startTime,
+      endTime,
+      type: sessionType,
+      notes,
+      sessionDeducted: !!deduction,
+      deduction: deduction || undefined
+    });
+  } catch (createError) {
+    // La sesión ya se descontó pero la cita no se pudo crear: se revierte
+    // para no dejar un descuento fantasma sin cita asociada.
+    if (deduction) await refundSession({ deduction });
+    throw createError;
   }
 
   // Poblar datos del paciente y profesional
@@ -387,19 +357,21 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
-    // ──── REGLA: Pacientes deben cancelar con 4h de anticipación ────
+    // ──── ¿Con cuánta anticipación cancela? (Paso 15 de BLUEPRINT.md) ────
+    // El paciente SIEMPRE puede cancelar (nunca se bloquea la acción); lo que
+    // cambia es si la sesión se le devuelve o no. Cancelar con menos de 4h es
+    // una acción legítima, solo que se pierde la sesión — antes esto estaba
+    // mal: el código bloqueaba con 400 la cancelación tardía en vez de
+    // permitirla sin reembolso, contradiciendo la regla de negocio real.
+    let shouldRefund = true;
     if (!isStaff(req.user)) {
       const appointmentDateTime = new Date(`${appointment.date.toISOString().split('T')[0]}T${appointment.startTime}`);
       const now = new Date();
       const minCancelTime = addHours(now, PATIENT_CANCEL_AHEAD_HOURS);
-
-      if (!isBefore(minCancelTime, appointmentDateTime)) {
-        return res.status(400).json({
-          success: false,
-          message: `Las citas deben cancelarse con al menos ${PATIENT_CANCEL_AHEAD_HOURS} horas de anticipación`
-        });
-      }
+      shouldRefund = isBefore(minCancelTime, appointmentDateTime);
     }
+    // Cancelación hecha por el centro (staff): siempre se devuelve la sesión,
+    // el paciente no debe perderla porque el centro reorganizó su agenda.
 
     // Guardar datos antes de cancelar para el email
     await appointment.populate('patient', 'firstName lastName email');
@@ -411,15 +383,12 @@ export const cancelAppointment = async (req, res) => {
     appointment.cancelledBy = req.user._id;
     appointment.cancelledAt = new Date();
 
-    await appointment.save();
-
-    // Si era kinesiología, devolver la sesión al plan
-    if (appointment.type === 'kinesiologia') {
-      await Plan.findOneAndUpdate(
-        { patient: appointment.patient._id || appointment.patient, status: 'active', planType: 'kinesiologia' },
-        { $inc: { sessionsUsed: -1 } }
-      );
+    if (appointment.sessionDeducted && shouldRefund) {
+      await refundSession(appointment);
+      appointment.sessionDeducted = false;
     }
+
+    await appointment.save();
 
     // ──── ENVIAR EMAIL DE CANCELACIÓN AL PROFESIONAL ────
     sendAppointmentCancelledEmail({
@@ -457,6 +426,17 @@ export const updateAppointment = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Cita no encontrada'
+      });
+    }
+
+    // Paso 15 de BLUEPRINT.md: cancelar por esta vía genérica se saltaría el
+    // reembolso de la sesión (cancelAppointment es el único lugar que llama a
+    // refundSession). Marcar completed/no-show sigue funcionando igual — la
+    // sesión ya se descontó al agendar, no hay nada que hacer aquí.
+    if (status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Para cancelar una cita usa el botón de cancelar (aplica la devolución de sesión correspondiente).'
       });
     }
 

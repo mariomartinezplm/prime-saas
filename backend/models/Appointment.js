@@ -66,7 +66,19 @@ const appointmentSchema = new mongoose.Schema({
     reps: Number,
     weight: Number,
     notes: String
-  }]
+  }],
+  // Motor de descuento de sesiones (Paso 15 de BLUEPRINT.md). Se descuenta al
+  // AGENDAR, no al completar — sessionDeducted es lo que le dice a
+  // cancelAppointment si hay algo que devolver, y de dónde vino (deduction),
+  // sin tener que volver a calcular nada.
+  sessionDeducted: {
+    type: Boolean,
+    default: false
+  },
+  deduction: {
+    source: { type: String, enum: ['clientPlan', 'extraSession'] },
+    refId: { type: mongoose.Schema.Types.ObjectId }
+  }
 }, {
   timestamps: true
 });
