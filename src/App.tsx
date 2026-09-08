@@ -19,9 +19,6 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 
-// New Staff Dashboard
-import StaffDashboard from "./pages/StaffDashboard";
-
 // Patient pages
 import PatientDashboard from "./pages/patient/Dashboard";
 import BookAppointment from "./pages/patient/BookAppointment";
@@ -64,9 +61,6 @@ const App = () => (
             <Route path="/privacidad" element={<Privacy />} />
             <Route path="/terminos" element={<Terms />} />
 
-            {/* Staff Dashboard (protected route without AppLayout) */}
-            <Route path="/staff-dashboard" element={<StaffDashboard />} />
-
             {/* Patient Portal redirection */}
             <Route path="/patient-portal" element={<Navigate to="/app/dashboard" replace />} />
 
@@ -79,14 +73,39 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              {/* Patient routes */}
-              <Route path="dashboard" element={<PatientDashboard />} />
-              <Route path="reservar" element={<BookAppointment />} />
-              <Route path="mis-citas" element={<MyAppointments />} />
-              <Route path="mi-perfil" element={<MyProfile />} />
-              <Route path="mediciones" element={<PatientMeasurements />} />
-              <Route path="ejercicios" element={<PatientExercises />} />
-              <Route path="dolor" element={<PainRecords />} />
+              {/* Patient routes — protegidas también por rol (Paso 14 de
+                  BLUEPRINT.md): antes, un profesional o admin podía navegar
+                  a estas rutas del paciente sin ningún guard de rol. */}
+              <Route
+                path="dashboard"
+                element={<RoleRoute roles={['patient']}><PatientDashboard /></RoleRoute>}
+              />
+              <Route
+                path="reservar"
+                element={<RoleRoute roles={['patient']}><BookAppointment /></RoleRoute>}
+              />
+              <Route
+                path="mis-citas"
+                element={<RoleRoute roles={['patient']}><MyAppointments /></RoleRoute>}
+              />
+              <Route
+                path="mi-perfil"
+                element={<RoleRoute roles={['patient']}><MyProfile /></RoleRoute>}
+              />
+              <Route
+                path="mediciones"
+                element={<RoleRoute roles={['patient']}><PatientMeasurements /></RoleRoute>}
+              />
+              <Route
+                path="ejercicios"
+                element={<RoleRoute roles={['patient']}><PatientExercises /></RoleRoute>}
+              />
+              <Route
+                path="dolor"
+                element={<RoleRoute roles={['patient']}><PainRecords /></RoleRoute>}
+              />
+              {/* "planes" (Subscription) no está en la lista del blueprint
+                  para este paso — se deja sin guard de rol, igual que antes */}
               <Route path="planes" element={<Subscription />} />
 
               {/* Admin/Staff routes */}
