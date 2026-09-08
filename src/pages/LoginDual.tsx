@@ -60,16 +60,15 @@ const LoginDual = () => {
                 }
             }
 
-            await login({ identifier, password });
+            const loggedUser = await login({ identifier, password });
 
             toast.success("Bienvenido a Prime F&H");
 
-            // Redireccionar según el tipo de usuario/tab
-            if (type === 'patient') {
-                navigate("/app/dashboard");
-            } else {
-                navigate("/app/admin");
-            }
+            // SEGURIDAD (Paso 10 de BLUEPRINT.md): el redirect se decide por el
+            // rol que de verdad devolvió el backend, no por la pestaña que se
+            // usó para entrar — antes, si alguien entraba por la pestaña
+            // equivocada, terminaba en un panel que no le correspondía.
+            navigate(loggedUser.role === 'patient' ? "/app/dashboard" : "/app/admin");
         } catch (error: any) {
             console.error(error);
             toast.error(error.response?.data?.message || "Error al iniciar sesión. Verifica tus credenciales.");

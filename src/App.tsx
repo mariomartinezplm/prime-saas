@@ -10,7 +10,6 @@ import AppLayout from "@/components/layouts/AppLayout";
 
 // Public pages
 import Index from "./pages/Index";
-import Login from "./pages/Login";
 import LoginDual from "./pages/LoginDual";
 import RecoverPassword from "./pages/RecoverPassword";
 import ThankYou from "./pages/ThankYou";

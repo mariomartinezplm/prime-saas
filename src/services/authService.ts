@@ -1,4 +1,4 @@
-import api from '../lib/api';
+import api, { setAccessToken } from '../lib/api';
 import type { AuthResponse, LoginCredentials, User, APIResponse } from '../types';
 
 export const authService = {
@@ -9,16 +9,14 @@ export const authService = {
       password: credentials.password,
     });
     if (response.data.success && response.data.data.token) {
-      localStorage.setItem('token', response.data.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
+      setAccessToken(response.data.data.token);
     }
     return response.data;
   },
 
-  // Cerrar sesión
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  // Cerrar sesión: revoca la sesión de refresh en el backend (Paso 08/10)
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
   },
 
   // Obtener usuario actual
@@ -30,21 +28,18 @@ export const authService = {
   // Actualizar perfil
   updateProfile: async (data: Partial<User>): Promise<User> => {
     const response = await api.put<APIResponse<{ user: User }>>('/auth/profile', data);
-    const updatedUser = response.data.data.user;
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    return updatedUser;
+    return response.data.data.user;
   },
 
   // Cambiar contraseña
-  changePassword: async (currentPassword: string, newPassword: string): Promise<{ token: string }> => {
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
     const response = await api.put<APIResponse<{ token: string }>>('/auth/change-password', {
       currentPassword,
       newPassword,
     });
     if (response.data.data.token) {
-      localStorage.setItem('token', response.data.data.token);
+      setAccessToken(response.data.data.token);
     }
-    return response.data.data;
   },
 
   // Solicitar reseteo de contraseña
@@ -53,29 +48,12 @@ export const authService = {
   },
 
   // Resetear contraseña
-  resetPassword: async (resetToken: string, newPassword: string): Promise<{ token: string }> => {
+  resetPassword: async (resetToken: string, newPassword: string): Promise<void> => {
     const response = await api.put<APIResponse<{ token: string }>>(`/auth/reset-password/${resetToken}`, {
       newPassword,
     });
     if (response.data.data.token) {
-      localStorage.setItem('token', response.data.data.token);
+      setAccessToken(response.data.data.token);
     }
-    return response.data.data;
-  },
-
-  // Verificar si hay sesión activa
-  isAuthenticated: (): boolean => {
-    return !!localStorage.getItem('token');
-  },
-
-  // Obtener token guardado
-  getToken: (): string | null => {
-    return localStorage.getItem('token');
-  },
-
-  // Obtener usuario guardado
-  getStoredUser: (): User | null => {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
   },
 };
