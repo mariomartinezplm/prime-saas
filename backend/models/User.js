@@ -115,7 +115,19 @@ const userSchema = new mongoose.Schema({
     default: 'web'
   },
   resetPasswordToken: String,
-  resetPasswordExpire: Date
+  resetPasswordExpire: Date,
+
+  // Invitación de un solo uso para activar la cuenta (Paso 12 de BLUEPRINT.md).
+  // Mismo patrón sha256 que resetPasswordToken/RefreshToken: solo el hash se
+  // persiste, nunca el token real. _id:false porque es un objeto plano de 3
+  // campos, no una lista de subdocumentos — no necesita identidad propia.
+  // default:undefined evita que Mongoose cree un {} vacío en cuentas que
+  // nunca recibieron invitación.
+  invite: {
+    type: { tokenHash: String, expiresAt: Date, usedAt: Date },
+    _id: false,
+    default: undefined
+  }
 }, {
   timestamps: true
 });

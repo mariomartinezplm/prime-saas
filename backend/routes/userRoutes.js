@@ -5,6 +5,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  resendInvite,
   getPatientProfile,
   getDashboardStats,
   syncAirtableUsers
@@ -36,5 +37,10 @@ router.route('/:id')
   .delete(authorize('admin'), deleteUser);
 
 router.get('/:id/profile', authorizePatientAccess('id'), getPatientProfile);
+
+// Paso 12: solo admin, o el profesional dueño de ese paciente. La ownership
+// exacta (paciente ajeno → 404, staff → bloqueado salvo admin) se resuelve
+// dentro del controller, mismo patrón que updateUser.
+router.post('/:id/resend-invite', authorize('admin', 'professional'), resendInvite);
 
 export default router;

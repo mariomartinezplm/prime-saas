@@ -6,9 +6,7 @@ import EVA from '../models/EVA.js';
 import { syncAllPatients } from '../utils/airtableSync.js';
 import { canAccessPatient } from '../middleware/auth.js';
 import { escapeRegex } from '../middleware/sanitize.js';
-
-// Debe coincidir con el minlength del modelo User (Paso 05 de BLUEPRINT.md)
-const MIN_PASSWORD_LENGTH = 8;
+import { generateUnusablePassword, createInvite } from '../services/inviteService.js';
 
 // @desc    Obtener todos los usuarios (solo admin)
 // @route   GET /api/users
@@ -146,11 +144,13 @@ export const createUser = async (req, res) => {
     // SEGURIDAD (Paso 05 de BLUEPRINT.md): lista blanca explícita. Solo estos campos
     // se leen del body; cualquier otro (role, isActive, assignedProfessionalId...) se
     // ignora y lo decide el servidor más abajo.
+    // NOTA (Paso 12): ya no se lee `password` del body — nadie le pone la
+    // contraseña a un paciente. La cuenta nace con una inutilizable y se
+    // activa por invitación (ver más abajo).
     const {
       firstName,
       lastName,
       email,
-      password,
       phone,
       dateOfBirth,
       rut,
@@ -159,18 +159,10 @@ export const createUser = async (req, res) => {
       medicalInfo
     } = req.body;
 
-    if (!email || !password) {
+    if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'El email y la contraseña son obligatorios'
-      });
-    }
-
-    // Se valida aquí, antes de Mongoose, para devolver un 400 claro
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({
-        success: false,
-        message: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`
+        message: 'El email es obligatorio'
       });
     }
 
@@ -204,12 +196,13 @@ export const createUser = async (req, res) => {
       assignedProfessionalId = req.user._id;
     }
 
-    // Crear usuario
+    // Crear usuario con una contraseña que nadie conoce — la única forma de
+    // entrar es aceptando la invitación que se manda a continuación.
     const user = await User.create({
       firstName,
       lastName,
       email: email.toLowerCase(),
-      password,
+      password: generateUnusablePassword(),
       role,
       phone,
       dateOfBirth,
@@ -219,6 +212,16 @@ export const createUser = async (req, res) => {
       medicalInfo,
       assignedProfessionalId
     });
+
+    // Se aplica a CUALQUIER rol, no solo pacientes: si se limitara a
+    // 'patient', una cuenta de staff creada por el admin (role admin o
+    // professional) quedaría con la contraseña inutilizable de arriba y sin
+    // ninguna forma de entrar — nadie debe conocer la contraseña de otra
+    // persona, ni siquiera entre colegas. Se espera (no fire-and-forget): la
+    // escritura del token de invitación en el usuario debe quedar hecha antes
+    // de responder. El envío del CORREO en sí, dentro de createInvite, ya es
+    // fire-and-forget y nunca lanza.
+    await createInvite(user._id);
 
     // Remover password de la respuesta
     user.password = undefined;
@@ -364,6 +367,50 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error al eliminar usuario'
+    });
+  }
+};
+
+// @desc    Regenerar la invitación de un usuario (invalida la anterior)
+// @route   POST /api/users/:id/resend-invite
+// @access  Private/Admin, Private/Professional (dueño del paciente)
+export const resendInvite = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Un profesional solo puede reenviar invitación a SUS pacientes — nunca
+    // a otro miembro del staff. El admin puede reenviar a cualquier usuario
+    // (incluido staff que él mismo haya creado).
+    if (req.user.role !== 'admin') {
+      if (user.role !== 'patient' || !(await canAccessPatient(req.user, user._id))) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuario no encontrado'
+        });
+      }
+    }
+
+    // Reenviar también sirve para "resetear el acceso" de una cuenta ya
+    // activa (el paciente perdió su contraseña, o se sospecha que alguien
+    // más la tiene): generar una invitación nueva sobreescribe la anterior
+    // en el mismo documento, así que la vieja queda inutilizada sola.
+    await createInvite(user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Invitación reenviada'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error al reenviar la invitación'
     });
   }
 };

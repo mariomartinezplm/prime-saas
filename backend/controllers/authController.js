@@ -386,6 +386,85 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+// @desc    Aceptar una invitación: elegir contraseña y activar la cuenta
+// @route   POST /api/auth/accept-invite/:token
+// @access  Público (el token de un solo uso es la autenticación)
+export const acceptInvite = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password || password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: PASSWORD_TOO_SHORT
+      });
+    }
+
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(req.params.token)
+      .digest('hex');
+
+    // Una sola query colapsa los 3 casos inválidos (el token nunca existió,
+    // ya se usó, o vencieron los 7 días) en el mismo resultado "no
+    // encontrado" — igual que forgotPassword, no se le da ninguna pista a
+    // quien prueba tokens al azar sobre cuál de los tres pasó.
+    const user = await User.findOne({
+      'invite.tokenHash': tokenHash,
+      'invite.usedAt': null,
+      'invite.expiresAt': { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVITE_EXPIRED',
+        message: 'La invitación no es válida o ya expiró'
+      });
+    }
+
+    user.password = password; // el pre('save') del modelo la hashea
+    user.invite.usedAt = new Date();
+    await user.save();
+
+    // resend-invite también sirve para "resetear el acceso de un paciente ya
+    // activo" (ver userController.resendInvite) — en ese caso puede haber
+    // sesiones viejas vivas (por ejemplo, si se sospecha que alguien más
+    // tenía acceso). En una cuenta que nunca pudo loguearse esto no revoca
+    // nada, es una consulta vacía sin costo real.
+    await RefreshToken.updateMany(
+      { user: user._id, revokedAt: null },
+      { $set: { revokedAt: new Date() } }
+    );
+
+    const token = generateToken(user._id, user.role);
+    await emitirSesionNueva(res, user, req); // login automático, mismo patrón que login()
+
+    res.status(200).json({
+      success: true,
+      message: 'Cuenta activada',
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+          profileImage: user.profileImage
+        },
+        token
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error al activar la cuenta'
+    });
+  }
+};
+
 // @desc    Renovar access token usando el refresh token de la cookie
 // @route   POST /api/auth/refresh
 // @access  Público (identifica la sesión por la cookie, no por Bearer token:

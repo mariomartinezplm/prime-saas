@@ -6,6 +6,7 @@ import {
   changePassword,
   forgotPassword,
   resetPassword,
+  acceptInvite,
   refresh,
   logout
 } from '../controllers/authController.js';
@@ -28,6 +29,9 @@ const router = express.Router();
 router.post('/login', loginLimiter, login);
 router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.put('/reset-password/:resetToken', setPasswordLimiter, resetPassword);
+// Alta de pacientes por invitación (Paso 12): mismo límite que reset-password,
+// ya pensado para reusarse aquí (quien usa un token, no quien lo genera).
+router.post('/accept-invite/:token', setPasswordLimiter, acceptInvite);
 
 // Solo usan la cookie de refresh, no requieren Bearer token (Paso 08): un
 // access token vencido no debe impedir renovar la sesión ni cerrarla.

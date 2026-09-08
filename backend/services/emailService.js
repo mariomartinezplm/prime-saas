@@ -151,6 +151,40 @@ export async function sendAppointmentCancelledEmail({ patient, professional, dat
   });
 }
 
+// ─── Invitación de alta (Paso 12) ───────────────────────────────────────────
+
+export async function sendInviteEmail({ user, inviteUrl }) {
+  const html = baseTemplate({
+    headerColor: BRAND_TEAL,
+    headerEmoji: '👋',
+    headerTitle: 'Bienvenido a Prime F&H',
+    bodyHtml: `
+      <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
+        Hola <strong>${escapeHtml(user.firstName)}</strong>, tu profesional te invitó a crear tu
+        acceso al portal de pacientes de Prime F&H. Elige tu contraseña para activar tu cuenta:
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${inviteUrl}"
+           style="display: inline-block; background: ${BRAND_TEAL}; color: white; text-decoration: none;
+                  padding: 14px 28px; border-radius: 8px; font-weight: 600;">
+          Crear mi contraseña
+        </a>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8;">
+        Este link es válido por 7 días y solo se puede usar una vez. Si no funciona, cópialo y
+        pégalo en tu navegador:<br>
+        <span style="word-break: break-all;">${escapeHtml(inviteUrl)}</span>
+      </p>
+    `
+  });
+
+  await sendEmail({
+    to: user.email,
+    subject: '👋 Bienvenido a Prime F&H — crea tu contraseña',
+    html
+  });
+}
+
 export async function sendAppointmentUpdatedEmail({ patient, professional, date, startTime, endTime, changes }) {
   const patientName = `${patient.firstName} ${patient.lastName}`;
 
