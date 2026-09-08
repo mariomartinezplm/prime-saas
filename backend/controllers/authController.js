@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
 import { generateToken } from '../middleware/auth.js';
 import { leerCookie } from '../utils/cookies.js';
+import { sendPasswordResetEmail } from '../services/emailService.js';
 import {
   REFRESH_TOKEN_TTL_MS,
   REFRESH_COOKIE_NAME,
@@ -309,9 +310,12 @@ export const forgotPassword = async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
 
-    // TODO (Paso 13 de BLUEPRINT.md): enviar resetToken por email con Resend.
-    // SEGURIDAD: el token NUNCA se devuelve en la respuesta HTTP. Quien no tiene
-    // acceso al correo del titular no puede cambiarle la contraseña.
+    // SEGURIDAD: el token NUNCA se devuelve en la respuesta HTTP. Quien no
+    // tiene acceso al correo del titular no puede cambiarle la contraseña.
+    // Fire-and-forget real: sendEmail (dentro de sendPasswordResetEmail)
+    // nunca lanza, así que un fallo de Resend no afecta la respuesta genérica.
+    const resetUrl = `${process.env.FRONTEND_URL}/restablecer/${resetToken}`;
+    await sendPasswordResetEmail({ user, resetUrl });
 
     res.status(200).json(genericResponse);
   } catch (error) {
@@ -351,6 +355,7 @@ export const resetPassword = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
+        code: 'RESET_TOKEN_INVALID',
         message: 'Token inválido o expirado'
       });
     }
@@ -373,10 +378,25 @@ export const resetPassword = async (req, res) => {
     const token = generateToken(user._id, user.role);
     await emitirSesionNueva(res, user, req);
 
+    // Mismo objeto que arman login/acceptInvite: el frontend necesita el rol
+    // real para saber a qué panel redirigir (paciente vs staff) sin una
+    // llamada extra a /auth/me.
     res.status(200).json({
       success: true,
       message: 'Contraseña restablecida exitosamente',
-      data: { token }
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+          profileImage: user.profileImage
+        },
+        token
+      }
     });
   } catch (error) {
     res.status(500).json({

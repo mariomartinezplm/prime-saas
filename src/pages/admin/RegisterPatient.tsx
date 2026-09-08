@@ -16,7 +16,6 @@ const RegisterPatient = () => {
     firstName: '',
     lastName: '',
     email: '',
-    password: '',
     phone: '',
     rut: '',
     dateOfBirth: '',
@@ -37,11 +36,12 @@ const RegisterPatient = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      // Paso 12/13: ya no se pide contraseña — la cuenta nace inutilizable y
+      // el paciente recibe una invitación por email para elegir la suya.
       await userService.create({
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
-        password: form.password,
         phone: form.phone || undefined,
         rut: form.rut || undefined,
         dateOfBirth: form.dateOfBirth || undefined,
@@ -57,9 +57,9 @@ const RegisterPatient = () => {
           allergies: form.allergies ? form.allergies.split(',').map(s => s.trim()) : [],
           injuries: form.injuries ? form.injuries.split(',').map(s => s.trim()) : [],
         },
-      } as never);
+      });
 
-      toast.success('Paciente registrado exitosamente');
+      toast.success('Paciente registrado. Le llegará un correo para crear su contraseña.');
       navigate('/app/admin/pacientes');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -91,10 +91,6 @@ const RegisterPatient = () => {
             <div className="space-y-2">
               <Label>Email *</Label>
               <Input type="email" required value={form.email} onChange={(e) => handleChange('email', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Contraseña *</Label>
-              <Input type="password" required minLength={8} value={form.password} onChange={(e) => handleChange('password', e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>RUT</Label>

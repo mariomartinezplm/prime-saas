@@ -151,6 +151,41 @@ export async function sendAppointmentCancelledEmail({ patient, professional, dat
   });
 }
 
+// ─── Reseteo de contraseña (Paso 13) ────────────────────────────────────────
+
+export async function sendPasswordResetEmail({ user, resetUrl }) {
+  const html = baseTemplate({
+    headerColor: BRAND_TEAL,
+    headerEmoji: '🔑',
+    headerTitle: 'Restablece tu contraseña',
+    bodyHtml: `
+      <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
+        Hola <strong>${escapeHtml(user.firstName)}</strong>, recibimos una solicitud para
+        restablecer tu contraseña en Prime F&H. Elige una nueva:
+      </p>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${resetUrl}"
+           style="display: inline-block; background: ${BRAND_TEAL}; color: white; text-decoration: none;
+                  padding: 14px 28px; border-radius: 8px; font-weight: 600;">
+          Restablecer contraseña
+        </a>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8;">
+        Este link es válido por 10 minutos y solo se puede usar una vez. Si no fuiste tú,
+        ignora este correo — tu contraseña actual sigue siendo válida. Si no funciona, cópialo
+        y pégalo en tu navegador:<br>
+        <span style="word-break: break-all;">${escapeHtml(resetUrl)}</span>
+      </p>
+    `
+  });
+
+  await sendEmail({
+    to: user.email,
+    subject: '🔑 Restablece tu contraseña — Prime F&H',
+    html
+  });
+}
+
 // ─── Invitación de alta (Paso 12) ───────────────────────────────────────────
 
 export async function sendInviteEmail({ user, inviteUrl }) {

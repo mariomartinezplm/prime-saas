@@ -33,10 +33,16 @@ export const userService = {
     return response.data.data.user;
   },
 
-  // Crear usuario (admin)
-  create: async (data: Partial<User> & { password: string }): Promise<User> => {
+  // Crear usuario (staff). No lleva password: desde el Paso 12 la cuenta
+  // nace inutilizable y se activa por invitación de email.
+  create: async (data: Partial<User>): Promise<User> => {
     const response = await api.post<APIResponse<{ user: User }>>('/users', data);
     return response.data.data.user;
+  },
+
+  // Reenviar (o regenerar) la invitación de un paciente (Paso 12/13)
+  resendInvite: async (id: string): Promise<void> => {
+    await api.post(`/users/${id}/resend-invite`);
   },
 
   // Actualizar usuario (admin)

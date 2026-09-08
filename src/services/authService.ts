@@ -47,13 +47,26 @@ export const authService = {
     await api.post('/auth/forgot-password', { email });
   },
 
-  // Resetear contraseña
-  resetPassword: async (resetToken: string, newPassword: string): Promise<void> => {
-    const response = await api.put<APIResponse<{ token: string }>>(`/auth/reset-password/${resetToken}`, {
+  // Resetear contraseña (Paso 13: el backend ahora también devuelve `user`,
+  // mismo shape que login/acceptInvite, para poder redirigir por rol real)
+  resetPassword: async (resetToken: string, newPassword: string): Promise<AuthResponse> => {
+    const response = await api.put<AuthResponse>(`/auth/reset-password/${resetToken}`, {
       newPassword,
     });
-    if (response.data.data.token) {
+    if (response.data.success && response.data.data.token) {
       setAccessToken(response.data.data.token);
     }
+    return response.data;
+  },
+
+  // Aceptar invitación: define la contraseña y activa la cuenta (Paso 12/13)
+  acceptInvite: async (token: string, password: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>(`/auth/accept-invite/${token}`, {
+      password,
+    });
+    if (response.data.success && response.data.data.token) {
+      setAccessToken(response.data.data.token);
+    }
+    return response.data;
   },
 };

@@ -12,6 +12,8 @@ import AppLayout from "@/components/layouts/AppLayout";
 import Index from "./pages/Index";
 import LoginDual from "./pages/LoginDual";
 import RecoverPassword from "./pages/RecoverPassword";
+import AcceptInvite from "./pages/AcceptInvite";
+import ResetPassword from "./pages/ResetPassword";
 import ThankYou from "./pages/ThankYou";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
@@ -56,6 +58,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginDual />} />
             <Route path="/recuperar-contrasena" element={<RecoverPassword />} />
+            <Route path="/invitacion/:token" element={<AcceptInvite />} />
+            <Route path="/restablecer/:token" element={<ResetPassword />} />
             <Route path="/gracias" element={<ThankYou />} />
             <Route path="/privacidad" element={<Privacy />} />
             <Route path="/terminos" element={<Terms />} />

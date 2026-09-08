@@ -7,9 +7,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, Ruler, Dumbbell, Activity, FileText } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { ArrowLeft, Calendar, Ruler, Dumbbell, Activity, FileText, Send, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'sonner';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
@@ -23,6 +35,7 @@ const PatientDetail = () => {
   const [activePlan, setActivePlan] = useState<Plan | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -62,19 +75,60 @@ const PatientDetail = () => {
 
   const { patient, stats } = profile;
 
+  const handleResendInvite = async () => {
+    setIsResending(true);
+    try {
+      await userService.resendInvite(id!);
+      toast.success('Invitación reenviada');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'No se pudo reenviar la invitación');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/app/admin/pacientes')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {patient.firstName} {patient.lastName}
-          </h1>
-          <p className="text-muted-foreground">{patient.email} {patient.rut && `| ${patient.rut}`}</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/app/admin/pacientes')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              {patient.firstName} {patient.lastName}
+            </h1>
+            <p className="text-muted-foreground">{patient.email} {patient.rut && `| ${patient.rut}`}</p>
+          </div>
         </div>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" size="sm" disabled={isResending}>
+              {isResending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Reenviar invitación
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Reenviar invitación a {patient.firstName}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se generará un link nuevo y el anterior dejará de funcionar. Si el paciente ya
+                tenía acceso, esto también sirve para resetear su contraseña (por ejemplo, si la
+                perdió).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleResendInvite}>Reenviar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Stats */}
