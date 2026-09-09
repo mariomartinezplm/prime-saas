@@ -404,3 +404,27 @@ export interface Notification {
   createdAt: string;
   updatedAt: string;
 }
+
+// Tipos de WellnessCheckin (Paso 23 de BLUEPRINT.md)
+export interface WellnessCheckin {
+  _id: string;
+  patient: string;
+  date: string; // "YYYY-MM-DD"
+  sleep: number;
+  energy: number;
+  stress: number;
+  soreness: number;
+  mood: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateWellnessCheckinData {
+  sleep: number;
+  energy: number;
+  stress: number;
+  soreness: number;
+  mood: number;
+  notes?: string;
+}

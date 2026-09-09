@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
 import { getWhatsAppUrl } from '@/config/contact';
+import WellnessCheckinCard from '@/components/wellness/WellnessCheckinCard';
 import { CalendarPlus, Clock, Activity, Ruler, FileText, MessageCircle } from 'lucide-react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -60,6 +61,9 @@ const PatientDashboard = () => {
         </h1>
         <p className="text-muted-foreground">Bienvenido a tu espacio Prime F&H</p>
       </div>
+
+      {/* Check-in de bienestar — destacado, arriba de todo */}
+      <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} />
 
       {/* Plan destacado */}
       <Card className={!balance?.hasActivePlan ? 'border-red-500/50' : undefined}>

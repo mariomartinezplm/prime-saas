@@ -19,6 +19,7 @@ import availabilityRoutes from './routes/availabilityRoutes.js';
 import clientPlanRoutes from './routes/clientPlanRoutes.js';
 import extraSessionRoutes from './routes/extraSessionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import wellnessRoutes from './routes/wellnessRoutes.js';
 import googleCalendarRoutes from './routes/googleCalendarRoutes.js';
 
 // Cargar variables de entorno
@@ -75,7 +76,8 @@ app.get('/', (req, res) => {
       availability: '/api/availability',
       clientPlans: '/api/client-plans',
       extraSessions: '/api/extra-sessions',
-      notifications: '/api/notifications'
+      notifications: '/api/notifications',
+      wellness: '/api/wellness'
     }
   });
 });
@@ -95,6 +97,7 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/client-plans', clientPlanRoutes);
 app.use('/api/extra-sessions', extraSessionRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/wellness', wellnessRoutes);
 
 app.use('/api/google-calendar', googleCalendarRoutes);
 
@@ -118,7 +121,8 @@ const server = app.listen(PORT, () => {
   console.log(`   - EVA: http://localhost:${PORT}/api/eva`);
   console.log(`   - Availability: http://localhost:${PORT}/api/availability`);
   console.log(`   - Client Plans: http://localhost:${PORT}/api/client-plans`);
-  console.log(`   - Notifications: http://localhost:${PORT}/api/notifications\n`);
+  console.log(`   - Notifications: http://localhost:${PORT}/api/notifications`);
+  console.log(`   - Wellness: http://localhost:${PORT}/api/wellness\n`);
 });
 
 // Manejo de promesas no capturadas
