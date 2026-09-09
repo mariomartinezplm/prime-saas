@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Check, Clock, Calendar, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { getWhatsAppUrl } from "@/config/contact";
 
 const Pricing = () => {
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola!%20Quiero%20conocer%20sus%20planes";
+  const whatsappUrl = getWhatsAppUrl("Hola! Quiero conocer sus planes");
 
   const benefits = [
     "Mejora tu salud y calidad de vida",

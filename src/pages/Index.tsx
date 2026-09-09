@@ -12,6 +12,7 @@ import ContactForm from "@/components/ContactForm";
 import Footer from "@/components/Footer";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import ScrollAnimatedSection from "@/components/ScrollAnimatedSection";
+import { CONTACT_PHONE_TEL } from "@/config/contact";
 
 const Index = () => {
   return (
@@ -68,7 +69,7 @@ const Index = () => {
             "name": "Prime Fit & Health",
             "description": "Kinesiología y entrenamiento personalizado en Puerto Montt. Entrenamientos efectivos en menos de 1 hora y rehabilitación basada en ejercicio.",
             "url": "https://primefitandhealth.cl",
-            "telephone": "+56956286651",
+            "telephone": CONTACT_PHONE_TEL,
             "address": {
               "@type": "PostalAddress",
               "streetAddress": "Avenida Volcán Puntiagudo 100, Mall La Paloma",

@@ -1,9 +1,10 @@
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { getWhatsAppUrl } from "@/config/contact";
 
 const WhatsAppFloat = () => {
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
+  const whatsappUrl = getWhatsAppUrl("Hola quiero agendar");
 
   return (
     <>

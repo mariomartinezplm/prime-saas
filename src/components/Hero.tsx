@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, Clock, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import heroBackground from "@/assets/hero-background.jpg";
+import { getWhatsAppUrl } from "@/config/contact";
 
 const Hero = () => {
   const scrollToServices = () => {
@@ -125,7 +126,7 @@ const Hero = () => {
           >
             <Button
               size="lg"
-              onClick={() => window.open("https://wa.me/56956286651?text=Hola!%20Quiero%20más%20información%20sobre%20los%20entrenamientos%20en%20Prime%20F%26H.", "_blank")}
+              onClick={() => window.open(getWhatsAppUrl("Hola! Quiero más información sobre los entrenamientos en Prime F&H."), "_blank")}
               className="bg-brand-secondary hover:bg-brand-secondary/90 text-white px-10 py-7 text-lg font-semibold shadow-2xl relative overflow-hidden group"
             >
               {/* Shine effect */}

@@ -1,9 +1,10 @@
 import { MessageCircle, MapPin, Phone, Clock, Facebook } from "lucide-react";
 import instagramIcon from "@/assets/instagram-icon.png";
 import tiktokIcon from "@/assets/tiktok-icon.png";
+import { CONTACT_PHONE_DISPLAY, getWhatsAppUrl } from "@/config/contact";
 
 const Footer = () => {
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Me interesa conocer más sobre Prime F%26H.";
+  const whatsappUrl = getWhatsAppUrl("Hola! Me interesa conocer más sobre Prime F&H.");
 
   return (
     <footer className="bg-brand-dark text-white py-16">
@@ -65,7 +66,7 @@ const Footer = () => {
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-brand-secondary flex-shrink-0" />
-                <span className="text-white/80 text-sm">+56 9 5628 6651</span>
+                <span className="text-white/80 text-sm">{CONTACT_PHONE_DISPLAY}</span>
               </div>
             </div>
           </div>

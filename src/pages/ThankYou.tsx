@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, MessageCircle, Home } from "lucide-react";
 import { Link } from "react-router-dom";
+import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL, getWhatsAppUrl } from "@/config/contact";
 
 const ThankYou = () => {
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Acabo de completar el formulario y me gustaría confirmar mi evaluación inicial.";
+  const whatsappUrl = getWhatsAppUrl("Hola! Acabo de completar el formulario y me gustaría confirmar mi evaluación inicial.");
 
   useEffect(() => {
     // Analytics event
@@ -88,11 +89,11 @@ const ThankYou = () => {
           <div className="mt-8 pt-6 border-t border-border">
             <p className="text-sm text-muted-foreground">
               ¿Prefieres llamar? También puedes contactarnos directamente al{" "}
-              <a 
-                href="tel:+56956286651" 
+              <a
+                href={`tel:${CONTACT_PHONE_TEL}`}
                 className="text-brand-primary font-semibold hover:underline"
               >
-                +56 9 5628 6651
+                {CONTACT_PHONE_DISPLAY}
               </a>
             </p>
           </div>

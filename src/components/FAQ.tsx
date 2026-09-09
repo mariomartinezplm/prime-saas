@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CONTACT_PHONE_DISPLAY, getWhatsAppUrl } from "@/config/contact";
 
 const FAQ = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola! Tengo una consulta que no encontré en las preguntas frecuentes.";
+  const whatsappUrl = getWhatsAppUrl("Hola! Tengo una consulta que no encontré en las preguntas frecuentes.");
 
   const faqs = [
     {
@@ -30,7 +31,7 @@ const FAQ = () => {
     },
     {
       question: "¿Cómo agendo mi primera sesión por WhatsApp?",
-      answer: "Solo haz clic en cualquier botón de WhatsApp de esta página o envía un mensaje al +56 9 5628 6651. Te responderemos inmediatamente para coordinar tu evaluación inicial gratuita."
+      answer: `Solo haz clic en cualquier botón de WhatsApp de esta página o envía un mensaje al ${CONTACT_PHONE_DISPLAY}. Te responderemos inmediatamente para coordinar tu evaluación inicial gratuita.`
     },
     {
       question: "¿Qué necesito traer para entrenar?",

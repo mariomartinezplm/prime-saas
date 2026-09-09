@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageCircle, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CONTACT_PHONE_DISPLAY, WHATSAPP_PHONE, getWhatsAppUrl } from "@/config/contact";
 
 const ContactForm = () => {
   const [formData, setFormData] = useState({
@@ -29,7 +30,7 @@ Mi objetivo/situación es: ${formData.objetivo}
 
 Me gustaría agendar una evaluación inicial.`;
 
-    const whatsappUrl = `https://wa.me/56956286651?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = getWhatsAppUrl(message);
 
     // Open WhatsApp
     window.open(whatsappUrl, '_blank');
@@ -148,12 +149,12 @@ Me gustaría agendar una evaluación inicial.`;
             <p className="text-sm text-white/40">
               También puedes escribirnos directamente al{" "}
               <a
-                href="https://wa.me/56956286651"
+                href={`https://wa.me/${WHATSAPP_PHONE}`}
                 className="text-[#4BA5BC] font-semibold hover:underline"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                +56 9 5628 6651
+                {CONTACT_PHONE_DISPLAY}
               </a>
             </p>
           </div>

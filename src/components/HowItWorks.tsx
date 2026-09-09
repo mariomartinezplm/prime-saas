@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Calendar, User, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
+import { getWhatsAppUrl } from "@/config/contact";
 
 const HowItWorks = () => {
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola%2C%20me%20interesa%20saber%20sobre%20sus%20planes";
+  const whatsappUrl = getWhatsAppUrl("Hola, me interesa saber sobre sus planes");
 
   const steps = [
     {

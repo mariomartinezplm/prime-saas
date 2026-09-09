@@ -27,7 +27,6 @@ import MyProfile from "./pages/patient/MyProfile";
 import PatientMeasurements from "./pages/patient/Measurements";
 import PatientExercises from "./pages/patient/Exercises";
 import PainRecords from "./pages/patient/PainRecords";
-import Subscription from "./pages/patient/Subscription";
 
 // Admin/Staff pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -105,10 +104,6 @@ const App = () => (
                 path="dolor"
                 element={<RoleRoute roles={['patient']}><PainRecords /></RoleRoute>}
               />
-              {/* "planes" (Subscription) no está en la lista del blueprint
-                  para este paso — se deja sin guard de rol, igual que antes */}
-              <Route path="planes" element={<Subscription />} />
-
               {/* Admin/Staff routes */}
               <Route
                 path="admin"

@@ -1,11 +1,12 @@
 import { MapPin, Phone, Clock, Navigation, Car, Accessibility, Bus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { CONTACT_PHONE_DISPLAY, getWhatsAppUrl } from "@/config/contact";
 
 const Location = () => {
   const address = "Avenida Volcán Puntiagudo 100, Puerto Montt, Los Lagos, Chile";
-  const phone = "+56 9 5628 6651";
-  const whatsappUrl = "https://wa.me/56956286651?text=Hola!%20Quiero%20saber%20m%C3%A1s%20sobre%20sus%20planes";
+  const phone = CONTACT_PHONE_DISPLAY;
+  const whatsappUrl = getWhatsAppUrl("Hola! Quiero saber más sobre sus planes");
 
   const facilities = [
     { icon: Car, text: "Amplio estacionamiento gratis" },

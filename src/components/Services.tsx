@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Dumbbell, Heart, Activity } from "lucide-react";
 import { motion } from "framer-motion";
+import { getWhatsAppUrl } from "@/config/contact";
 
 const Services = () => {
-  const whatsappUrlEntrenamiento = "https://wa.me/56956286651?text=Hola%20quiero%20agendar";
-  const whatsappUrlRehabilitacion = "https://wa.me/56956286651?text=Hola%2C%20quiero%20hacer%20mi%20rehabilitaci%C3%B3n%20con%20ustedes";
+  const whatsappUrlEntrenamiento = getWhatsAppUrl("Hola quiero agendar");
+  const whatsappUrlRehabilitacion = getWhatsAppUrl("Hola, quiero hacer mi rehabilitación con ustedes");
 
   const featureVariants = {
     hidden: { opacity: 0, x: -20 },

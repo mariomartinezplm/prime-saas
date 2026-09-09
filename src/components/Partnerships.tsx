@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import transmarkoLogo from "@/assets/transmarko.png";
 import skorpiosLogo from "@/assets/skorpios.png";
 import bienestarLogo from "@/assets/bienestar-san-javier.jpg";
+import { getWhatsAppUrl } from "@/config/contact";
 
 const Partnerships = () => {
   const [isPlaying, setIsPlaying] = useState(true);
@@ -46,9 +47,7 @@ const Partnerships = () => {
   };
 
   const handleWhatsAppContact = () => {
-    const whatsappUrl =
-      "https://wa.me/56956286651?text=Hola!%20Me%20gustar%C3%ADa%20hacer%20un%20convenio%20con%20ustedes";
-    window.open(whatsappUrl, "_blank");
+    window.open(getWhatsAppUrl("Hola! Me gustaría hacer un convenio con ustedes"), "_blank");
   };
 
   return (
