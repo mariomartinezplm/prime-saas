@@ -382,3 +382,25 @@ export interface PatientProfile {
   recentMeasurements: Measurement[];
   recentEVARecords: EVARecord[];
 }
+
+// Tipos de Notification (Paso 19/20 de BLUEPRINT.md)
+export type NotificationType =
+  | 'evolution_updated'
+  | 'plan_expiring'
+  | 'plan_expired'
+  | 'appointment_booked'
+  | 'appointment_cancelled'
+  | 'wellness_alert';
+
+export interface Notification {
+  _id: string;
+  user: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  link?: string;
+  read: boolean;
+  readAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
