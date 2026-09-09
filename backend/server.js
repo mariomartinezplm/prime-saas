@@ -7,6 +7,7 @@ import { ALLOWED_ORIGINS } from './config/allowedOrigins.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { sanitizeMongo } from './middleware/sanitize.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
+import { getHealth } from './controllers/healthController.js';
 
 // Importar rutas
 import authRoutes from './routes/authRoutes.js';
@@ -81,6 +82,11 @@ app.get('/', (req, res) => {
     }
   });
 });
+
+// Chequeo de salud para monitoreo externo (Paso 27 de BLUEPRINT.md) — antes del
+// rate limiter general: un monitor que pega cada 5 min nunca debe competir por
+// ese cupo con tráfico real.
+app.get('/api/health', getHealth);
 
 // Rutas de la API
 // Techo general de peticiones para toda la API (los límites estrictos de login y
