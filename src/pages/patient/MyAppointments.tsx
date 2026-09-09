@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format, parseISO, isBefore, addHours } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, CalendarPlus } from 'lucide-react';
 import type { Appointment } from '@/types';
 
 const statusColors: Record<string, string> = {
@@ -111,6 +111,16 @@ const MyAppointments = () => {
         </div>
         <div className="flex items-center gap-2">
           <Badge className={statusColors[apt.status]}>{statusLabels[apt.status]}</Badge>
+          {apt.status === 'scheduled' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Agregar a mi calendario"
+              onClick={() => appointmentService.downloadICS(apt._id)}
+            >
+              <CalendarPlus className="h-4 w-4 text-secondary" />
+            </Button>
+          )}
           {canCancel(apt) && (
             <Button
               variant="ghost"

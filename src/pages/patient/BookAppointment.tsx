@@ -105,7 +105,7 @@ const BookAppointment = () => {
       const [startH, startM] = selectedSlot.split(':').map(Number);
       const endTime = `${String(startH + 1).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
 
-      await appointmentService.create({
+      const newAppointment = await appointmentService.create({
         professional: selectedProfessional.id,
         date: format(selectedDate, 'yyyy-MM-dd'),
         startTime: selectedSlot,
@@ -113,7 +113,12 @@ const BookAppointment = () => {
         type: getSessionType(),
       });
 
-      toast.success('Cita reservada exitosamente');
+      toast.success('Cita reservada exitosamente', {
+        action: {
+          label: 'Agregar a mi calendario',
+          onClick: () => appointmentService.downloadICS(newAppointment._id),
+        },
+      });
       setShowConfirmation(false);
       setSelectedSlot(null);
 

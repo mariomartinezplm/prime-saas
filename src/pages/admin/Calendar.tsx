@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { userService } from '@/services/userService';
+import { googleCalendarService } from '@/services/googleCalendarService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -83,6 +84,30 @@ const AdminCalendar = () => {
     };
   });
 
+  const handleSelectEvent = async (event: CalendarEvent) => {
+    const apt = event.resource;
+    const professionalId = typeof apt.professional === 'object' ? apt.professional.id : apt.professional;
+
+    if (professionalId !== user?.id) {
+      toast.info('Solo puedes sincronizar tus propias citas a tu Google Calendar');
+      return;
+    }
+
+    try {
+      await googleCalendarService.sync(apt._id);
+      toast.success('Cita sincronizada con Google Calendar');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { code?: string; message?: string } } };
+      if (error.response?.data?.code === 'NOT_CONNECTED') {
+        toast.error('Primero conecta tu Google Calendar en Configuración', {
+          action: { label: 'Ir a Configuración', onClick: () => (window.location.href = '/app/configuracion') },
+        });
+      } else {
+        toast.error(error.response?.data?.message || 'Error al sincronizar con Google Calendar');
+      }
+    }
+  };
+
   const eventStyleGetter = (event: CalendarEvent) => {
     const status = event.resource.status;
     let backgroundColor = 'hsl(194 45% 44%)'; // secondary/teal
@@ -107,7 +132,9 @@ const AdminCalendar = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Calendario</h1>
-          <p className="text-muted-foreground">Vista de citas por profesional</p>
+          <p className="text-muted-foreground">
+            Vista de citas por profesional · haz clic en una cita tuya para sincronizarla con Google Calendar
+          </p>
         </div>
         <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
           <SelectTrigger className="w-[200px]">
@@ -135,6 +162,7 @@ const AdminCalendar = () => {
               min={new Date(2024, 0, 1, 7, 0)}
               max={new Date(2024, 0, 1, 21, 0)}
               eventPropGetter={eventStyleGetter}
+              onSelectEvent={handleSelectEvent}
               messages={{
                 today: 'Hoy',
                 previous: 'Anterior',

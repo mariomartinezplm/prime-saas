@@ -130,6 +130,15 @@ const userSchema = new mongoose.Schema({
     type: { tokenHash: String, expiresAt: Date, usedAt: Date },
     _id: false,
     default: undefined
+  },
+
+  // Tokens de Google Calendar (Paso 28 de BLUEPRINT.md), cifrados en reposo con
+  // AES-256-GCM (ver backend/utils/encryption.js) — nunca se guardan en texto
+  // plano. select:false: mismo patrón que password, nunca salen por accidente
+  // en una consulta normal ni en la respuesta de la API.
+  googleTokens: {
+    type: String,
+    select: false
   }
 }, {
   timestamps: true
@@ -169,6 +178,7 @@ userSchema.set('toJSON', {
     delete ret.resetPasswordToken;
     delete ret.resetPasswordExpire;
     delete ret.invite; // token de invitación (Paso 12)
+    delete ret.googleTokens; // Google Calendar (Paso 28) — nunca sale por la API
     return ret;
   }
 });

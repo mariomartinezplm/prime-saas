@@ -4,6 +4,7 @@ import { parseISO, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../services/emailService.js';
 import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
+import { generateAppointmentICS } from '../services/icsService.js';
 import {
   MAX_PATIENTS_PER_SLOT,
   PATIENT_BOOK_AHEAD_HOURS,
@@ -283,6 +284,42 @@ export const getAppointment = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error al obtener cita'
+    });
+  }
+};
+
+// @desc    Descargar la cita como archivo .ics (Paso 28.B de BLUEPRINT.md) —
+//          sin OAuth: el paciente lo agrega con un clic a cualquier calendario.
+// @route   GET /api/appointments/:id/ics
+// @access  Private (paciente propio o staff)
+export const getAppointmentICS = async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id)
+      .populate('professional', 'firstName lastName');
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cita no encontrada'
+      });
+    }
+
+    if (req.user.role === 'patient' && appointment.patient.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para ver esta cita'
+      });
+    }
+
+    const ics = generateAppointmentICS(appointment);
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="cita-primefh-${appointment._id}.ics"`);
+    res.status(200).send(ics);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error al generar el archivo de calendario'
     });
   }
 };

@@ -39,15 +39,25 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
   const PATIENT_ID = nuevoId();
   const PROFESSIONAL_ID = nuevoId();
 
-  const futureDate = (hoursAhead) => {
-    const d = new Date(Date.now() + hoursAhead * 60 * 60 * 1000);
-    return d.toISOString().split('T')[0];
+  // Antes esto combinaba una fecha "hoursAhead horas adelante" con una hora
+  // fija ("10:00") — dejaba de representar "hoursAhead horas desde ahora" en
+  // cuanto la hora real del día pasaba las 10:00, y el caso de "menos de 4h"
+  // terminaba viéndose como "la fecha ya pasó" en su lugar (bug de la prueba,
+  // no del código: se detectó porque esta sesión corrió muchas horas seguidas).
+  // Ahora se suman las horas directo sobre nowInSantiago() — la misma "hora
+  // actual" que usa el controller — así el resultado es exacto sin importar
+  // qué hora sea cuando corre la prueba.
+  const futureDateTime = (hoursAhead) => {
+    const target = new Date(nowInSantiago().getTime() + hoursAhead * 60 * 60 * 1000);
+    return {
+      date: target.toISOString().split('T')[0],
+      startTime: `${String(target.getUTCHours()).padStart(2, '0')}:${String(target.getUTCMinutes()).padStart(2, '0')}`
+    };
   };
 
   const item = (hoursAhead, overrides = {}) => ({
     professional: PROFESSIONAL_ID.toString(),
-    date: futureDate(hoursAhead),
-    startTime: '10:00',
+    ...futureDateTime(hoursAhead),
     type: 'kinesiologia',
     ...overrides
   });

@@ -25,6 +25,20 @@ export const appointmentService = {
     return response.data.data.appointment;
   },
 
+  // Descargar la cita como .ics — se agrega con un clic a cualquier calendario
+  // (Google, Apple, Outlook), sin pedirle autorización al paciente (Paso 28.B)
+  downloadICS: async (id: string): Promise<void> => {
+    const response = await api.get(`/appointments/${id}/ics`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'text/calendar' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cita-primefh-${id}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+
   // Actualizar cita (solo admin)
   update: async (id: string, data: Partial<Appointment>): Promise<Appointment> => {
     const response = await api.put<APIResponse<{ appointment: Appointment }>>(`/appointments/${id}`, data);

@@ -79,6 +79,12 @@ const appointmentSchema = new mongoose.Schema({
   deduction: {
     source: { type: String, enum: ['clientPlan', 'extraSession'] },
     refId: { type: mongoose.Schema.Types.ObjectId }
+  },
+  // Id del evento en el Google Calendar del profesional, si sincronizó esta
+  // cita (Paso 28 de BLUEPRINT.md). Permite actualizar el mismo evento en vez
+  // de duplicarlo si se sincroniza de nuevo.
+  googleEventId: {
+    type: String
   }
 }, {
   timestamps: true

@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
+import { googleCalendarService } from '@/services/googleCalendarService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarCheck2 } from 'lucide-react';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -14,6 +15,42 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const isStaff = user?.role === 'admin' || user?.role === 'professional';
+  const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
+  const [gcalLoading, setGcalLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isStaff) return;
+    googleCalendarService
+      .getStatus()
+      .then(setGcalConnected)
+      .catch(() => setGcalConnected(false));
+  }, [isStaff]);
+
+  const handleConnectGoogle = async () => {
+    setGcalLoading(true);
+    try {
+      const authUrl = await googleCalendarService.getAuthUrl();
+      window.location.href = authUrl;
+    } catch {
+      toast.error('Error al iniciar la conexión con Google Calendar');
+      setGcalLoading(false);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    setGcalLoading(true);
+    try {
+      await googleCalendarService.disconnect();
+      setGcalConnected(false);
+      toast.success('Google Calendar desconectado');
+    } catch {
+      toast.error('Error al desconectar Google Calendar');
+    } finally {
+      setGcalLoading(false);
+    }
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +166,38 @@ const Settings = () => {
           )}
         </CardContent>
       </Card>
+
+      {isStaff && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarCheck2 className="h-5 w-5 text-secondary" />
+              Google Calendar
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Conecta tu cuenta de Google para sincronizar tus citas con tu calendario personal.
+            </p>
+            {gcalConnected === null ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : gcalConnected ? (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-green-500 font-medium">Conectado</span>
+                <Button variant="outline" size="sm" onClick={handleDisconnectGoogle} disabled={gcalLoading}>
+                  {gcalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Desconectar
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" onClick={handleConnectGoogle} disabled={gcalLoading}>
+                {gcalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Conectar Google Calendar
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

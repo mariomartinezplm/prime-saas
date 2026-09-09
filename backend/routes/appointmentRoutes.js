@@ -3,6 +3,7 @@ import {
   createAppointment,
   getAppointments,
   getAppointment,
+  getAppointmentICS,
   cancelAppointment,
   updateAppointment,
   deleteAppointment,
@@ -29,6 +30,7 @@ router.route('/:id')
   // Borrado definitivo: solo admin (un profesional cancela, no borra el registro)
   .delete(authorize('admin'), deleteAppointment);
 
+router.get('/:id/ics', getAppointmentICS);
 router.put('/:id/cancel', cancelAppointment);
 
 export default router;

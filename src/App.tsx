@@ -41,6 +41,7 @@ import AdminAvailability from "./pages/admin/Availability";
 
 // Shared pages
 import SettingsPage from "./pages/shared/Settings";
+import GoogleCalendarCallback from "./pages/shared/GoogleCalendarCallback";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,16 @@ const App = () => (
 
             {/* Patient Portal redirection */}
             <Route path="/patient-portal" element={<Navigate to="/app/dashboard" replace />} />
+
+            {/* Google redirige aquí tras el OAuth de Calendario (Paso 28.A) */}
+            <Route
+              path="/auth/google/callback"
+              element={
+                <ProtectedRoute>
+                  <GoogleCalendarCallback />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Protected app routes */}
             <Route
