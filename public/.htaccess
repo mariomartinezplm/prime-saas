@@ -7,3 +7,14 @@
   RewriteCond %{REQUEST_FILENAME} !-l
   RewriteRule . /index.html [L]
 </IfModule>
+
+<IfModule mod_headers.c>
+  # Datos de salud (PHI) — cabeceras de seguridad básicas (Paso 26 de BLUEPRINT.md).
+  # style-src/font-src incluyen Google Fonts porque el título (Playfair Display)
+  # todavía se carga desde ahí — Inter ya viene autohosteado.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Content-Security-Policy "default-src 'self'; connect-src 'self' https://api.primefh.cl; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com"
+</IfModule>

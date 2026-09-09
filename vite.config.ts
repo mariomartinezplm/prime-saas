@@ -19,10 +19,11 @@ export default defineConfig(({ mode }) => ({
         name: "Prime F&H",
         short_name: "Prime",
         description: "Tu centro de entrenamiento y kinesiología en Puerto Montt",
+        lang: "es",
         start_url: "/",
         display: "standalone",
         orientation: "portrait",
-        theme_color: "#0EA5E9",
+        theme_color: "#3D9AA6",
         background_color: "#ffffff",
         categories: ["health", "fitness"],
         icons: [
@@ -53,16 +54,9 @@ export default defineConfig(({ mode }) => ({
         skipWaiting: true,
         clientsClaim: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-cache",
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
-            },
-          },
-        ],
+        // Sin runtimeCaching: la app nunca usó Supabase (config muerta, de un
+        // scaffold anterior) y api.primefh.cl no debe cachearse — son datos
+        // de salud (PHI), nunca en el cache del service worker (Paso 26).
       },
       devOptions: {
         enabled: true, // permite testear PWA en desarrollo

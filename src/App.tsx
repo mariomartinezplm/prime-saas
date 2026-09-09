@@ -17,6 +17,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ThankYou from "./pages/ThankYou";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import InstallApp from "./pages/InstallApp";
 import NotFound from "./pages/NotFound";
 
 // Patient pages
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/gracias" element={<ThankYou />} />
             <Route path="/privacidad" element={<Privacy />} />
             <Route path="/terminos" element={<Terms />} />
+            <Route path="/instalar" element={<InstallApp />} />
 
             {/* Patient Portal redirection */}
             <Route path="/patient-portal" element={<Navigate to="/app/dashboard" replace />} />
