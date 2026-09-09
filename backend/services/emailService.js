@@ -220,6 +220,42 @@ export async function sendInviteEmail({ user, inviteUrl }) {
   });
 }
 
+// ─── Notificaciones (Paso 19) ───────────────────────────────────────────────
+// Espejo genérico por email de una notificación in-app — misma firma
+// {title, body, link} que crea notificationService.notify(), para no
+// duplicar contenido entre el registro y el correo.
+export async function sendNotificationEmail({ user, title, body, link }) {
+  const appUrl = process.env.FRONTEND_URL || 'https://app.primefh.cl';
+  const fullLink = link ? (link.startsWith('http') ? link : `${appUrl}${link}`) : null;
+
+  const html = baseTemplate({
+    headerColor: BRAND_TEAL,
+    headerEmoji: '🔔',
+    headerTitle: escapeHtml(title),
+    bodyHtml: `
+      <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
+        Hola <strong>${escapeHtml(user.firstName)}</strong>,
+      </p>
+      <p style="font-size: 15px; color: #334155; margin-bottom: 20px;">${escapeHtml(body)}</p>
+      ${fullLink ? `
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${fullLink}"
+             style="display: inline-block; background: ${BRAND_TEAL}; color: white; text-decoration: none;
+                    padding: 14px 28px; border-radius: 8px; font-weight: 600;">
+            Ver en Prime F&H
+          </a>
+        </div>
+      ` : ''}
+    `
+  });
+
+  await sendEmail({
+    to: user.email,
+    subject: `🔔 ${title} — Prime F&H`,
+    html
+  });
+}
+
 export async function sendAppointmentUpdatedEmail({ patient, professional, date, startTime, endTime, changes }) {
   const patientName = `${patient.firstName} ${patient.lastName}`;
 

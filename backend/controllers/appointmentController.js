@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import { parseISO, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../services/emailService.js';
 import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
+import { notify } from '../services/notificationService.js';
 import {
   MAX_PATIENTS_PER_SLOT,
   PATIENT_BOOK_AHEAD_HOURS,
@@ -172,6 +173,15 @@ export const createAppointment = async (req, res) => {
     startTime: appointment.startTime,
     endTime: appointment.endTime,
     type: appointment.type
+  });
+
+  // Notificación in-app (Paso 19) — sin email propio, el de arriba ya cubre eso.
+  notify(appointment.professional._id, 'appointment_booked', {
+    title: 'Nueva cita agendada',
+    body: `${appointment.patient.firstName} ${appointment.patient.lastName} agendó una cita el ${appointment.date.toISOString().split('T')[0]} a las ${appointment.startTime}.`,
+    link: '/app/admin/citas'
+  }).catch((error) => {
+    console.error('Error al notificar nueva cita al profesional:', error.message);
   });
 
   res.status(201).json({
@@ -347,6 +357,15 @@ export const cancelAppointment = async (req, res) => {
       startTime: appointment.startTime,
       cancelledBy: req.user,
       cancellationReason: appointment.cancellationReason
+    });
+
+    // Notificación in-app (Paso 19) — sin email propio, el de arriba ya cubre eso.
+    notify(appointment.professional._id, 'appointment_cancelled', {
+      title: 'Cita cancelada',
+      body: `${appointment.patient.firstName} ${appointment.patient.lastName} canceló su cita del ${appointment.date.toISOString().split('T')[0]} a las ${appointment.startTime}.`,
+      link: '/app/admin/citas'
+    }).catch((error) => {
+      console.error('Error al notificar cancelación al profesional:', error.message);
     });
 
     res.status(200).json({

@@ -4,8 +4,22 @@ import mongoose from 'mongoose';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { canAccessPatient } from '../middleware/auth.js';
 import { escapeRegex } from '../middleware/sanitize.js';
+import { notify } from '../services/notificationService.js';
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
+
+// El paciente registró/editó su evolución — avisa a su profesional asignado
+// (Paso 19 de BLUEPRINT.md). Solo cuando el ACTOR es el propio paciente.
+function notifyProfessionalOfEvolutionUpdate(patientUser) {
+  if (!patientUser.assignedProfessionalId) return;
+  notify(patientUser.assignedProfessionalId, 'evolution_updated', {
+    title: 'Nuevo ejercicio registrado',
+    body: `${patientUser.firstName} ${patientUser.lastName} registró un nuevo ejercicio.`,
+    link: `/app/admin/pacientes/${patientUser._id}`
+  }).catch((error) => {
+    console.error('Error al notificar ejercicio al profesional:', error.message);
+  });
+}
 
 // @desc    Crear nuevo registro de ejercicio
 // @route   POST /api/exercises
@@ -69,6 +83,8 @@ export const createExerciseProgress = async (req, res) => {
       techniqueRating,
       videoUrl
     });
+
+    if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(patientUser);
 
     await exerciseProgress.populate('patient', 'firstName lastName');
     await exerciseProgress.populate('recordedBy', 'firstName lastName');
@@ -231,6 +247,8 @@ export const updateExerciseProgress = async (req, res) => {
     if (videoUrl !== undefined) exerciseProgress.videoUrl = videoUrl;
 
     await exerciseProgress.save();
+
+    if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(req.user);
 
     await exerciseProgress.populate('patient', 'firstName lastName');
     await exerciseProgress.populate('recordedBy', 'firstName lastName');

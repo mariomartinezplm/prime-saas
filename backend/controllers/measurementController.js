@@ -3,6 +3,22 @@ import Measurement from '../models/Measurement.js';
 import User from '../models/User.js';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { canAccessPatient } from '../middleware/auth.js';
+import { notify } from '../services/notificationService.js';
+
+// El paciente registró/editó su evolución — avisa a su profesional asignado
+// (Paso 19 de BLUEPRINT.md). Solo cuando el ACTOR es el propio paciente: si
+// el profesional/admin registra la medición, no tiene sentido notificarlo de
+// su propia acción.
+function notifyProfessionalOfEvolutionUpdate(patientUser) {
+  if (!patientUser.assignedProfessionalId) return;
+  notify(patientUser.assignedProfessionalId, 'evolution_updated', {
+    title: 'Nueva medición registrada',
+    body: `${patientUser.firstName} ${patientUser.lastName} registró una nueva medición corporal.`,
+    link: `/app/admin/pacientes/${patientUser._id}`
+  }).catch((error) => {
+    console.error('Error al notificar medición al profesional:', error.message);
+  });
+}
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
 
@@ -47,6 +63,8 @@ export const createMeasurement = async (req, res) => {
       notes,
       photos
     });
+
+    if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(patientUser);
 
     await measurement.populate('patient', 'firstName lastName email');
     await measurement.populate('recordedBy', 'firstName lastName');
@@ -202,6 +220,8 @@ export const updateMeasurement = async (req, res) => {
     if (photos) measurement.photos = photos;
 
     await measurement.save();
+
+    if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(req.user);
 
     await measurement.populate('patient', 'firstName lastName email');
     await measurement.populate('recordedBy', 'firstName lastName');

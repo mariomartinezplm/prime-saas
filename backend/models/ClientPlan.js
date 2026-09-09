@@ -47,6 +47,15 @@ const clientPlanSchema = new mongoose.Schema({
   notes: {
     type: String,
     trim: true
+  },
+  // Evitan que el cron de vencimiento (Paso 19 de BLUEPRINT.md) mande el
+  // mismo aviso todos los días mientras el plan sigue en la ventana de "por
+  // vencer" o ya vencido — cada uno se dispara una sola vez por plan.
+  expiringNotifiedAt: {
+    type: Date
+  },
+  expiredNotifiedAt: {
+    type: Date
   }
 }, {
   timestamps: true
