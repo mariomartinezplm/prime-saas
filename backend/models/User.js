@@ -92,7 +92,10 @@ const userSchema = new mongoose.Schema({
     surgeries: [{
       description: String,
       date: Date
-    }]
+    }],
+    heightCm: Number,
+    baseWeightKg: Number,
+    smoker: Boolean
   },
   isActive: {
     type: Boolean,

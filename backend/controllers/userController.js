@@ -3,10 +3,14 @@ import Appointment from '../models/Appointment.js';
 import Measurement from '../models/Measurement.js';
 import ExerciseProgress from '../models/Exercise.js';
 import EVA from '../models/EVA.js';
+import ClientPlan from '../models/ClientPlan.js';
 import { syncAllPatients } from '../utils/airtableSync.js';
 import { canAccessPatient } from '../middleware/auth.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { generateUnusablePassword, createInvite } from '../services/inviteService.js';
+import { toCSV } from '../utils/csv.js';
+import { SERVICE_TYPE_LABELS } from '../config/planCatalog.js';
+import { todayInSantiago } from '../utils/timezone.js';
 
 // @desc    Obtener todos los usuarios (solo admin)
 // @route   GET /api/users
@@ -546,6 +550,70 @@ export const syncAirtableUsers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Error al sincronizar con Airtable'
+    });
+  }
+};
+
+// @desc    Exportar pacientes a CSV (datos base + plan + sesiones — sin
+//          medicalInfo, por minimización de datos sensibles: Ley 19.628/21.719)
+// @route   GET /api/users/export?format=csv
+// @access  Private/Admin
+export const exportUsers = async (req, res) => {
+  try {
+    if (req.query.format && req.query.format !== 'csv') {
+      return res.status(400).json({
+        success: false,
+        message: 'Formato no soportado. Usa format=csv'
+      });
+    }
+
+    const patients = await User.find({ role: 'patient' })
+      .select('firstName lastName email phone rut isActive assignedProfessionalId createdAt')
+      .populate('assignedProfessionalId', 'firstName lastName')
+      .sort({ lastName: 1, firstName: 1 });
+
+    const activePlans = await ClientPlan.find({
+      patient: { $in: patients.map((p) => p._id) },
+      status: 'active'
+    }).select('patient serviceType sessionsTotal sessionsUsed endDate');
+
+    const planByPatient = new Map(activePlans.map((plan) => [plan.patient.toString(), plan]));
+
+    const headers = [
+      'Nombre', 'Apellido', 'Email', 'Telefono', 'RUT', 'Activo',
+      'ProfesionalAsignado', 'TipoPlan', 'SesionesUsadas', 'SesionesTotal',
+      'PlanVence', 'FechaRegistro'
+    ];
+
+    const rows = patients.map((patient) => {
+      const plan = planByPatient.get(patient._id.toString());
+      const professional = patient.assignedProfessionalId;
+
+      return [
+        patient.firstName,
+        patient.lastName,
+        patient.email,
+        patient.phone || '',
+        patient.rut || '',
+        patient.isActive ? 'Sí' : 'No',
+        professional ? `${professional.firstName} ${professional.lastName}` : '',
+        plan ? SERVICE_TYPE_LABELS[plan.serviceType] : 'Sin plan activo',
+        plan ? plan.sessionsUsed : '',
+        plan ? plan.sessionsTotal : '',
+        plan ? plan.endDate.toISOString().split('T')[0] : '',
+        patient.createdAt.toISOString().split('T')[0]
+      ];
+    });
+
+    const csv = toCSV(headers, rows);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="pacientes-${todayInSantiago()}.csv"`);
+    res.status(200).send(csv);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error al exportar pacientes'
     });
   }
 };

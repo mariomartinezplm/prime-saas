@@ -26,6 +26,7 @@ import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
 import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
+import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
 import type { User, PatientProfile, SessionBalance, Appointment } from '@/types';
 
@@ -216,7 +217,16 @@ const PatientDetail = () => {
 
             <Card className="md:col-span-2">
               <CardHeader><CardTitle className="text-lg">Información Médica</CardTitle></CardHeader>
-              <CardContent className="space-y-3 text-sm">
+              <CardContent className="space-y-4 text-sm">
+                <ClinicalBaselineFields
+                  medicalInfo={patient.medicalInfo}
+                  dateOfBirth={patient.dateOfBirth}
+                  onSave={async (medicalInfo) => {
+                    const updated = await userService.update(patient.id, { medicalInfo });
+                    setProfile((prev) => prev ? { ...prev, patient: updated } : prev);
+                  }}
+                />
+                <div className="border-t border-border pt-3 space-y-3">
                 <div>
                   <span className="text-muted-foreground">Condiciones crónicas: </span>
                   <span>{patient.medicalInfo?.chronicConditions?.join(', ') || 'Ninguna'}</span>
@@ -232,6 +242,7 @@ const PatientDetail = () => {
                 <div>
                   <span className="text-muted-foreground">Lesiones: </span>
                   <span>{patient.medicalInfo?.injuries?.join(', ') || 'Ninguna'}</span>
+                </div>
                 </div>
               </CardContent>
             </Card>

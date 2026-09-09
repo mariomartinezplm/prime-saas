@@ -18,7 +18,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, UserPlus, ChevronRight, RefreshCw, Plus, Loader2 } from 'lucide-react';
+import { Search, UserPlus, ChevronRight, RefreshCw, Plus, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { SERVICE_TYPE_LABELS, type ServiceType } from '@/config/planCatalog';
@@ -28,12 +28,14 @@ const PatientList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isProfessional = user?.role === 'professional';
+  const isAdmin = user?.role === 'admin';
 
   const [patients, setPatients] = useState<User[]>([]);
   const [balances, setBalances] = useState<Record<string, SessionBalance>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Dialog "Agregar sesión extra"
   const [extraDialogOpen, setExtraDialogOpen] = useState(false);
@@ -91,6 +93,17 @@ const PatientList = () => {
       toast.error(error.response?.data?.message || 'Error al conectar con Airtable');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      await userService.exportCSV();
+    } catch {
+      toast.error('Error al exportar el CSV');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -165,6 +178,12 @@ const PatientList = () => {
             <Button variant="outline" onClick={() => setExtraDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Agregar sesión extra
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" onClick={handleExportCSV} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              Exportar CSV
             </Button>
           )}
           <Button variant="outline" onClick={handleSyncAirtable} disabled={syncing}>

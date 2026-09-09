@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { clientPlanService } from '@/services/clientPlanService';
+import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -142,11 +143,21 @@ const MyProfile = () => {
         <TabsContent value="medical" className="mt-4">
           <Card>
             <CardHeader><CardTitle className="text-lg">Información Médica</CardTitle></CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div><span className="text-muted-foreground">Condiciones crónicas: </span>{user.medicalInfo?.chronicConditions?.join(', ') || 'Ninguna'}</div>
-              <div><span className="text-muted-foreground">Medicamentos: </span>{user.medicalInfo?.medications?.join(', ') || 'Ninguno'}</div>
-              <div><span className="text-muted-foreground">Alergias: </span>{user.medicalInfo?.allergies?.join(', ') || 'Ninguna'}</div>
-              <div><span className="text-muted-foreground">Lesiones: </span>{user.medicalInfo?.injuries?.join(', ') || 'Ninguna'}</div>
+            <CardContent className="space-y-4 text-sm">
+              <ClinicalBaselineFields
+                medicalInfo={user.medicalInfo}
+                dateOfBirth={user.dateOfBirth}
+                onSave={async (medicalInfo) => {
+                  const updated = await authService.updateProfile({ medicalInfo });
+                  updateUser(updated);
+                }}
+              />
+              <div className="border-t border-border pt-3 space-y-3">
+                <div><span className="text-muted-foreground">Condiciones crónicas: </span>{user.medicalInfo?.chronicConditions?.join(', ') || 'Ninguna'}</div>
+                <div><span className="text-muted-foreground">Medicamentos: </span>{user.medicalInfo?.medications?.join(', ') || 'Ninguno'}</div>
+                <div><span className="text-muted-foreground">Alergias: </span>{user.medicalInfo?.allergies?.join(', ') || 'Ninguna'}</div>
+                <div><span className="text-muted-foreground">Lesiones: </span>{user.medicalInfo?.injuries?.join(', ') || 'Ninguna'}</div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -35,6 +35,9 @@ export interface MedicalInfo {
     description: string;
     date: string;
   }>;
+  heightCm?: number;
+  baseWeightKg?: number;
+  smoker?: boolean;
 }
 
 // Tipos de Autenticación

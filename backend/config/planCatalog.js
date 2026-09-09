@@ -8,6 +8,11 @@ export const PLAN_CATALOG = {
 
 export const SERVICE_TYPES = Object.keys(PLAN_CATALOG);
 
+export const SERVICE_TYPE_LABELS = {
+  entrenamiento: 'Entrenamiento',
+  kinesiologia: 'Kinesiología'
+};
+
 export function isValidSessionsForServiceType(serviceType, sessionsTotal) {
   const allowed = PLAN_CATALOG[serviceType];
   return Array.isArray(allowed) && allowed.includes(sessionsTotal);

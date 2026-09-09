@@ -8,7 +8,8 @@ import {
   resendInvite,
   getPatientProfile,
   getDashboardStats,
-  syncAirtableUsers
+  syncAirtableUsers,
+  exportUsers
 } from '../controllers/userController.js';
 import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
 
@@ -26,6 +27,9 @@ router.route('/')
 router.post('/sync-airtable', authorize('admin'), syncAirtableUsers);
 
 router.get('/stats/dashboard', authorize('admin', 'professional'), getDashboardStats);
+
+// Antes de '/:id' — si no, Express confundiría "export" con un id.
+router.get('/export', authorize('admin'), exportUsers);
 
 // Pertenencia obligatoria: un paciente solo se ve a sí mismo, un profesional solo
 // a sus pacientes asignados. Sin esto, cambiar el id en la URL exponía la ficha

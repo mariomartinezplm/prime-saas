@@ -62,6 +62,19 @@ export const userService = {
     return response.data.data;
   },
 
+  // Descargar el CSV de pacientes (admin) — datos base + plan, sin medicalInfo
+  exportCSV: async (): Promise<void> => {
+    const response = await api.get('/users/export?format=csv', { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pacientes-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+
   // Obtener perfil completo del paciente
   getPatientProfile: async (id: string): Promise<PatientProfile> => {
     const response = await api.get<APIResponse<PatientProfile>>(`/users/${id}/profile`);
