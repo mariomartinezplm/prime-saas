@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,7 @@ import { clientPlanService } from '@/services/clientPlanService';
 import { userService } from '@/services/userService';
 import { PLAN_CATALOG, SERVICE_TYPE_LABELS, type ServiceType } from '@/config/planCatalog';
 import { toast } from 'sonner';
-import { Loader2, Search, Plus, X, Dumbbell, Stethoscope } from 'lucide-react';
+import { Loader2, Search, Plus, X, Dumbbell, Stethoscope, ClipboardList } from 'lucide-react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { ClientPlan, User } from '@/types';
@@ -59,6 +60,7 @@ function statusBadge(plan: ClientPlan) {
 }
 
 const Plans = () => {
+  const navigate = useNavigate();
   const [clientPlans, setClientPlans] = useState<ClientPlan[]>([]);
   const [patients, setPatients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,10 +167,16 @@ const Plans = () => {
           <h1 className="text-2xl font-bold text-foreground">Planes</h1>
           <p className="text-muted-foreground">Gestión de planes y sesiones de pacientes</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Registrar pago
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={() => navigate('/app/admin/planes/clasificar')} className="w-full sm:w-auto">
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Clasificar pacientes sin plan
+          </Button>
+          <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Registrar pago
+          </Button>
+        </div>
       </div>
 
       {/* Catálogo de planes (referencia) */}

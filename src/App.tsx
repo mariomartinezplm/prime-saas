@@ -36,6 +36,7 @@ import PatientList from "./pages/admin/PatientList";
 import PatientDetail from "./pages/admin/PatientDetail";
 import RegisterPatient from "./pages/admin/RegisterPatient";
 import AdminPlans from "./pages/admin/Plans";
+import ClassifyPlans from "./pages/admin/ClassifyPlans";
 import AdminAvailability from "./pages/admin/Availability";
 
 // Shared pages
@@ -162,6 +163,14 @@ const App = () => (
                 element={
                   <RoleRoute roles={['admin', 'professional']}>
                     <AdminPlans />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="admin/planes/clasificar"
+                element={
+                  <RoleRoute roles={['admin', 'professional']}>
+                    <ClassifyPlans />
                   </RoleRoute>
                 }
               />

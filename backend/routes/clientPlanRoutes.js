@@ -14,7 +14,10 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', authorize('admin', 'professional'), getAllClientPlans);
-router.post('/', authorize('admin'), createClientPlan);
+// El profesional también puede registrar el pago de un plan, pero solo para
+// sus propios pacientes asignados — authorizePatientAccess ya sabe leer
+// patientId desde el body cuando no viene en la URL (Paso clasificación de planes).
+router.post('/', authorize('admin', 'professional'), authorizePatientAccess('patientId'), createClientPlan);
 router.post('/expire-check', authorize('admin'), runExpireCheck);
 router.put('/:id/cancel', authorize('admin'), cancelClientPlan);
 

@@ -1,17 +1,27 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '@/services/userService';
+import { clientPlanService } from '@/services/clientPlanService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PLAN_CATALOG, SERVICE_TYPE_LABELS, type ServiceType } from '@/config/planCatalog';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Dumbbell, Stethoscope, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const KINESIOLOGIA_SESSIONS_FIJAS = 10;
+
+type PlanInicialOption = ServiceType | 'despues';
 
 const RegisterPatient = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [planInicial, setPlanInicial] = useState<PlanInicialOption>('despues');
+  const [sessionsTotal, setSessionsTotal] = useState<number>(PLAN_CATALOG.entrenamiento[0]);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -38,7 +48,7 @@ const RegisterPatient = () => {
     try {
       // Paso 12/13: ya no se pide contraseña — la cuenta nace inutilizable y
       // el paciente recibe una invitación por email para elegir la suya.
-      await userService.create({
+      const nuevoPaciente = await userService.create({
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
@@ -59,7 +69,21 @@ const RegisterPatient = () => {
         },
       });
 
-      toast.success('Paciente registrado. Le llegará un correo para crear su contraseña.');
+      if (planInicial === 'despues') {
+        toast.success('Paciente registrado. Le llegará un correo para crear su contraseña.');
+      } else {
+        try {
+          await clientPlanService.create({
+            patientId: nuevoPaciente.id,
+            serviceType: planInicial,
+            sessionsTotal: planInicial === 'kinesiologia' ? KINESIOLOGIA_SESSIONS_FIJAS : sessionsTotal,
+          });
+          toast.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
+        } catch {
+          toast.warning('Paciente registrado, pero no se pudo asignar el plan inicial. Puedes asignarlo después desde Planes.');
+        }
+      }
+
       navigate('/app/admin/pacientes');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -67,6 +91,11 @@ const RegisterPatient = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePlanInicialChange = (option: PlanInicialOption) => {
+    setPlanInicial(option);
+    if (option === 'entrenamiento') setSessionsTotal(PLAN_CATALOG.entrenamiento[0]);
   };
 
   return (
@@ -144,6 +173,65 @@ const RegisterPatient = () => {
               <Label>Lesiones (separadas por coma)</Label>
               <Textarea value={form.injuries} onChange={(e) => handleChange('injuries', e.target.value)} />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Plan inicial</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => handlePlanInicialChange('kinesiologia')}
+                className={cn(
+                  'p-3 rounded-lg border-2 text-left transition-all',
+                  planInicial === 'kinesiologia' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                )}
+              >
+                <Stethoscope className="h-4 w-4 mb-1 text-secondary" />
+                <p className="text-sm font-semibold">{SERVICE_TYPE_LABELS.kinesiologia}</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePlanInicialChange('entrenamiento')}
+                className={cn(
+                  'p-3 rounded-lg border-2 text-left transition-all',
+                  planInicial === 'entrenamiento' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                )}
+              >
+                <Dumbbell className="h-4 w-4 mb-1 text-secondary" />
+                <p className="text-sm font-semibold">{SERVICE_TYPE_LABELS.entrenamiento}</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePlanInicialChange('despues')}
+                className={cn(
+                  'p-3 rounded-lg border-2 text-left transition-all',
+                  planInicial === 'despues' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                )}
+              >
+                <Clock className="h-4 w-4 mb-1 text-secondary" />
+                <p className="text-sm font-semibold">Asignar después</p>
+              </button>
+            </div>
+
+            {planInicial === 'entrenamiento' && (
+              <div className="space-y-2">
+                <Label>Sesiones del plan</Label>
+                <Select value={String(sessionsTotal)} onValueChange={(v) => setSessionsTotal(Number(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PLAN_CATALOG.entrenamiento.map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n} sesiones</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {planInicial === 'kinesiologia' && (
+              <p className="text-xs text-muted-foreground">{KINESIOLOGIA_SESSIONS_FIJAS} sesiones (fijo).</p>
+            )}
           </CardContent>
         </Card>
 
