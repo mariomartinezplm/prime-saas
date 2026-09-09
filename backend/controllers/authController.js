@@ -103,6 +103,13 @@ export const login = async (req, res) => {
     const token = generateToken(user._id, user.role);
     await emitirSesionNueva(res, user, req);
 
+    // El profesional asignado lo necesita de inmediato la pantalla de reserva
+    // del paciente (BookAppointment.tsx) — sin esto, el login deja al
+    // paciente sin poder agendar hasta el próximo refresh de sesión.
+    if (user.role === 'patient') {
+      await user.populate('assignedProfessionalId', 'firstName lastName specialty');
+    }
+
     res.status(200).json({
       success: true,
       message: 'Login exitoso',
@@ -115,7 +122,8 @@ export const login = async (req, res) => {
           email: user.email,
           role: user.role,
           phone: user.phone,
-          profileImage: user.profileImage
+          profileImage: user.profileImage,
+          assignedProfessionalId: user.assignedProfessionalId
         },
         token
       }
@@ -135,6 +143,12 @@ export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
+    // Ver nota de la misma línea en login(): la pantalla de reserva del
+    // paciente depende de este campo para saber con quién puede agendar.
+    if (user.role === 'patient') {
+      await user.populate('assignedProfessionalId', 'firstName lastName specialty');
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -152,6 +166,7 @@ export const getMe = async (req, res) => {
           profileImage: user.profileImage,
           emergencyContact: user.emergencyContact,
           medicalInfo: user.medicalInfo,
+          assignedProfessionalId: user.assignedProfessionalId,
           createdAt: user.createdAt
         }
       }

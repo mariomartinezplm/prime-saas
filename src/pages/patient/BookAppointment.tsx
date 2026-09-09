@@ -43,21 +43,22 @@ const BookAppointment = () => {
         const allowedNames = ['mario', 'felipe', 'rafael', 'tomás', 'tomas'];
         const validProfessionals = combined.filter(p => allowedNames.includes(p.firstName.toLowerCase()));
 
-        // Auto-select assigned professional
+        // Auto-select assigned professional. `assignedProfessionalId` es la
+        // referencia real (Paso 04 de BLUEPRINT.md) — antes esto comparaba
+        // por nombre contra `assignedProfessional`, el texto histórico de la
+        // migración de Airtable que la API de sesión (login/me) nunca llegó
+        // a devolver: todo paciente veía "no tienes un kinesiólogo asignado"
+        // sin importar si de verdad tenía uno.
         if (user && user.role === 'patient') {
-          if (user.assignedProfessional) {
-            const targetName = user.assignedProfessional.toLowerCase().trim();
-            const found = validProfessionals.find(p =>
-              `${p.firstName} ${p.lastName}`.toLowerCase().includes(targetName) ||
-              targetName.includes(p.lastName.toLowerCase())
-            );
+          const assignedId =
+            typeof user.assignedProfessionalId === 'object'
+              ? user.assignedProfessionalId?.id
+              : user.assignedProfessionalId;
+          const found = assignedId ? combined.find(p => p.id === assignedId) : undefined;
 
-            if (found) {
-              setProfessionals([found]);
-              setSelectedProfessional(found);
-            } else {
-              setProfessionals([]);
-            }
+          if (found) {
+            setProfessionals([found]);
+            setSelectedProfessional(found);
           } else {
             setProfessionals([]);
           }
@@ -146,9 +147,17 @@ const BookAppointment = () => {
     return date >= start && date <= end;
   };
 
-  const isWithinBookAheadWindow = (date: Date): boolean => {
-    const now = new Date();
-    return isBefore(date, addHours(now, 4));
+  // Un horario puntual (fecha + hora) está "muy pronto" si cae dentro de las
+  // 4h de anticipación mínima. Antes esto se evaluaba contra la fecha del día
+  // completo a medianoche (00:00) en vez de la hora real del slot — como
+  // "medianoche" siempre es anterior a "ahora + 4h", el día de hoy quedaba
+  // bloqueado por completo sin importar si ya eran las 8am o las 8pm. Ahora se
+  // evalúa por horario individual, con la misma regla que ya aplica el backend.
+  const isSlotTooSoon = (date: Date, time: string): boolean => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const slotDateTime = new Date(date);
+    slotDateTime.setHours(hours, minutes, 0, 0);
+    return isBefore(slotDateTime, addHours(new Date(), 4));
   };
 
   // ─── Plan status info ───────────────────────────────────────────────
@@ -340,7 +349,6 @@ const BookAppointment = () => {
                     onSelect={setSelectedDate}
                     numberOfMonths={getCalendarMonths()}
                     disabledDate={(date) => {
-                      if (isWithinBookAheadWindow(date)) return true;
                       if (balance?.plan && !isDateInPlanRange(date)) return true;
                       return false;
                     }}
@@ -360,7 +368,17 @@ const BookAppointment = () => {
                 <CardContent>
                   {slots ? (
                     <SlotGrid
-                      slots={slots}
+                      slots={{
+                        ...slots,
+                        availableSlots: slots.availableSlots.filter(
+                          (slot) => !selectedDate || !isSlotTooSoon(selectedDate, slot)
+                        ),
+                      }}
+                      tooSoonSlots={
+                        selectedDate
+                          ? slots.availableSlots.filter((slot) => isSlotTooSoon(selectedDate, slot))
+                          : []
+                      }
                       selectedSlot={selectedSlot}
                       onSelect={(slot) => {
                         if (planInfo && !planInfo.canBook) {

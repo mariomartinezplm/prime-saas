@@ -73,8 +73,15 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
         current = addDays(current, 1);
       }
 
-      // Debe ser al menos 4h desde ahora (mismo mínimo que exige el backend)
-      if (isBefore(current, addHours(now, 4))) {
+      // Debe ser al menos 4h desde ahora (mismo mínimo que exige el backend).
+      // Comparar el horario real de la primera ocurrencia, no "ahora" a secas
+      // — antes esto comparaba el propio "now" contra "now + 4h" (siempre
+      // true), así que la primera ocurrencia de hoy nunca entraba en el lote,
+      // sin importar qué tan lejos en el día estuviera selectedTime.
+      const [firstHours, firstMinutes] = selectedTime.split(':').map(Number);
+      const firstOccurrence = new Date(current);
+      firstOccurrence.setHours(firstHours, firstMinutes, 0, 0);
+      if (isBefore(firstOccurrence, addHours(now, 4))) {
         current = addDays(current, 7);
       }
 
