@@ -16,13 +16,14 @@ import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import { format, addWeeks, addDays, parseISO, getDay, isBefore, addHours } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { User, Plan } from '@/types';
+import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
+import type { User, ClientPlan } from '@/types';
 
 interface BulkBookingDialogProps {
   open: boolean;
   onClose: () => void;
   professional: User;
-  plan: Plan;
+  plan: ClientPlan;
 }
 
 const DAYS_OF_WEEK = [
@@ -102,7 +103,7 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
           date,
           startTime: selectedTime,
           endTime,
-          type: 'entrenamiento',
+          type: plan.serviceType,
         })),
       });
 
@@ -127,7 +128,7 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
 
         <div className="space-y-4 py-4">
           <p className="text-sm text-muted-foreground">
-            Reserva el mismo horario todas las semanas dentro de tu plan ({plan.type}).
+            Reserva el mismo horario todas las semanas dentro de tu plan ({SERVICE_TYPE_LABELS[plan.serviceType]}).
             Rango: {format(planStart, 'dd/MM/yyyy')} - {format(planEnd, 'dd/MM/yyyy')}
           </p>
 

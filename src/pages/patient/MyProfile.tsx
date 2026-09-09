@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
-import { planService } from '@/services/planService';
+import { clientPlanService } from '@/services/clientPlanService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +11,12 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useEffect } from 'react';
-import type { Plan } from '@/types';
+import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
+import type { SessionBalance } from '@/types';
 
 const MyProfile = () => {
   const { user, updateUser } = useAuth();
-  const [activePlan, setActivePlan] = useState<Plan | null>(null);
+  const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -28,7 +29,7 @@ const MyProfile = () => {
 
   useEffect(() => {
     if (user) {
-      planService.getActive(user.id).then(setActivePlan).catch(() => {});
+      clientPlanService.getBalance(user.id).then(setBalance).catch(() => {});
     }
   }, [user]);
 
@@ -154,13 +155,15 @@ const MyProfile = () => {
           <Card>
             <CardHeader><CardTitle className="text-lg">Mi Plan</CardTitle></CardHeader>
             <CardContent>
-              {activePlan ? (
+              {balance?.hasActivePlan && balance.plan ? (
                 <div className="space-y-3 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span className="capitalize font-medium">{activePlan.type}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Sesiones/semana</span><span>{activePlan.sessionsPerWeek}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Inicio</span><span>{format(parseISO(activePlan.startDate), 'dd/MM/yyyy')}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Fin</span><span>{format(parseISO(activePlan.endDate), 'dd/MM/yyyy')}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Estado</span><span className="capitalize text-green-400">{activePlan.status}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span className="font-medium">{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Sesiones</span><span>{balance.plan.sessionsUsed}/{balance.plan.sessionsTotal} usadas</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Inicio</span><span>{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Vence</span><span>{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</span></div>
+                  {balance.extraSessionsAvailable > 0 && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Sesiones extra</span><span>{balance.extraSessionsAvailable}</span></div>
+                  )}
                 </div>
               ) : (
                 <p className="text-muted-foreground text-sm">No tienes un plan activo. Contacta a tu profesional.</p>

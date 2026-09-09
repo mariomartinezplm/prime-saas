@@ -16,7 +16,6 @@ import measurementRoutes from './routes/measurementRoutes.js';
 import exerciseRoutes from './routes/exerciseRoutes.js';
 import evaRoutes from './routes/evaRoutes.js';
 import availabilityRoutes from './routes/availabilityRoutes.js';
-import planRoutes from './routes/planRoutes.js';
 import clientPlanRoutes from './routes/clientPlanRoutes.js';
 import extraSessionRoutes from './routes/extraSessionRoutes.js';
 import googleCalendarRoutes from './routes/googleCalendarRoutes.js';
@@ -73,7 +72,6 @@ app.get('/', (req, res) => {
       exercises: '/api/exercises',
       eva: '/api/eva',
       availability: '/api/availability',
-      plans: '/api/plans',
       clientPlans: '/api/client-plans',
       extraSessions: '/api/extra-sessions'
     }
@@ -92,7 +90,6 @@ app.use('/api/measurements', measurementRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/eva', evaRoutes);
 app.use('/api/availability', availabilityRoutes);
-app.use('/api/plans', planRoutes);
 app.use('/api/client-plans', clientPlanRoutes);
 app.use('/api/extra-sessions', extraSessionRoutes);
 
@@ -117,7 +114,7 @@ const server = app.listen(PORT, () => {
   console.log(`   - Exercises: http://localhost:${PORT}/api/exercises`);
   console.log(`   - EVA: http://localhost:${PORT}/api/eva`);
   console.log(`   - Availability: http://localhost:${PORT}/api/availability`);
-  console.log(`   - Plans: http://localhost:${PORT}/api/plans\n`);
+  console.log(`   - Client Plans: http://localhost:${PORT}/api/client-plans\n`);
 });
 
 // Manejo de promesas no capturadas

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { userService } from '@/services/userService';
 import { appointmentService } from '@/services/appointmentService';
-import { planService } from '@/services/planService';
+import { clientPlanService } from '@/services/clientPlanService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,14 +25,14 @@ import { toast } from 'sonner';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
-import PlanForm from '@/components/forms/PlanForm';
-import type { User, PatientProfile, Plan, Appointment } from '@/types';
+import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
+import type { User, PatientProfile, SessionBalance, Appointment } from '@/types';
 
 const PatientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PatientProfile | null>(null);
-  const [activePlan, setActivePlan] = useState<Plan | null>(null);
+  const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isResending, setIsResending] = useState(false);
@@ -41,13 +41,13 @@ const PatientDetail = () => {
     if (!id) return;
     const fetchData = async () => {
       try {
-        const [prof, plan, apts] = await Promise.all([
+        const [prof, bal, apts] = await Promise.all([
           userService.getPatientProfile(id),
-          planService.getActive(id),
+          clientPlanService.getBalance(id),
           appointmentService.getAll({ status: 'scheduled' }),
         ]);
         setProfile(prof);
-        setActivePlan(plan);
+        setBalance(bal);
         setAppointments(apts.filter((a) => {
           const patientId = typeof a.patient === 'object' ? a.patient.id : a.patient;
           return patientId === id;
@@ -267,7 +267,7 @@ const PatientDetail = () => {
         </TabsContent>
 
         <TabsContent value="plan" className="mt-4">
-          {activePlan ? (
+          {balance?.hasActivePlan && balance.plan ? (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -278,24 +278,37 @@ const PatientDetail = () => {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tipo</span>
-                  <span className="capitalize">{activePlan.type}</span>
+                  <span>{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sesiones/semana</span>
-                  <span>{activePlan.sessionsPerWeek}</span>
+                  <span className="text-muted-foreground">Sesiones</span>
+                  <span>{balance.plan.sessionsUsed}/{balance.plan.sessionsTotal} usadas</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Inicio</span>
-                  <span>{format(parseISO(activePlan.startDate), 'dd/MM/yyyy')}</span>
+                  <span>{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fin</span>
-                  <span>{format(parseISO(activePlan.endDate), 'dd/MM/yyyy')}</span>
+                  <span className="text-muted-foreground">Vence</span>
+                  <span>{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</span>
                 </div>
+                {balance.extraSessionsAvailable > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sesiones extra</span>
+                    <span>{balance.extraSessionsAvailable}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
-            <PlanForm patientId={id!} onSuccess={() => window.location.reload()} />
+            <Card>
+              <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+                <p className="text-muted-foreground text-sm">Este paciente no tiene un plan activo.</p>
+                <Button size="sm" onClick={() => navigate('/app/admin/planes/clasificar')}>
+                  Asignar plan
+                </Button>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>

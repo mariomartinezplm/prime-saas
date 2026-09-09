@@ -7,10 +7,9 @@ import {
   updateAppointment,
   getAvailability,
   deleteAppointment,
-  bulkCreateAppointments,
-  getPlanInfo
+  bulkCreateAppointments
 } from '../controllers/appointmentController.js';
-import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -19,9 +18,6 @@ router.use(protect);
 
 // Rutas de disponibilidad (accesible para todos los usuarios autenticados)
 router.get('/availability/:professionalId/:date', getAvailability);
-
-// Info del plan y restricciones del paciente (solo el propio paciente, su profesional o admin)
-router.get('/plan-info/:patientId', authorizePatientAccess('patientId'), getPlanInfo);
 
 // Reserva masiva
 router.post('/bulk', bulkCreateAppointments);

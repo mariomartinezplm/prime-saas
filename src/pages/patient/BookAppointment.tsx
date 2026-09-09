@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { availabilityService } from '@/services/availabilityService';
 import { appointmentService } from '@/services/appointmentService';
-import { planService } from '@/services/planService';
+import { clientPlanService } from '@/services/clientPlanService';
 import ProfessionalSelector from '@/components/booking/ProfessionalSelector';
 import CalendarView from '@/components/booking/CalendarView';
 import SlotGrid from '@/components/booking/SlotGrid';
@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { showApiError } from '@/lib/apiError';
 import { CalendarPlus, AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays, Repeat, Calendar as CalendarIcon } from 'lucide-react';
 import { format, addHours, isBefore, parseISO } from 'date-fns';
-import type { User, Plan, AvailableSlots } from '@/types';
+import type { User, SessionBalance, AvailableSlots } from '@/types';
 
 type BookingMode = 'single' | 'recurring';
 
@@ -26,13 +26,12 @@ const BookAppointment = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [slots, setSlots] = useState<AvailableSlots | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [activePlan, setActivePlan] = useState<Plan | null>(null);
+  const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [booking, setBooking] = useState(false);
   const [bookingMode, setBookingMode] = useState<BookingMode>('single');
-  const [monthlyUsed, setMonthlyUsed] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,24 +66,8 @@ const BookAppointment = () => {
         }
 
         if (user) {
-          const plan = await planService.getActive(user.id);
-          setActivePlan(plan);
-
-          // Fetch monthly usage from plan-info endpoint
-          try {
-            const { default: api } = await import('@/lib/api');
-            const resp = await api.get(`/appointments/plan-info/${user.id}`);
-            const restrictions = resp.data?.data?.restrictions;
-            if (restrictions) {
-              if (restrictions.monthlyUsed !== undefined) {
-                setMonthlyUsed(restrictions.monthlyUsed);
-              } else if (restrictions.sessionsUsed !== undefined) {
-                setMonthlyUsed(restrictions.sessionsUsed);
-              }
-            }
-          } catch {
-            // Silently fail — plan info is supplementary
-          }
+          const bal = await clientPlanService.getBalance(user.id);
+          setBalance(bal);
         }
       } catch {
         toast.error('Error al cargar datos');
@@ -107,25 +90,12 @@ const BookAppointment = () => {
 
   // Determine session type from plan
   const getSessionType = (): 'kinesiologia' | 'entrenamiento' | 'evaluacion' => {
-    if (!activePlan) return 'entrenamiento';
-    if (activePlan.planType === 'kinesiologia') return 'kinesiologia';
-    return 'entrenamiento';
+    return balance?.plan?.serviceType || 'entrenamiento';
   };
 
-  // Calendar months to show (1 for entrenamiento, 2 for kinesiología)
-  const getCalendarMonths = (): number => {
-    if (!activePlan) return 1;
-    return activePlan.planType === 'kinesiologia' ? 2 : 1;
-  };
-
-  // Monthly session limit for current plan
-  const getMonthlyLimit = (): number => {
-    if (!activePlan) return 12;
-    if (activePlan.planType === 'kinesiologia') return activePlan.totalSessions || 10;
-    if (activePlan.planType === 'entrenamiento-2x') return 8;
-    if (activePlan.planType === 'entrenamiento-3x') return 12;
-    return activePlan.sessionsPerMonth || 12;
-  };
+  // Vista de 2 meses siempre: el ciclo del plan (30 días) casi siempre cruza
+  // un mes calendario, sin importar el tipo de servicio.
+  const getCalendarMonths = (): number => 2;
 
   const handleBook = async () => {
     if (!selectedProfessional || !selectedDate || !selectedSlot) return;
@@ -146,12 +116,11 @@ const BookAppointment = () => {
       toast.success('Cita reservada exitosamente');
       setShowConfirmation(false);
       setSelectedSlot(null);
-      setMonthlyUsed(prev => prev + 1);
 
-      // Refrescar plan
+      // Refrescar saldo de sesiones
       if (user) {
-        const plan = await planService.getActive(user.id);
-        setActivePlan(plan);
+        const bal = await clientPlanService.getBalance(user.id);
+        setBalance(bal);
       }
 
       // Refresh slots
@@ -166,9 +135,9 @@ const BookAppointment = () => {
   };
 
   const isDateInPlanRange = (date: Date): boolean => {
-    if (!activePlan) return true;
-    const start = parseISO(activePlan.startDate);
-    const end = parseISO(activePlan.endDate);
+    if (!balance?.plan) return true;
+    const start = parseISO(balance.plan.startDate);
+    const end = parseISO(balance.plan.endDate);
     return date >= start && date <= end;
   };
 
@@ -178,50 +147,29 @@ const BookAppointment = () => {
   };
 
   // ─── Plan status info ───────────────────────────────────────────────
+  // ClientPlan es la única fuente de verdad (Paso 15/16 de BLUEPRINT.md): sin
+  // un plan activo no se puede agendar, sin excepción — antes había un atajo
+  // que dejaba agendar a cualquier usuario activo sin plan, contradiciendo esa
+  // regla (el backend ya lo rechazaba con 403, pero la pantalla lo insinuaba).
   const getPlanStatusInfo = () => {
-    const monthlyLimit = getMonthlyLimit();
+    if (!balance?.hasActivePlan || !balance.plan) return null;
 
-    if (activePlan) {
-      if (activePlan.planType === 'kinesiologia') {
-        const remaining = activePlan.totalSessions - activePlan.sessionsUsed;
-        const canBook = remaining > 0;
-        return {
-          label: '🏥 Kinesiología',
-          description: `${remaining} de ${activePlan.totalSessions} sesiones restantes`,
-          sessionCounter: `${activePlan.sessionsUsed}/${activePlan.totalSessions} sesiones usadas`,
-          canBook,
-          blockMessage: remaining <= 0 ? 'Has completado todas tus sesiones de kinesiología. Contacta al equipo para renovar tu bono.' : null,
-          color: canBook ? 'border-teal-300 bg-teal-50' : 'border-red-300 bg-red-50',
-          progressPercent: (activePlan.sessionsUsed / activePlan.totalSessions) * 100
-        };
-      }
+    const plan = balance.plan;
+    const remaining = plan.sessionsTotal - plan.sessionsUsed;
+    const canBook = balance.totalAvailable > 0;
+    const extraNote = balance.extraSessionsAvailable > 0 ? ` + ${balance.extraSessionsAvailable} extra` : '';
 
-      const canBook = monthlyUsed < monthlyLimit;
-      return {
-        label: activePlan.planType === 'entrenamiento-2x' ? '💪 Entrenamiento 2x/semana' : '🔥 Entrenamiento 3x/semana',
-        description: `${monthlyLimit - monthlyUsed} sesiones restantes este mes`,
-        sessionCounter: `${monthlyUsed}/${monthlyLimit} sesiones este mes`,
-        canBook,
-        blockMessage: !canBook ? `Has agotado tus ${monthlyLimit} sesiones de este mes. Espera al próximo mes o contacta al equipo.` : null,
-        color: canBook ? 'border-blue-300 bg-blue-50' : 'border-red-300 bg-red-50',
-        progressPercent: (monthlyUsed / monthlyLimit) * 100
-      };
-    }
-
-    // Si NO tiene plan formal, verificamos status del usuario
-    if (user?.isActive) {
-      return {
-        label: '✅ Plan Activo',
-        description: 'Usuario habilitado para agendar',
-        sessionCounter: null,
-        canBook: true,
-        blockMessage: null,
-        color: 'border-green-300 bg-green-50',
-        progressPercent: 0
-      };
-    }
-
-    return null;
+    return {
+      label: plan.serviceType === 'kinesiologia' ? '🏥 Kinesiología' : '💪 Entrenamiento',
+      description: `${remaining} de ${plan.sessionsTotal} sesiones restantes${extraNote}`,
+      sessionCounter: `${plan.sessionsUsed}/${plan.sessionsTotal} sesiones usadas`,
+      canBook,
+      blockMessage: !canBook ? 'Has completado todas tus sesiones. Contacta a Prime F&H para renovar tu plan.' : null,
+      color: canBook
+        ? (plan.serviceType === 'kinesiologia' ? 'border-teal-300 bg-teal-50' : 'border-blue-300 bg-blue-50')
+        : 'border-red-300 bg-red-50',
+      progressPercent: (plan.sessionsUsed / plan.sessionsTotal) * 100
+    };
   };
 
   const planInfo = getPlanStatusInfo();
@@ -350,7 +298,7 @@ const BookAppointment = () => {
                 <button
                   onClick={() => {
                     setBookingMode('recurring');
-                    if (activePlan) setShowBulk(true);
+                    if (balance?.hasActivePlan) setShowBulk(true);
                   }}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'recurring'
                     ? 'border-purple-500 bg-purple-50 shadow-sm'
@@ -378,9 +326,7 @@ const BookAppointment = () => {
                   <CardTitle className="text-lg flex items-center gap-2">
                     <CalendarDays className="w-5 h-5" />
                     Seleccionar Fecha
-                    {activePlan?.planType === 'kinesiologia' && (
-                      <span className="text-xs font-normal text-muted-foreground ml-auto">Vista de 2 meses</span>
-                    )}
+                    <span className="text-xs font-normal text-muted-foreground ml-auto">Vista de 2 meses</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -390,7 +336,7 @@ const BookAppointment = () => {
                     numberOfMonths={getCalendarMonths()}
                     disabledDate={(date) => {
                       if (isWithin24Hours(date)) return true;
-                      if (activePlan && !isDateInPlanRange(date)) return true;
+                      if (balance?.plan && !isDateInPlanRange(date)) return true;
                       return false;
                     }}
                   />
@@ -446,14 +392,10 @@ const BookAppointment = () => {
                       <Ban className="w-3.5 h-3.5" />
                       <span>Puedes cancelar hasta <strong>4 horas antes</strong> de tu sesión</span>
                     </div>
-                    {activePlan && (
+                    {balance?.plan && (
                       <div className="flex items-center gap-2">
                         <CalendarDays className="w-3.5 h-3.5" />
-                        <span>
-                          {activePlan.planType === 'kinesiologia'
-                            ? `Máximo ${activePlan.totalSessions || 10} sesiones por bono`
-                            : `Máximo ${getMonthlyLimit()} sesiones por mes`}
-                        </span>
+                        <span>Máximo {balance.plan.sessionsTotal} sesiones por bono</span>
                       </div>
                     )}
                   </div>
@@ -478,7 +420,7 @@ const BookAppointment = () => {
       )}
 
       {/* Bulk booking dialog */}
-      {showBulk && selectedProfessional && activePlan && (
+      {showBulk && selectedProfessional && balance?.plan && (
         <BulkBookingDialog
           open={showBulk}
           onClose={() => {
@@ -486,7 +428,7 @@ const BookAppointment = () => {
             setBookingMode('single');
           }}
           professional={selectedProfessional}
-          plan={activePlan}
+          plan={balance.plan}
         />
       )}
     </div>

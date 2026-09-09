@@ -144,50 +144,7 @@ export interface AvailableSlots {
   blockedSlots?: string[];
 }
 
-// Tipos de Plan
-export interface Plan {
-  _id: string;
-  patient: User | string;
-  professional: User | string;
-  planType: 'kinesiologia' | 'entrenamiento-2x' | 'entrenamiento-3x';
-  duration: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  sessionsPerWeek: number;
-  sessionsPerMonth: number;
-  totalSessions: number;
-  sessionsUsed: number;
-  startDate: string;
-  endDate: string;
-  status: 'active' | 'expired' | 'cancelled' | 'completed';
-  notes?: string;
-  displayName?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreatePlanData {
-  patient: string;
-  professional: string;
-  planType: 'kinesiologia' | 'entrenamiento-2x' | 'entrenamiento-3x';
-  duration?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
-  startDate: string;
-  totalSessions?: number;
-  notes?: string;
-}
-
-export interface PlanRestrictions {
-  planType: 'kinesiologia' | 'entrenamiento-2x' | 'entrenamiento-3x';
-  sessionsPerMonth: number;
-  monthlyUsed: number;
-  monthlyRemaining: number | null;
-  totalSessions: number;
-  sessionsUsed: number | null;
-  sessionsRemaining: number | null;
-  bookAheadHours: number;
-  cancelAheadHours: number;
-  maxPatientsPerSlot: number;
-}
-
-// Tipos de ClientPlan (sistema nuevo de planes por bono de sesiones)
+// Tipos de ClientPlan (sistema de planes por bono de sesiones)
 export interface ClientPlan {
   _id: string;
   patient: User | string;

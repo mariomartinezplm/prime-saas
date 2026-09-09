@@ -1,8 +1,7 @@
 import Appointment from '../models/Appointment.js';
-import Plan from '../models/Plan.js';
 import User from '../models/User.js';
 import Availability from '../models/Availability.js';
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, parseISO, format, isBefore, addHours } from 'date-fns';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, addDays, parseISO, format, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../services/emailService.js';
 import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
 
@@ -36,39 +35,9 @@ const MAX_PATIENTS_PER_SLOT = 4;         // Máximo 4 pacientes por hora por kin
 const PATIENT_BOOK_AHEAD_HOURS = 24;     // Pacientes: mínimo 24h de anticipación para agendar
 const PATIENT_CANCEL_AHEAD_HOURS = 4;    // Pacientes: mínimo 4h de anticipación para cancelar
 
-// Límites mensuales por tipo de plan
-const MONTHLY_LIMITS = {
-  'entrenamiento-2x': 8,
-  'entrenamiento-3x': 12,
-  'kinesiologia': 10  // total (no mensual), ya controlado por totalSessions
-};
-
 // ─── Helper: verificar si el usuario es staff ────────────────────────────────
 function isStaff(user) {
   return ['admin', 'professional'].includes(user.role);
-}
-
-// ─── Helper: contar agendamientos del paciente en el MES actual ──────────────
-async function countMonthlyAppointments(patientId, date, type) {
-  const targetDate = new Date(date);
-  const monthStart = startOfMonth(targetDate);
-  const monthEnd = endOfMonth(targetDate);
-
-  return await Appointment.countDocuments({
-    patient: patientId,
-    date: { $gte: monthStart, $lte: monthEnd },
-    type: type,
-    status: { $ne: 'cancelled' }
-  });
-}
-
-// ─── Helper: contar total sesiones usadas de kinesiología ────────────────────
-async function countKineSessions(patientId, planId) {
-  return await Appointment.countDocuments({
-    patient: patientId,
-    type: 'kinesiologia',
-    status: { $in: ['scheduled', 'completed'] }
-  });
 }
 
 // ─── Helper: contar pacientes solapados en un horario ──────────────────────────
@@ -709,63 +678,6 @@ export const bulkCreateAppointments = async (req, res) => {
   }
 };
 
-// @desc    Obtener info del plan del paciente y sus restricciones
-// @route   GET /api/appointments/plan-info/:patientId
-// @access  Private
-export const getPlanInfo = async (req, res) => {
-  try {
-    const { patientId } = req.params;
-    const now = new Date();
-
-    const activePlan = await Plan.findOne({
-      patient: patientId,
-      status: 'active',
-      endDate: { $gte: now }
-    }).populate('professional', 'firstName lastName');
-
-    if (!activePlan) {
-      return res.status(200).json({
-        success: true,
-        data: { plan: null, message: 'No hay plan activo' }
-      });
-    }
-
-    let monthlyUsed = 0;
-    let kineSessions = 0;
-
-    if (activePlan.planType === 'kinesiologia') {
-      kineSessions = await countKineSessions(patientId);
-    } else {
-      monthlyUsed = await countMonthlyAppointments(patientId, now, 'entrenamiento');
-    }
-
-    const monthlyLimit = MONTHLY_LIMITS[activePlan.planType] || 12;
-
-    res.status(200).json({
-      success: true,
-      data: {
-        plan: activePlan,
-        restrictions: {
-          planType: activePlan.planType,
-          sessionsPerMonth: monthlyLimit,
-          monthlyUsed,
-          monthlyRemaining: activePlan.planType !== 'kinesiologia' ? monthlyLimit - monthlyUsed : null,
-          totalSessions: activePlan.totalSessions,
-          sessionsUsed: activePlan.planType === 'kinesiologia' ? kineSessions : null,
-          sessionsRemaining: activePlan.planType === 'kinesiologia' ? activePlan.totalSessions - kineSessions : null,
-          bookAheadHours: PATIENT_BOOK_AHEAD_HOURS,
-          cancelAheadHours: PATIENT_CANCEL_AHEAD_HOURS,
-          maxPatientsPerSlot: MAX_PATIENTS_PER_SLOT
-        }
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Error al obtener info del plan'
-    });
-  }
-};
 
 // @desc    Eliminar una cita (solo admin)
 // @route   DELETE /api/appointments/:id
