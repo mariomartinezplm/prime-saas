@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Users, Calendar, UserPlus, ClipboardList, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import WellnessTrendsSummary from '@/components/wellness/WellnessTrendsSummary';
 import type { DashboardStats, Appointment } from '@/types';
 
 const AdminDashboard = () => {
@@ -155,6 +156,8 @@ const AdminDashboard = () => {
           )}
         </CardContent>
       </Card>
+
+      <WellnessTrendsSummary />
     </div>
   );
 };

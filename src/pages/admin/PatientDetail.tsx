@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
+import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
 import type { User, PatientProfile, SessionBalance, Appointment } from '@/types';
 
@@ -171,6 +172,7 @@ const PatientDetail = () => {
           <TabsTrigger value="measurements">Mediciones</TabsTrigger>
           <TabsTrigger value="exercises">Ejercicios</TabsTrigger>
           <TabsTrigger value="eva">EVA</TabsTrigger>
+          <TabsTrigger value="wellness">Bienestar</TabsTrigger>
           <TabsTrigger value="plan">Plan</TabsTrigger>
         </TabsList>
 
@@ -264,6 +266,10 @@ const PatientDetail = () => {
 
         <TabsContent value="eva" className="mt-4">
           <EVAForm patientId={id!} onSuccess={() => {}} />
+        </TabsContent>
+
+        <TabsContent value="wellness" className="mt-4">
+          <WellnessHistoryTab patientId={id!} />
         </TabsContent>
 
         <TabsContent value="plan" className="mt-4">

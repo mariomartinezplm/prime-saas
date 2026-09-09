@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 import WellnessCheckin from '../models/WellnessCheckin.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
-import { createCheckin, getTodayCheckin } from '../controllers/wellnessController.js';
+import { createCheckin, getTodayCheckin, getTrends, getPatientCheckins } from '../controllers/wellnessController.js';
 
 vi.mock('../services/clientPlanService.js', () => ({
   hasActivePlan: vi.fn()
@@ -148,5 +148,77 @@ describe('GET /wellness/me', () => {
     await getTodayCheckin(req, res);
 
     expect(res.body.data.checkin).toEqual(checkin);
+  });
+});
+
+describe('GET /wellness/trends — resumen semanal por paciente', () => {
+  const makeCheckin = (patientId, vals) => ({
+    patient: patientId,
+    sleep: vals[0], energy: vals[1], stress: vals[2], soreness: vals[3], mood: vals[4]
+  });
+
+  it('profesional: solo ve la tendencia de SUS pacientes asignados (query scoped)', async () => {
+    vi.restoreAllMocks();
+    const profId = nuevoId();
+    const findSpy = vi.spyOn(User, 'find').mockReturnValue({ select: vi.fn().mockResolvedValue([]) });
+    vi.spyOn(WellnessCheckin, 'find').mockReturnValue({ sort: vi.fn().mockResolvedValue([]) });
+
+    const req = { user: { _id: profId, role: 'professional' } };
+    const res = fakeRes();
+    await getTrends(req, res);
+
+    expect(findSpy).toHaveBeenCalledWith(expect.objectContaining({
+      role: 'patient',
+      isActive: true,
+      $or: expect.arrayContaining([{ assignedProfessionalId: profId }])
+    }));
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('marca isLowAlert cuando el promedio semanal es < 2.5, y omite pacientes sin check-ins', async () => {
+    vi.restoreAllMocks();
+    const lowPatientId = nuevoId();
+    const okPatientId = nuevoId();
+    const silentPatientId = nuevoId(); // sin check-ins esta semana — no debe aparecer
+
+    vi.spyOn(User, 'find').mockReturnValue({
+      select: vi.fn().mockResolvedValue([
+        { _id: lowPatientId, firstName: 'Baja', lastName: 'Paciente' },
+        { _id: okPatientId, firstName: 'Ok', lastName: 'Paciente' },
+        { _id: silentPatientId, firstName: 'Silenciosa', lastName: 'Paciente' }
+      ])
+    });
+    vi.spyOn(WellnessCheckin, 'find').mockReturnValue({
+      sort: vi.fn().mockResolvedValue([
+        makeCheckin(lowPatientId, [1, 1, 1, 1, 1]),   // promedio 1.0
+        makeCheckin(okPatientId, [4, 4, 4, 4, 4])     // promedio 4.0
+      ])
+    });
+
+    const req = { user: { _id: nuevoId(), role: 'admin' } };
+    const res = fakeRes();
+    await getTrends(req, res);
+
+    expect(res.body.data.trends).toHaveLength(2); // silentPatientId queda afuera
+    const low = res.body.data.trends.find((t) => t.patient._id.toString() === lowPatientId.toString());
+    const ok = res.body.data.trends.find((t) => t.patient._id.toString() === okPatientId.toString());
+    expect(low.isLowAlert).toBe(true);
+    expect(ok.isLowAlert).toBe(false);
+  });
+});
+
+describe('GET /wellness/patient/:patientId', () => {
+  it('devuelve el historial ordenado, más reciente primero', async () => {
+    vi.restoreAllMocks();
+    const sortSpy = vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([{ _id: nuevoId() }]) });
+    vi.spyOn(WellnessCheckin, 'find').mockReturnValue({ sort: sortSpy });
+
+    const req = { params: { patientId: nuevoId().toString() } };
+    const res = fakeRes();
+    await getPatientCheckins(req, res);
+
+    expect(sortSpy).toHaveBeenCalledWith({ date: -1 });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.count).toBe(1);
   });
 });

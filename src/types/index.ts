@@ -428,3 +428,11 @@ export interface CreateWellnessCheckinData {
   mood: number;
   notes?: string;
 }
+
+export interface WellnessTrend {
+  patient: { _id: string; firstName: string; lastName: string };
+  checkinsThisWeek: number;
+  weeklyAverage: number | null;
+  lastCheckin: WellnessCheckin | null;
+  isLowAlert: boolean;
+}
