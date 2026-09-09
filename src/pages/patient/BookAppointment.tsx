@@ -141,9 +141,9 @@ const BookAppointment = () => {
     return date >= start && date <= end;
   };
 
-  const isWithin24Hours = (date: Date): boolean => {
+  const isWithinBookAheadWindow = (date: Date): boolean => {
     const now = new Date();
-    return isBefore(date, addHours(now, 24));
+    return isBefore(date, addHours(now, 4));
   };
 
   // ─── Plan status info ───────────────────────────────────────────────
@@ -335,7 +335,7 @@ const BookAppointment = () => {
                     onSelect={setSelectedDate}
                     numberOfMonths={getCalendarMonths()}
                     disabledDate={(date) => {
-                      if (isWithin24Hours(date)) return true;
+                      if (isWithinBookAheadWindow(date)) return true;
                       if (balance?.plan && !isDateInPlanRange(date)) return true;
                       return false;
                     }}
@@ -386,7 +386,7 @@ const BookAppointment = () => {
                   <div className="flex flex-col gap-1 text-xs text-blue-700">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Puedes agendar con un <strong>mínimo de 24 horas</strong> de anticipación</span>
+                      <span>Puedes agendar con un <strong>mínimo de 4 horas</strong> de anticipación</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Ban className="w-3.5 h-3.5" />

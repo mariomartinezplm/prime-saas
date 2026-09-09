@@ -60,12 +60,12 @@ export const appointmentService = {
 
   // Crear citas masivas
   bulkCreate: async (data: BulkBookingData): Promise<{
-    appointments: Appointment[];
-    errors: Array<{ date: string; startTime: string; error: string }>;
+    created: Appointment[];
+    skipped: Array<{ fecha: string; motivo: string }>;
   }> => {
     const response = await api.post<APIResponse<{
-      appointments: Appointment[];
-      errors: Array<{ date: string; startTime: string; error: string }>;
+      created: Appointment[];
+      skipped: Array<{ fecha: string; motivo: string }>;
     }>>('/appointments/bulk', data);
     return response.data.data;
   },

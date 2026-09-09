@@ -1,9 +1,16 @@
 import Appointment from '../models/Appointment.js';
 import User from '../models/User.js';
-import Availability from '../models/Availability.js';
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, addDays, parseISO, format, isBefore, addHours } from 'date-fns';
+import { parseISO, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../services/emailService.js';
 import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
+import {
+  MAX_PATIENTS_PER_SLOT,
+  PATIENT_BOOK_AHEAD_HOURS,
+  PATIENT_CANCEL_AHEAD_HOURS,
+  BULK_BOOKING_MAX_ITEMS,
+  nowInSantiago,
+  countOverlappingAppointments
+} from '../services/bookingRulesService.js';
 
 // Tipos de cita que sí consumen una sesión del plan (Paso 15 de BLUEPRINT.md).
 // 'evaluacion' queda fuera a propósito: es un primer contacto, no una sesión
@@ -30,36 +37,9 @@ async function checkSessionBalanceForBooking(patientId, type) {
   };
 }
 
-// ─── Constantes de reglas ────────────────────────────────────────────────────
-const MAX_PATIENTS_PER_SLOT = 4;         // Máximo 4 pacientes por hora por kinesiólogo
-const PATIENT_BOOK_AHEAD_HOURS = 24;     // Pacientes: mínimo 24h de anticipación para agendar
-const PATIENT_CANCEL_AHEAD_HOURS = 4;    // Pacientes: mínimo 4h de anticipación para cancelar
-
 // ─── Helper: verificar si el usuario es staff ────────────────────────────────
 function isStaff(user) {
   return ['admin', 'professional'].includes(user.role);
-}
-
-// ─── Helper: contar pacientes solapados en un horario ──────────────────────────
-async function countPatientsInSlot(professionalId, date, targetStartTime) {
-  const targetDate = new Date(date);
-
-  // Calcular hora de fin asumiendo 1 hora de duración para verificar solapamientos
-  const [hours, minutes] = targetStartTime.split(':').map(Number);
-  const endHours = (hours + 1).toString().padStart(2, '0');
-  const targetEndTime = `${endHours}:${minutes.toString().padStart(2, '0')}`;
-
-  return await Appointment.countDocuments({
-    professional: professionalId,
-    date: {
-      $gte: startOfDay(targetDate),
-      $lte: endOfDay(targetDate)
-    },
-    // Condición de solapamiento: (cita.inicio < target.fin) AND (cita.fin > target.inicio)
-    startTime: { $lt: targetEndTime },
-    endTime: { $gt: targetStartTime },
-    status: { $ne: 'cancelled' }
-  });
 }
 
 // @desc    Crear nueva cita
@@ -98,7 +78,7 @@ export const createAppointment = async (req, res) => {
   // ─── Reglas solo para PACIENTES (staff puede agendar sin restricciones) ───
   const appointmentDate = new Date(date);
   const appointmentDateTime = new Date(`${appointmentDate.toISOString().split('T')[0]}T${startTime}`);
-  const now = new Date();
+  const now = nowInSantiago();
 
   // No permitir citas en el pasado (para todos)
   if (isBefore(appointmentDateTime, now)) {
@@ -111,11 +91,12 @@ export const createAppointment = async (req, res) => {
   const sessionType = type || 'entrenamiento';
 
   if (!isStaff(req.user)) {
-    // ──── REGLA 1: Pacientes deben agendar con 24h de anticipación ────
+    // ──── REGLA 1: Pacientes deben agendar con anticipación mínima ────
     const minBookingTime = addHours(now, PATIENT_BOOK_AHEAD_HOURS);
     if (isBefore(appointmentDateTime, minBookingTime)) {
       return res.status(400).json({
         success: false,
+        code: 'BOOKING_WINDOW',
         message: `Las citas deben agendarse con al menos ${PATIENT_BOOK_AHEAD_HOURS} horas de anticipación`
       });
     }
@@ -132,7 +113,7 @@ export const createAppointment = async (req, res) => {
   }
 
   // ──── REGLA 5: Máximo 4 pacientes por hora por kinesiólogo (para todos) ────
-  const patientsInSlot = await countPatientsInSlot(professional, date, startTime);
+  const patientsInSlot = await countOverlappingAppointments(professional, date, startTime);
   if (patientsInSlot >= MAX_PATIENTS_PER_SLOT) {
     return res.status(400).json({
       success: false,
@@ -335,8 +316,7 @@ export const cancelAppointment = async (req, res) => {
     let shouldRefund = true;
     if (!isStaff(req.user)) {
       const appointmentDateTime = new Date(`${appointment.date.toISOString().split('T')[0]}T${appointment.startTime}`);
-      const now = new Date();
-      const minCancelTime = addHours(now, PATIENT_CANCEL_AHEAD_HOURS);
+      const minCancelTime = addHours(nowInSantiago(), PATIENT_CANCEL_AHEAD_HOURS);
       shouldRefund = isBefore(minCancelTime, appointmentDateTime);
     }
     // Cancelación hecha por el centro (staff): siempre se devuelve la sesión,
@@ -456,122 +436,6 @@ export const updateAppointment = async (req, res) => {
   }
 };
 
-// @desc    Obtener horarios disponibles para una fecha
-// @route   GET /api/appointments/availability/:professionalId/:date
-// @access  Private
-export const getAvailability = async (req, res) => {
-  try {
-    const { professionalId, date } = req.params;
-    const targetDate = parseISO(date);
-
-    // Buscar la disponibilidad configurada del profesional
-    const availability = await Availability.findOne({ professional: professionalId });
-
-    if (!availability) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          availableSlots: [],
-          message: 'El profesional no ha configurado su horario'
-        }
-      });
-    }
-
-    const dayOfWeek = targetDate.getDay();
-
-    // Obtener los horarios para este día de la semana
-    const daySchedule = availability.weeklySchedule.find(d => d.dayOfWeek === dayOfWeek);
-
-    if (!daySchedule || daySchedule.slots.length === 0) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          availableSlots: [],
-          message: 'No hay horarios configurados para este día'
-        }
-      });
-    }
-
-    // Extraer todos los startTimes configurados
-    let possibleSlots = daySchedule.slots.map(s => s.startTime);
-
-    // Revisar si la fecha entera está bloqueada
-    const targetDateString = targetDate.toISOString().split('T')[0];
-    const blocked = availability.blockedDates.find(b => {
-      const bDate = new Date(b.date);
-      return bDate.toISOString().split('T')[0] === targetDateString;
-    });
-
-    if (blocked) {
-      if (blocked.allDay) {
-        return res.status(200).json({
-          success: true,
-          data: { availableSlots: [], message: 'El día está bloqueado' }
-        });
-      }
-      const blockedStartTimes = blocked.slots.map(s => s.startTime);
-      possibleSlots = possibleSlots.filter(slot => !blockedStartTimes.includes(slot));
-    }
-
-    // Ordenar los slots
-    possibleSlots.sort();
-
-    // Obtener citas existentes para calcular ocupaciones y solapamientos reales
-    const existingAppointments = await Appointment.find({
-      professional: professionalId,
-      date: {
-        $gte: startOfDay(targetDate),
-        $lte: endOfDay(targetDate)
-      },
-      status: { $ne: 'cancelled' }
-    });
-
-    const slotsWithAvailability = [];
-    const availableSlots = [];
-
-    for (const slot of possibleSlots) {
-      // Calcular hora de fin asumiendo 1 hora de duración para verificar solapamientos
-      const [hours, minutes] = slot.split(':').map(Number);
-      const endHours = (hours + 1).toString().padStart(2, '0');
-      const targetEndTime = `${endHours}:${minutes.toString().padStart(2, '0')}`;
-
-      // Contar solapamientos reales cruzados
-      const overlappingAppointments = existingAppointments.filter(apt => {
-        return apt.startTime < targetEndTime && apt.endTime > slot;
-      });
-
-      const bookedCount = overlappingAppointments.length;
-      const isFull = bookedCount >= MAX_PATIENTS_PER_SLOT;
-
-      slotsWithAvailability.push({
-        time: slot,
-        booked: bookedCount,
-        available: Math.max(0, MAX_PATIENTS_PER_SLOT - bookedCount),
-        isFull
-      });
-
-      if (!isFull) {
-        availableSlots.push(slot);
-      }
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        date: format(targetDate, 'yyyy-MM-dd'),
-        availableSlots,
-        slotsWithAvailability,
-        maxPerSlot: MAX_PATIENTS_PER_SLOT
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Error al obtener disponibilidad'
-    });
-  }
-};
-
 // @desc    Crear múltiples citas (reserva masiva / horario recurrente)
 // @route   POST /api/appointments/bulk
 // @access  Private
@@ -586,73 +450,102 @@ export const bulkCreateAppointments = async (req, res) => {
       });
     }
 
-    const patientId = req.user.role === 'patient' ? req.user._id : req.body.patient;
-    const now = new Date();
-    const created = [];
-    const errors = [];
-
-    // ──── Bloqueo por ClientPlan vencido o sin sesiones disponibles ────
-    // Se verifica una sola vez (aplica al mismo paciente durante todo el bloque de citas).
-    if (!isStaff(req.user)) {
-      const balanceCheck = await checkSessionBalanceForBooking(patientId);
-      if (balanceCheck) {
-        return res.status(balanceCheck.status).json(balanceCheck.body);
-      }
+    if (appointmentsData.length > BULK_BOOKING_MAX_ITEMS) {
+      return res.status(400).json({
+        success: false,
+        message: `Máximo ${BULK_BOOKING_MAX_ITEMS} citas por reserva masiva`
+      });
     }
 
+    const patientId = req.user.role === 'patient' ? req.user._id : req.body.patient;
+    const now = nowInSantiago();
+    const created = [];
+    const skipped = [];
+
+    // Cada cita del lote se valida y descuenta individualmente (saldo, 4h,
+    // cupo, tipo) — antes esto se saltaba casi todo: el saldo se chequeaba una
+    // sola vez con una llamada rota (sin el `type`, así que nunca bloqueaba
+    // nada) y la sesión nunca se descontaba, dejando la reserva masiva fuera
+    // del motor de descuento del Paso 15 por completo.
     for (const apt of appointmentsData) {
+      const { professional, date, startTime } = apt;
+      const sessionType = apt.type || 'entrenamiento';
+
       try {
-        const { professional, date, startTime, type } = apt;
-
-        // Forzar endTime a 1 hora después de startTime
-        const [hours, minutes] = startTime.split(':').map(Number);
-        const endHours = (hours + 1).toString().padStart(2, '0');
-        const endTime = `${endHours}:${minutes.toString().padStart(2, '0')}`;
-
-        // Validate professional
         const professionalUser = await User.findById(professional);
         if (!professionalUser || !['admin', 'professional'].includes(professionalUser.role)) {
-          errors.push({ date, startTime, error: 'Profesional no encontrado' });
+          skipped.push({ fecha: date, motivo: 'Profesional no encontrado' });
           continue;
         }
 
         const appointmentDate = new Date(date);
         const appointmentDateTime = new Date(`${appointmentDate.toISOString().split('T')[0]}T${startTime}`);
 
-        // 24hr rule for patients
+        if (isBefore(appointmentDateTime, now)) {
+          skipped.push({ fecha: date, motivo: 'La fecha ya pasó' });
+          continue;
+        }
+
         if (!isStaff(req.user)) {
           const minBookingTime = addHours(now, PATIENT_BOOK_AHEAD_HOURS);
           if (isBefore(appointmentDateTime, minBookingTime)) {
-            errors.push({ date, startTime, error: `Debe ser con al menos ${PATIENT_BOOK_AHEAD_HOURS} horas de anticipación` });
+            skipped.push({ fecha: date, motivo: `Debe ser con al menos ${PATIENT_BOOK_AHEAD_HOURS} horas de anticipación` });
+            continue;
+          }
+
+          const balanceCheck = await checkSessionBalanceForBooking(patientId, sessionType);
+          if (balanceCheck) {
+            skipped.push({ fecha: date, motivo: balanceCheck.body.message });
             continue;
           }
         }
 
-        // Check slot capacity (4 per slot)
-        const patientsInSlot = await countPatientsInSlot(professional, date, startTime);
+        const patientsInSlot = await countOverlappingAppointments(professional, date, startTime);
         if (patientsInSlot >= MAX_PATIENTS_PER_SLOT) {
-          errors.push({ date, startTime, error: `Horario lleno (${MAX_PATIENTS_PER_SLOT}/${MAX_PATIENTS_PER_SLOT})` });
+          skipped.push({ fecha: date, motivo: `Horario lleno (${MAX_PATIENTS_PER_SLOT}/${MAX_PATIENTS_PER_SLOT})` });
           continue;
         }
 
-        const appointment = await Appointment.create({
-          patient: patientId,
-          professional,
-          date: appointmentDate,
-          startTime,
-          endTime,
-          type: type || 'entrenamiento'
-        });
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const endTime = `${(hours + 1).toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+        let deduction = null;
+        const mustDeduct = !isStaff(req.user) && DEDUCTIBLE_TYPES.includes(sessionType);
+        if (mustDeduct) {
+          deduction = await deductSession(patientId, sessionType, null);
+          if (!deduction) {
+            skipped.push({ fecha: date, motivo: 'Alguien más tomó tu último cupo disponible' });
+            continue;
+          }
+        }
+
+        let appointment;
+        try {
+          appointment = await Appointment.create({
+            patient: patientId,
+            professional,
+            date: appointmentDate,
+            startTime,
+            endTime,
+            type: sessionType,
+            sessionDeducted: !!deduction,
+            deduction: deduction || undefined
+          });
+        } catch (createError) {
+          if (deduction) await refundSession({ deduction });
+          skipped.push({ fecha: date, motivo: createError.message || 'Error al crear la cita' });
+          continue;
+        }
 
         await appointment.populate('patient', 'firstName lastName email phone');
         await appointment.populate('professional', 'firstName lastName email');
         created.push(appointment);
       } catch (err) {
-        errors.push({ date: apt.date, startTime: apt.startTime, error: err.message });
+        skipped.push({ fecha: date, motivo: err.message || 'Error inesperado' });
       }
     }
 
-    // Send one consolidated email for bulk bookings
+    // Un solo email consolidado para toda la reserva masiva
     if (created.length > 0) {
       const firstApt = created[0];
       sendAppointmentCreatedEmail({
@@ -667,8 +560,8 @@ export const bulkCreateAppointments = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `${created.length} citas creadas${errors.length > 0 ? `, ${errors.length} errores` : ''}`,
-      data: { appointments: created, errors }
+      message: `${created.length} citas creadas${skipped.length > 0 ? `, ${skipped.length} no se pudieron reservar` : ''}`,
+      data: { created, skipped }
     });
   } catch (error) {
     res.status(500).json({

@@ -47,8 +47,8 @@ const Terms = () => {
 
           <h2 className="text-2xl font-bold text-brand-dark mb-4">3. Política de cancelaciones</h2>
           <ul className="text-muted-foreground mb-6 space-y-2">
-            <li>• Cancelaciones con más de 24 horas: sin costo</li>
-            <li>• Cancelaciones con menos de 24 horas: se descuenta de tu plan</li>
+            <li>• Cancelaciones con 4 horas o más de anticipación: sin costo</li>
+            <li>• Cancelaciones con menos de 4 horas: se descuenta de tu plan</li>
             <li>• No presentarse a la cita: se considera sesión utilizada</li>
             <li>• Emergencias médicas: flexibilidad según el caso</li>
           </ul>

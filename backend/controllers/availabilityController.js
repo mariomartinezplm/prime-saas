@@ -1,6 +1,6 @@
 import Availability from '../models/Availability.js';
-import Appointment from '../models/Appointment.js';
-import { startOfDay, endOfDay, parseISO, getDay } from 'date-fns';
+import { parseISO, getDay } from 'date-fns';
+import { MAX_PATIENTS_PER_SLOT, countOverlappingAppointments } from '../services/bookingRulesService.js';
 
 // @desc    Obtener disponibilidad de un profesional
 // @route   GET /api/availability/:professionalId
@@ -187,17 +187,22 @@ export const getAvailableSlots = async (req, res) => {
       blockedSlots = blocked.slots.map(s => s.startTime);
     }
 
-    // Get existing appointments
-    const existingAppointments = await Appointment.find({
-      professional: professionalId,
-      date: { $gte: startOfDay(targetDate), $lte: endOfDay(targetDate) },
-      status: { $ne: 'cancelled' }
-    });
+    // Un slot cuenta como "reservado" (lleno) solo cuando llega al máximo de
+    // pacientes simultáneos, no con la primera cita — antes cualquier cita en
+    // un horario lo marcaba lleno para todos, aunque quedaran cupos (regla de
+    // negocio: máximo 4 pacientes simultáneos por profesional).
+    const candidateSlots = allSlots.filter(slot => !blockedSlots.includes(slot));
+    const availableSlots = [];
+    const bookedSlots = [];
 
-    const bookedSlots = existingAppointments.map(apt => apt.startTime);
-    const availableSlots = allSlots.filter(
-      slot => !bookedSlots.includes(slot) && !blockedSlots.includes(slot)
-    );
+    for (const slot of candidateSlots) {
+      const overlapping = await countOverlappingAppointments(professionalId, date, slot);
+      if (overlapping >= MAX_PATIENTS_PER_SLOT) {
+        bookedSlots.push(slot);
+      } else {
+        availableSlots.push(slot);
+      }
+    }
 
     res.status(200).json({
       success: true,

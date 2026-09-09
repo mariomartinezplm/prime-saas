@@ -183,7 +183,8 @@ const MyAppointments = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
-              Las citas deben cancelarse con al menos 24 horas de anticipación.
+              Si cancelas con al menos 4 horas de anticipación, la sesión se devuelve a tu plan.
+              Con menos de 4 horas, la sesión se pierde.
             </p>
             <div className="space-y-2">
               <Label>Razón de cancelación (opcional)</Label>

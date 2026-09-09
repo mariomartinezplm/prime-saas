@@ -73,8 +73,8 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
         current = addDays(current, 1);
       }
 
-      // Must be at least 24hrs from now
-      if (isBefore(current, addHours(now, 24))) {
+      // Debe ser al menos 4h desde ahora (mismo mínimo que exige el backend)
+      if (isBefore(current, addHours(now, 4))) {
         current = addDays(current, 7);
       }
 
@@ -107,9 +107,9 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
         })),
       });
 
-      toast.success(`${result.appointments.length} citas reservadas exitosamente`);
-      if (result.errors.length > 0) {
-        toast.warning(`${result.errors.length} horarios no estaban disponibles`);
+      toast.success(`${result.created.length} citas reservadas exitosamente`);
+      if (result.skipped.length > 0) {
+        toast.warning(`${result.skipped.length} horarios no se pudieron reservar`);
       }
       onClose();
     } catch (err: unknown) {

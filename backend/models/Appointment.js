@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { addHours, isBefore, parseISO } from 'date-fns';
+import { isBefore } from 'date-fns';
+import { nowInSantiago } from '../utils/timezone.js';
 
 const appointmentSchema = new mongoose.Schema({
   patient: {
@@ -88,30 +89,20 @@ appointmentSchema.index({ patient: 1, date: 1 });
 appointmentSchema.index({ professional: 1, date: 1 });
 appointmentSchema.index({ date: 1, status: 1 });
 
-// Validación personalizada: no permitir reservas en el pasado (excepto admin)
+// Validación personalizada: no permitir reservas en el pasado (excepto admin).
+// Compara contra la hora real de Santiago, no la del servidor (Paso 17 de
+// BLUEPRINT.md) — el servidor corre en UTC, así que `new Date()` directo
+// desfasaba esta regla varias horas respecto a la hora real de Chile.
 appointmentSchema.pre('save', function (next) {
   if (this.isNew && this.status === 'scheduled') {
     const appointmentDateTime = new Date(`${this.date.toISOString().split('T')[0]}T${this.startTime}`);
-    const now = new Date();
 
-    if (isBefore(appointmentDateTime, now)) {
+    if (isBefore(appointmentDateTime, nowInSantiago())) {
       return next(new Error('No se pueden crear citas en el pasado'));
     }
   }
   next();
 });
-
-// Método para verificar si la cita puede ser cancelada (4 horas de anticipación para pacientes)
-appointmentSchema.methods.canBeCancelled = function (isStaffUser = false) {
-  if (isStaffUser) return this.status === 'scheduled'; // Staff puede cancelar siempre
-
-  const appointmentDateTime = new Date(`${this.date.toISOString().split('T')[0]}T${this.startTime}`);
-  const now = new Date();
-  const fourHoursFromNow = addHours(now, 4);
-
-  // Pacientes: debe ser al menos 4 horas antes de la cita
-  return isBefore(fourHoursFromNow, appointmentDateTime) && this.status === 'scheduled';
-};
 
 // Virtual para obtener la fecha y hora completa
 appointmentSchema.virtual('fullDateTime').get(function () {

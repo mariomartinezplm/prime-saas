@@ -5,7 +5,6 @@ import {
   getAppointment,
   cancelAppointment,
   updateAppointment,
-  getAvailability,
   deleteAppointment,
   bulkCreateAppointments
 } from '../controllers/appointmentController.js';
@@ -15,9 +14,6 @@ const router = express.Router();
 
 // Todas las rutas requieren autenticación
 router.use(protect);
-
-// Rutas de disponibilidad (accesible para todos los usuarios autenticados)
-router.get('/availability/:professionalId/:date', getAvailability);
 
 // Reserva masiva
 router.post('/bulk', bulkCreateAppointments);
