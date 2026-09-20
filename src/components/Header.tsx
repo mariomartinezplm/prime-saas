@@ -77,21 +77,28 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* WhatsApp CTA */}
+          {/* Acceso a la app */}
           <div className="flex items-center space-x-4">
             <motion.div
+              className="hidden sm:flex flex-col items-center gap-1"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <Button
                 variant="default"
                 size="sm"
-                className="hidden sm:inline-flex bg-brand-secondary hover:bg-brand-secondary/90 text-white"
+                className="bg-brand-secondary hover:bg-brand-secondary/90 text-white"
                 onClick={() => navigate('/login')}
               >
                 <Calendar className="w-4 h-4 mr-2" />
-                Portal del Paciente
+                Ingresar a la App
               </Button>
+              <button
+                onClick={() => navigate('/instalar')}
+                className="text-xs text-brand-light hover:text-brand-secondary transition-colors underline underline-offset-2"
+              >
+                Descargar app
+              </button>
             </motion.div>
 
             {/* Mobile menu button */}
@@ -136,8 +143,14 @@ const Header = () => {
                 onClick={() => navigate('/login')}
               >
                 <Calendar className="w-4 h-4 mr-2" />
-                Portal del Paciente
+                Ingresar a la App
               </Button>
+              <button
+                onClick={() => navigate('/instalar')}
+                className="w-full text-center text-sm text-brand-light hover:text-brand-secondary transition-colors underline underline-offset-2 py-2"
+              >
+                Descargar app
+              </button>
             </nav>
           </motion.div>
         )}
