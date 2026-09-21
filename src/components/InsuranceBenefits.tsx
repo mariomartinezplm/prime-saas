@@ -49,7 +49,7 @@ const InsuranceBenefits = () => {
     };
 
     return (
-        <section className="py-20 bg-gradient-to-br from-brand-primary via-brand-primary to-brand-dark relative overflow-hidden">
+        <section className="py-20 bg-landing-dark relative overflow-hidden">
             {/* Animated background elements */}
             <motion.div
                 className="absolute top-10 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl"
@@ -85,13 +85,13 @@ const InsuranceBenefits = () => {
                     transition={{ duration: 0.6, ease: "easeOut" }}
                 >
                     <motion.span
-                        className="inline-block bg-brand-secondary/20 text-brand-secondary px-4 py-2 rounded-full text-sm font-semibold mb-6"
+                        className="inline-flex items-center gap-2 text-white text-sm font-semibold uppercase tracking-wider mb-6"
                         initial={{ opacity: 0, scale: 0.8 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.2 }}
                     >
-                        💰 Tu Salud No Tiene Por Qué Ser Cara
+                        <Wallet className="w-4 h-4" /> Tu Salud No Tiene Por Qué Ser Cara
                     </motion.span>
 
                     <h2 className="text-3xl lg:text-5xl font-bold text-white mb-6 leading-tight">
@@ -99,7 +99,7 @@ const InsuranceBenefits = () => {
                         <span className="text-brand-secondary">Salud</span>
                     </h2>
 
-                    <p className="text-xl text-white/80 max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-xl text-white/70 max-w-3xl mx-auto leading-relaxed">
                         Todos nuestros servicios de kinesiología son <strong className="text-white">reembolsables con Isapres</strong>.
                         Además, ofrecemos <strong className="text-white">precios especiales para Fonasa</strong> porque
                         creemos que cuidar tu cuerpo debe ser accesible para todos.

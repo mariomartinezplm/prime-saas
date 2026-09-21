@@ -58,6 +58,7 @@ export default {
           light: "hsl(var(--brand-light))",
           dark: "hsl(var(--brand-dark))",
         },
+        "landing-dark": "hsl(var(--landing-dark))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

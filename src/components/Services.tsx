@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Dumbbell, Heart, Activity } from "lucide-react";
+import { MessageCircle, Dumbbell, Heart, Activity, Target } from "lucide-react";
 import { motion } from "framer-motion";
 import { getWhatsAppUrl } from "@/config/contact";
 
@@ -21,7 +21,7 @@ const Services = () => {
   };
 
   return (
-    <section id="servicios" className="py-20 bg-brand-dark relative overflow-hidden">
+    <section id="servicios" className="py-20 bg-landing-dark relative overflow-hidden">
       {/* Animated background shapes */}
       <motion.div
         className="absolute -top-20 -right-20 w-80 h-80 bg-brand-primary/5 rounded-full blur-3xl"
@@ -50,25 +50,21 @@ const Services = () => {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
-          className="text-center mb-16"
+          className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
         >
-          <motion.span
-            className="inline-block bg-brand-secondary/20 text-brand-secondary px-4 py-2 rounded-full text-sm font-semibold mb-4"
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            🎯 Servicios Especializados
-          </motion.span>
-          <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-light mb-4">
-            Nuestros Servicios
-          </h2>
-          <p className="text-xl text-white/60 max-w-2xl mx-auto">
+          <div>
+            <span className="inline-flex items-center gap-2 text-brand-secondary text-sm font-semibold uppercase tracking-wider mb-3">
+              <Target className="w-4 h-4" /> Servicios Especializados
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-light max-w-lg">
+              Nuestros Servicios
+            </h2>
+          </div>
+          <p className="text-lg text-white/60 max-w-sm lg:text-right">
             Soluciones integrales para tu bienestar físico y recuperación
           </p>
         </motion.div>

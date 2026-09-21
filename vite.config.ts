@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
         display: "standalone",
         orientation: "portrait",
         theme_color: "#3D9AA6",
-        background_color: "#ffffff",
+        background_color: "#070A12",
         categories: ["health", "fitness"],
         icons: [
           {

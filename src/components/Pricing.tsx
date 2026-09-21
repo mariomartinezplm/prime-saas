@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Check, Clock, Calendar, Sparkles } from "lucide-react";
+import { MessageCircle, Check, Clock, Calendar, Sparkles, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import { getWhatsAppUrl } from "@/config/contact";
 
@@ -35,7 +35,7 @@ const Pricing = () => {
   };
 
   return (
-    <section id="precios" className="py-20 bg-brand-dark relative overflow-hidden">
+    <section id="precios" className="py-20 bg-landing-dark relative overflow-hidden">
       {/* Animated background */}
       <motion.div
         className="absolute top-0 right-0 w-[600px] h-[600px] bg-brand-secondary/5 rounded-full blur-3xl"
@@ -71,13 +71,13 @@ const Pricing = () => {
           transition={{ duration: 0.6 }}
         >
           <motion.span
-            className="inline-block bg-brand-secondary/10 text-brand-secondary px-4 py-2 rounded-full text-sm font-semibold mb-4"
+            className="inline-flex items-center gap-2 text-brand-secondary text-sm font-semibold uppercase tracking-wider mb-4"
             initial={{ opacity: 0, scale: 0.8 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
           >
-            💰 Invierte en Ti
+            <Wallet className="w-4 h-4" /> Invierte en Ti
           </motion.span>
           <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-light mb-4">
             Planes y Horarios
@@ -137,9 +137,6 @@ const Pricing = () => {
               >
                 Entrenamiento Personalizado
               </motion.h3>
-              <div className="mb-2">
-                <span className="text-sm text-white/50">desde</span>
-              </div>
               <motion.div
                 className="mb-4"
                 initial={{ opacity: 0, scale: 0.5 }}
@@ -147,11 +144,16 @@ const Pricing = () => {
                 viewport={{ once: true }}
                 transition={{ delay: 0.3, type: "spring" }}
               >
-                <span className="text-6xl font-bold text-brand-light">
-                  $89.990
+                <span className="text-6xl font-bold text-brand-secondary">
+                  100%
                 </span>
-                <span className="text-white/50"> /mensual</span>
+                <div className="text-lg font-semibold text-brand-light mt-1">
+                  Personalizado
+                </div>
               </motion.div>
+              <div className="mb-2">
+                <span className="text-sm text-white/50">Cotiza tu plan según tu objetivo</span>
+              </div>
             </div>
 
             <div className="space-y-4 mb-8 relative z-10">

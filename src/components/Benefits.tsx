@@ -1,4 +1,4 @@
-import { Clock, Target, TrendingUp, Shield, Heart, Zap } from "lucide-react";
+import { Clock, Target, TrendingUp, Shield, Heart, Zap, Dumbbell, Stethoscope } from "lucide-react";
 import { motion } from "framer-motion";
 
 const Benefits = () => {
@@ -73,7 +73,7 @@ const Benefits = () => {
   };
 
   return (
-    <section className="py-20 bg-[#0B1221] relative overflow-hidden">
+    <section className="py-20 bg-landing-dark relative overflow-hidden">
       {/* Subtle animated background */}
       <motion.div
         className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#398CA2]/5 rounded-full blur-3xl"
@@ -104,25 +104,21 @@ const Benefits = () => {
         {/* Training Benefits */}
         <div className="mb-20">
           <motion.div
-            className="text-center mb-12"
+            className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-12"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6 }}
           >
-            <motion.span
-              className="inline-block bg-[#398CA2]/20 text-[#4BA5BC] px-4 py-2 rounded-full text-sm font-semibold mb-4"
-              initial={{ opacity: 0, scale: 0.8 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-            >
-              💪 Entrenamiento
-            </motion.span>
-            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-white mb-4">
-              Entrenamiento Personalizado
-            </h2>
-            <p className="text-xl text-white/60 max-w-2xl mx-auto">
+            <div>
+              <span className="inline-flex items-center gap-2 text-[#4BA5BC] text-sm font-semibold uppercase tracking-wider mb-3">
+                <Dumbbell className="w-4 h-4" /> Entrenamiento
+              </span>
+              <h2 className="text-3xl lg:text-4xl font-serif font-bold text-white max-w-lg">
+                Entrenamiento Personalizado
+              </h2>
+            </div>
+            <p className="text-lg text-white/60 max-w-sm lg:text-right">
               Resultados reales para personas ocupadas que buscan eficiencia
             </p>
           </motion.div>
@@ -166,25 +162,21 @@ const Benefits = () => {
         {/* Kinesiología Benefits */}
         <div>
           <motion.div
-            className="text-center mb-12"
+            className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-12"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6 }}
           >
-            <motion.span
-              className="inline-block bg-[#2F7A8F]/20 text-[#4BA5BC] px-4 py-2 rounded-full text-sm font-semibold mb-4"
-              initial={{ opacity: 0, scale: 0.8 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-            >
-              🩺 Rehabilitación
-            </motion.span>
-            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-white mb-4">
-              Kinesiología
-            </h2>
-            <p className="text-xl text-white/60 max-w-2xl mx-auto">
+            <div>
+              <span className="inline-flex items-center gap-2 text-[#4BA5BC] text-sm font-semibold uppercase tracking-wider mb-3">
+                <Stethoscope className="w-4 h-4" /> Rehabilitación
+              </span>
+              <h2 className="text-3xl lg:text-4xl font-serif font-bold text-white max-w-lg">
+                Kinesiología
+              </h2>
+            </div>
+            <p className="text-lg text-white/60 max-w-sm lg:text-right">
               Recuperación, retorno deportivo y tratamiento de dolor crónico
             </p>
           </motion.div>

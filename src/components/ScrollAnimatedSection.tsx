@@ -20,13 +20,19 @@ const ScrollAnimatedSection: React.FC<ScrollAnimatedSectionProps> = ({
     triggerOnce: true
   });
 
+  // Nota: nunca se anima "opacity" aquí. Este wrapper envuelve secciones
+  // full-bleed con su propio fondo (bg-landing-dark, etc.) — si empieza en
+  // opacity:0, la sección es invisible hasta que el observer dispara, y se
+  // ve el blanco del <body> a través de ella (esa era una causa real del
+  // bug de "la página se ve blanca"). El desplazamiento leve (x/y) es
+  // suficiente para el efecto de entrada sin ese riesgo.
   const getInitialTransform = () => {
     switch (direction) {
-      case 'up': return { y: 30, opacity: 0 };
-      case 'down': return { y: -30, opacity: 0 };
-      case 'left': return { x: 30, opacity: 0 };
-      case 'right': return { x: -30, opacity: 0 };
-      default: return { y: 30, opacity: 0 };
+      case 'up': return { y: 30 };
+      case 'down': return { y: -30 };
+      case 'left': return { x: 30 };
+      case 'right': return { x: -30 };
+      default: return { y: 30 };
     }
   };
 
@@ -34,12 +40,12 @@ const ScrollAnimatedSection: React.FC<ScrollAnimatedSectionProps> = ({
     switch (direction) {
       case 'up':
       case 'down':
-        return { y: 0, opacity: 1 };
+        return { y: 0 };
       case 'left':
       case 'right':
-        return { x: 0, opacity: 1 };
+        return { x: 0 };
       default:
-        return { y: 0, opacity: 1 };
+        return { y: 0 };
     }
   };
 

@@ -96,6 +96,12 @@
     --brand-dark: 210 12% 16%;
     /* #252B33 - Texto oscuro */
 
+    /* Canvas oscuro único de la landing pública (/) — separado de --brand-dark
+       porque ese token se usa también como color de TEXTO en la app en modo claro.
+       Antes había 4 tonos oscuros distintos regados entre secciones; este es el único. */
+    --landing-dark: 224 44% 5%;
+    /* #070A12 */
+
     /* ====================
        SIDEBAR COLORS - FIJOS
        ==================== */

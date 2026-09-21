@@ -7,6 +7,7 @@ import Team from "@/components/Team";
 import Partnerships from "@/components/Partnerships";
 import InsuranceBenefits from "@/components/InsuranceBenefits";
 import Pricing from "@/components/Pricing";
+import FAQ from "@/components/FAQ";
 import Location from "@/components/Location";
 import ContactForm from "@/components/ContactForm";
 import Footer from "@/components/Footer";
@@ -45,6 +46,10 @@ const Index = () => {
 
         <ScrollAnimatedSection delay={0.1}>
           <Pricing />
+        </ScrollAnimatedSection>
+
+        <ScrollAnimatedSection delay={0.1}>
+          <FAQ />
         </ScrollAnimatedSection>
 
         <ScrollAnimatedSection delay={0.2}>

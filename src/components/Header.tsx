@@ -77,8 +77,14 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* WhatsApp CTA */}
+          {/* App CTAs */}
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/instalar')}
+              className="hidden sm:inline-block text-sm text-brand-light/70 hover:text-brand-secondary transition-colors"
+            >
+              Descargar app
+            </button>
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -90,7 +96,7 @@ const Header = () => {
                 onClick={() => navigate('/login')}
               >
                 <Calendar className="w-4 h-4 mr-2" />
-                Portal del Paciente
+                Ingresar a la App
               </Button>
             </motion.div>
 
@@ -107,7 +113,7 @@ const Header = () => {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <motion.div
-            className="md:hidden py-6 border-t border-brand-secondary/20 bg-brand-dark/95 backdrop-blur-sm mt-4 rounded-lg"
+            className="md:hidden py-6 border-t border-brand-secondary/20 bg-landing-dark/95 backdrop-blur-sm mt-4 rounded-lg"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -129,6 +135,12 @@ const Header = () => {
                   {item.label}
                 </button>
               ))}
+              <button
+                onClick={() => { navigate('/instalar'); setIsMenuOpen(false); }}
+                className="text-left text-brand-light/70 hover:text-brand-secondary transition-colors font-medium py-2"
+              >
+                Descargar app
+              </button>
               <Button
                 variant="default"
                 size="sm"
@@ -136,7 +148,7 @@ const Header = () => {
                 onClick={() => navigate('/login')}
               >
                 <Calendar className="w-4 h-4 mr-2" />
-                Portal del Paciente
+                Ingresar a la App
               </Button>
             </nav>
           </motion.div>
