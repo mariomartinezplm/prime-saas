@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Calendar, User, TrendingUp } from "lucide-react";
+import { MessageCircle, Calendar, User, TrendingUp, ClipboardList } from "lucide-react";
 import { motion } from "framer-motion";
 import { getWhatsAppUrl } from "@/config/contact";
 
@@ -57,7 +57,7 @@ const HowItWorks = () => {
   };
 
   return (
-    <section id="como-funciona" className="py-20 bg-[#0F1A2E] relative overflow-hidden">
+    <section id="como-funciona" className="py-20 bg-landing-dark relative overflow-hidden">
       {/* Animated background */}
       <motion.div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#398CA2]/3 rounded-full blur-3xl"
@@ -74,25 +74,21 @@ const HowItWorks = () => {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
-          className="text-center mb-16"
+          className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
         >
-          <motion.span
-            className="inline-block bg-[#398CA2]/20 text-[#4BA5BC] px-4 py-2 rounded-full text-sm font-semibold mb-4"
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            📋 Proceso Simple
-          </motion.span>
-          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
-            ¿Cómo funciona?
-          </h2>
-          <p className="text-xl text-white/60 max-w-2xl mx-auto">
+          <div>
+            <span className="inline-flex items-center gap-2 text-[#4BA5BC] text-sm font-semibold uppercase tracking-wider mb-3">
+              <ClipboardList className="w-4 h-4" /> Proceso Simple
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-white max-w-lg">
+              ¿Cómo funciona?
+            </h2>
+          </div>
+          <p className="text-lg text-white/60 max-w-sm lg:text-right">
             Proceso simple y efectivo para llevarte a tus objetivos
           </p>
         </motion.div>
@@ -195,7 +191,7 @@ const HowItWorks = () => {
 
         {/* CTA Section */}
         <motion.div
-          className="text-center bg-gradient-to-br from-[#398CA2]/20 to-[#252B33]/80 backdrop-blur-sm rounded-3xl p-12 relative overflow-hidden border border-white/10"
+          className="text-center bg-gradient-to-br from-[#398CA2]/20 to-landing-dark/80 backdrop-blur-sm rounded-3xl p-12 relative overflow-hidden border border-white/10"
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}

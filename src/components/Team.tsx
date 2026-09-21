@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, User } from "lucide-react";
 import { motion } from "framer-motion";
 import marioMartinez from "@/assets/mario-martinez.jpg";
-import tomasEspinoza from "@/assets/tomas-espinoza.jpg";
 
 const Team = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -18,16 +17,6 @@ const Team = () => {
     {
       name: "Felipe Vega",
       role: "Kinesiólogo - Entrenador",
-      image: null,
-    },
-    {
-      name: "Tomás Espinoza",
-      role: "Kinesiólogo - Entrenador",
-      image: tomasEspinoza,
-    },
-    {
-      name: "Rafael Castañeda",
-      role: "Kinesiólogo",
       image: null,
     },
   ];
@@ -66,15 +55,14 @@ const Team = () => {
   };
 
   return (
-    <section id="equipo" className="py-24 bg-brand-dark">
+    <section id="equipo" className="py-24 bg-landing-dark">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-serif font-bold text-white mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
+          <h2 className="text-4xl lg:text-5xl font-serif font-bold text-white max-w-lg">
             Nuestro Equipo
           </h2>
-          <p className="text-xl text-white/70 max-w-3xl mx-auto leading-relaxed">
-            Conoce a nuestros profesionales dedicados a tu salud, recuperación y
-            máximo rendimiento
+          <p className="text-lg text-white/70 max-w-sm lg:text-right leading-relaxed">
+            Conoce a nuestros profesionales dedicados a tu salud, recuperación y máximo rendimiento
           </p>
         </div>
 
@@ -159,8 +147,8 @@ const Team = () => {
           </div>
 
           {/* Fade edges */}
-          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[hsl(var(--brand-dark))] to-transparent z-10 pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[hsl(var(--brand-dark))] to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[hsl(var(--landing-dark))] to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[hsl(var(--landing-dark))] to-transparent z-10 pointer-events-none" />
         </div>
       </div>
     </section>

@@ -51,15 +51,14 @@ const Partnerships = () => {
   };
 
   return (
-    <section className="py-24 bg-brand-primary">
+    <section className="py-24 bg-landing-dark">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-brand-light mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
+          <h2 className="text-4xl lg:text-5xl font-bold text-brand-light max-w-lg">
             Socios Corporativos de Confianza
           </h2>
-          <p className="text-xl text-brand-light/80 max-w-3xl mx-auto leading-relaxed">
-            Empresas líderes confían en nosotros para mantener a sus equipos
-            saludables, en forma y rindiendo al máximo
+          <p className="text-lg text-white max-w-sm lg:text-right leading-relaxed">
+            Empresas líderes confían en nosotros para mantener a sus equipos saludables, en forma y rindiendo al máximo
           </p>
         </div>
 
@@ -110,11 +109,11 @@ const Partnerships = () => {
 
         {/* CTA Section */}
         <div className="text-center mt-16">
-          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 max-w-2xl mx-auto border border-white/20">
+          <div className="bg-brand-secondary/15 backdrop-blur-sm rounded-3xl p-8 max-w-2xl mx-auto border border-brand-secondary/30">
             <h3 className="text-2xl font-bold text-brand-light mb-4">
               ¿Quieres una Alianza Corporativa?
             </h3>
-            <p className="text-brand-light/80 mb-6 leading-relaxed">
+            <p className="text-white mb-6 leading-relaxed">
               Únete a líderes de la industria priorizando el bienestar de
               empleados. Ofrecemos programas corporativos de salud personalizados
               diseñados para aumentar la productividad y satisfacción laboral.

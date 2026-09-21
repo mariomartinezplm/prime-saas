@@ -22,10 +22,6 @@ const FAQ = () => {
       answer: "Sí, trabajamos frecuentemente con pacientes post-operatorios una vez que tienen el alta médica. Coordinamos con tu médico tratante para asegurar una rehabilitación segura y efectiva."
     },
     {
-      question: "¿Qué incluye la evaluación inicial?",
-      answer: "La evaluación incluye análisis postural, pruebas de movilidad, evaluación de fuerza, revisión de historial médico y deportivo, y definición de objetivos. Dura aproximadamente 60 minutos y es completamente gratuita."
-    },
-    {
       question: "¿Tienen planes para gente con poco tiempo?",
       answer: "¡Esa es nuestra especialidad! Nuestros entrenamientos están diseñados para ser máximo 60 minutos y súper efectivos. Tenemos horarios desde las 6 AM para que puedas entrenar antes del trabajo."
     },
@@ -36,21 +32,20 @@ const FAQ = () => {
     {
       question: "¿Qué necesito traer para entrenar?",
       answer: "Solo ropa cómoda, zapatillas deportivas y una botella de agua. Nosotros proporcionamos todo el equipamiento necesario: pesas, bandas, implementos de rehabilitación, etc."
-    },
-    {
-      question: "¿Ofrecen planes de alimentación?",
-      answer: "En nuestro plan premium incluimos orientación nutricional básica. Para planes detallados trabajamos con nutricionistas asociados que pueden complementar tu proceso."
     }
   ];
 
   return (
-    <section className="py-20 bg-brand-dark">
+    <section className="py-20 bg-landing-dark">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
+          <span className="inline-flex items-center gap-2 text-brand-secondary text-sm font-semibold uppercase tracking-wider mb-4">
+            Dudas Frecuentes
+          </span>
           <h2 className="text-3xl lg:text-4xl font-serif font-bold text-brand-light mb-4">
             Preguntas Frecuentes
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-white/60 max-w-2xl mx-auto">
             Resolvemos las dudas más comunes de nuestros futuros clientes
           </p>
         </div>
@@ -58,7 +53,7 @@ const FAQ = () => {
         <div className="max-w-3xl mx-auto">
           <div className="space-y-4 mb-12">
             {faqs.map((faq, index) => (
-              <div key={index} className="bg-brand-dark/80 backdrop-blur-sm rounded-lg shadow-card overflow-hidden border border-brand-secondary/10">
+              <div key={index} className="bg-white/5 backdrop-blur-sm rounded-lg shadow-card overflow-hidden border border-brand-secondary/10">
                 <button
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-brand-secondary/10 transition-smooth"
@@ -74,7 +69,7 @@ const FAQ = () => {
 
                 {openIndex === index && (
                   <div className="px-6 pb-4">
-                    <p className="text-muted-foreground leading-relaxed">
+                    <p className="text-white/60 leading-relaxed">
                       {faq.answer}
                     </p>
                   </div>
@@ -84,11 +79,11 @@ const FAQ = () => {
           </div>
 
           {/* Still have questions CTA */}
-          <div className="text-center bg-brand-dark/80 backdrop-blur-sm rounded-2xl p-8 shadow-card border border-brand-secondary/10">
+          <div className="text-center bg-white/5 backdrop-blur-sm rounded-2xl p-8 shadow-card border border-brand-secondary/10">
             <h3 className="text-xl font-bold text-brand-light mb-4">
               ¿Tienes más preguntas?
             </h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-white/60 mb-6">
               Nuestro equipo está disponible para resolver cualquier duda específica sobre tu caso
             </p>
             <Button

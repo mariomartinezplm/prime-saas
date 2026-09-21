@@ -77,28 +77,27 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Acceso a la app */}
+          {/* App CTAs */}
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/instalar')}
+              className="hidden sm:inline-block text-sm text-brand-light/70 hover:text-brand-secondary transition-colors"
+            >
+              Descargar app
+            </button>
             <motion.div
-              className="hidden sm:flex flex-col items-center gap-1"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <Button
                 variant="default"
                 size="sm"
-                className="bg-brand-secondary hover:bg-brand-secondary/90 text-white"
+                className="hidden sm:inline-flex bg-brand-secondary hover:bg-brand-secondary/90 text-white"
                 onClick={() => navigate('/login')}
               >
                 <Calendar className="w-4 h-4 mr-2" />
                 Ingresar a la App
               </Button>
-              <button
-                onClick={() => navigate('/instalar')}
-                className="text-xs text-brand-light hover:text-brand-secondary transition-colors underline underline-offset-2"
-              >
-                Descargar app
-              </button>
             </motion.div>
 
             {/* Mobile menu button */}
@@ -114,7 +113,7 @@ const Header = () => {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <motion.div
-            className="md:hidden py-6 border-t border-brand-secondary/20 bg-brand-dark/95 backdrop-blur-sm mt-4 rounded-lg"
+            className="md:hidden py-6 border-t border-brand-secondary/20 bg-landing-dark/95 backdrop-blur-sm mt-4 rounded-lg"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -136,6 +135,12 @@ const Header = () => {
                   {item.label}
                 </button>
               ))}
+              <button
+                onClick={() => { navigate('/instalar'); setIsMenuOpen(false); }}
+                className="text-left text-brand-light/70 hover:text-brand-secondary transition-colors font-medium py-2"
+              >
+                Descargar app
+              </button>
               <Button
                 variant="default"
                 size="sm"
@@ -145,12 +150,6 @@ const Header = () => {
                 <Calendar className="w-4 h-4 mr-2" />
                 Ingresar a la App
               </Button>
-              <button
-                onClick={() => navigate('/instalar')}
-                className="w-full text-center text-sm text-brand-light hover:text-brand-secondary transition-colors underline underline-offset-2 py-2"
-              >
-                Descargar app
-              </button>
             </nav>
           </motion.div>
         )}

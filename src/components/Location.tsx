@@ -39,7 +39,7 @@ const Location = () => {
   ];
 
   return (
-    <section id="ubicacion" className="py-20 bg-[#0B1221] relative overflow-hidden">
+    <section id="ubicacion" className="py-20 bg-landing-dark relative overflow-hidden">
       {/* Animated background */}
       <motion.div
         className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#398CA2]/5 rounded-full blur-3xl"
@@ -56,25 +56,21 @@ const Location = () => {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
-          className="text-center mb-16"
+          className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
         >
-          <motion.span
-            className="inline-block bg-[#398CA2]/20 text-[#4BA5BC] px-4 py-2 rounded-full text-sm font-semibold mb-4"
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            📍 Encuéntranos
-          </motion.span>
-          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
-            Nuestra Ubicación
-          </h2>
-          <p className="text-xl text-white/60 max-w-2xl mx-auto">
+          <div>
+            <span className="inline-flex items-center gap-2 text-[#4BA5BC] text-sm font-semibold uppercase tracking-wider mb-3">
+              <MapPin className="w-4 h-4" /> Encuéntranos
+            </span>
+            <h2 className="text-3xl lg:text-4xl font-serif font-bold text-white max-w-lg">
+              Nuestra Ubicación
+            </h2>
+          </div>
+          <p className="text-lg text-white/60 max-w-sm lg:text-right">
             Fácil acceso desde cualquier lugar de Puerto Montt con amplio estacionamiento gratis
           </p>
         </motion.div>
@@ -152,7 +148,7 @@ const Location = () => {
 
             {/* Directions & Contact */}
             <motion.div
-              className="bg-gradient-to-br from-[#398CA2]/15 to-[#252B33]/50 backdrop-blur-sm rounded-2xl p-8 border border-white/10"
+              className="bg-gradient-to-br from-[#398CA2]/15 to-landing-dark/50 backdrop-blur-sm rounded-2xl p-8 border border-white/10"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
