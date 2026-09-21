@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/guards/ProtectedRoute";
 import RoleRoute from "@/components/guards/RoleRoute";
 import AppLayout from "@/components/layouts/AppLayout";
+import { isLandingDomain, redirectToApp } from "@/lib/domain";
+import { useEffect } from "react";
 
 // Public pages
 import Index from "./pages/Index";
@@ -45,7 +47,19 @@ import GoogleCalendarCallback from "./pages/shared/GoogleCalendarCallback";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+// Rutas fuera de lo que primefh.cl (landing) sirve: se redirigen a
+// app.primefh.cl conservando la ruta (login, /app/*, callback, etc.)
+const RedirectToApp = () => {
+  useEffect(() => {
+    redirectToApp(`${window.location.pathname}${window.location.search}`);
+  }, []);
+  return null;
+};
+
+const App = () => {
+  const landingOnly = isLandingDomain();
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -53,39 +67,48 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Public routes */}
+            {/* Rutas públicas de la landing: viven en ambos dominios porque
+                localhost (dev) no pasa por isLandingDomain() y necesita ver
+                todo; en producción, primefh.cl solo expone estas. */}
             <Route path="/" element={<Index />} />
-            <Route path="/login" element={<LoginDual />} />
-            <Route path="/recuperar-contrasena" element={<RecoverPassword />} />
-            <Route path="/invitacion/:token" element={<AcceptInvite />} />
-            <Route path="/restablecer/:token" element={<ResetPassword />} />
             <Route path="/gracias" element={<ThankYou />} />
             <Route path="/privacidad" element={<Privacy />} />
             <Route path="/terminos" element={<Terms />} />
             <Route path="/instalar" element={<InstallApp />} />
 
-            {/* Patient Portal redirection */}
-            <Route path="/patient-portal" element={<Navigate to="/app/dashboard" replace />} />
+            {landingOnly ? (
+              /* primefh.cl: cualquier otra ruta (login, /app/*, etc.)
+                 no existe acá — se manda a app.primefh.cl */
+              <Route path="*" element={<RedirectToApp />} />
+            ) : (
+              <>
+                <Route path="/login" element={<LoginDual />} />
+                <Route path="/recuperar-contrasena" element={<RecoverPassword />} />
+                <Route path="/invitacion/:token" element={<AcceptInvite />} />
+                <Route path="/restablecer/:token" element={<ResetPassword />} />
 
-            {/* Google redirige aquí tras el OAuth de Calendario (Paso 28.A) */}
-            <Route
-              path="/auth/google/callback"
-              element={
-                <ProtectedRoute>
-                  <GoogleCalendarCallback />
-                </ProtectedRoute>
-              }
-            />
+                {/* Patient Portal redirection */}
+                <Route path="/patient-portal" element={<Navigate to="/app/dashboard" replace />} />
 
-            {/* Protected app routes */}
-            <Route
-              path="/app"
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
+                {/* Google redirige aquí tras el OAuth de Calendario (Paso 28.A) */}
+                <Route
+                  path="/auth/google/callback"
+                  element={
+                    <ProtectedRoute>
+                      <GoogleCalendarCallback />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Protected app routes */}
+                <Route
+                  path="/app"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
               {/* Patient routes — protegidas también por rol (Paso 14 de
                   BLUEPRINT.md): antes, un profesional o admin podía navegar
                   a estas rutas del paciente sin ningún guard de rol. */}
@@ -196,15 +219,18 @@ const App = () => (
 
               {/* Default redirect */}
               <Route index element={<Navigate to="dashboard" replace />} />
-            </Route>
+                </Route>
 
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
+                {/* Catch-all */}
+                <Route path="*" element={<NotFound />} />
+              </>
+            )}
           </Routes>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

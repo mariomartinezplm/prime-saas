@@ -4,11 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, Calendar } from "lucide-react";
 import logoImage from "@/assets/prime-fh-logo.png";
 import { motion } from "framer-motion";
+import { isLandingDomain, redirectToApp } from "@/lib/domain";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const navigate = useNavigate();
+
+  // En primefh.cl (landing), "/login" no existe como ruta interna:
+  // hay que saltar de dominio a app.primefh.cl.
+  const goToLogin = () => {
+    if (isLandingDomain()) {
+      redirectToApp('/login');
+    } else {
+      navigate('/login');
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -93,7 +104,7 @@ const Header = () => {
                 variant="default"
                 size="sm"
                 className="hidden sm:inline-flex bg-brand-secondary hover:bg-brand-secondary/90 text-white"
-                onClick={() => navigate('/login')}
+                onClick={goToLogin}
               >
                 <Calendar className="w-4 h-4 mr-2" />
                 Ingresar a la App
@@ -145,7 +156,7 @@ const Header = () => {
                 variant="default"
                 size="sm"
                 className="w-full mt-4 bg-brand-secondary hover:bg-brand-secondary/90 text-white"
-                onClick={() => navigate('/login')}
+                onClick={goToLogin}
               >
                 <Calendar className="w-4 h-4 mr-2" />
                 Ingresar a la App
