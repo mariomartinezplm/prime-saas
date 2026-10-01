@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { IS_APP_HOST, PUBLIC_SITE_URL } from "@/config/host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -300,9 +301,15 @@ const LoginDual = () => {
                         </TabsContent>
                     </Tabs>
 
-                    <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+                    <div className="mt-6 pt-6 border-t border-gray-200 text-center space-y-3">
                         <button
-                            onClick={() => navigate("/")}
+                            onClick={() => navigate("/instalar")}
+                            className="block w-full text-sm font-medium text-brand-dark hover:underline"
+                        >
+                            Instalar la app en mi celular
+                        </button>
+                        <button
+                            onClick={() => (IS_APP_HOST ? window.location.assign(PUBLIC_SITE_URL) : navigate("/"))}
                             className="text-sm text-gray-600 hover:text-brand-dark transition-colors"
                         >
                             ← Volver al sitio

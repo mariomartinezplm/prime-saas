@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/guards/ProtectedRoute";
 import RoleRoute from "@/components/guards/RoleRoute";
 import AppLayout from "@/components/layouts/AppLayout";
+import { IS_APP_HOST } from "@/config/host";
 
 // Public pages
 import Index from "./pages/Index";
@@ -54,7 +55,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={IS_APP_HOST ? <Navigate to="/login" replace /> : <Index />} />
             <Route path="/login" element={<LoginDual />} />
             <Route path="/recuperar-contrasena" element={<RecoverPassword />} />
             <Route path="/invitacion/:token" element={<AcceptInvite />} />
