@@ -21,6 +21,7 @@ import clientPlanRoutes from './routes/clientPlanRoutes.js';
 import extraSessionRoutes from './routes/extraSessionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import wellnessRoutes from './routes/wellnessRoutes.js';
+import fileRoutes from './routes/fileRoutes.js';
 import googleCalendarRoutes from './routes/googleCalendarRoutes.js';
 
 // Cargar variables de entorno
@@ -78,7 +79,8 @@ app.get('/', (req, res) => {
       clientPlans: '/api/client-plans',
       extraSessions: '/api/extra-sessions',
       notifications: '/api/notifications',
-      wellness: '/api/wellness'
+      wellness: '/api/wellness',
+      files: '/api/files'
     }
   });
 });
@@ -104,6 +106,7 @@ app.use('/api/client-plans', clientPlanRoutes);
 app.use('/api/extra-sessions', extraSessionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/wellness', wellnessRoutes);
+app.use('/api/files', fileRoutes);
 
 app.use('/api/google-calendar', googleCalendarRoutes);
 
