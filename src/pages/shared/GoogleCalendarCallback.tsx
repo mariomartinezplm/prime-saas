@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { googleCalendarService } from '@/services/googleCalendarService';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { useAppDarkTheme } from '@/hooks/useAppDarkTheme';
 
 // Google redirige aquí después de que el usuario autoriza (o rechaza) el
 // acceso — fuera del layout de la app, es solo una pantalla de tránsito
 // (Paso 28.A de BLUEPRINT.md).
 const GoogleCalendarCallback = () => {
+  useAppDarkTheme();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');

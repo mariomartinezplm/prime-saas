@@ -5,14 +5,19 @@ import { userService } from '@/services/userService';
 import { clientPlanService } from '@/services/clientPlanService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PLAN_CATALOG, SERVICE_TYPE_LABELS, type ServiceType } from '@/config/planCatalog';
+import SessionsSelect from '@/components/plans/SessionsSelect';
+import {
+  PLAN_CATALOG,
+  SERVICE_TYPE_LABELS,
+  DEFAULT_CHOICE,
+  choiceToPayload,
+  type ServiceType,
+  type SessionsChoice,
+} from '@/config/planCatalog';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2, Dumbbell, Stethoscope, PartyPopper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types';
-
-const KINESIOLOGIA_SESSIONS_FIJAS = 10;
 
 const SERVICE_ICON: Record<ServiceType, typeof Dumbbell> = {
   entrenamiento: Dumbbell,
@@ -21,7 +26,7 @@ const SERVICE_ICON: Record<ServiceType, typeof Dumbbell> = {
 
 interface RowState {
   serviceType: ServiceType;
-  sessionsTotal: number;
+  choice: SessionsChoice;
   submitting: boolean;
 }
 
@@ -60,7 +65,7 @@ const ClassifyPlans = () => {
         Object.fromEntries(
           sinPlan.map((p) => [
             p.id,
-            { serviceType: 'kinesiologia' as ServiceType, sessionsTotal: KINESIOLOGIA_SESSIONS_FIJAS, submitting: false },
+            { serviceType: 'kinesiologia' as ServiceType, choice: DEFAULT_CHOICE.kinesiologia, submitting: false },
           ])
         )
       );
@@ -82,13 +87,13 @@ const ClassifyPlans = () => {
       [patientId]: {
         ...prev[patientId],
         serviceType: type,
-        sessionsTotal: type === 'kinesiologia' ? KINESIOLOGIA_SESSIONS_FIJAS : PLAN_CATALOG.entrenamiento[0],
+        choice: DEFAULT_CHOICE[type],
       },
     }));
   };
 
-  const handleSessionsChange = (patientId: string, sessionsTotal: number) => {
-    setRowState((prev) => ({ ...prev, [patientId]: { ...prev[patientId], sessionsTotal } }));
+  const handleSessionsChange = (patientId: string, choice: SessionsChoice) => {
+    setRowState((prev) => ({ ...prev, [patientId]: { ...prev[patientId], choice } }));
   };
 
   const handleAsignar = async (patient: User) => {
@@ -100,7 +105,7 @@ const ClassifyPlans = () => {
       await clientPlanService.create({
         patientId: patient.id,
         serviceType: row.serviceType,
-        sessionsTotal: row.sessionsTotal,
+        ...choiceToPayload(row.choice),
       });
       toast.success(`Plan asignado a ${patient.firstName} ${patient.lastName}`);
       setPatientsWithoutPlan((prev) => prev.filter((p) => p.id !== patient.id));
@@ -174,7 +179,7 @@ const ClassifyPlans = () => {
                               'p-2 rounded-lg border-2 text-left transition-all text-sm',
                               row.serviceType === type
                                 ? 'border-secondary bg-secondary/10'
-                                : 'border-gray-200 hover:border-gray-300'
+                                : 'border-border hover:border-muted-foreground/40'
                             )}
                           >
                             <Icon className="h-4 w-4 mb-1 text-secondary" />
@@ -184,23 +189,12 @@ const ClassifyPlans = () => {
                       })}
                     </div>
 
-                    {row.serviceType === 'entrenamiento' ? (
-                      <Select
-                        value={String(row.sessionsTotal)}
-                        onValueChange={(v) => handleSessionsChange(patient.id, Number(v))}
-                      >
-                        <SelectTrigger className="sm:w-36"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {PLAN_CATALOG.entrenamiento.map((n) => (
-                            <SelectItem key={n} value={String(n)}>{n} sesiones</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-sm text-muted-foreground sm:w-36 text-center">
-                        {KINESIOLOGIA_SESSIONS_FIJAS} sesiones (fijo)
-                      </span>
-                    )}
+                    <SessionsSelect
+                      serviceType={row.serviceType}
+                      value={row.choice}
+                      onChange={(choice) => handleSessionsChange(patient.id, choice)}
+                      className="sm:w-40"
+                    />
 
                     <Button onClick={() => handleAsignar(patient)} disabled={row.submitting} className="sm:w-28">
                       {row.submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

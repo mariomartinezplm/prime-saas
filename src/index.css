@@ -123,10 +123,50 @@
     /* #398CA2 */
   }
 
-  /* 
-    NO DARK MODE - Removida completamente
-    La clase .dark no hace nada ahora
+  /*
+    Tema negro de la app interna (/app/*). La clase .dark se pone en <html>
+    solo mientras el usuario está dentro de la app (hooks/useAppDarkTheme.ts);
+    la landing y el login no la usan. El fondo es el mismo canvas oscuro de la
+    landing (--landing-dark). --secondary pasa a ser un teal vivo porque en la
+    app se usa como color de texto, borde e icono (text-secondary, border-secondary).
   */
+  .dark {
+    color-scheme: dark;
+    background-color: hsl(var(--background));
+
+    --background: 224 44% 5%;
+    --foreground: 210 20% 96%;
+    --card: 224 30% 9%;
+    --card-foreground: 210 20% 96%;
+    --popover: 224 30% 9%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 194 45% 44%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 190 55% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 224 25% 13%;
+    --muted-foreground: 215 16% 66%;
+    --accent: 224 25% 16%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 224 20% 18%;
+    --input: 224 20% 20%;
+    --ring: 190 55% 50%;
+
+    --sidebar-background: 224 44% 4%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 194 45% 44%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224 25% 14%;
+    --sidebar-accent-foreground: 210 20% 96%;
+    --sidebar-border: 224 20% 16%;
+    --sidebar-ring: 190 55% 50%;
+  }
+
+  .dark body {
+    color-scheme: dark;
+  }
 }
 
 @layer base {

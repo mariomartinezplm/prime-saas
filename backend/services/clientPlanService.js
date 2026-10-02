@@ -99,7 +99,11 @@ export async function deductSession(patientId, serviceType, appointmentId) {
       serviceType,
       status: 'active',
       endDate: { $gte: new Date() },
-      $expr: { $lt: ['$sessionsUsed', '$sessionsTotal'] }
+      // Plan ilimitado nunca se agota; los demás, mientras queden sesiones.
+      $or: [
+        { unlimited: true },
+        { $expr: { $lt: ['$sessionsUsed', '$sessionsTotal'] } }
+      ]
     },
     { $inc: { sessionsUsed: 1 } },
     { new: true }

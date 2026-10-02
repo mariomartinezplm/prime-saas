@@ -76,6 +76,7 @@ export interface Appointment {
   status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
   type: 'kinesiologia' | 'entrenamiento' | 'evaluacion';
   notes?: string;
+  overbooked?: boolean;
   cancellationReason?: string;
   cancelledBy?: User | string;
   cancelledAt?: string;
@@ -99,6 +100,7 @@ export interface CreateAppointmentData {
   endTime: string;
   type: 'kinesiologia' | 'entrenamiento' | 'evaluacion';
   notes?: string;
+  allowOverbook?: boolean;
 }
 
 export interface BulkBookingData {
@@ -153,6 +155,7 @@ export interface ClientPlan {
   patient: User | string;
   serviceType: 'entrenamiento' | 'kinesiologia';
   sessionsTotal: number;
+  unlimited?: boolean;
   sessionsUsed: number;
   startDate: string;
   endDate: string;
@@ -167,6 +170,7 @@ export interface CreateClientPlanData {
   patientId: string;
   serviceType: 'entrenamiento' | 'kinesiologia';
   sessionsTotal: number;
+  unlimited?: boolean;
   startDate?: string;
   notes?: string;
   replaceExisting?: boolean;

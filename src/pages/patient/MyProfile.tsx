@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useEffect } from 'react';
-import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
+import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
 import type { SessionBalance } from '@/types';
 
 const MyProfile = () => {
@@ -169,7 +169,7 @@ const MyProfile = () => {
               {balance?.hasActivePlan && balance.plan ? (
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span className="font-medium">{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Sesiones</span><span>{balance.plan.sessionsUsed}/{balance.plan.sessionsTotal} usadas</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Sesiones</span><span>{formatPlanUsage(balance.plan)}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Inicio</span><span>{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Vence</span><span>{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</span></div>
                   {balance.extraSessionsAvailable > 0 && (

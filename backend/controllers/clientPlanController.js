@@ -19,12 +19,13 @@ function resolvePatientId(req) {
 // @access  Private/Admin
 export const createClientPlan = async (req, res) => {
   try {
-    const { patientId, serviceType, sessionsTotal, startDate, notes, replaceExisting } = req.body;
+    const { patientId, serviceType, sessionsTotal, unlimited, startDate, notes, replaceExisting } = req.body;
+    const isUnlimited = unlimited === true;
 
-    if (!patientId || !serviceType || !sessionsTotal) {
+    if (!patientId || !serviceType || (!isUnlimited && !sessionsTotal)) {
       return res.status(400).json({
         success: false,
-        message: 'patientId, serviceType y sessionsTotal son requeridos'
+        message: 'patientId, serviceType y sessionsTotal (o unlimited) son requeridos'
       });
     }
 
@@ -57,7 +58,8 @@ export const createClientPlan = async (req, res) => {
     const clientPlan = await ClientPlan.create({
       patient: patientId,
       serviceType,
-      sessionsTotal,
+      sessionsTotal: isUnlimited ? 0 : sessionsTotal,
+      unlimited: isUnlimited,
       startDate: startDate ? new Date(startDate) : new Date(),
       registeredBy: req.user._id,
       notes

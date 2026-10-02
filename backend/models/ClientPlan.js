@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
-import { PLAN_CATALOG, isValidSessionsForServiceType } from '../config/planCatalog.js';
+import {
+  PLAN_CATALOG,
+  UNLIMITED_AVAILABLE,
+  isValidSessionsForServiceType,
+  supportsUnlimited
+} from '../config/planCatalog.js';
 
 const DAYS_PER_CYCLE = 30;
 
@@ -17,6 +22,12 @@ const clientPlanSchema = new mongoose.Schema({
   sessionsTotal: {
     type: Number,
     required: [true, 'El total de sesiones es requerido']
+  },
+  // Plan ilimitado (solo entrenamiento): sessionsTotal queda en 0 y nunca se
+  // agota; sessionsUsed igual sube para llevar la cuenta de asistencia.
+  unlimited: {
+    type: Boolean,
+    default: false
   },
   sessionsUsed: {
     type: Number,
@@ -65,6 +76,13 @@ clientPlanSchema.index({ patient: 1, status: 1 });
 clientPlanSchema.index({ status: 1, endDate: 1 });
 
 clientPlanSchema.pre('validate', function (next) {
+  if (this.unlimited) {
+    if (!supportsUnlimited(this.serviceType)) {
+      return next(new Error(`El plan ilimitado no está disponible para "${this.serviceType}"`));
+    }
+    this.sessionsTotal = 0;
+    return next();
+  }
   if (!isValidSessionsForServiceType(this.serviceType, this.sessionsTotal)) {
     const allowed = PLAN_CATALOG[this.serviceType] || [];
     return next(new Error(
@@ -85,6 +103,7 @@ clientPlanSchema.pre('save', function (next) {
 });
 
 clientPlanSchema.methods.sessionsAvailable = function () {
+  if (this.unlimited) return UNLIMITED_AVAILABLE;
   return Math.max(0, this.sessionsTotal - this.sessionsUsed);
 };
 

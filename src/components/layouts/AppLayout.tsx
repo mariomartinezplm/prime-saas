@@ -2,8 +2,11 @@ import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import AppSidebar from './AppSidebar';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import { useAppDarkTheme } from '@/hooks/useAppDarkTheme';
 
 const AppLayout = () => {
+  useAppDarkTheme();
+
   return (
     <SidebarProvider>
       <AppSidebar />

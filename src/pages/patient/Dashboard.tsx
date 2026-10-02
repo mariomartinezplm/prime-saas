@@ -5,7 +5,7 @@ import { appointmentService } from '@/services/appointmentService';
 import { clientPlanService } from '@/services/clientPlanService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
+import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
 import { getWhatsAppUrl } from '@/config/contact';
 import WellnessCheckinCard from '@/components/wellness/WellnessCheckinCard';
 import { CalendarPlus, Clock, Activity, Ruler, FileText, MessageCircle } from 'lucide-react';
@@ -49,7 +49,7 @@ const PatientDashboard = () => {
 
   const plan = balance?.plan;
   const daysLeft = plan ? differenceInCalendarDays(parseISO(plan.endDate), new Date()) : null;
-  const sessionsPct = plan && plan.sessionsTotal > 0
+  const sessionsPct = plan && !plan.unlimited && plan.sessionsTotal > 0
     ? Math.min(100, Math.round((plan.sessionsUsed / plan.sessionsTotal) * 100))
     : 0;
 
@@ -88,7 +88,7 @@ const PatientDashboard = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {plan.sessionsUsed}/{plan.sessionsTotal} sesiones usadas
+                  {formatPlanUsage(plan)}
                 </p>
               </div>
               {balance.extraSessionsAvailable > 0 && (

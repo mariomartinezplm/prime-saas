@@ -108,25 +108,25 @@ const ExerciseProgressChart = ({
                                     <stop offset="95%" stopColor={color} stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#E1E6ED" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                             <XAxis
                                 dataKey="date"
-                                tick={{ fill: '#6B7280', fontSize: 11 }}
-                                stroke="#E1E6ED"
+                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                                stroke="hsl(var(--border))"
                             />
                             <YAxis
-                                tick={{ fill: '#6B7280', fontSize: 11 }}
-                                stroke="#E1E6ED"
+                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                                stroke="hsl(var(--border))"
                                 domain={[0, Math.ceil(maxWeight * 1.1)]}
                             />
                             <Tooltip
                                 contentStyle={{
-                                    backgroundColor: '#FFFFFF',
-                                    border: '1px solid #E1E6ED',
+                                    backgroundColor: 'hsl(var(--card))',
+                                    border: '1px solid hsl(var(--border))',
                                     borderRadius: '8px',
                                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
                                 }}
-                                labelStyle={{ color: '#252B33', fontWeight: 600 }}
+                                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
                                 formatter={(value: number, name: string) => {
                                     if (name === 'weight') return [`${value} kg`, 'Peso'];
                                     if (name === 'reps') return [`${value}`, 'Repeticiones'];

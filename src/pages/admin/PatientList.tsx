@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, UserPlus, ChevronRight, RefreshCw, Plus, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
-import { SERVICE_TYPE_LABELS, type ServiceType } from '@/config/planCatalog';
+import { SERVICE_TYPE_LABELS, formatPlanRemaining, type ServiceType } from '@/config/planCatalog';
 import type { User, SessionBalance } from '@/types';
 
 const PatientList = () => {
@@ -159,7 +159,7 @@ const PatientList = () => {
 
     return (
       <span className={`text-xs ${isSoon ? 'text-yellow-500' : 'text-muted-foreground'}`}>
-        {SERVICE_TYPE_LABELS[plan.serviceType]} · {plan.sessionsTotal - plan.sessionsUsed} sesión(es) restante(s) · vence {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
+        {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanRemaining(plan)} · vence {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
       </span>
     );
   };

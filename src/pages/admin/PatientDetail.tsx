@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { appointmentService } from '@/services/appointmentService';
 import { clientPlanService } from '@/services/clientPlanService';
@@ -27,40 +28,45 @@ import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
 import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
-import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
+import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
+import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
 import type { User, PatientProfile, SessionBalance, Appointment } from '@/types';
 
 const PatientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isResending, setIsResending] = useState(false);
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!id) return;
-    const fetchData = async () => {
-      try {
-        const [prof, bal, apts] = await Promise.all([
-          userService.getPatientProfile(id),
-          clientPlanService.getBalance(id),
-          appointmentService.getAll({ status: 'scheduled' }),
-        ]);
-        setProfile(prof);
-        setBalance(bal);
-        setAppointments(apts.filter((a) => {
-          const patientId = typeof a.patient === 'object' ? a.patient.id : a.patient;
-          return patientId === id;
-        }));
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    };
+    try {
+      const [prof, bal, apts] = await Promise.all([
+        userService.getPatientProfile(id),
+        clientPlanService.getBalance(id),
+        appointmentService.getAll({ status: 'scheduled' }),
+      ]);
+      setProfile(prof);
+      setBalance(bal);
+      setAppointments(apts.filter((a) => {
+        const patientId = typeof a.patient === 'object' ? a.patient.id : a.patient;
+        return patientId === id;
+      }));
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (loading) {
@@ -76,6 +82,10 @@ const PatientDetail = () => {
   }
 
   const { patient, stats } = profile;
+  const assignedProfessional = patient.assignedProfessionalId;
+  const bookingProfessionalId =
+    (typeof assignedProfessional === 'object' ? assignedProfessional?.id : assignedProfessional) || user?.id;
+  const bookingDefaultType = balance?.plan?.serviceType ?? 'kinesiologia';
 
   const handleResendInvite = async () => {
     setIsResending(true);
@@ -250,6 +260,12 @@ const PatientDetail = () => {
         </TabsContent>
 
         <TabsContent value="appointments" className="mt-4 space-y-3">
+          {bookingProfessionalId && (
+            <Button size="sm" onClick={() => setBookingOpen(true)}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Agendar cita
+            </Button>
+          )}
           {appointments.length === 0 ? (
             <p className="text-muted-foreground text-sm">Sin citas</p>
           ) : (
@@ -261,7 +277,10 @@ const PatientDetail = () => {
                   </p>
                   <p className="text-xs text-muted-foreground">{apt.startTime} - {apt.endTime} | {apt.type}</p>
                 </div>
-                <Badge>{apt.status}</Badge>
+                <div className="flex items-center gap-2">
+                  {apt.overbooked && <Badge className="bg-amber-500/20 text-amber-400">Sobrecupo</Badge>}
+                  <Badge>{apt.status}</Badge>
+                </div>
               </div>
             ))
           )}
@@ -299,7 +318,7 @@ const PatientDetail = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Sesiones</span>
-                  <span>{balance.plan.sessionsUsed}/{balance.plan.sessionsTotal} usadas</span>
+                  <span>{formatPlanUsage(balance.plan)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Inicio</span>
@@ -329,6 +348,18 @@ const PatientDetail = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      {bookingProfessionalId && (
+        <AdminBookingDialog
+          open={bookingOpen}
+          onClose={() => setBookingOpen(false)}
+          patientId={id!}
+          professionalId={bookingProfessionalId}
+          defaultType={bookingDefaultType}
+          canOverbook={user?.role === 'admin'}
+          onBooked={fetchData}
+        />
+      )}
     </div>
   );
 };

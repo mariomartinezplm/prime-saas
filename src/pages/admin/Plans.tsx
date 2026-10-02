@@ -22,10 +22,19 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { clientPlanService } from '@/services/clientPlanService';
 import { userService } from '@/services/userService';
-import { PLAN_CATALOG, SERVICE_TYPE_LABELS, type ServiceType } from '@/config/planCatalog';
+import SessionsSelect from '@/components/plans/SessionsSelect';
+import {
+  SERVICE_TYPE_LABELS,
+  DEFAULT_CHOICE,
+  choiceLabel,
+  choiceToPayload,
+  formatPlanUsage,
+  sessionChoicesFor,
+  type ServiceType,
+  type SessionsChoice,
+} from '@/config/planCatalog';
 import { toast } from 'sonner';
 import { Loader2, Search, Plus, X, Dumbbell, Stethoscope, ClipboardList } from 'lucide-react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
@@ -70,7 +79,7 @@ const Plans = () => {
   const [patientSearch, setPatientSearch] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<User | null>(null);
   const [serviceType, setServiceType] = useState<ServiceType>('entrenamiento');
-  const [sessionsTotal, setSessionsTotal] = useState<number>(PLAN_CATALOG.entrenamiento[0]);
+  const [choice, setChoice] = useState<SessionsChoice>(DEFAULT_CHOICE.entrenamiento);
   const [submitting, setSubmitting] = useState(false);
 
   // Confirmación de reemplazo de plan activo
@@ -119,13 +128,13 @@ const Plans = () => {
     setSelectedPatient(null);
     setPatientSearch('');
     setServiceType('entrenamiento');
-    setSessionsTotal(PLAN_CATALOG.entrenamiento[0]);
+    setChoice(DEFAULT_CHOICE.entrenamiento);
     setConflictPlan(null);
   };
 
   const handleServiceTypeChange = (type: ServiceType) => {
     setServiceType(type);
-    setSessionsTotal(PLAN_CATALOG[type][0]);
+    setChoice(DEFAULT_CHOICE[type]);
   };
 
   const submitPlan = async (replaceExisting: boolean) => {
@@ -135,7 +144,7 @@ const Plans = () => {
       await clientPlanService.create({
         patientId: selectedPatient.id,
         serviceType,
-        sessionsTotal,
+        ...choiceToPayload(choice),
         replaceExisting,
       });
       toast.success('Plan registrado exitosamente');
@@ -181,7 +190,7 @@ const Plans = () => {
 
       {/* Catálogo de planes (referencia) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {(Object.keys(PLAN_CATALOG) as ServiceType[]).map((type) => {
+        {(Object.keys(SERVICE_TYPE_LABELS) as ServiceType[]).map((type) => {
           const Icon = SERVICE_ICON[type];
           return (
             <Card key={type}>
@@ -193,12 +202,12 @@ const Plans = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {PLAN_CATALOG[type].map((n) => (
+                  {sessionChoicesFor(type).map((c) => (
                     <span
-                      key={n}
+                      key={c}
                       className="px-3 py-1 rounded-full text-sm bg-secondary/10 text-secondary border border-secondary/30"
                     >
-                      {n} sesiones
+                      {choiceLabel(c)}
                     </span>
                   ))}
                 </div>
@@ -230,7 +239,7 @@ const Plans = () => {
                         {patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {SERVICE_TYPE_LABELS[plan.serviceType]} · {plan.sessionsUsed}/{plan.sessionsTotal} sesiones usadas
+                        {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanUsage(plan)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(parseISO(plan.startDate), 'dd/MM/yyyy')} → {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
@@ -318,7 +327,7 @@ const Plans = () => {
             <div className="space-y-2">
               <Label>Tipo de plan</Label>
               <div className="grid grid-cols-2 gap-3">
-                {(Object.keys(PLAN_CATALOG) as ServiceType[]).map((type) => {
+                {(Object.keys(SERVICE_TYPE_LABELS) as ServiceType[]).map((type) => {
                   const Icon = SERVICE_ICON[type];
                   return (
                     <button
@@ -329,7 +338,7 @@ const Plans = () => {
                         'p-3 rounded-lg border-2 text-left transition-all',
                         serviceType === type
                           ? 'border-secondary bg-secondary/10 shadow-sm'
-                          : 'border-gray-200 hover:border-gray-300'
+                          : 'border-border hover:border-muted-foreground/40'
                       )}
                     >
                       <Icon className="h-4 w-4 mb-1 text-secondary" />
@@ -343,18 +352,7 @@ const Plans = () => {
             {/* Paso 3: Sesiones */}
             <div className="space-y-2">
               <Label>Sesiones del plan</Label>
-              <Select
-                key={serviceType}
-                value={String(sessionsTotal)}
-                onValueChange={(v) => setSessionsTotal(Number(v))}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PLAN_CATALOG[serviceType].map((n) => (
-                    <SelectItem key={n} value={String(n)}>{n} sesiones</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SessionsSelect serviceType={serviceType} value={choice} onChange={setChoice} />
               <p className="text-xs text-muted-foreground">
                 Ciclo de 30 días desde hoy ({format(new Date(), 'dd/MM/yyyy')}).
               </p>
@@ -378,7 +376,7 @@ const Plans = () => {
             <AlertDialogDescription>
               {conflictPlan && (
                 <>
-                  Plan actual: {SERVICE_TYPE_LABELS[conflictPlan.serviceType]} — {conflictPlan.sessionsUsed}/{conflictPlan.sessionsTotal} sesiones usadas,
+                  Plan actual: {SERVICE_TYPE_LABELS[conflictPlan.serviceType]} — {formatPlanUsage(conflictPlan)},
                   vence el {format(parseISO(conflictPlan.endDate), 'dd/MM/yyyy')}.
                   <br /><br />
                   Si continúas, el plan actual se cancelará y <strong>las sesiones restantes se perderán</strong>. Esta acción no se puede deshacer.

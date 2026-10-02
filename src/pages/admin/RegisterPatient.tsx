@@ -7,13 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PLAN_CATALOG, SERVICE_TYPE_LABELS, type ServiceType } from '@/config/planCatalog';
+import SessionsSelect from '@/components/plans/SessionsSelect';
+import { SERVICE_TYPE_LABELS, DEFAULT_CHOICE, choiceToPayload, type ServiceType, type SessionsChoice } from '@/config/planCatalog';
 import { toast } from 'sonner';
 import { Loader2, Dumbbell, Stethoscope, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const KINESIOLOGIA_SESSIONS_FIJAS = 10;
 
 type PlanInicialOption = ServiceType | 'despues';
 
@@ -21,7 +19,7 @@ const RegisterPatient = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [planInicial, setPlanInicial] = useState<PlanInicialOption>('despues');
-  const [sessionsTotal, setSessionsTotal] = useState<number>(PLAN_CATALOG.entrenamiento[0]);
+  const [choice, setChoice] = useState<SessionsChoice>(DEFAULT_CHOICE.kinesiologia);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -76,7 +74,7 @@ const RegisterPatient = () => {
           await clientPlanService.create({
             patientId: nuevoPaciente.id,
             serviceType: planInicial,
-            sessionsTotal: planInicial === 'kinesiologia' ? KINESIOLOGIA_SESSIONS_FIJAS : sessionsTotal,
+            ...choiceToPayload(choice),
           });
           toast.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
         } catch {
@@ -95,7 +93,7 @@ const RegisterPatient = () => {
 
   const handlePlanInicialChange = (option: PlanInicialOption) => {
     setPlanInicial(option);
-    if (option === 'entrenamiento') setSessionsTotal(PLAN_CATALOG.entrenamiento[0]);
+    if (option !== 'despues') setChoice(DEFAULT_CHOICE[option]);
   };
 
   return (
@@ -185,7 +183,7 @@ const RegisterPatient = () => {
                 onClick={() => handlePlanInicialChange('kinesiologia')}
                 className={cn(
                   'p-3 rounded-lg border-2 text-left transition-all',
-                  planInicial === 'kinesiologia' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                  planInicial === 'kinesiologia' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-border hover:border-muted-foreground/40'
                 )}
               >
                 <Stethoscope className="h-4 w-4 mb-1 text-secondary" />
@@ -196,7 +194,7 @@ const RegisterPatient = () => {
                 onClick={() => handlePlanInicialChange('entrenamiento')}
                 className={cn(
                   'p-3 rounded-lg border-2 text-left transition-all',
-                  planInicial === 'entrenamiento' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                  planInicial === 'entrenamiento' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-border hover:border-muted-foreground/40'
                 )}
               >
                 <Dumbbell className="h-4 w-4 mb-1 text-secondary" />
@@ -207,7 +205,7 @@ const RegisterPatient = () => {
                 onClick={() => handlePlanInicialChange('despues')}
                 className={cn(
                   'p-3 rounded-lg border-2 text-left transition-all',
-                  planInicial === 'despues' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                  planInicial === 'despues' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-border hover:border-muted-foreground/40'
                 )}
               >
                 <Clock className="h-4 w-4 mb-1 text-secondary" />
@@ -215,22 +213,11 @@ const RegisterPatient = () => {
               </button>
             </div>
 
-            {planInicial === 'entrenamiento' && (
+            {planInicial !== 'despues' && (
               <div className="space-y-2">
                 <Label>Sesiones del plan</Label>
-                <Select value={String(sessionsTotal)} onValueChange={(v) => setSessionsTotal(Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PLAN_CATALOG.entrenamiento.map((n) => (
-                      <SelectItem key={n} value={String(n)}>{n} sesiones</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SessionsSelect serviceType={planInicial} value={choice} onChange={setChoice} />
               </div>
-            )}
-
-            {planInicial === 'kinesiologia' && (
-              <p className="text-xs text-muted-foreground">{KINESIOLOGIA_SESSIONS_FIJAS} sesiones (fijo).</p>
             )}
           </CardContent>
         </Card>

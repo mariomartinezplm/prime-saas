@@ -301,3 +301,127 @@ describe('PUT /appointments/:id — updateAppointment bloquea cancelar por esta 
     expect(appointmentDoc.save).toHaveBeenCalled();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('catálogo de planes y plan ilimitado', () => {
+  const planBase = (overrides) => new ClientPlan({
+    patient: nuevoId(),
+    registeredBy: nuevoId(),
+    ...overrides
+  });
+
+  it('kinesiología acepta 1, 5, 10, 12, 15 y 20 sesiones; rechaza 7', async () => {
+    for (const n of [1, 5, 10, 12, 15, 20]) {
+      await expect(planBase({ serviceType: 'kinesiologia', sessionsTotal: n }).validate()).resolves.toBeUndefined();
+    }
+    await expect(planBase({ serviceType: 'kinesiologia', sessionsTotal: 7 }).validate()).rejects.toThrow(/inválido/);
+  });
+
+  it('entrenamiento acepta 4, 8, 12 y 16; rechaza 5', async () => {
+    for (const n of [4, 8, 12, 16]) {
+      await expect(planBase({ serviceType: 'entrenamiento', sessionsTotal: n }).validate()).resolves.toBeUndefined();
+    }
+    await expect(planBase({ serviceType: 'entrenamiento', sessionsTotal: 5 }).validate()).rejects.toThrow(/inválido/);
+  });
+
+  it('entrenamiento ilimitado es válido, guarda sessionsTotal 0 y siempre tiene saldo', async () => {
+    const plan = planBase({ serviceType: 'entrenamiento', unlimited: true, sessionsTotal: 99 });
+    await expect(plan.validate()).resolves.toBeUndefined();
+    expect(plan.sessionsTotal).toBe(0);
+    plan.sessionsUsed = 500;
+    expect(plan.sessionsAvailable()).toBeGreaterThan(0);
+  });
+
+  it('kinesiología ilimitada se rechaza', async () => {
+    const plan = planBase({ serviceType: 'kinesiologia', unlimited: true });
+    await expect(plan.validate()).rejects.toThrow(/ilimitado/);
+  });
+
+  it('deductSession deja pasar a un plan ilimitado aunque sessionsUsed supere a sessionsTotal', async () => {
+    vi.restoreAllMocks();
+    const planId = nuevoId();
+    const spy = vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: planId });
+
+    const result = await deductSession(nuevoId(), 'entrenamiento', null);
+
+    expect(result).toEqual({ source: 'clientPlan', refId: planId });
+    const filter = spy.mock.calls[0][0];
+    expect(filter.$or).toEqual(expect.arrayContaining([{ unlimited: true }]));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('POST /appointments — sobrecupo (solo admin)', () => {
+  const PATIENT_ID = nuevoId();
+  const PROFESSIONAL_ID = nuevoId();
+  const futureDate = () => new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const setup = (overlapping) => {
+    vi.restoreAllMocks();
+    vi.spyOn(User, 'findById').mockImplementation((id) => {
+      const idStr = id.toString();
+      if (idStr === PATIENT_ID.toString()) return Promise.resolve({ _id: PATIENT_ID, role: 'patient', isActive: true });
+      if (idStr === PROFESSIONAL_ID.toString()) return Promise.resolve({ _id: PROFESSIONAL_ID, role: 'professional' });
+      return Promise.resolve(null);
+    });
+    vi.spyOn(ClientPlan, 'expireOverduePlans').mockResolvedValue(0);
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
+    vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(overlapping);
+    vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
+    vi.spyOn(Appointment, 'create').mockImplementation(async (data) => ({
+      ...data,
+      _id: nuevoId(),
+      populate: vi.fn().mockResolvedValue(undefined)
+    }));
+  };
+
+  const reqOf = (role, extra = {}) => ({
+    user: { _id: role === 'patient' ? PATIENT_ID : nuevoId(), role },
+    body: {
+      professional: PROFESSIONAL_ID.toString(),
+      patient: PATIENT_ID.toString(),
+      date: futureDate(),
+      startTime: '10:00',
+      type: 'kinesiologia',
+      ...extra
+    }
+  });
+
+  it('horario con 4 pacientes: un paciente recibe 400 aunque mande allowOverbook', async () => {
+    setup(4);
+    const res = fakeRes();
+    await createAppointment(reqOf('patient', { allowOverbook: true }), res);
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('horario con 4 pacientes: un profesional recibe 400 aunque mande allowOverbook', async () => {
+    setup(4);
+    const res = fakeRes();
+    await createAppointment(reqOf('professional', { allowOverbook: true }), res);
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('horario con 4 pacientes: el admin SIN allowOverbook recibe 400', async () => {
+    setup(4);
+    const res = fakeRes();
+    await createAppointment(reqOf('admin'), res);
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('horario con 4 pacientes: el admin CON allowOverbook crea la cita marcada como sobrecupo', async () => {
+    setup(4);
+    const res = fakeRes();
+    await createAppointment(reqOf('admin', { allowOverbook: true }), res);
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.appointment.overbooked).toBe(true);
+  });
+
+  it('horario con cupo: el admin con allowOverbook crea una cita normal (overbooked false)', async () => {
+    setup(2);
+    const res = fakeRes();
+    await createAppointment(reqOf('admin', { allowOverbook: true }), res);
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.appointment.overbooked).toBe(false);
+  });
+});

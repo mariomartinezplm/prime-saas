@@ -76,6 +76,11 @@ const appointmentSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Cita agendada por el admin por encima del máximo de pacientes simultáneos.
+  overbooked: {
+    type: Boolean,
+    default: false
+  },
   deduction: {
     source: { type: String, enum: ['clientPlan', 'extraSession'] },
     refId: { type: mongoose.Schema.Types.ObjectId }

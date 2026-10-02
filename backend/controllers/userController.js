@@ -575,7 +575,7 @@ export const exportUsers = async (req, res) => {
     const activePlans = await ClientPlan.find({
       patient: { $in: patients.map((p) => p._id) },
       status: 'active'
-    }).select('patient serviceType sessionsTotal sessionsUsed endDate');
+    }).select('patient serviceType sessionsTotal unlimited sessionsUsed endDate');
 
     const planByPatient = new Map(activePlans.map((plan) => [plan.patient.toString(), plan]));
 
@@ -599,7 +599,7 @@ export const exportUsers = async (req, res) => {
         professional ? `${professional.firstName} ${professional.lastName}` : '',
         plan ? SERVICE_TYPE_LABELS[plan.serviceType] : 'Sin plan activo',
         plan ? plan.sessionsUsed : '',
-        plan ? plan.sessionsTotal : '',
+        plan ? (plan.unlimited ? 'Ilimitado' : plan.sessionsTotal) : '',
         plan ? plan.endDate.toISOString().split('T')[0] : '',
         patient.createdAt.toISOString().split('T')[0]
       ];
