@@ -443,3 +443,21 @@ export interface WellnessTrend {
   lastCheckin: WellnessCheckin | null;
   isLowAlert: boolean;
 }
+
+export interface ClientFile {
+  _id: string;
+  patient: string;
+  uploadedBy: string | { _id?: string; id?: string; firstName: string; lastName: string; role: 'admin' | 'professional' | 'patient' };
+  fileName: string;
+  mimeType: 'application/pdf' | 'image/jpeg' | 'image/png';
+  sizeBytes: number;
+  description?: string;
+  createdAt: string;
+}
+
+export interface FileDownloadLink {
+  url: string;
+  expiresIn: number;
+  fileName: string;
+  mimeType: string;
+}

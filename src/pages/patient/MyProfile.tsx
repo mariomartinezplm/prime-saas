@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { clientPlanService } from '@/services/clientPlanService';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
+import PatientFilesTab from '@/components/files/PatientFilesTab';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,10 +65,11 @@ const MyProfile = () => {
       </div>
 
       <Tabs defaultValue="personal">
-        <TabsList>
+        <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="personal">Datos Personales</TabsTrigger>
           <TabsTrigger value="emergency">Emergencia</TabsTrigger>
           <TabsTrigger value="medical">Info Médica</TabsTrigger>
+          <TabsTrigger value="files">Archivos</TabsTrigger>
           <TabsTrigger value="plan">Mi Plan</TabsTrigger>
         </TabsList>
 
@@ -160,6 +162,10 @@ const MyProfile = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="files" className="mt-4">
+          <PatientFilesTab patientId={user.id} canUpload={balance ? balance.hasActivePlan : true} />
         </TabsContent>
 
         <TabsContent value="plan" className="mt-4">

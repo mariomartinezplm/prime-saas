@@ -10,7 +10,7 @@ const AppLayout = () => {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <header className="flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-6">
           <SidebarTrigger className="-ml-2" />
           <NotificationBell />

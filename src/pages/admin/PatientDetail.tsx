@@ -27,6 +27,7 @@ import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
 import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
+import PatientFilesTab from '@/components/files/PatientFilesTab';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
 import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
@@ -177,12 +178,13 @@ const PatientDetail = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="profile">
-        <TabsList>
+        <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="profile">Perfil</TabsTrigger>
           <TabsTrigger value="appointments">Citas</TabsTrigger>
           <TabsTrigger value="measurements">Mediciones</TabsTrigger>
           <TabsTrigger value="exercises">Ejercicios</TabsTrigger>
           <TabsTrigger value="eva">EVA</TabsTrigger>
+          <TabsTrigger value="files">Archivos</TabsTrigger>
           <TabsTrigger value="wellness">Bienestar</TabsTrigger>
           <TabsTrigger value="plan">Plan</TabsTrigger>
         </TabsList>
@@ -296,6 +298,10 @@ const PatientDetail = () => {
 
         <TabsContent value="eva" className="mt-4">
           <EVAForm patientId={id!} onSuccess={() => {}} />
+        </TabsContent>
+
+        <TabsContent value="files" className="mt-4">
+          <PatientFilesTab patientId={id!} />
         </TabsContent>
 
         <TabsContent value="wellness" className="mt-4">
