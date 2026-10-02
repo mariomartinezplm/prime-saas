@@ -25,30 +25,31 @@ function seedPassword(envVarName, label) {
   return generated;
 }
 
-const adminPassword = seedPassword('SEED_ADMIN_PASSWORD', 'Admin (mariomartinezplm@gmail.com)');
-const professionalPassword = seedPassword('SEED_PROFESSIONAL_PASSWORD', 'Profesionales (felipe/tomas/rafael@primefh.cl)');
+const adminPassword = seedPassword('SEED_ADMIN_PASSWORD', 'Admin (contacto@primefh.cl)');
+const professionalPassword1 = seedPassword('SEED_PROFESSIONAL_PASSWORD_1', 'Profesional (mariomartinezplm@gmail.com)');
+const professionalPassword2 = seedPassword('SEED_PROFESSIONAL_PASSWORD_2', 'Profesional (pipevega65@gmail.com)');
 const patientPassword = seedPassword('SEED_PATIENT_PASSWORD', 'Paciente de prueba');
 
-// Datos iniciales - Mario es admin, los demás son professional
+// Datos iniciales - Contacto es admin, Mario y Pipe son profesionales
 const adminUser = {
-  firstName: 'Mario',
-  lastName: 'Martínez',
-  email: 'mariomartinezplm@gmail.com',
+  firstName: 'Contacto',
+  lastName: 'Prime F&H',
+  email: 'contacto@primefh.cl',
   password: adminPassword,
   role: 'admin',
   phone: '+56912345678',
   rut: '12.345.678-9',
   isActive: true,
   dateOfBirth: new Date('1990-01-15'),
-  specialty: 'Kinesiología y Entrenamiento'
+  specialty: 'Administración'
 };
 
 const professionals = [
   {
-    firstName: 'Felipe',
-    lastName: 'Vega',
-    email: 'felipe@primefh.cl',
-    password: professionalPassword,
+    firstName: 'Mario',
+    lastName: 'Martínez',
+    email: 'mariomartinezplm@gmail.com',
+    password: professionalPassword1,
     role: 'professional',
     phone: '+56912345679',
     rut: '13.456.789-0',
@@ -57,28 +58,16 @@ const professionals = [
     specialty: 'Kinesiología'
   },
   {
-    firstName: 'Tomás',
-    lastName: 'Espinoza',
-    email: 'tomas@primefh.cl',
-    password: professionalPassword,
+    firstName: 'Pipe',
+    lastName: 'Vega',
+    email: 'pipevega65@gmail.com',
+    password: professionalPassword2,
     role: 'professional',
     phone: '+56912345680',
     rut: '14.567.890-1',
     isActive: true,
     dateOfBirth: new Date('1993-07-10'),
     specialty: 'Entrenamiento Personal'
-  },
-  {
-    firstName: 'Rafael',
-    lastName: 'Castañeda',
-    email: 'rafael@primefh.cl',
-    password: professionalPassword,
-    role: 'professional',
-    phone: '+56912345681',
-    rut: '15.678.901-2',
-    isActive: true,
-    dateOfBirth: new Date('1991-11-05'),
-    specialty: 'Rehabilitación Deportiva'
   }
 ];
 
@@ -227,16 +216,14 @@ const seedDatabase = async () => {
     console.log('\nSeed completado exitosamente!\n');
     console.log('Credenciales de acceso:');
     console.log('========================================');
-    console.log('ADMINISTRADOR (Mario Martinez):');
+    console.log('ADMINISTRADOR (Admin Prime F&H):');
     console.log(`   Email: ${adminUser.email}`);
-    console.log(`   RUT: ${adminUser.rut}`);
     console.log(`   Password: ${adminUser.password}`);
     console.log('========================================');
     console.log('PROFESIONALES:');
     professionals.forEach((prof) => {
-      console.log(`\n   ${prof.firstName} ${prof.lastName} (${prof.specialty}):`);
+      console.log(`\n   ${prof.firstName} ${prof.lastName}:`);
       console.log(`      Email: ${prof.email}`);
-      console.log(`      RUT: ${prof.rut}`);
       console.log(`      Password: ${prof.password}`);
     });
     console.log('========================================');
@@ -244,7 +231,6 @@ const seedDatabase = async () => {
     samplePatients.forEach((patient, index) => {
       console.log(`\n   ${index + 1}. ${patient.firstName} ${patient.lastName}:`);
       console.log(`      Email: ${patient.email}`);
-      console.log(`      RUT: ${patient.rut}`);
       console.log(`      Password: ${patient.password}`);
     });
     console.log('========================================\n');
@@ -253,8 +239,11 @@ const seedDatabase = async () => {
       console.log('⚠️  GUARDA ESTAS CONTRASEÑAS AHORA — no se vuelven a mostrar.');
       console.log('   Se generaron al azar porque no definiste estas variables en tu .env local:');
       generatedPasswords.forEach(({ label }) => console.log(`      · ${label}`));
-      console.log('   Para elegirlas tú, define SEED_ADMIN_PASSWORD, SEED_PROFESSIONAL_PASSWORD');
-      console.log('   y SEED_PATIENT_PASSWORD en tu .env local antes de correr el seed.\n');
+      console.log('   Para elegirlas tú, define estas variables en tu .env local antes de correr el seed:');
+      console.log('      · SEED_ADMIN_PASSWORD');
+      console.log('      · SEED_PROFESSIONAL_PASSWORD_1');
+      console.log('      · SEED_PROFESSIONAL_PASSWORD_2');
+      console.log('      · SEED_PATIENT_PASSWORD\n');
     }
 
     process.exit(0);
