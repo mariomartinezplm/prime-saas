@@ -128,7 +128,7 @@ const MyProfile = () => {
                   <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span>{user.email}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">RUT</span><span>{user.rut || '-'}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Teléfono</span><span>{user.phone || '-'}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Fecha nacimiento</span><span>{user.dateOfBirth ? format(parseISO(user.dateOfBirth), 'dd/MM/yyyy') : '-'}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Fecha nacimiento</span><span>{user.dateOfBirth ? format(parseISO(user.dateOfBirth.slice(0, 10)), 'dd/MM/yyyy') : '-'}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Dirección</span><span>{user.address || '-'}</span></div>
                 </div>
               )}

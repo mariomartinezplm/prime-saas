@@ -31,6 +31,6 @@ router.get('/stats/:patientId', authorizePatientAccess('patientId'), getExercise
 router.route('/:id')
   .get(getExerciseProgress)
   .put(authorize('admin', 'professional', 'patient'), updateExerciseProgress)
-  .delete(authorize('admin', 'professional'), deleteExerciseProgress);
+  .delete(authorize('admin', 'professional', 'patient'), deleteExerciseProgress);
 
 export default router;

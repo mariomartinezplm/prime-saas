@@ -28,6 +28,6 @@ router.get('/progress/:patientId/:perimeter', authorizePatientAccess('patientId'
 router.route('/:id')
   .get(getMeasurement)
   .put(authorize('admin', 'professional', 'patient'), updateMeasurement)
-  .delete(authorize('admin', 'professional'), deleteMeasurement);
+  .delete(authorize('admin', 'professional', 'patient'), deleteMeasurement);
 
 export default router;

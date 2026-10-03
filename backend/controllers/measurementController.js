@@ -10,11 +10,11 @@ import { evolutionDateError } from '../utils/evolutionDate.js';
 // (Paso 19 de BLUEPRINT.md). Solo cuando el ACTOR es el propio paciente: si
 // el profesional/admin registra la medición, no tiene sentido notificarlo de
 // su propia acción.
-function notifyProfessionalOfEvolutionUpdate(patientUser) {
+function notifyProfessionalOfEvolutionUpdate(patientUser, { title = 'Nueva medición registrada', action = 'registró una nueva medición corporal' } = {}) {
   if (!patientUser.assignedProfessionalId) return;
   notify(patientUser.assignedProfessionalId, 'evolution_updated', {
-    title: 'Nueva medición registrada',
-    body: `${patientUser.firstName} ${patientUser.lastName} registró una nueva medición corporal.`,
+    title,
+    body: `${patientUser.firstName} ${patientUser.lastName} ${action}.`,
     link: `/app/admin/pacientes/${patientUser._id}`
   }).catch((error) => {
     console.error('Error al notificar medición al profesional:', error.message);
@@ -267,7 +267,7 @@ export const updateMeasurement = async (req, res) => {
 
 // @desc    Eliminar una medición
 // @route   DELETE /api/measurements/:id
-// @access  Private/Admin
+// @access  Private (paciente borra la suya; admin/profesional las de sus pacientes)
 export const deleteMeasurement = async (req, res) => {
   try {
     const measurement = await Measurement.findById(req.params.id);
@@ -279,7 +279,20 @@ export const deleteMeasurement = async (req, res) => {
       });
     }
 
+    // Plan vencido = solo lectura: el paciente tampoco puede borrar
+    if (req.user.role === 'patient' && !(await hasActivePlan(req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: PLAN_EXPIRED_MESSAGE,
+        code: 'NO_ACTIVE_PLAN_SESSIONS'
+      });
+    }
+
     await measurement.deleteOne();
+
+    if (req.user.role === 'patient') {
+      notifyProfessionalOfEvolutionUpdate(req.user, { title: 'Medición eliminada', action: 'eliminó una medición corporal' });
+    }
 
     res.status(200).json({
       success: true,

@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 /**
  * Límites de uso (Paso 06 de BLUEPRINT.md, tabla §5.3).
@@ -35,6 +35,23 @@ export const loginLimiter = rateLimit({
   limit: 5,
   keyGenerator: porIpYEmail,
   // Un login correcto no gasta intentos: solo penaliza los fallidos
+  skipSuccessfulRequests: true,
+  message: respuesta('Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.')
+});
+
+// Segunda barrera, solo por correo. Detrás de los intermediarios de Railway el
+// servidor ve IPs distintas alternándose, y el límite por IP+correo se diluye
+// (en producción 7 claves malas seguidas no llegaron a bloquear). Este tope cuenta
+// por cuenta sin importar la IP: ya no se pueden adivinar claves en paralelo.
+// Costo asumido: alguien podría bloquear 15 min el login de una cuenta ajena.
+export const loginEmailLimiter = rateLimit({
+  ...base,
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  keyGenerator: (req) => {
+    const identificador = (req.body?.email || req.body?.identifier || '').toString().toLowerCase().trim();
+    return identificador || ipKeyGenerator(req.ip || '0.0.0.0');
+  },
   skipSuccessfulRequests: true,
   message: respuesta('Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.')
 });

@@ -2,6 +2,7 @@ import EVA from '../models/EVA.js';
 import User from '../models/User.js';
 import mongoose from 'mongoose';
 import { canAccessPatient } from '../middleware/auth.js';
+import { evolutionDateError } from '../utils/evolutionDate.js';
 
 // @desc    Crear nuevo registro EVA
 // @route   POST /api/eva
@@ -25,6 +26,19 @@ export const createEVARecord = async (req, res) => {
       treatmentPlan,
       followUp
     } = req.body;
+
+    // Pertenencia: el profesional solo registra para pacientes a los que tiene acceso
+    if (!(await canAccessPatient(req.user, patient))) {
+      return res.status(404).json({
+        success: false,
+        message: 'Paciente no encontrado'
+      });
+    }
+
+    const dateError = evolutionDateError(date);
+    if (dateError) {
+      return res.status(400).json({ success: false, message: dateError });
+    }
 
     // Validar que el paciente existe
     const patientUser = await User.findById(patient);
@@ -174,11 +188,16 @@ export const updateEVARecord = async (req, res) => {
 
     let evaRecord = await EVA.findById(req.params.id);
 
-    if (!evaRecord) {
+    if (!evaRecord || !(await canAccessPatient(req.user, evaRecord.patient))) {
       return res.status(404).json({
         success: false,
         message: 'Registro EVA no encontrado'
       });
+    }
+
+    const dateError = evolutionDateError(date);
+    if (dateError) {
+      return res.status(400).json({ success: false, message: dateError });
     }
 
     // Actualizar campos
@@ -222,7 +241,7 @@ export const deleteEVARecord = async (req, res) => {
   try {
     const evaRecord = await EVA.findById(req.params.id);
 
-    if (!evaRecord) {
+    if (!evaRecord || !(await canAccessPatient(req.user, evaRecord.patient))) {
       return res.status(404).json({
         success: false,
         message: 'Registro EVA no encontrado'

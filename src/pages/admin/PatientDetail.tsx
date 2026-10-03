@@ -29,6 +29,7 @@ import EVAForm from '@/components/forms/EVAForm';
 import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
 import PatientPhotos from '@/components/photos/PatientPhotos';
+import { MeasurementHistory, ExerciseHistory } from '@/components/records/PatientRecordHistory';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import EditPatientDialog from '@/components/forms/EditPatientDialog';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
@@ -47,6 +48,7 @@ const PatientDetail = () => {
   const [loading, setLoading] = useState(true);
   const [isResending, setIsResending] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [recordsKey, setRecordsKey] = useState(0);
 
   const fetchData = async () => {
     if (!id) return;
@@ -333,11 +335,17 @@ const PatientDetail = () => {
         </TabsContent>
 
         <TabsContent value="measurements" className="mt-4">
-          <MeasurementForm patientId={id!} onSuccess={() => {}} />
+          <div className="space-y-4">
+            <MeasurementForm patientId={id!} onSuccess={() => setRecordsKey((k) => k + 1)} />
+            <MeasurementHistory patientId={id!} refreshKey={recordsKey} />
+          </div>
         </TabsContent>
 
         <TabsContent value="exercises" className="mt-4">
-          <ExerciseForm patientId={id!} onSuccess={() => {}} />
+          <div className="space-y-4">
+            <ExerciseForm patientId={id!} onSuccess={() => setRecordsKey((k) => k + 1)} />
+            <ExerciseHistory patientId={id!} refreshKey={recordsKey} />
+          </div>
         </TabsContent>
 
         <TabsContent value="eva" className="mt-4">

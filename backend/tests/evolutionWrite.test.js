@@ -323,3 +323,84 @@ describe('ejercicios — pertenencia, plan y fecha', () => {
     expect(e.deleteOne).not.toHaveBeenCalled();
   });
 });
+
+describe('el paciente borra sus propios registros', () => {
+  const OTRO_PACIENTE = nuevoId();
+
+  const registro = (extra = {}) => ({
+    _id: nuevoId(),
+    patient: PACIENTE,
+    deleteOne: vi.fn().mockResolvedValue(true),
+    ...extra
+  });
+
+  // El paciente de la sesión: trae su profesional para que se le avise
+  const pacienteConProfesional = { _id: PACIENTE, role: 'patient', firstName: 'Ana', lastName: 'Pérez', assignedProfessionalId: PROF_A };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockUsuarios();
+    vi.spyOn(notificationService, 'notify').mockResolvedValue(undefined);
+    vi.spyOn(clientPlanService, 'hasActivePlan').mockResolvedValue(true);
+  });
+
+  it('borra su medición con plan activo y se avisa a su profesional', async () => {
+    const m = registro();
+    vi.spyOn(Measurement, 'findById').mockResolvedValue(m);
+    const res = fakeRes();
+
+    await deleteMeasurement({ user: pacienteConProfesional, params: { id: m._id.toString() } }, res);
+
+    expect(res.statusCode ?? 200).toBe(200);
+    expect(m.deleteOne).toHaveBeenCalled();
+    expect(notificationService.notify).toHaveBeenCalledWith(PROF_A, 'evolution_updated', expect.objectContaining({ title: 'Medición eliminada' }));
+  });
+
+  it('con el plan vencido no puede borrar (solo lectura): 403 y no se borra', async () => {
+    clientPlanService.hasActivePlan.mockResolvedValue(false);
+    const m = registro();
+    vi.spyOn(Measurement, 'findById').mockResolvedValue(m);
+    const res = fakeRes();
+
+    await deleteMeasurement({ user: pacienteConProfesional, params: { id: m._id.toString() } }, res);
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body.code).toBe('NO_ACTIVE_PLAN_SESSIONS');
+    expect(m.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('no puede borrar la medición de otro paciente: 404', async () => {
+    const m = registro({ patient: OTRO_PACIENTE });
+    vi.spyOn(Measurement, 'findById').mockResolvedValue(m);
+    const res = fakeRes();
+
+    await deleteMeasurement({ user: pacienteConProfesional, params: { id: m._id.toString() } }, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(m.deleteOne).not.toHaveBeenCalled();
+  });
+
+  it('lo mismo con ejercicios: borra el suyo, no el ajeno, y no con plan vencido', async () => {
+    const propio = registro();
+    const ajeno = registro({ patient: OTRO_PACIENTE });
+    vi.spyOn(ExerciseProgress, 'findById').mockImplementation((id) => Promise.resolve(id === 'propio' ? propio : ajeno));
+
+    const resOk = fakeRes();
+    await deleteExerciseProgress({ user: pacienteConProfesional, params: { id: 'propio' } }, resOk);
+    const resAjeno = fakeRes();
+    await deleteExerciseProgress({ user: pacienteConProfesional, params: { id: 'ajeno' } }, resAjeno);
+
+    expect(resOk.statusCode ?? 200).toBe(200);
+    expect(propio.deleteOne).toHaveBeenCalled();
+    expect(resAjeno.statusCode).toBe(404);
+    expect(ajeno.deleteOne).not.toHaveBeenCalled();
+
+    clientPlanService.hasActivePlan.mockResolvedValue(false);
+    const otro = registro();
+    ExerciseProgress.findById.mockImplementation(() => Promise.resolve(otro));
+    const resVencido = fakeRes();
+    await deleteExerciseProgress({ user: pacienteConProfesional, params: { id: 'x' } }, resVencido);
+    expect(resVencido.statusCode).toBe(403);
+    expect(otro.deleteOne).not.toHaveBeenCalled();
+  });
+});

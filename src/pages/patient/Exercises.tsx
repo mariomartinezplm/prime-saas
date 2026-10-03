@@ -9,6 +9,11 @@ import { Dumbbell, TrendingUp, BarChart3, Award } from 'lucide-react';
 import api from '@/lib/api';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
+import RecordRowActions from '@/components/records/RecordRowActions';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useHasActivePlan } from '@/hooks/useHasActivePlan';
+import { showApiError } from '@/lib/apiError';
+import { toast } from 'sonner';
 import type { ExerciseProgress } from '@/types';
 
 const ExercisesEnhanced = () => {
@@ -18,6 +23,8 @@ const ExercisesEnhanced = () => {
   const [selectedExercise, setSelectedExercise] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editing, setEditing] = useState<ExerciseProgress | null>(null);
+  const hasActivePlan = useHasActivePlan(user?.id);
 
   useEffect(() => {
     if (!user) return;
@@ -30,6 +37,18 @@ const ExercisesEnhanced = () => {
     }).catch(() => { })
       .finally(() => setLoading(false));
   }, [user, refreshKey]);
+
+  const canEdit = hasActivePlan === true;
+
+  const handleDelete = async (ex: ExerciseProgress) => {
+    try {
+      await api.delete(`/exercises/${ex._id}`);
+      toast.success('Ejercicio eliminado');
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      showApiError(err, 'No se pudo eliminar el ejercicio');
+    }
+  };
 
   const filtered = selectedExercise === 'all'
     ? exercises
@@ -221,6 +240,7 @@ const ExercisesEnhanced = () => {
                         <th className="text-center p-3 text-muted-foreground font-semibold">Peso</th>
                         <th className="text-center p-3 text-muted-foreground font-semibold">RPE</th>
                         <th className="text-center p-3 text-muted-foreground font-semibold">1RM</th>
+                        {canEdit && <th className="p-3" />}
                       </tr>
                     </thead>
                     <tbody>
@@ -240,6 +260,11 @@ const ExercisesEnhanced = () => {
                           <td className="p-3 text-center font-bold text-secondary">
                             {ex.oneRepMax ? `${ex.oneRepMax.toFixed(1)} kg` : '-'}
                           </td>
+                          {canEdit && (
+                            <td className="p-3">
+                              <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -250,6 +275,24 @@ const ExercisesEnhanced = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Corregir ejercicio</DialogTitle>
+            <DialogDescription>Un campo que dejes vacío se borra del registro.</DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <ExerciseForm
+              key={editing._id}
+              patientId={user!.id}
+              record={editing}
+              embedded
+              onSuccess={() => { setEditing(null); setRefreshKey((k) => k + 1); }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

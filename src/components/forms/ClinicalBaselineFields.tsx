@@ -26,7 +26,7 @@ const ClinicalBaselineFields = ({ medicalInfo, dateOfBirth, onSave }: ClinicalBa
   const [baseWeightKg, setBaseWeightKg] = useState(medicalInfo?.baseWeightKg?.toString() || '');
   const [smoker, setSmoker] = useState(!!medicalInfo?.smoker);
 
-  const age = dateOfBirth ? differenceInYears(new Date(), parseISO(dateOfBirth)) : null;
+  const age = dateOfBirth ? differenceInYears(new Date(), parseISO(dateOfBirth.slice(0, 10))) : null;
 
   const handleSave = async () => {
     setSaving(true);

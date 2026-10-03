@@ -11,11 +11,11 @@ const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contac
 
 // El paciente registró/editó su evolución — avisa a su profesional asignado
 // (Paso 19 de BLUEPRINT.md). Solo cuando el ACTOR es el propio paciente.
-function notifyProfessionalOfEvolutionUpdate(patientUser) {
+function notifyProfessionalOfEvolutionUpdate(patientUser, { title = 'Nuevo ejercicio registrado', action = 'registró un nuevo ejercicio' } = {}) {
   if (!patientUser.assignedProfessionalId) return;
   notify(patientUser.assignedProfessionalId, 'evolution_updated', {
-    title: 'Nuevo ejercicio registrado',
-    body: `${patientUser.firstName} ${patientUser.lastName} registró un nuevo ejercicio.`,
+    title,
+    body: `${patientUser.firstName} ${patientUser.lastName} ${action}.`,
     link: `/app/admin/pacientes/${patientUser._id}`
   }).catch((error) => {
     console.error('Error al notificar ejercicio al profesional:', error.message);
@@ -306,7 +306,20 @@ export const deleteExerciseProgress = async (req, res) => {
       });
     }
 
+    // Plan vencido = solo lectura: el paciente tampoco puede borrar
+    if (req.user.role === 'patient' && !(await hasActivePlan(req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: PLAN_EXPIRED_MESSAGE,
+        code: 'NO_ACTIVE_PLAN_SESSIONS'
+      });
+    }
+
     await exerciseProgress.deleteOne();
+
+    if (req.user.role === 'patient') {
+      notifyProfessionalOfEvolutionUpdate(req.user, { title: 'Ejercicio eliminado', action: 'eliminó un registro de ejercicio' });
+    }
 
     res.status(200).json({
       success: true,

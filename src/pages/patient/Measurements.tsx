@@ -11,6 +11,11 @@ import { Ruler, Activity, TrendingUp, Zap } from 'lucide-react';
 import api from '@/lib/api';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
+import RecordRowActions from '@/components/records/RecordRowActions';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useHasActivePlan } from '@/hooks/useHasActivePlan';
+import { showApiError } from '@/lib/apiError';
+import { toast } from 'sonner';
 import type { Measurement } from '@/types';
 
 const PERIMETER_LABELS: Record<string, string> = {
@@ -48,6 +53,8 @@ const MeasurementsEnhanced = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('perimeters');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editing, setEditing] = useState<Measurement | null>(null);
+  const hasActivePlan = useHasActivePlan(user?.id);
 
   useEffect(() => {
     if (!user) return;
@@ -56,6 +63,18 @@ const MeasurementsEnhanced = () => {
       .catch(() => { })
       .finally(() => setLoading(false));
   }, [user, refreshKey]);
+
+  const canEdit = hasActivePlan === true;
+
+  const handleDelete = async (m: Measurement) => {
+    try {
+      await api.delete(`/measurements/${m._id}`);
+      toast.success('Medición eliminada');
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      showApiError(err, 'No se pudo eliminar la medición');
+    }
+  };
 
   const latestMeasurement = measurements[0];
   const zoneValues: Record<string, number> = {};
@@ -318,6 +337,7 @@ const MeasurementsEnhanced = () => {
                         <th className="text-right py-3 px-2 text-muted-foreground font-semibold">Peso</th>
                         <th className="text-right py-3 px-2 text-muted-foreground font-semibold">IMC</th>
                         <th className="text-right py-3 px-2 text-muted-foreground font-semibold">% Grasa</th>
+                        {canEdit && <th className="py-3 px-2" />}
                       </tr>
                     </thead>
                     <tbody>
@@ -327,6 +347,11 @@ const MeasurementsEnhanced = () => {
                           <td className="py-3 px-2 text-right">{m.weight ? `${m.weight} kg` : '-'}</td>
                           <td className="py-3 px-2 text-right">{m.bmi ? m.bmi.toFixed(1) : '-'}</td>
                           <td className="py-3 px-2 text-right">{m.bodyFatPercentage ? `${m.bodyFatPercentage}%` : '-'}</td>
+                          {canEdit && (
+                            <td className="py-3 px-2">
+                              <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -346,11 +371,29 @@ const MeasurementsEnhanced = () => {
               No tienes mediciones registradas
             </h3>
             <p className="text-muted-foreground">
-              Tu kinesiólogo registrará tus mediciones durante las sesiones
+              Usa el botón "Registrar medición" para anotar tu peso, % de grasa o perímetros
             </p>
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Corregir medición</DialogTitle>
+            <DialogDescription>Un campo que dejes vacío se borra de la medición.</DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <MeasurementForm
+              key={editing._id}
+              patientId={user!.id}
+              record={editing}
+              embedded
+              onSuccess={() => { setEditing(null); setRefreshKey((k) => k + 1); }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

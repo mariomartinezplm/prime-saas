@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { clientPlanService } from '@/services/clientPlanService';
+import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,19 +26,8 @@ interface PatientRecordDialogProps {
 const PatientRecordDialog = ({ label, title, description, requirePlan = true, children }: PatientRecordDialogProps) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [hasActivePlan, setHasActivePlan] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!requirePlan) {
-      setHasActivePlan(true);
-      return;
-    }
-    if (!user) return;
-    clientPlanService
-      .getBalance(user.id)
-      .then((balance) => setHasActivePlan(balance.hasActivePlan))
-      .catch(() => setHasActivePlan(true));
-  }, [user, requirePlan]);
+  const planStatus = useHasActivePlan(requirePlan ? user?.id : undefined);
+  const hasActivePlan = requirePlan ? planStatus : true;
 
   if (hasActivePlan === null) return null;
 

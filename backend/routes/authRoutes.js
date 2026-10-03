@@ -14,6 +14,7 @@ import { protect } from '../middleware/auth.js';
 import { verificarOrigen } from '../middleware/verifyOrigin.js';
 import {
   loginLimiter,
+  loginEmailLimiter,
   forgotPasswordLimiter,
   setPasswordLimiter,
   refreshLimiter
@@ -26,7 +27,7 @@ const router = express.Router();
 // POST /verify-identity y PUT /set-password/:verifyToken. El alta de pacientes
 // es solo por invitación (Paso 12) y el reseteo, solo por email (Paso 13).
 // Límite de intentos (Paso 06): sin esto se pueden probar contraseñas sin parar
-router.post('/login', loginLimiter, login);
+router.post('/login', loginLimiter, loginEmailLimiter, login);
 router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.put('/reset-password/:resetToken', setPasswordLimiter, resetPassword);
 // Alta de pacientes por invitación (Paso 12): mismo límite que reset-password,

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,12 +11,15 @@ import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
+import type { ExerciseProgress } from '@/types';
 
 interface ExerciseFormProps {
   patientId: string;
   onSuccess: () => void;
   // Sin tarjeta propia: para mostrarlo dentro de un diálogo
   embedded?: boolean;
+  // Si viene, el formulario corrige ese registro en vez de crear uno nuevo
+  record?: ExerciseProgress;
 }
 
 const CATEGORIES = [
@@ -27,18 +31,34 @@ const CATEGORIES = [
   { value: 'otro', label: 'Otro' },
 ];
 
-const ExerciseForm = ({ patientId, onSuccess, embedded = false }: ExerciseFormProps) => {
+const emptyForm = () => ({
+  date: todayLocal(),
+  exerciseName: '',
+  category: 'fuerza',
+  sets: '',
+  reps: '',
+  weight: '',
+  rpe: '',
+  notes: '',
+});
+
+const text = (value?: number | null) => (value === undefined || value === null ? '' : String(value));
+
+const formFromRecord = (e: ExerciseProgress) => ({
+  date: format(parseISO(e.date), 'yyyy-MM-dd'),
+  exerciseName: e.exerciseName,
+  category: e.category,
+  sets: text(e.sets),
+  reps: text(e.reps),
+  weight: text(e.weight),
+  rpe: text(e.rpe),
+  notes: e.notes ?? '',
+});
+
+const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: ExerciseFormProps) => {
+  const isEdit = !!record;
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    date: todayLocal(),
-    exerciseName: '',
-    category: 'fuerza',
-    sets: '',
-    reps: '',
-    weight: '',
-    rpe: '',
-    notes: '',
-  });
+  const [form, setForm] = useState(() => (record ? formFromRecord(record) : emptyForm()));
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -53,23 +73,30 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false }: ExerciseFormPr
 
     setLoading(true);
     try {
-      await api.post('/exercises', {
-        patient: patientId,
+      // Al corregir, un campo vaciado se envía como null para borrarlo de verdad
+      const empty = isEdit ? null : undefined;
+      const payload = {
         date: form.date ? localNoonISO(form.date) : undefined,
         exerciseName: form.exerciseName,
         category: form.category,
-        sets: form.sets ? parseInt(form.sets) : undefined,
-        reps: form.reps ? parseInt(form.reps) : undefined,
-        weight: form.weight ? parseFloat(form.weight) : undefined,
-        rpe: form.rpe ? parseInt(form.rpe) : undefined,
-        notes: form.notes || undefined,
-      });
+        sets: form.sets ? parseInt(form.sets) : empty,
+        reps: form.reps ? parseInt(form.reps) : empty,
+        weight: form.weight ? parseFloat(form.weight) : empty,
+        rpe: form.rpe ? parseInt(form.rpe) : empty,
+        notes: form.notes || (isEdit ? '' : undefined),
+      };
 
-      toast.success('Ejercicio registrado exitosamente');
-      setForm({ date: todayLocal(), exerciseName: '', category: 'fuerza', sets: '', reps: '', weight: '', rpe: '', notes: '' });
+      if (record) {
+        await api.put(`/exercises/${record._id}`, payload);
+        toast.success('Ejercicio actualizado');
+      } else {
+        await api.post('/exercises', { patient: patientId, ...payload });
+        toast.success('Ejercicio registrado exitosamente');
+        setForm(emptyForm());
+      }
       onSuccess();
     } catch (err: unknown) {
-      showApiError(err, 'Error al registrar ejercicio');
+      showApiError(err, isEdit ? 'Error al actualizar el ejercicio' : 'Error al registrar ejercicio');
     } finally {
       setLoading(false);
     }
@@ -130,7 +157,7 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false }: ExerciseFormPr
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Registrar Ejercicio
+            {isEdit ? 'Guardar cambios' : 'Registrar Ejercicio'}
           </Button>
     </>
   );

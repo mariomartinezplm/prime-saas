@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,37 +10,49 @@ import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
+import type { Measurement } from '@/types';
 
 interface MeasurementFormProps {
   patientId: string;
   onSuccess: () => void;
   // Sin tarjeta propia: para mostrarlo dentro de un diálogo
   embedded?: boolean;
+  // Si viene, el formulario corrige esa medición en vez de crear una nueva
+  record?: Measurement;
 }
 
-const MeasurementForm = ({ patientId, onSuccess, embedded = false }: MeasurementFormProps) => {
+const PERIMETER_FIELDS = ['shoulders', 'neck', 'chest', 'waist', 'hips', 'bicepLeft', 'bicepRight', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'forearmLeft', 'forearmRight'] as const;
+const JUMP_FIELDS = ['cmj', 'sj', 'cmjLeftLeg', 'cmjRightLeg', 'sjLeftLeg', 'sjRightLeg', 'dropJump', 'abalakov', 'horizontalJump'] as const;
+
+const emptyForm = () => ({
+  date: todayLocal(),
+  weight: '', height: '', bodyFatPercentage: '', muscleMassPercentage: '',
+  shoulders: '', neck: '', chest: '', waist: '', hips: '',
+  bicepLeft: '', bicepRight: '', thighLeft: '', thighRight: '', calfLeft: '', calfRight: '',
+  forearmLeft: '', forearmRight: '', notes: '',
+  cmj: '', sj: '', cmjLeftLeg: '', cmjRightLeg: '',
+  sjLeftLeg: '', sjRightLeg: '', dropJump: '', abalakov: '', horizontalJump: '',
+});
+
+const text = (value?: number | null) => (value === undefined || value === null ? '' : String(value));
+
+const formFromRecord = (m: Measurement) => {
+  const form = emptyForm();
+  form.date = format(parseISO(m.date), 'yyyy-MM-dd');
+  form.weight = text(m.weight);
+  form.height = text(m.height);
+  form.bodyFatPercentage = text(m.bodyFatPercentage);
+  form.muscleMassPercentage = text(m.muscleMassPercentage);
+  form.notes = m.notes ?? '';
+  PERIMETER_FIELDS.forEach((f) => { form[f] = text(m.perimeters?.[f]); });
+  JUMP_FIELDS.forEach((f) => { form[f] = text(m.jumpTests?.[f]); });
+  return form;
+};
+
+const MeasurementForm = ({ patientId, onSuccess, embedded = false, record }: MeasurementFormProps) => {
+  const isEdit = !!record;
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    date: todayLocal(),
-    weight: '',
-    height: '',
-    bodyFatPercentage: '',
-    muscleMassPercentage: '',
-    shoulders: '',
-    neck: '',
-    chest: '',
-    waist: '',
-    hips: '',
-    bicepLeft: '',
-    bicepRight: '',
-    thighLeft: '',
-    thighRight: '',
-    calfLeft: '',
-    calfRight: '',
-    forearmLeft: '', forearmRight: '', notes: '',
-    cmj: '', sj: '', cmjLeftLeg: '', cmjRightLeg: '',
-    sjLeftLeg: '', sjRightLeg: '', dropJump: '', abalakov: '', horizontalJump: '',
-  });
+  const [form, setForm] = useState(() => (record ? formFromRecord(record) : emptyForm()));
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -49,48 +62,44 @@ const MeasurementForm = ({ patientId, onSuccess, embedded = false }: Measurement
     e.preventDefault();
     setLoading(true);
     try {
-      const perimeters: Record<string, number> = {};
-      const perimeterFields = ['shoulders', 'neck', 'chest', 'waist', 'hips', 'bicepLeft', 'bicepRight', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'forearmLeft', 'forearmRight'];
-      perimeterFields.forEach((f) => {
-        if (form[f as keyof typeof form]) {
-          perimeters[f] = parseFloat(form[f as keyof typeof form]);
-        }
+      // Al corregir, un campo vaciado se envía como null para borrarlo de verdad;
+      // al crear, simplemente no se envía.
+      const num = (v: string) => (v ? parseFloat(v) : isEdit ? null : undefined);
+
+      const perimeters: Record<string, number | null> = {};
+      PERIMETER_FIELDS.forEach((f) => {
+        const value = num(form[f]);
+        if (value !== undefined) perimeters[f] = value;
       });
 
-      const jumpTests: Record<string, number> = {};
-      const jumpFields = ['cmj', 'sj', 'cmjLeftLeg', 'cmjRightLeg', 'sjLeftLeg', 'sjRightLeg', 'dropJump', 'abalakov', 'horizontalJump'];
-      jumpFields.forEach((f) => {
-        if (form[f as keyof typeof form]) {
-          jumpTests[f] = parseFloat(form[f as keyof typeof form]);
-        }
+      const jumpTests: Record<string, number | null> = {};
+      JUMP_FIELDS.forEach((f) => {
+        const value = num(form[f]);
+        if (value !== undefined) jumpTests[f] = value;
       });
 
-      await api.post('/measurements', {
-        patient: patientId,
+      const payload = {
         date: form.date ? localNoonISO(form.date) : undefined,
         perimeters,
-        jumpTests, // Add jump tests to payload
-        weight: form.weight ? parseFloat(form.weight) : undefined,
-        height: form.height ? parseFloat(form.height) : undefined,
-        bodyFatPercentage: form.bodyFatPercentage ? parseFloat(form.bodyFatPercentage) : undefined,
-        muscleMassPercentage: form.muscleMassPercentage ? parseFloat(form.muscleMassPercentage) : undefined,
-        notes: form.notes || undefined,
-      });
+        jumpTests,
+        weight: num(form.weight),
+        height: num(form.height),
+        bodyFatPercentage: num(form.bodyFatPercentage),
+        muscleMassPercentage: num(form.muscleMassPercentage),
+        notes: form.notes || (isEdit ? '' : undefined),
+      };
 
-      toast.success('Medición registrada exitosamente');
-      setForm({
-        date: todayLocal(),
-        weight: '', height: '', bodyFatPercentage: '', muscleMassPercentage: '',
-        shoulders: '', neck: '',
-        chest: '', waist: '', hips: '', bicepLeft: '', bicepRight: '',
-        thighLeft: '', thighRight: '', calfLeft: '', calfRight: '',
-        forearmLeft: '', forearmRight: '', notes: '',
-        cmj: '', sj: '', cmjLeftLeg: '', cmjRightLeg: '',
-        sjLeftLeg: '', sjRightLeg: '', dropJump: '', abalakov: '', horizontalJump: '',
-      });
+      if (record) {
+        await api.put(`/measurements/${record._id}`, payload);
+        toast.success('Medición actualizada');
+      } else {
+        await api.post('/measurements', { patient: patientId, ...payload });
+        toast.success('Medición registrada exitosamente');
+        setForm(emptyForm());
+      }
       onSuccess();
     } catch (err: unknown) {
-      showApiError(err, 'Error al registrar medición');
+      showApiError(err, isEdit ? 'Error al actualizar la medición' : 'Error al registrar medición');
     } finally {
       setLoading(false);
     }
@@ -183,7 +192,7 @@ const MeasurementForm = ({ patientId, onSuccess, embedded = false }: Measurement
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Registrar Medición
+            {isEdit ? 'Guardar cambios' : 'Registrar Medición'}
           </Button>
     </>
   );

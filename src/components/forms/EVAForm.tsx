@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import PainBodyDiagram from '@/components/body/PainBodyDiagram';
+import { Input } from '@/components/ui/input';
+import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
 
 interface EVAFormProps {
   patientId: string;
@@ -32,6 +34,7 @@ const PAIN_TYPES = [
 
 const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
   const [loading, setLoading] = useState(false);
+  const [date, setDate] = useState(todayLocal());
   const [painLevel, setPainLevel] = useState(0);
   const [bodyArea, setBodyArea] = useState('');
   const [painType, setPainType] = useState('');
@@ -55,6 +58,7 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
     try {
       await api.post('/eva', {
         patient: patientId,
+        date: date ? localNoonISO(date) : undefined,
         painLevel,
         bodyArea: bodyArea || 'otro',
         painType: painType ? [painType] : [],
@@ -65,6 +69,7 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
       });
 
       toast.success('Registro EVA creado exitosamente');
+      setDate(todayLocal());
       setPainLevel(0);
       setBodyArea('');
       setPainType('');
@@ -92,6 +97,11 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
       <Card>
         <CardHeader><CardTitle className="text-lg">Nuevo Registro EVA</CardTitle></CardHeader>
         <CardContent className="space-y-6">
+          <div className="space-y-1 max-w-[200px]">
+            <Label className="text-xs">Fecha del registro</Label>
+            <Input type="date" max={todayLocal()} value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+
           {/* Pain level slider */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
