@@ -29,6 +29,7 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import logoImage from '@/assets/prime-fh-logo.png';
+import FounderBadge from '@/components/plans/FounderBadge';
 
 const AppSidebar = () => {
   const { user, logout } = useAuth();
@@ -72,8 +73,9 @@ const AppSidebar = () => {
         </div>
         {user && (
           <div className="mt-3">
-            <p className="text-sm font-medium text-sidebar-foreground">
+            <p className="text-sm font-medium text-sidebar-foreground flex items-center gap-1.5 flex-wrap">
               {user.firstName} {user.lastName}
+              {user.isFounder && <FounderBadge compact />}
             </p>
             <p className="text-xs text-sidebar-foreground/60 capitalize">
               {user.role === 'admin' ? 'Administrador' : user.role === 'professional' ? 'Profesional' : 'Paciente'}

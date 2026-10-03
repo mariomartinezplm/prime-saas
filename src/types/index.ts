@@ -6,6 +6,8 @@ export interface User {
   fullName: string;
   email: string;
   role: 'admin' | 'professional' | 'patient';
+  // Miembro Fundador (plan anual); lo calcula el servidor
+  isFounder?: boolean;
   phone?: string;
   dateOfBirth?: string;
   rut?: string;
@@ -159,7 +161,15 @@ export interface ClientPlan {
   sessionsUsed: number;
   startDate: string;
   endDate: string;
-  status: 'active' | 'expired' | 'cancelled';
+  status: 'active' | 'expired' | 'cancelled' | 'upcoming';
+  term?: 'mensual' | 'trimestral' | 'anual';
+  billingCycle?: 'calendar' | 'rolling';
+  cycleNumber?: number;
+  cyclesTotal?: number;
+  renews?: boolean;
+  // Renovación abierta sin pago registrado: se puede agendar hasta paymentDueBy
+  paymentPending?: boolean;
+  paymentDueBy?: string;
   registeredBy: User | string;
   notes?: string;
   createdAt: string;
@@ -171,6 +181,9 @@ export interface CreateClientPlanData {
   serviceType: 'entrenamiento' | 'kinesiologia';
   sessionsTotal: number;
   unlimited?: boolean;
+  term?: 'mensual' | 'trimestral' | 'anual';
+  billingCycle?: 'calendar' | 'rolling';
+  renews?: boolean;
   startDate?: string;
   notes?: string;
   replaceExisting?: boolean;
@@ -179,6 +192,8 @@ export interface CreateClientPlanData {
 export interface SessionBalance {
   hasActivePlan: boolean;
   plan: ClientPlan | null;
+  paymentPending?: boolean;
+  paymentDueBy?: string | null;
   planSessionsAvailable: number;
   extraSessionsAvailable: number;
   totalAvailable: number;

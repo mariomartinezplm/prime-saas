@@ -25,18 +25,24 @@ import {
 import { clientPlanService } from '@/services/clientPlanService';
 import { userService } from '@/services/userService';
 import SessionsSelect from '@/components/plans/SessionsSelect';
+import PlanTermFields from '@/components/plans/PlanTermFields';
+import FounderBadge from '@/components/plans/FounderBadge';
 import {
   SERVICE_TYPE_LABELS,
   DEFAULT_CHOICE,
   choiceLabel,
   choiceToPayload,
   formatPlanUsage,
+  formatCycleProgress,
+  formatPaymentDeadline,
   sessionChoicesFor,
   type ServiceType,
   type SessionsChoice,
+  type PlanTerm,
+  type BillingCycle,
 } from '@/config/planCatalog';
 import { toast } from 'sonner';
-import { Loader2, Search, Plus, X, Dumbbell, Stethoscope, ClipboardList } from 'lucide-react';
+import { Loader2, Search, Plus, X, Dumbbell, Stethoscope, ClipboardList, Clock } from 'lucide-react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { ClientPlan, User } from '@/types';
@@ -50,10 +56,14 @@ function daysRemaining(endDate: string): number {
   return differenceInCalendarDays(parseISO(endDate), new Date());
 }
 
+// Un mes intermedio de un plan trimestral/anual no "vence pronto": el siguiente ya está pagado
+const isLastCycle = (plan: ClientPlan) => (plan.cycleNumber ?? 1) >= (plan.cyclesTotal ?? 1);
+
 function rowHighlightClass(plan: ClientPlan): string {
   if (plan.status === 'expired') return 'border-l-4 border-l-red-500 bg-red-500/10';
+  if (plan.paymentPending) return 'border-l-4 border-l-amber-500 bg-amber-500/10';
   const remaining = daysRemaining(plan.endDate);
-  if (plan.status === 'active' && remaining <= 5) return 'border-l-4 border-l-yellow-500 bg-yellow-500/10';
+  if (plan.status === 'active' && isLastCycle(plan) && remaining <= 5) return 'border-l-4 border-l-yellow-500 bg-yellow-500/10';
   return '';
 }
 
@@ -61,8 +71,11 @@ function statusBadge(plan: ClientPlan) {
   if (plan.status === 'expired') {
     return <Badge className="bg-red-500/20 text-red-400">Vencido</Badge>;
   }
+  if (plan.paymentPending) {
+    return <Badge className="bg-amber-500/20 text-amber-400">Pendiente de pago</Badge>;
+  }
   const remaining = daysRemaining(plan.endDate);
-  if (remaining <= 5) {
+  if (isLastCycle(plan) && remaining <= 5) {
     return <Badge className="bg-yellow-500/20 text-yellow-600">Vence pronto</Badge>;
   }
   return <Badge className="bg-green-500/20 text-green-400">Activo</Badge>;
@@ -80,6 +93,8 @@ const Plans = () => {
   const [selectedPatient, setSelectedPatient] = useState<User | null>(null);
   const [serviceType, setServiceType] = useState<ServiceType>('entrenamiento');
   const [choice, setChoice] = useState<SessionsChoice>(DEFAULT_CHOICE.entrenamiento);
+  const [term, setTerm] = useState<PlanTerm>('mensual');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [submitting, setSubmitting] = useState(false);
 
   // Confirmación de reemplazo de plan activo
@@ -129,7 +144,29 @@ const Plans = () => {
     setPatientSearch('');
     setServiceType('entrenamiento');
     setChoice(DEFAULT_CHOICE.entrenamiento);
+    setTerm('mensual');
+    setBillingCycle('calendar');
     setConflictPlan(null);
+  };
+
+  // Plan pendiente de pago del paciente elegido (si lo tiene)
+  const pendingOfSelected = useMemo(
+    () => (selectedPatient
+      ? clientPlans.find((p) => p.paymentPending && p.status === 'active' && (typeof p.patient === 'object' ? p.patient.id : p.patient) === selectedPatient.id)
+      : undefined),
+    [clientPlans, selectedPatient]
+  );
+
+  // "Registrar pago" desde una tarjeta pendiente: abre el diálogo ya completado
+  const openPaymentFor = (plan: ClientPlan) => {
+    if (typeof plan.patient !== 'object') return;
+    const patient = patients.find((p) => p.id === (plan.patient as User).id) ?? (plan.patient as User);
+    setSelectedPatient(patient);
+    setServiceType(plan.serviceType);
+    setChoice(plan.unlimited ? 'ilimitado' : plan.sessionsTotal);
+    setTerm(plan.term ?? 'mensual');
+    setBillingCycle(plan.billingCycle ?? 'calendar');
+    setDialogOpen(true);
   };
 
   const handleServiceTypeChange = (type: ServiceType) => {
@@ -145,6 +182,8 @@ const Plans = () => {
         patientId: selectedPatient.id,
         serviceType,
         ...choiceToPayload(choice),
+        term,
+        billingCycle,
         replaceExisting,
       });
       toast.success('Plan registrado exitosamente');
@@ -167,6 +206,48 @@ const Plans = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     submitPlan(false);
+  };
+
+  const pendingPlans = clientPlans.filter((p) => p.paymentPending && p.status === 'active');
+  const otherPlans = clientPlans.filter((p) => !(p.paymentPending && p.status === 'active'));
+
+  const renderPlanCard = (plan: ClientPlan) => {
+    const patient = typeof plan.patient === 'object' ? plan.patient : null;
+    const remaining = daysRemaining(plan.endDate);
+    const cycleProgress = formatCycleProgress(plan);
+    return (
+      <Card key={plan._id} className={cn('transition-colors', rowHighlightClass(plan))}>
+        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p className="font-medium flex items-center gap-2 flex-wrap">
+              {patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente'}
+              {patient?.isFounder && <FounderBadge compact />}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanUsage(plan)}
+              {cycleProgress && <> · {cycleProgress}</>}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {format(parseISO(plan.startDate), 'dd/MM/yyyy')} → {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
+              {plan.paymentPending && plan.paymentDueBy && (
+                <> · paga hasta el {formatPaymentDeadline(plan.paymentDueBy)}</>
+              )}
+              {plan.status === 'active' && !plan.paymentPending && (
+                <> · {remaining >= 0 ? `${remaining} día(s) restante(s)` : 'vencido'}</>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 sm:flex-col sm:items-end">
+            {statusBadge(plan)}
+            {plan.paymentPending && (
+              <Button size="sm" variant="outline" onClick={() => openPaymentFor(plan)}>
+                Registrar pago
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -217,6 +298,22 @@ const Plans = () => {
         })}
       </div>
 
+      {/* Pendientes de pago: lo primero que el admin necesita ver */}
+      {pendingPlans.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-amber-400" />
+            Pendientes de pago ({pendingPlans.length})
+          </h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            Pueden seguir agendando hasta su fecha límite. Si no pagan, el plan vence solo.
+          </p>
+          <div className="space-y-3">
+            {pendingPlans.map((plan) => renderPlanCard(plan))}
+          </div>
+        </div>
+      )}
+
       {/* Lista de planes activos/vencidos */}
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-3">Planes de pacientes</h2>
@@ -224,37 +321,11 @@ const Plans = () => {
           <div className="flex items-center justify-center h-40">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
           </div>
-        ) : clientPlans.length === 0 ? (
+        ) : otherPlans.length === 0 ? (
           <p className="text-muted-foreground text-sm">No hay planes registrados todavía</p>
         ) : (
           <div className="space-y-3">
-            {clientPlans.map((plan) => {
-              const patient = typeof plan.patient === 'object' ? plan.patient : null;
-              const remaining = daysRemaining(plan.endDate);
-              return (
-                <Card key={plan._id} className={cn('transition-colors', rowHighlightClass(plan))}>
-                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium">
-                        {patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanUsage(plan)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(parseISO(plan.startDate), 'dd/MM/yyyy')} → {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
-                        {plan.status === 'active' && (
-                          <> · {remaining >= 0 ? `${remaining} día(s) restante(s)` : 'vencido'}</>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 sm:flex-col sm:items-end">
-                      {statusBadge(plan)}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {otherPlans.map((plan) => renderPlanCard(plan))}
           </div>
         )}
       </div>
@@ -351,12 +422,24 @@ const Plans = () => {
 
             {/* Paso 3: Sesiones */}
             <div className="space-y-2">
-              <Label>Sesiones del plan</Label>
+              <Label>Sesiones por mes</Label>
               <SessionsSelect serviceType={serviceType} value={choice} onChange={setChoice} />
-              <p className="text-xs text-muted-foreground">
-                Ciclo de 30 días desde hoy ({format(new Date(), 'dd/MM/yyyy')}).
-              </p>
             </div>
+
+            {/* Paso 4: Duración y ciclo */}
+            {pendingOfSelected ? (
+              <p className="text-xs rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-amber-400">
+                Este paciente tiene la renovación pendiente de pago. Al confirmar se marca como pagada
+                (mismo ciclo) y conserva las sesiones que ya usó.
+              </p>
+            ) : (
+              <PlanTermFields
+                term={term}
+                billingCycle={billingCycle}
+                onTermChange={setTerm}
+                onBillingCycleChange={setBillingCycle}
+              />
+            )}
 
             <DialogFooter>
               <Button type="submit" disabled={!selectedPatient || submitting} className="w-full">

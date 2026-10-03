@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import SessionsSelect from '@/components/plans/SessionsSelect';
-import { SERVICE_TYPE_LABELS, DEFAULT_CHOICE, choiceToPayload, type ServiceType, type SessionsChoice } from '@/config/planCatalog';
+import PlanTermFields from '@/components/plans/PlanTermFields';
+import { SERVICE_TYPE_LABELS, DEFAULT_CHOICE, choiceToPayload, type ServiceType, type SessionsChoice, type PlanTerm, type BillingCycle } from '@/config/planCatalog';
 import { toast } from 'sonner';
 import { Loader2, Dumbbell, Stethoscope, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,8 @@ const RegisterPatient = () => {
   const [loading, setLoading] = useState(false);
   const [planInicial, setPlanInicial] = useState<PlanInicialOption>('despues');
   const [choice, setChoice] = useState<SessionsChoice>(DEFAULT_CHOICE.kinesiologia);
+  const [term, setTerm] = useState<PlanTerm>('mensual');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -75,6 +78,8 @@ const RegisterPatient = () => {
             patientId: nuevoPaciente.id,
             serviceType: planInicial,
             ...choiceToPayload(choice),
+            term,
+            billingCycle,
           });
           toast.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
         } catch {
@@ -214,9 +219,17 @@ const RegisterPatient = () => {
             </div>
 
             {planInicial !== 'despues' && (
-              <div className="space-y-2">
-                <Label>Sesiones del plan</Label>
-                <SessionsSelect serviceType={planInicial} value={choice} onChange={setChoice} />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Sesiones por mes</Label>
+                  <SessionsSelect serviceType={planInicial} value={choice} onChange={setChoice} />
+                </div>
+                <PlanTermFields
+                  term={term}
+                  billingCycle={billingCycle}
+                  onTermChange={setTerm}
+                  onBillingCycleChange={setBillingCycle}
+                />
               </div>
             )}
           </CardContent>

@@ -17,6 +17,7 @@ import { CalendarPlus, AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays,
 import { format, addHours, isBefore, parseISO } from 'date-fns';
 import { formatPlanUsage } from '@/config/planCatalog';
 import type { User, SessionBalance, AvailableSlots } from '@/types';
+import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 
 type BookingMode = 'single' | 'recurring';
 
@@ -145,6 +146,8 @@ const BookAppointment = () => {
     if (!balance?.plan) return true;
     const start = parseISO(balance.plan.startDate);
     const end = parseISO(balance.plan.endDate);
+    // Con la renovación pendiente de pago, solo se agenda dentro del plazo de pago
+    if (balance.plan.paymentPending && balance.plan.paymentDueBy && date >= parseISO(balance.plan.paymentDueBy)) return false;
     return date >= start && date <= end;
   };
 
@@ -208,6 +211,10 @@ const BookAppointment = () => {
           <p className="text-muted-foreground mt-1">Reserva tus sesiones con tu kinesiólogo</p>
         </div>
       </div>
+
+      {balance?.paymentPending && balance.paymentDueBy && (
+        <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />
+      )}
 
       {/* ─── Banner de Estado del Plan con Contador de Sesiones ─── */}
       {planInfo ? (

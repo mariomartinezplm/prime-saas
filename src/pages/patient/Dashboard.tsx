@@ -12,6 +12,8 @@ import { CalendarPlus, Clock, Activity, Ruler, FileText, MessageCircle } from 'l
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Appointment, SessionBalance } from '@/types';
+import FounderBadge from '@/components/plans/FounderBadge';
+import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 
 const PatientDashboard = () => {
   const { user } = useAuth();
@@ -56,11 +58,16 @@ const PatientDashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
           Hola, {user?.firstName}
+          {user?.isFounder && <FounderBadge />}
         </h1>
         <p className="text-muted-foreground">Bienvenido a tu espacio Prime F&H</p>
       </div>
+
+      {balance?.paymentPending && balance.paymentDueBy && (
+        <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />
+      )}
 
       {/* Check-in de bienestar — destacado, arriba de todo */}
       <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} />

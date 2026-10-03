@@ -13,7 +13,9 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useEffect } from 'react';
-import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
+import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress } from '@/config/planCatalog';
+import FounderBadge from '@/components/plans/FounderBadge';
+import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 import type { SessionBalance } from '@/types';
 
 const MyProfile = () => {
@@ -60,7 +62,10 @@ const MyProfile = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Mi Perfil</h1>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
+          Mi Perfil
+          {user.isFounder && <FounderBadge />}
+        </h1>
         <p className="text-muted-foreground">Información de tu cuenta</p>
       </div>
 
@@ -174,9 +179,15 @@ const MyProfile = () => {
             <CardContent>
               {balance?.hasActivePlan && balance.plan ? (
                 <div className="space-y-3 text-sm">
+                  {balance.paymentPending && balance.paymentDueBy && (
+                    <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />
+                  )}
                   <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span className="font-medium">{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Sesiones</span><span>{formatPlanUsage(balance.plan)}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Inicio</span><span>{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</span></div>
+                  {formatCycleProgress(balance.plan) && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Plan</span><span>{formatCycleProgress(balance.plan)}</span></div>
+                  )}
                   <div className="flex justify-between"><span className="text-muted-foreground">Vence</span><span>{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</span></div>
                   {balance.extraSessionsAvailable > 0 && (
                     <div className="flex justify-between"><span className="text-muted-foreground">Sesiones extra</span><span>{balance.extraSessionsAvailable}</span></div>

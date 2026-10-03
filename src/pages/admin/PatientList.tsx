@@ -21,8 +21,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, UserPlus, ChevronRight, RefreshCw, Plus, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
-import { SERVICE_TYPE_LABELS, formatPlanRemaining, type ServiceType } from '@/config/planCatalog';
+import { SERVICE_TYPE_LABELS, formatPlanRemaining, formatPaymentDeadline, type ServiceType } from '@/config/planCatalog';
 import type { User, SessionBalance } from '@/types';
+import FounderBadge from '@/components/plans/FounderBadge';
 
 const PatientList = () => {
   const navigate = useNavigate();
@@ -154,8 +155,18 @@ const PatientList = () => {
     }
 
     const plan = balance.plan!;
+
+    if (balance.paymentPending && balance.paymentDueBy) {
+      return (
+        <span className="text-xs text-amber-400 font-medium">
+          Pendiente de pago hasta el {formatPaymentDeadline(balance.paymentDueBy)} · {SERVICE_TYPE_LABELS[plan.serviceType]}
+        </span>
+      );
+    }
+
     const daysLeft = differenceInCalendarDays(parseISO(plan.endDate), new Date());
-    const isSoon = daysLeft <= 5;
+    // Un mes intermedio de un plan trimestral/anual no "vence pronto": el siguiente ya está pagado
+    const isSoon = daysLeft <= 5 && (plan.cycleNumber ?? 1) >= (plan.cyclesTotal ?? 1);
 
     return (
       <span className={`text-xs ${isSoon ? 'text-yellow-500' : 'text-muted-foreground'}`}>
@@ -227,7 +238,10 @@ const PatientList = () => {
                     </span>
                   </div>
                   <div>
-                    <p className="font-medium">{patient.firstName} {patient.lastName}</p>
+                    <p className="font-medium flex items-center gap-2 flex-wrap">
+                      {patient.firstName} {patient.lastName}
+                      {patient.isFounder && <FounderBadge compact />}
+                    </p>
                     <p className="text-sm text-muted-foreground">{patient.email}</p>
                     {isProfessional && <div className="mt-0.5">{planInfoFor(patient.id)}</div>}
                   </div>

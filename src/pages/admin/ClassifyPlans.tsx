@@ -6,6 +6,7 @@ import { clientPlanService } from '@/services/clientPlanService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import SessionsSelect from '@/components/plans/SessionsSelect';
+import PlanTermFields from '@/components/plans/PlanTermFields';
 import {
   PLAN_CATALOG,
   SERVICE_TYPE_LABELS,
@@ -13,6 +14,8 @@ import {
   choiceToPayload,
   type ServiceType,
   type SessionsChoice,
+  type PlanTerm,
+  type BillingCycle,
 } from '@/config/planCatalog';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2, Dumbbell, Stethoscope, PartyPopper } from 'lucide-react';
@@ -27,6 +30,8 @@ const SERVICE_ICON: Record<ServiceType, typeof Dumbbell> = {
 interface RowState {
   serviceType: ServiceType;
   choice: SessionsChoice;
+  term: PlanTerm;
+  billingCycle: BillingCycle;
   submitting: boolean;
 }
 
@@ -65,7 +70,7 @@ const ClassifyPlans = () => {
         Object.fromEntries(
           sinPlan.map((p) => [
             p.id,
-            { serviceType: 'kinesiologia' as ServiceType, choice: DEFAULT_CHOICE.kinesiologia, submitting: false },
+            { serviceType: 'kinesiologia' as ServiceType, choice: DEFAULT_CHOICE.kinesiologia, term: 'mensual' as PlanTerm, billingCycle: 'calendar' as BillingCycle, submitting: false },
           ])
         )
       );
@@ -96,6 +101,14 @@ const ClassifyPlans = () => {
     setRowState((prev) => ({ ...prev, [patientId]: { ...prev[patientId], choice } }));
   };
 
+  const handleTermChange = (patientId: string, term: PlanTerm) => {
+    setRowState((prev) => ({ ...prev, [patientId]: { ...prev[patientId], term } }));
+  };
+
+  const handleBillingCycleChange = (patientId: string, billingCycle: BillingCycle) => {
+    setRowState((prev) => ({ ...prev, [patientId]: { ...prev[patientId], billingCycle } }));
+  };
+
   const handleAsignar = async (patient: User) => {
     const row = rowState[patient.id];
     if (!row) return;
@@ -106,6 +119,8 @@ const ClassifyPlans = () => {
         patientId: patient.id,
         serviceType: row.serviceType,
         ...choiceToPayload(row.choice),
+        term: row.term,
+        billingCycle: row.billingCycle,
       });
       toast.success(`Plan asignado a ${patient.firstName} ${patient.lastName}`);
       setPatientsWithoutPlan((prev) => prev.filter((p) => p.id !== patient.id));
@@ -201,6 +216,14 @@ const ClassifyPlans = () => {
                       Asignar
                     </Button>
                   </div>
+
+                  <PlanTermFields
+                    compact
+                    term={row.term}
+                    billingCycle={row.billingCycle}
+                    onTermChange={(t) => handleTermChange(patient.id, t)}
+                    onBillingCycleChange={(c) => handleBillingCycleChange(patient.id, c)}
+                  />
                 </CardContent>
               </Card>
             );

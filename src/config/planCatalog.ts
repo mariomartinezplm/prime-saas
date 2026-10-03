@@ -1,5 +1,8 @@
 // Catálogo de planes — debe coincidir con backend/config/planCatalog.js
 
+import { addMonths, endOfMonth, format, parseISO, startOfDay, subDays, subMilliseconds } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 export type ServiceType = 'entrenamiento' | 'kinesiologia';
 
 export const PLAN_CATALOG: Record<ServiceType, number[]> = {
@@ -53,4 +56,43 @@ export function formatPlanRemaining(plan: PlanUsage): string {
   return plan.unlimited
     ? 'sesiones ilimitadas'
     : `${plan.sessionsTotal - plan.sessionsUsed} sesión(es) restante(s)`;
+}
+
+// ─── Duración del plan y tipo de ciclo (debe coincidir con backend/services/planCycles.js) ───
+
+export type PlanTerm = 'mensual' | 'trimestral' | 'anual';
+export type BillingCycle = 'calendar' | 'rolling';
+
+export const PLAN_TERMS: PlanTerm[] = ['mensual', 'trimestral', 'anual'];
+
+export const TERM_LABELS: Record<PlanTerm, string> = {
+  mensual: 'Mensual',
+  trimestral: 'Trimestral (3 meses)',
+  anual: 'Anual (12 meses)',
+};
+
+export const TERM_MONTHS: Record<PlanTerm, number> = { mensual: 1, trimestral: 3, anual: 12 };
+
+export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
+  calendar: 'Hasta fin de mes (lo normal)',
+  rolling: 'De fecha a fecha (ej. del 10 al 10)',
+};
+
+// "Mes 3 de 12" para planes de varios meses; vacío para los mensuales
+export function formatCycleProgress(plan: { cycleNumber?: number; cyclesTotal?: number; term?: PlanTerm }): string {
+  if (!plan.cyclesTotal || plan.cyclesTotal <= 1) return '';
+  return `${plan.term === 'anual' ? 'Anual' : 'Trimestral'} · mes ${plan.cycleNumber ?? 1} de ${plan.cyclesTotal}`;
+}
+
+// Fecha en que terminaría el plan si se registrara hoy (solo para mostrar)
+export function previewPlanEnd(term: PlanTerm, billingCycle: BillingCycle): Date {
+  const months = TERM_MONTHS[term];
+  return billingCycle === 'rolling'
+    ? subDays(addMonths(startOfDay(new Date()), months), 1)
+    : endOfMonth(addMonths(new Date(), months - 1));
+}
+
+// Fecha límite de pago como la ve la persona: "5 de noviembre"
+export function formatPaymentDeadline(paymentDueBy: string): string {
+  return format(subMilliseconds(parseISO(paymentDueBy), 1), "d 'de' MMMM", { locale: es });
 }

@@ -30,8 +30,9 @@ import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
-import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
+import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress, formatPaymentDeadline } from '@/config/planCatalog';
 import type { User, PatientProfile, SessionBalance, Appointment } from '@/types';
+import FounderBadge from '@/components/plans/FounderBadge';
 
 const PatientDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -109,8 +110,9 @@ const PatientDetail = () => {
             Volver
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
               {patient.firstName} {patient.lastName}
+              {patient.isFounder && <FounderBadge />}
             </h1>
             <p className="text-muted-foreground">{patient.email} {patient.rut && `| ${patient.rut}`}</p>
           </div>
@@ -313,15 +315,34 @@ const PatientDetail = () => {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Plan Activo</CardTitle>
-                  <Badge className="bg-green-500/20 text-green-400">Activo</Badge>
+                  <CardTitle className="text-lg">{balance.paymentPending ? 'Plan pendiente de pago' : 'Plan Activo'}</CardTitle>
+                  {balance.paymentPending
+                    ? <Badge className="bg-amber-500/20 text-amber-400">Pendiente de pago</Badge>
+                    : <Badge className="bg-green-500/20 text-green-400">Activo</Badge>}
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
+                {balance.paymentPending && balance.paymentDueBy && (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-amber-400 space-y-2">
+                    <p>
+                      El paciente tiene hasta el {formatPaymentDeadline(balance.paymentDueBy)} para pagar y puede agendar hasta esa fecha.
+                      Si no paga, el plan vence solo.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/app/admin/planes')}>
+                      Ir a Planes para registrar el pago
+                    </Button>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tipo</span>
                   <span>{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</span>
                 </div>
+                {formatCycleProgress(balance.plan) && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Plan</span>
+                    <span>{formatCycleProgress(balance.plan)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Sesiones</span>
                   <span>{formatPlanUsage(balance.plan)}</span>
