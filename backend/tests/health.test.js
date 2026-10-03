@@ -50,12 +50,38 @@ describe('GET /api/health', () => {
     vi.spyOn(mongoose, 'connection', 'get').mockReturnValue({ readyState: 1 });
     delete process.env.RAILWAY_GIT_COMMIT_SHA;
     delete process.env.ENABLE_SCHEDULER;
+    delete process.env.RESEND_API_KEY;
+    delete process.env.R2_ACCOUNT_ID;
+    delete process.env.R2_ACCESS_KEY_ID;
+    delete process.env.R2_SECRET_ACCESS_KEY;
+    delete process.env.R2_BUCKET_NAME;
+    delete process.env.R2_BUCKET;
 
     const res = fakeRes();
     getHealth({}, res);
 
     expect(res.body.version).toBe('local');
     expect(res.body.scheduler).toBe('off');
-    expect(Object.keys(res.body).sort()).toEqual(['db', 'scheduler', 'status', 'version']);
+    expect(res.body.storage).toBe('off');
+    expect(res.body.email).toBe('off');
+    expect(Object.keys(res.body).sort()).toEqual(['db', 'email', 'scheduler', 'status', 'storage', 'version']);
+  });
+
+  it('con las variables de R2 y Resend cargadas: storage y email "on", sin mostrar ningún valor', () => {
+    vi.spyOn(mongoose, 'connection', 'get').mockReturnValue({ readyState: 1 });
+    process.env.R2_ACCOUNT_ID = 'cuenta-secreta';
+    process.env.R2_ACCESS_KEY_ID = 'clave-secreta';
+    process.env.R2_SECRET_ACCESS_KEY = 'secreto-secreto';
+    process.env.R2_BUCKET_NAME = 'bucket';
+    process.env.RESEND_API_KEY = 're_secreta';
+
+    const res = fakeRes();
+    getHealth({}, res);
+
+    expect(res.body.storage).toBe('on');
+    expect(res.body.email).toBe('on');
+    expect(JSON.stringify(res.body)).not.toMatch(/secret|re_secreta|cuenta-secreta/);
+
+    ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME', 'RESEND_API_KEY'].forEach((k) => delete process.env[k]);
   });
 });
