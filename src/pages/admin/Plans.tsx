@@ -46,6 +46,7 @@ import { Loader2, Search, Plus, X, Dumbbell, Stethoscope, ClipboardList, Clock }
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { ClientPlan, User } from '@/types';
+import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
 
 const SERVICE_ICON: Record<ServiceType, typeof Dumbbell> = {
   entrenamiento: Dumbbell,
@@ -95,6 +96,7 @@ const Plans = () => {
   const [choice, setChoice] = useState<SessionsChoice>(DEFAULT_CHOICE.entrenamiento);
   const [term, setTerm] = useState<PlanTerm>('mensual');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
+  const [renews, setRenews] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Confirmación de reemplazo de plan activo
@@ -146,6 +148,7 @@ const Plans = () => {
     setChoice(DEFAULT_CHOICE.entrenamiento);
     setTerm('mensual');
     setBillingCycle('calendar');
+    setRenews(true);
     setConflictPlan(null);
   };
 
@@ -184,6 +187,7 @@ const Plans = () => {
         ...choiceToPayload(choice),
         term,
         billingCycle,
+        renews,
         replaceExisting,
       });
       toast.success('Plan registrado exitosamente');
@@ -426,7 +430,7 @@ const Plans = () => {
               <SessionsSelect serviceType={serviceType} value={choice} onChange={setChoice} />
             </div>
 
-            {/* Paso 4: Duración y ciclo */}
+            {/* Paso 4: Duración, ciclo y renovación */}
             {pendingOfSelected ? (
               <p className="text-xs rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-amber-400">
                 Este paciente tiene la renovación pendiente de pago. Al confirmar se marca como pagada
@@ -440,6 +444,7 @@ const Plans = () => {
                 onBillingCycleChange={setBillingCycle}
               />
             )}
+            <RenewsCheckbox id="plan-renews" checked={renews} onChange={setRenews} />
 
             <DialogFooter>
               <Button type="submit" disabled={!selectedPatient || submitting} className="w-full">

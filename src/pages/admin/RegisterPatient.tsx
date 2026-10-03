@@ -13,6 +13,7 @@ import { SERVICE_TYPE_LABELS, DEFAULT_CHOICE, choiceToPayload, type ServiceType,
 import { toast } from 'sonner';
 import { Loader2, Dumbbell, Stethoscope, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
 
 type PlanInicialOption = ServiceType | 'despues';
 
@@ -23,6 +24,7 @@ const RegisterPatient = () => {
   const [choice, setChoice] = useState<SessionsChoice>(DEFAULT_CHOICE.kinesiologia);
   const [term, setTerm] = useState<PlanTerm>('mensual');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
+  const [renews, setRenews] = useState(true);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -80,6 +82,7 @@ const RegisterPatient = () => {
             ...choiceToPayload(choice),
             term,
             billingCycle,
+            renews,
           });
           toast.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
         } catch {
@@ -230,6 +233,7 @@ const RegisterPatient = () => {
                   onTermChange={setTerm}
                   onBillingCycleChange={setBillingCycle}
                 />
+                <RenewsCheckbox id="register-renews" checked={renews} onChange={setRenews} />
               </div>
             )}
           </CardContent>

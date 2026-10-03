@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Loader2, Dumbbell, Stethoscope, PartyPopper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types';
+import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
 
 const SERVICE_ICON: Record<ServiceType, typeof Dumbbell> = {
   entrenamiento: Dumbbell,
@@ -32,6 +33,7 @@ interface RowState {
   choice: SessionsChoice;
   term: PlanTerm;
   billingCycle: BillingCycle;
+  renews: boolean;
   submitting: boolean;
 }
 
@@ -70,7 +72,7 @@ const ClassifyPlans = () => {
         Object.fromEntries(
           sinPlan.map((p) => [
             p.id,
-            { serviceType: 'kinesiologia' as ServiceType, choice: DEFAULT_CHOICE.kinesiologia, term: 'mensual' as PlanTerm, billingCycle: 'calendar' as BillingCycle, submitting: false },
+            { serviceType: 'kinesiologia' as ServiceType, choice: DEFAULT_CHOICE.kinesiologia, term: 'mensual' as PlanTerm, billingCycle: 'calendar' as BillingCycle, renews: true, submitting: false },
           ])
         )
       );
@@ -109,6 +111,10 @@ const ClassifyPlans = () => {
     setRowState((prev) => ({ ...prev, [patientId]: { ...prev[patientId], billingCycle } }));
   };
 
+  const handleRenewsChange = (patientId: string, renews: boolean) => {
+    setRowState((prev) => ({ ...prev, [patientId]: { ...prev[patientId], renews } }));
+  };
+
   const handleAsignar = async (patient: User) => {
     const row = rowState[patient.id];
     if (!row) return;
@@ -121,6 +127,7 @@ const ClassifyPlans = () => {
         ...choiceToPayload(row.choice),
         term: row.term,
         billingCycle: row.billingCycle,
+        renews: row.renews,
       });
       toast.success(`Plan asignado a ${patient.firstName} ${patient.lastName}`);
       setPatientsWithoutPlan((prev) => prev.filter((p) => p.id !== patient.id));
@@ -223,6 +230,12 @@ const ClassifyPlans = () => {
                     billingCycle={row.billingCycle}
                     onTermChange={(t) => handleTermChange(patient.id, t)}
                     onBillingCycleChange={(c) => handleBillingCycleChange(patient.id, c)}
+                  />
+                  <RenewsCheckbox
+                    compact
+                    id={`renews-${patient.id}`}
+                    checked={row.renews}
+                    onChange={(value) => handleRenewsChange(patient.id, value)}
                   />
                 </CardContent>
               </Card>

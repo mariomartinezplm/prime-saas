@@ -21,7 +21,7 @@ describe('GET /api/health', () => {
     getHealth({}, res);
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ status: 'ok', db: 'connected' });
+    expect(res.body).toMatchObject({ status: 'ok', db: 'connected' });
   });
 
   it('BD desconectada (readyState !== 1): 503', () => {
@@ -31,6 +31,31 @@ describe('GET /api/health', () => {
     getHealth({}, res);
 
     expect(res.statusCode).toBe(503);
-    expect(res.body).toEqual({ status: 'error', db: 'disconnected' });
+    expect(res.body).toMatchObject({ status: 'error', db: 'disconnected' });
+  });
+
+  it('informa la versión desplegada (7 caracteres del commit) y si el programador está encendido', () => {
+    vi.spyOn(mongoose, 'connection', 'get').mockReturnValue({ readyState: 1 });
+    process.env.RAILWAY_GIT_COMMIT_SHA = '134c4573d9f0e1a2b3c4';
+    process.env.ENABLE_SCHEDULER = 'true';
+
+    const res = fakeRes();
+    getHealth({}, res);
+
+    expect(res.body.version).toBe('134c457');
+    expect(res.body.scheduler).toBe('on');
+  });
+
+  it('sin variables: version "local" y programador apagado; nunca expone secretos', () => {
+    vi.spyOn(mongoose, 'connection', 'get').mockReturnValue({ readyState: 1 });
+    delete process.env.RAILWAY_GIT_COMMIT_SHA;
+    delete process.env.ENABLE_SCHEDULER;
+
+    const res = fakeRes();
+    getHealth({}, res);
+
+    expect(res.body.version).toBe('local');
+    expect(res.body.scheduler).toBe('off');
+    expect(Object.keys(res.body).sort()).toEqual(['db', 'scheduler', 'status', 'version']);
   });
 });
