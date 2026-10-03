@@ -6,7 +6,7 @@
 // cálculo de desfase/horario de verano que sí hace falta en otras partes
 // del backend (ver utils/timezone.js).
 
-const CENTER_LOCATION = 'Avenida Volcán Puntiagudo 100, Puerto Montt, Chile';
+export const CENTER_LOCATION = 'Avenida Volcán Puntiagudo 100, Puerto Montt, Chile';
 
 const TYPE_LABELS = {
   kinesiologia: 'Kinesiología',

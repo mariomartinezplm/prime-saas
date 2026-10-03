@@ -37,6 +37,11 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['kinesiologia', 'entrenamiento', 'evaluacion'],
     required: [true, 'El tipo de sesión es requerido']
   },
+  // Recordatorios por correo (24 h y 4 h antes). La marca se toma ANTES de
+  // enviar, de forma atómica, para que un reinicio o dos procesos nunca manden
+  // el mismo recordatorio dos veces.
+  reminder24hSentAt: { type: Date, default: null },
+  reminder4hSentAt: { type: Date, default: null },
   notes: {
     type: String,
     trim: true

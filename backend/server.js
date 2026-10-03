@@ -22,6 +22,7 @@ import extraSessionRoutes from './routes/extraSessionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import wellnessRoutes from './routes/wellnessRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
+import { startScheduler } from './services/scheduler.js';
 import googleCalendarRoutes from './routes/googleCalendarRoutes.js';
 
 // Cargar variables de entorno
@@ -133,6 +134,8 @@ const server = app.listen(PORT, () => {
   console.log(`   - Notifications: http://localhost:${PORT}/api/notifications`);
   console.log(`   - Wellness: http://localhost:${PORT}/api/wellness\n`);
 });
+
+startScheduler();
 
 // Manejo de promesas no capturadas
 process.on('unhandledRejection', (err) => {

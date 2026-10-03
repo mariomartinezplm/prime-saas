@@ -25,7 +25,7 @@ const formatDate = (date) =>
  * cita, invitar a un paciente...) sigue funcionando igual — un correo que no
  * sale nunca debe tumbar una acción del negocio.
  */
-export async function sendEmail({ to, subject, html }) {
+export async function sendEmail({ to, subject, html, attachments }) {
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
@@ -40,7 +40,7 @@ export async function sendEmail({ to, subject, html }) {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html })
+      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html, ...(attachments && { attachments }) })
     });
 
     if (!response.ok) {
@@ -281,6 +281,91 @@ export async function sendAppointmentUpdatedEmail({ patient, professional, date,
   await sendEmail({
     to: professional.email,
     subject: `🔄 Cita modificada: ${patientName}`,
+    html
+  });
+}
+
+const TYPE_LABELS = { kinesiologia: 'Kinesiología', evaluacion: 'Evaluación', entrenamiento: 'Entrenamiento' };
+const APP_URL = 'https://app.primefh.cl';
+const CENTER_ADDRESS = 'Avenida Volcán Puntiagudo 100, Puerto Montt';
+
+// Tabla con los datos de la sesión, compartida por la confirmación y los recordatorios
+const sessionDetailsHtml = ({ professional, date, startTime, endTime, type }) => `
+  <div style="background: white; border-radius: 8px; padding: 20px; border-left: 4px solid ${BRAND_TEAL};">
+    <table style="width: 100%; border-collapse: collapse;">
+      ${filaTabla('Fecha', formatDate(date), '120px')}
+      ${filaTabla('Horario', escapeHtml(`${startTime} - ${endTime}`))}
+      ${filaTabla('Sesión', escapeHtml(TYPE_LABELS[type] || type))}
+      ${filaTabla('Profesional', escapeHtml(`${professional.firstName} ${professional.lastName}`))}
+      ${filaTabla('Lugar', escapeHtml(CENTER_ADDRESS))}
+    </table>
+  </div>
+`;
+
+// Confirmación al PACIENTE al agendar, con el archivo .ics adjunto: desde el
+// celular, tocar el adjunto la agrega a su calendario (Google, Apple, Outlook).
+export async function sendAppointmentConfirmationToPatientEmail({ patient, professional, date, startTime, endTime, type, icsContent, appointmentId }) {
+  const html = baseTemplate({
+    headerColor: BRAND_TEAL,
+    headerEmoji: '✅',
+    headerTitle: 'Tu sesión está agendada',
+    bodyHtml: `
+      <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
+        Hola <strong>${escapeHtml(patient.firstName)}</strong>, reservamos tu sesión:
+      </p>
+      ${sessionDetailsHtml({ professional, date, startTime, endTime, type })}
+      <p style="font-size: 14px; color: #475569; margin-top: 20px;">
+        Adjuntamos un archivo de calendario: ábrelo para agregar la sesión a tu calendario.
+        Te enviaremos un recordatorio 24 horas y 4 horas antes.
+      </p>
+      <p style="font-size: 13px; color: #64748b;">
+        Si no puedes asistir, cancela desde la app con al menos 4 horas de anticipación para no perder la sesión:
+        <a href="${APP_URL}" style="color: ${BRAND_TEAL};">app.primefh.cl</a>
+      </p>
+    `
+  });
+
+  await sendEmail({
+    to: patient.email,
+    subject: `✅ Sesión agendada: ${formatDate(date)} a las ${startTime}`,
+    html,
+    ...(icsContent && {
+      attachments: [{
+        filename: `cita-primefh-${appointmentId}.ics`,
+        content: Buffer.from(icsContent, 'utf8').toString('base64')
+      }]
+    })
+  });
+}
+
+// Recordatorio al PACIENTE: hoursBefore es 24 o 4
+export async function sendAppointmentReminderEmail({ patient, professional, date, startTime, endTime, type, hoursBefore }) {
+  const isLastCall = hoursBefore <= 4;
+
+  const html = baseTemplate({
+    headerColor: BRAND_TEAL,
+    headerEmoji: '⏰',
+    headerTitle: isLastCall ? 'Tu sesión es en pocas horas' : 'Recordatorio de tu sesión',
+    bodyHtml: `
+      <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
+        Hola <strong>${escapeHtml(patient.firstName)}</strong>, ${isLastCall
+          ? 'te esperamos en pocas horas:'
+          : 'te recordamos tu próxima sesión:'}
+      </p>
+      ${sessionDetailsHtml({ professional, date, startTime, endTime, type })}
+      <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
+        ${isLastCall
+          ? 'Si ya no puedes asistir, avísanos por WhatsApp lo antes posible.'
+          : `Si no puedes asistir, cancela desde la app con al menos 4 horas de anticipación para no perder la sesión: <a href="${APP_URL}" style="color: ${BRAND_TEAL};">app.primefh.cl</a>`}
+      </p>
+    `
+  });
+
+  return sendEmail({
+    to: patient.email,
+    subject: isLastCall
+      ? `⏰ Hoy a las ${startTime}: tu sesión en Prime F&H`
+      : `⏰ Recordatorio: tu sesión ${formatDate(date)} a las ${startTime}`,
     html
   });
 }

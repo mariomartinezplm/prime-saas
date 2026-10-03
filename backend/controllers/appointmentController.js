@@ -1,7 +1,7 @@
 import Appointment from '../models/Appointment.js';
 import User from '../models/User.js';
 import { parseISO, isBefore, addHours } from 'date-fns';
-import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail } from '../services/emailService.js';
+import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail, sendAppointmentConfirmationToPatientEmail } from '../services/emailService.js';
 import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
 import { generateAppointmentICS } from '../services/icsService.js';
@@ -179,6 +179,25 @@ export const createAppointment = async (req, res) => {
     startTime: appointment.startTime,
     endTime: appointment.endTime,
     type: appointment.type
+  });
+
+  // Confirmación al paciente con el .ics adjunto (fire & forget). Si el .ics
+  // fallara, el correo sale igual sin adjunto: nunca debe afectar la reserva.
+  let icsContent;
+  try {
+    icsContent = generateAppointmentICS(appointment);
+  } catch (icsError) {
+    console.error('No se pudo generar el .ics de la confirmación:', icsError.message);
+  }
+  sendAppointmentConfirmationToPatientEmail({
+    patient: appointment.patient,
+    professional: appointment.professional,
+    date: appointment.date,
+    startTime: appointment.startTime,
+    endTime: appointment.endTime,
+    type: appointment.type,
+    icsContent,
+    appointmentId: appointment._id
   });
 
   // Notificación in-app (Paso 19) — sin email propio, el de arriba ya cubre eso.
