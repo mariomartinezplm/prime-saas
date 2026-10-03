@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import mongoose from 'mongoose';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { canAccessPatient } from '../middleware/auth.js';
+import { evolutionDateError } from '../utils/evolutionDate.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { notify } from '../services/notificationService.js';
 
@@ -45,6 +46,19 @@ export const createExerciseProgress = async (req, res) => {
       techniqueRating,
       videoUrl
     } = req.body;
+
+    // Pertenencia: el staff solo registra para pacientes a los que tiene acceso
+    if (req.user.role !== 'patient' && !(await canAccessPatient(req.user, patient))) {
+      return res.status(404).json({
+        success: false,
+        message: 'Paciente no encontrado'
+      });
+    }
+
+    const dateError = evolutionDateError(date);
+    if (dateError) {
+      return res.status(400).json({ success: false, message: dateError });
+    }
 
     // Validar que el paciente existe
     const patientUser = await User.findById(patient);
@@ -213,6 +227,18 @@ export const updateExerciseProgress = async (req, res) => {
       });
     }
 
+    if (req.user.role !== 'patient' && !(await canAccessPatient(req.user, exerciseProgress.patient))) {
+      return res.status(404).json({
+        success: false,
+        message: 'Registro no encontrado'
+      });
+    }
+
+    const dateError = evolutionDateError(date);
+    if (dateError) {
+      return res.status(400).json({ success: false, message: dateError });
+    }
+
     if (req.user.role === 'patient') {
       if (exerciseProgress.patient.toString() !== req.user._id.toString()) {
         return res.status(403).json({
@@ -273,7 +299,7 @@ export const deleteExerciseProgress = async (req, res) => {
   try {
     const exerciseProgress = await ExerciseProgress.findById(req.params.id);
 
-    if (!exerciseProgress) {
+    if (!exerciseProgress || !(await canAccessPatient(req.user, exerciseProgress.patient))) {
       return res.status(404).json({
         success: false,
         message: 'Registro no encontrado'

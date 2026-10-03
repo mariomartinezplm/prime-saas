@@ -7,6 +7,8 @@ import ExerciseProgressChart from '@/components/charts/ExerciseProgressChart';
 import { format, parseISO } from 'date-fns';
 import { Dumbbell, TrendingUp, BarChart3, Award } from 'lucide-react';
 import api from '@/lib/api';
+import ExerciseForm from '@/components/forms/ExerciseForm';
+import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import type { ExerciseProgress } from '@/types';
 
 const ExercisesEnhanced = () => {
@@ -15,6 +17,7 @@ const ExercisesEnhanced = () => {
   const [exerciseNames, setExerciseNames] = useState<string[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -26,7 +29,7 @@ const ExercisesEnhanced = () => {
       setExerciseNames(listRes.data.data.exercises || []);
     }).catch(() => { })
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, refreshKey]);
 
   const filtered = selectedExercise === 'all'
     ? exercises
@@ -68,9 +71,24 @@ const ExercisesEnhanced = () => {
   return (
     <div className="space-y-6">
       {/* Header with Stats */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-1">Progreso de Ejercicios</h1>
-        <p className="text-muted-foreground">Monitorea tu evolución en cada ejercicio</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-1">Progreso de Ejercicios</h1>
+          <p className="text-muted-foreground">Monitorea tu evolución en cada ejercicio</p>
+        </div>
+        <PatientRecordDialog
+          label="Registrar ejercicio"
+          title="Registrar ejercicio"
+          description="Anota el ejercicio, el peso y las repeticiones que hiciste."
+        >
+          {(close) => (
+            <ExerciseForm
+              patientId={user!.id}
+              embedded
+              onSuccess={() => { close(); setRefreshKey((k) => k + 1); }}
+            />
+          )}
+        </PatientRecordDialog>
       </div>
 
       {/* Quick Stats */}

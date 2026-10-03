@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { canAccessPatient } from '../middleware/auth.js';
 import { notify } from '../services/notificationService.js';
+import { evolutionDateError } from '../utils/evolutionDate.js';
 
 // El paciente registró/editó su evolución — avisa a su profesional asignado
 // (Paso 19 de BLUEPRINT.md). Solo cuando el ACTOR es el propio paciente: si
@@ -30,7 +31,20 @@ export const createMeasurement = async (req, res) => {
     // El paciente solo puede crear su propia medición; el profesional/admin puede
     // registrar la de cualquiera de sus pacientes.
     const patient = req.user.role === 'patient' ? req.user._id : req.body.patient;
-    const { date, perimeters, weight, height, bodyFatPercentage, muscleMassPercentage, notes, photos } = req.body;
+    const { date, perimeters, jumpTests, weight, height, bodyFatPercentage, muscleMassPercentage, notes } = req.body;
+
+    // Pertenencia: el staff solo registra para pacientes a los que tiene acceso
+    if (req.user.role !== 'patient' && !(await canAccessPatient(req.user, patient))) {
+      return res.status(404).json({
+        success: false,
+        message: 'Paciente no encontrado'
+      });
+    }
+
+    const dateError = evolutionDateError(date);
+    if (dateError) {
+      return res.status(400).json({ success: false, message: dateError });
+    }
 
     // Validar que el paciente existe
     const patientUser = await User.findById(patient);
@@ -56,12 +70,12 @@ export const createMeasurement = async (req, res) => {
       recordedBy: req.user._id,
       date: date || new Date(),
       perimeters,
+      jumpTests,
       weight,
       height,
       bodyFatPercentage,
       muscleMassPercentage,
-      notes,
-      photos
+      notes
     });
 
     if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(patientUser);
@@ -181,7 +195,7 @@ export const getMeasurement = async (req, res) => {
 // @access  Private (paciente edita la suya; admin/profesional editan cualquiera)
 export const updateMeasurement = async (req, res) => {
   try {
-    const { date, perimeters, weight, height, bodyFatPercentage, muscleMassPercentage, notes, photos } = req.body;
+    const { date, perimeters, jumpTests, weight, height, bodyFatPercentage, muscleMassPercentage, notes } = req.body;
 
     let measurement = await Measurement.findById(req.params.id);
 
@@ -190,6 +204,18 @@ export const updateMeasurement = async (req, res) => {
         success: false,
         message: 'Medición no encontrada'
       });
+    }
+
+    if (req.user.role !== 'patient' && !(await canAccessPatient(req.user, measurement.patient))) {
+      return res.status(404).json({
+        success: false,
+        message: 'Medición no encontrada'
+      });
+    }
+
+    const dateError = evolutionDateError(date);
+    if (dateError) {
+      return res.status(400).json({ success: false, message: dateError });
     }
 
     if (req.user.role === 'patient') {
@@ -211,13 +237,13 @@ export const updateMeasurement = async (req, res) => {
 
     // Actualizar campos
     if (date) measurement.date = date;
-    if (perimeters) measurement.perimeters = { ...measurement.perimeters, ...perimeters };
+    if (perimeters) measurement.perimeters = { ...measurement.perimeters.toObject(), ...perimeters };
+    if (jumpTests) measurement.jumpTests = { ...measurement.jumpTests.toObject(), ...jumpTests };
     if (weight !== undefined) measurement.weight = weight;
     if (height !== undefined) measurement.height = height;
     if (bodyFatPercentage !== undefined) measurement.bodyFatPercentage = bodyFatPercentage;
     if (muscleMassPercentage !== undefined) measurement.muscleMassPercentage = muscleMassPercentage;
     if (notes !== undefined) measurement.notes = notes;
-    if (photos) measurement.photos = photos;
 
     await measurement.save();
 
@@ -246,7 +272,7 @@ export const deleteMeasurement = async (req, res) => {
   try {
     const measurement = await Measurement.findById(req.params.id);
 
-    if (!measurement) {
+    if (!measurement || !(await canAccessPatient(req.user, measurement.patient))) {
       return res.status(404).json({
         success: false,
         message: 'Medición no encontrada'
@@ -292,11 +318,11 @@ export const compareMeasurements = async (req, res) => {
       });
     }
 
-    // Verificar permisos
-    if (req.user.role === 'patient' && measurement1.patient.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
+    // Pertenencia: paciente solo lo suyo, profesional solo sus pacientes, admin todo
+    if (!(await canAccessPatient(req.user, measurement1.patient))) {
+      return res.status(404).json({
         success: false,
-        message: 'No tienes permisos para comparar estas mediciones'
+        message: 'Una o ambas mediciones no fueron encontradas'
       });
     }
 

@@ -8,19 +8,25 @@ import { toast } from 'sonner';
 import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
+import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
 
 interface MeasurementFormProps {
   patientId: string;
   onSuccess: () => void;
+  // Sin tarjeta propia: para mostrarlo dentro de un diálogo
+  embedded?: boolean;
 }
 
-const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
+const MeasurementForm = ({ patientId, onSuccess, embedded = false }: MeasurementFormProps) => {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
+    date: todayLocal(),
     weight: '',
     height: '',
     bodyFatPercentage: '',
     muscleMassPercentage: '',
+    shoulders: '',
+    neck: '',
     chest: '',
     waist: '',
     hips: '',
@@ -44,7 +50,7 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
     setLoading(true);
     try {
       const perimeters: Record<string, number> = {};
-      const perimeterFields = ['chest', 'waist', 'hips', 'bicepLeft', 'bicepRight', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'forearmLeft', 'forearmRight'];
+      const perimeterFields = ['shoulders', 'neck', 'chest', 'waist', 'hips', 'bicepLeft', 'bicepRight', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'forearmLeft', 'forearmRight'];
       perimeterFields.forEach((f) => {
         if (form[f as keyof typeof form]) {
           perimeters[f] = parseFloat(form[f as keyof typeof form]);
@@ -61,6 +67,7 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
 
       await api.post('/measurements', {
         patient: patientId,
+        date: form.date ? localNoonISO(form.date) : undefined,
         perimeters,
         jumpTests, // Add jump tests to payload
         weight: form.weight ? parseFloat(form.weight) : undefined,
@@ -72,7 +79,9 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
 
       toast.success('Medición registrada exitosamente');
       setForm({
+        date: todayLocal(),
         weight: '', height: '', bodyFatPercentage: '', muscleMassPercentage: '',
+        shoulders: '', neck: '',
         chest: '', waist: '', hips: '', bicepLeft: '', bicepRight: '',
         thighLeft: '', thighRight: '', calfLeft: '', calfRight: '',
         forearmLeft: '', forearmRight: '', notes: '',
@@ -87,11 +96,13 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Nueva Medición</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
+  const fields = (
+    <>
+          <div className="space-y-1 max-w-[200px]">
+            <Label className="text-xs">Fecha de la medición</Label>
+            <Input type="date" max={todayLocal()} value={form.date} onChange={(e) => handleChange('date', e.target.value)} />
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Peso (kg)</Label>
@@ -114,6 +125,8 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
           <h4 className="text-sm font-medium pt-2">Perímetros (cm)</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
+              { key: 'shoulders', label: 'Hombros' },
+              { key: 'neck', label: 'Cuello' },
               { key: 'chest', label: 'Pecho' },
               { key: 'waist', label: 'Cintura' },
               { key: 'hips', label: 'Cadera' },
@@ -172,6 +185,19 @@ const MeasurementForm = ({ patientId, onSuccess }: MeasurementFormProps) => {
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Registrar Medición
           </Button>
+    </>
+  );
+
+  if (embedded) {
+    return <form onSubmit={handleSubmit} className="space-y-4">{fields}</form>;
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Nueva Medición</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {fields}
         </CardContent>
       </Card>
     </form>

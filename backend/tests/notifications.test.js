@@ -103,9 +103,14 @@ describe('POST /measurements — evento evolución cableado', () => {
 
   it('staff registra la medición de un paciente: no se notifica a nadie', async () => {
     vi.restoreAllMocks();
-    vi.spyOn(User, 'findById').mockResolvedValue({
-      _id: PATIENT_ID, firstName: 'Ana', lastName: 'Paciente', assignedProfessionalId: PROF_ID
-    });
+    // El profesional pasa por la verificación de pertenencia (canAccessPatient),
+    // que encadena .select(): el simulacro debe comportarse como una consulta real.
+    const paciente = { _id: PATIENT_ID, firstName: 'Ana', lastName: 'Paciente', role: 'patient', assignedProfessionalId: PROF_ID };
+    const consulta = {
+      select: () => consulta,
+      then: (resolve, reject) => Promise.resolve(paciente).then(resolve, reject)
+    };
+    vi.spyOn(User, 'findById').mockReturnValue(consulta);
     vi.spyOn(Measurement, 'create').mockResolvedValue({
       _id: nuevoId(), populate: vi.fn().mockResolvedValue(undefined)
     });

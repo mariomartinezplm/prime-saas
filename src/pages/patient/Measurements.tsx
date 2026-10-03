@@ -9,6 +9,8 @@ import JumpTestChart from '@/components/charts/JumpTestChart';
 import { format, parseISO } from 'date-fns';
 import { Ruler, Activity, TrendingUp, Zap } from 'lucide-react';
 import api from '@/lib/api';
+import MeasurementForm from '@/components/forms/MeasurementForm';
+import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import type { Measurement } from '@/types';
 
 const PERIMETER_LABELS: Record<string, string> = {
@@ -45,6 +47,7 @@ const MeasurementsEnhanced = () => {
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('perimeters');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -52,7 +55,7 @@ const MeasurementsEnhanced = () => {
       .then((res) => setMeasurements(res.data.data.measurements || []))
       .catch(() => { })
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, refreshKey]);
 
   const latestMeasurement = measurements[0];
   const zoneValues: Record<string, number> = {};
@@ -84,21 +87,36 @@ const MeasurementsEnhanced = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Mediciones y Progreso</h1>
           <p className="text-muted-foreground mt-1">
             Monitorea tu evolución física y de rendimiento
           </p>
         </div>
-        {latestMeasurement && (
-          <div className="bg-gradient-section rounded-lg p-4 border border-border">
-            <div className="text-xs text-muted-foreground mb-1">Última medición</div>
-            <div className="text-lg font-bold text-foreground">
-              {format(parseISO(latestMeasurement.date), 'dd/MM/yyyy')}
+        <div className="flex flex-wrap items-start gap-3">
+          {latestMeasurement && (
+            <div className="bg-gradient-section rounded-lg p-4 border border-border">
+              <div className="text-xs text-muted-foreground mb-1">Última medición</div>
+              <div className="text-lg font-bold text-foreground">
+                {format(parseISO(latestMeasurement.date), 'dd/MM/yyyy')}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          <PatientRecordDialog
+            label="Registrar medición"
+            title="Registrar medición"
+            description="Anota tu peso, % de grasa, perímetros o resultados. Solo completa lo que tengas."
+          >
+            {(close) => (
+              <MeasurementForm
+                patientId={user!.id}
+                embedded
+                onSuccess={() => { close(); setRefreshKey((k) => k + 1); }}
+              />
+            )}
+          </PatientRecordDialog>
+        </div>
       </div>
 
       {/* Tabs para diferentes vistas */}

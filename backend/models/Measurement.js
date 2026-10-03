@@ -18,6 +18,14 @@ const measurementSchema = new mongoose.Schema({
   },
   // Perímetros corporales en centímetros
   perimeters: {
+    shoulders: {
+      type: Number,
+      min: [0, 'El valor debe ser positivo']
+    },
+    neck: {
+      type: Number,
+      min: [0, 'El valor debe ser positivo']
+    },
     bicepLeft: {
       type: Number,
       min: [0, 'El valor debe ser positivo']
