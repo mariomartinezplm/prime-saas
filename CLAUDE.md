@@ -27,13 +27,15 @@ Prime F&H es un centro de kinesiología y entrenamiento en Puerto Montt, Chile. 
 Esto es el modelo de negocio **hacia el que vamos**, no necesariamente lo que ya está construido (ver `STATUS.md` para el estado real de cada regla).
 
 ### Planes y sesiones
-- Planes de **Entrenamiento:** 4, 8, 12 o 16 sesiones.
-- Planes de **Kinesiología:** 5, 10 o 20 sesiones.
-- Ciclo de **30 días desde la fecha de pago** (no mes calendario).
-- El pago lo registra **manualmente el admin** en la app. No hay pasarela de pago.
+- Planes de **Entrenamiento:** 4, 8, 12 o 16 sesiones, o ilimitado. Planes de **Kinesiología:** 1, 5, 10, 12, 15 o 20 sesiones.
+- **Duración:** mensual, trimestral (3 meses) o anual (12 meses). Los trimestrales y anuales se pagan de una vez; las sesiones **se renuevan cada mes** y las no usadas se pierden (cada mes es su propio registro `ClientPlan`).
+- **Los ciclos siguen el mes calendario** (decisión de Mario, 2026-10-03): el plan va desde el día de pago hasta el último día de ese mes, y el día 1 todo parte de cero. Quien entra a mitad de mes paga solo lo que queda del mes (el profesional elige cuántas sesiones darle).
+- **Excepción "de fecha a fecha"** (pocos pacientes que pagan el día 10): su ciclo va del 10 de un mes al 9 del siguiente. Se marca al registrar el pago.
+- **Plazo de pago de 5 días:** al empezar el ciclo nuevo el paciente tiene hasta el día 5 (5 días desde el inicio del ciclo) para pagar. Durante ese plazo el plan aparece **"pendiente de pago"**: puede agendar (solo sesiones dentro del plazo), ver todo y registrar evolución. Pasado el plazo sin pago, el plan vence: solo lectura y sin agendar, hasta que el profesional/admin registre el pago y lo reactive.
+- El pago lo registra **manualmente el admin o el profesional** en la app (los pacientes pagan por transferencia a Mario). No hay pasarela de pago. Registrar el pago de una renovación pendiente conserva las sesiones que el paciente ya usó en el plazo.
 - Los **precios NO se muestran** en la app. Si el plan venció: mensaje "Contacta a Prime F&H para renovar" + botón de WhatsApp.
-- Al vencer el plan (día 31 sin renovación): **se bloquea agendar** y **se bloquea que el paciente registre datos de evolución** (queda en solo lectura, puede seguir viendo su historial y gráficos).
-- Sesiones no usadas al vencer el ciclo: **se pierden, no se acumulan**.
+- **Avisos** (campanita + correo): 5 días y 1 día antes de que venza el último ciclo de un plan, con la fecha límite de pago; al abrirse la renovación pendiente; y cuando vence sin pago.
+- **Miembro Fundador:** los pacientes con plan anual llevan una insignia (estrella) junto a su nombre, visible para ellos y para el personal.
 - El **profesional puede agregar sesiones extra** manualmente a sus pacientes asignados (con motivo opcional).
 
 ### Descuento de sesiones

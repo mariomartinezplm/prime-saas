@@ -18,6 +18,12 @@ import { nowInSantiago } from '../utils/timezone.js';
 import { bulkCreateAppointments } from '../controllers/appointmentController.js';
 import { getAvailableSlots } from '../controllers/availabilityController.js';
 
+// El motor de ciclos de planes toca la base: en estas pruebas el plan ya viene "al día"
+vi.mock('../services/planLifecycleService.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  advancePlans: vi.fn(async () => {})
+}));
+
 const nuevoId = () => new mongoose.Types.ObjectId();
 
 const fakeRes = () => ({
@@ -89,7 +95,6 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
 
   it('con saldo para 2 y se piden 3: crea 2 (con descuento real) y deja 1 en skipped', async () => {
     baseSetup();
-    vi.spyOn(ClientPlan, 'expireOverduePlans').mockResolvedValue(0);
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 2 });
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(ExtraSession, 'findOneAndUpdate').mockResolvedValue(null);
@@ -122,7 +127,6 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
 
   it('un item con fecha en el pasado se salta con motivo, sin tocar el resto del lote', async () => {
     baseSetup();
-    vi.spyOn(ClientPlan, 'expireOverduePlans').mockResolvedValue(0);
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });
@@ -143,7 +147,6 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
 
   it('menos de 4 horas de anticipación: se salta con el motivo correcto', async () => {
     baseSetup();
-    vi.spyOn(ClientPlan, 'expireOverduePlans').mockResolvedValue(0);
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
 

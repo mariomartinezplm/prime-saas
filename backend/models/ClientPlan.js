@@ -5,8 +5,7 @@ import {
   isValidSessionsForServiceType,
   supportsUnlimited
 } from '../config/planCatalog.js';
-
-const DAYS_PER_CYCLE = 30;
+import { TERMS, BILLING_CYCLES, cycleBounds } from '../services/planCycles.js';
 
 const clientPlanSchema = new mongoose.Schema({
   patient: {
@@ -40,14 +39,61 @@ const clientPlanSchema = new mongoose.Schema({
     required: [true, 'La fecha de inicio (pago) es requerida'],
     default: Date.now
   },
-  // Se calcula automáticamente: startDate + 30 días
+  // Se calcula automáticamente según billingCycle (ver services/planCycles.js):
+  // fin del mes calendario, o de fecha a fecha.
   endDate: {
     type: Date
   },
+  // 'upcoming' = ciclo ya pagado que todavía no empieza (planes trimestral/anual)
   status: {
     type: String,
-    enum: ['active', 'expired', 'cancelled'],
+    enum: ['active', 'expired', 'cancelled', 'upcoming'],
     default: 'active'
+  },
+  // Qué se pagó: cada ciclo mensual es su propio registro, así las sesiones
+  // parten de cero cada mes y los planes de varios meses no necesitan lógica aparte.
+  term: {
+    type: String,
+    enum: TERMS,
+    default: 'mensual'
+  },
+  billingCycle: {
+    type: String,
+    enum: BILLING_CYCLES,
+    default: 'calendar'
+  },
+  cycleNumber: { type: Number, default: 1, min: 1 },
+  cyclesTotal: { type: Number, default: 1, min: 1 },
+  // Une los ciclos de un mismo pago (se asigna al crear el plan)
+  termId: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null
+  },
+  // Si al terminar el último ciclo se abre solo un ciclo nuevo "pendiente de pago"
+  renews: {
+    type: Boolean,
+    default: true
+  },
+  // Ciclo abierto automáticamente sin pago registrado todavía. El paciente
+  // puede agendar hasta paymentDueBy; si el admin no registra el pago, vence.
+  paymentPending: {
+    type: Boolean,
+    default: false
+  },
+  paymentDueBy: {
+    type: Date
+  },
+  // Plan del que nació este ciclo pendiente. El índice único evita abrir dos
+  // renovaciones del mismo plan si dos procesos corren a la vez.
+  renewedFrom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ClientPlan'
+  },
+  renewalNotifiedAt: {
+    type: Date
+  },
+  expiringTomorrowNotifiedAt: {
+    type: Date
   },
   // Admin que registró el pago
   registeredBy: {
@@ -74,6 +120,8 @@ const clientPlanSchema = new mongoose.Schema({
 
 clientPlanSchema.index({ patient: 1, status: 1 });
 clientPlanSchema.index({ status: 1, endDate: 1 });
+clientPlanSchema.index({ termId: 1, cycleNumber: 1 });
+clientPlanSchema.index({ renewedFrom: 1 }, { unique: true, sparse: true });
 
 clientPlanSchema.pre('validate', function (next) {
   if (this.unlimited) {
@@ -92,12 +140,10 @@ clientPlanSchema.pre('validate', function (next) {
   next();
 });
 
-// Calcular endDate = startDate + 30 días
+// endDate = fin del ciclo que parte en startDate (mes calendario o fecha a fecha)
 clientPlanSchema.pre('save', function (next) {
-  if (this.isModified('startDate') || !this.endDate) {
-    const end = new Date(this.startDate);
-    end.setDate(end.getDate() + DAYS_PER_CYCLE);
-    this.endDate = end;
+  if (this.isModified('startDate') || this.isModified('billingCycle') || !this.endDate) {
+    this.endDate = cycleBounds(this.startDate, this.billingCycle, 0).end;
   }
   next();
 });
@@ -109,19 +155,6 @@ clientPlanSchema.methods.sessionsAvailable = function () {
 
 clientPlanSchema.methods.isExpiredByDate = function () {
   return this.endDate && this.endDate.getTime() < Date.now();
-};
-
-// Marca como 'expired' todos los planes activos cuya endDate ya pasó.
-// Devuelve cuántos se actualizaron.
-clientPlanSchema.statics.expireOverduePlans = async function (patientId) {
-  const query = {
-    status: 'active',
-    endDate: { $lt: new Date() }
-  };
-  if (patientId) query.patient = patientId;
-
-  const result = await this.updateMany(query, { $set: { status: 'expired' } });
-  return result.modifiedCount || 0;
 };
 
 const ClientPlan = mongoose.model('ClientPlan', clientPlanSchema);

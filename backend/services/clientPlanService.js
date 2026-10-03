@@ -1,11 +1,12 @@
 import ClientPlan from '../models/ClientPlan.js';
 import ExtraSession from '../models/ExtraSession.js';
+import { advancePlans } from './planLifecycleService.js';
 
-// Auto-sanación: si el plan activo del paciente ya venció por fecha, lo marca 'expired'.
-// Se llama antes de cualquier lectura de balance/plan activo para que el estado
-// sea correcto aunque el job masivo (scripts/expirePlans.js) no haya corrido todavía.
+// Antes de cualquier lectura de balance/plan activo se deja el plan del paciente
+// en el estado correcto de "ahora" (pasa al ciclo siguiente, abre la renovación
+// pendiente o vence), así nada depende de que el programador haya corrido ya.
 async function selfHealExpiredPlan(patientId) {
-  await ClientPlan.expireOverduePlans(patientId);
+  await advancePlans({ patientId });
 }
 
 // Plan activo real (no vencido) del paciente, o null.
@@ -37,6 +38,8 @@ export async function getSessionBalance(patientId) {
   return {
     hasActivePlan: !!plan,
     plan,
+    paymentPending: !!plan?.paymentPending,
+    paymentDueBy: plan?.paymentPending ? plan.paymentDueBy : null,
     planSessionsAvailable,
     extraSessionsAvailable,
     totalAvailable: planSessionsAvailable + extraSessionsAvailable

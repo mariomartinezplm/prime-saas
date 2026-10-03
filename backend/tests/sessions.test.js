@@ -21,6 +21,12 @@ import * as emailService from '../services/emailService.js';
 import { deductSession, refundSession } from '../services/clientPlanService.js';
 import { createAppointment } from '../controllers/appointmentController.js';
 
+// El motor de ciclos de planes toca la base: en estas pruebas el plan ya viene "al día"
+vi.mock('../services/planLifecycleService.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  advancePlans: vi.fn(async () => {})
+}));
+
 const nuevoId = () => new mongoose.Types.ObjectId();
 
 const fakeRes = () => ({
@@ -148,7 +154,6 @@ describe('POST /appointments — motor de descuento cableado', () => {
       return Promise.resolve(null);
     });
 
-    vi.spyOn(ClientPlan, 'expireOverduePlans').mockResolvedValue(0);
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0); // cupo de horario nunca lleno
     vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
 
@@ -364,7 +369,6 @@ describe('POST /appointments — sobrecupo (solo admin)', () => {
       if (idStr === PROFESSIONAL_ID.toString()) return Promise.resolve({ _id: PROFESSIONAL_ID, role: 'professional' });
       return Promise.resolve(null);
     });
-    vi.spyOn(ClientPlan, 'expireOverduePlans').mockResolvedValue(0);
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(overlapping);
@@ -423,5 +427,63 @@ describe('POST /appointments — sobrecupo (solo admin)', () => {
     await createAppointment(reqOf('admin', { allowOverbook: true }), res);
     expect(res.statusCode).toBe(201);
     expect(res.body.data.appointment.overbooked).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('POST /appointments — renovación pendiente de pago (plazo del 5)', () => {
+  const PATIENT_ID = nuevoId();
+  const PROFESSIONAL_ID = nuevoId();
+  const HOUR = 60 * 60 * 1000;
+  // La cita es dentro de ~48 h
+  const sessionDate = () => new Date(Date.now() + 48 * HOUR).toISOString().split('T')[0];
+
+  const setup = (planOverrides) => {
+    vi.restoreAllMocks();
+    vi.spyOn(User, 'findById').mockImplementation((id) => {
+      const idStr = id.toString();
+      if (idStr === PATIENT_ID.toString()) return Promise.resolve({ _id: PATIENT_ID, role: 'patient', isActive: true });
+      if (idStr === PROFESSIONAL_ID.toString()) return Promise.resolve({ _id: PROFESSIONAL_ID, role: 'professional' });
+      return Promise.resolve(null);
+    });
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 4, ...planOverrides });
+    vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });
+    vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
+    vi.spyOn(Appointment, 'create').mockImplementation(async (data) => ({
+      ...data,
+      _id: nuevoId(),
+      populate: vi.fn().mockResolvedValue(undefined)
+    }));
+  };
+
+  const req = () => ({
+    user: { _id: PATIENT_ID, role: 'patient' },
+    body: { professional: PROFESSIONAL_ID.toString(), date: sessionDate(), startTime: '10:00', type: 'kinesiologia' }
+  });
+
+  it('puede agendar sin haber pagado si la sesión cae dentro del plazo de pago', async () => {
+    setup({ paymentPending: true, paymentDueBy: new Date(Date.now() + 7 * 24 * HOUR) });
+    const res = fakeRes();
+    await createAppointment(req(), res);
+    expect(res.statusCode).toBe(201);
+  });
+
+  it('no puede agendar una sesión posterior al plazo de pago: 403 PAYMENT_PENDING, sin descontar', async () => {
+    setup({ paymentPending: true, paymentDueBy: new Date(Date.now() + 24 * HOUR) });
+    const res = fakeRes();
+    await createAppointment(req(), res);
+    expect(res.statusCode).toBe(403);
+    expect(res.body.code).toBe('PAYMENT_PENDING');
+    expect(res.body.message).toContain('pendiente de pago');
+    expect(ClientPlan.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('un plan ya pagado no tiene esa restricción', async () => {
+    setup({ paymentPending: false });
+    const res = fakeRes();
+    await createAppointment(req(), res);
+    expect(res.statusCode).toBe(201);
   });
 });

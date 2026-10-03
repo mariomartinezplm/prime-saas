@@ -1,4 +1,5 @@
 import { sendDueReminders } from './appointmentReminderService.js';
+import { runPlanLifecycleJob } from './planLifecycleService.js';
 
 const TICK_MS = 10 * 60 * 1000;
 
@@ -15,6 +16,15 @@ async function tick() {
     }
   } catch (error) {
     console.error('Error en el programador de recordatorios:', error.message);
+  }
+
+  try {
+    const plans = await runPlanLifecycleJob();
+    if (plans.expiringNotices || plans.renewalNotices || plans.expiredNotices) {
+      console.log(`📋 Planes: ${plans.expiringNotices} por vencer, ${plans.renewalNotices} renovaciones pendientes, ${plans.expiredNotices} vencidos`);
+    }
+  } catch (error) {
+    console.error('Error en el programador de planes:', error.message);
   } finally {
     running = false;
   }

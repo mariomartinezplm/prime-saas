@@ -1,6 +1,14 @@
 import ClientPlan from '../models/ClientPlan.js';
 import User from '../models/User.js';
 import { getSessionBalance, getActivePlan } from '../services/clientPlanService.js';
+import {
+  createTermPlans,
+  settlePendingPlan,
+  cancelPlanAndFutureCycles,
+  advancePlans,
+  runPlanLifecycleJob
+} from '../services/planLifecycleService.js';
+import { TERMS, BILLING_CYCLES } from '../services/planCycles.js';
 
 function isStaff(user) {
   return ['admin', 'professional'].includes(user.role);
@@ -20,12 +28,22 @@ function resolvePatientId(req) {
 export const createClientPlan = async (req, res) => {
   try {
     const { patientId, serviceType, sessionsTotal, unlimited, startDate, notes, replaceExisting } = req.body;
+    const term = req.body.term || 'mensual';
+    const billingCycle = req.body.billingCycle || 'calendar';
+    const renews = req.body.renews !== false;
     const isUnlimited = unlimited === true;
 
     if (!patientId || !serviceType || (!isUnlimited && !sessionsTotal)) {
       return res.status(400).json({
         success: false,
         message: 'patientId, serviceType y sessionsTotal (o unlimited) son requeridos'
+      });
+    }
+
+    if (!TERMS.includes(term) || !BILLING_CYCLES.includes(billingCycle)) {
+      return res.status(400).json({
+        success: false,
+        message: `term debe ser uno de: ${TERMS.join(', ')}; billingCycle: ${BILLING_CYCLES.join(', ')}`
       });
     }
 
@@ -41,29 +59,45 @@ export const createClientPlan = async (req, res) => {
     // el frontend debe confirmar explícitamente con replaceExisting=true
     // (las sesiones del plan anterior se pierden, no se traspasan).
     const existingActive = await getActivePlan(patientId);
-    if (existingActive) {
-      if (!replaceExisting) {
-        await existingActive.populate('patient', 'firstName lastName email');
-        return res.status(409).json({
-          success: false,
-          message: 'El paciente ya tiene un plan activo vigente.',
-          data: { existingPlan: existingActive }
-        });
+    let clientPlan;
+
+    if (existingActive?.paymentPending && existingActive.serviceType === serviceType) {
+      // Es el pago de la renovación que estaba pendiente: el ciclo queda pagado
+      // y conserva las sesiones que el paciente ya usó en los días de plazo.
+      clientPlan = await settlePendingPlan(existingActive, {
+        sessionsTotal,
+        unlimited: isUnlimited,
+        term,
+        renews,
+        registeredBy: req.user._id,
+        notes
+      });
+    } else {
+      if (existingActive) {
+        if (!replaceExisting) {
+          await existingActive.populate('patient', 'firstName lastName email');
+          return res.status(409).json({
+            success: false,
+            message: 'El paciente ya tiene un plan activo vigente.',
+            data: { existingPlan: existingActive }
+          });
+        }
+        await cancelPlanAndFutureCycles(existingActive);
       }
 
-      existingActive.status = 'cancelled';
-      await existingActive.save();
+      clientPlan = await createTermPlans({
+        patientId,
+        serviceType,
+        sessionsTotal,
+        unlimited: isUnlimited,
+        term,
+        billingCycle,
+        startDate: startDate ? new Date(startDate) : new Date(),
+        renews,
+        registeredBy: req.user._id,
+        notes
+      });
     }
-
-    const clientPlan = await ClientPlan.create({
-      patient: patientId,
-      serviceType,
-      sessionsTotal: isUnlimited ? 0 : sessionsTotal,
-      unlimited: isUnlimited,
-      startDate: startDate ? new Date(startDate) : new Date(),
-      registeredBy: req.user._id,
-      notes
-    });
 
     await clientPlan.populate('patient', 'firstName lastName email');
     await clientPlan.populate('registeredBy', 'firstName lastName');
@@ -161,8 +195,7 @@ export const cancelClientPlan = async (req, res) => {
       });
     }
 
-    clientPlan.status = 'cancelled';
-    await clientPlan.save();
+    await cancelPlanAndFutureCycles(clientPlan);
 
     res.status(200).json({
       success: true,
@@ -182,8 +215,8 @@ export const cancelClientPlan = async (req, res) => {
 // @access  Private/Staff (admin o professional)
 export const getAllClientPlans = async (req, res) => {
   try {
-    // Auto-sanar vencimientos antes de listar, para que el estado mostrado sea correcto
-    await ClientPlan.expireOverduePlans();
+    // Dejar los planes en el estado de "ahora" antes de listar
+    await advancePlans();
 
     const clientPlans = await ClientPlan.find({ status: { $in: ['active', 'expired'] } })
       .populate('patient', 'firstName lastName email')
@@ -208,12 +241,12 @@ export const getAllClientPlans = async (req, res) => {
 // @access  Private/Admin
 export const runExpireCheck = async (req, res) => {
   try {
-    const expiredCount = await ClientPlan.expireOverduePlans();
+    const summary = await runPlanLifecycleJob();
 
     res.status(200).json({
       success: true,
-      message: `${expiredCount} plan(es) marcado(s) como vencido(s)`,
-      data: { expiredCount }
+      message: 'Verificación de planes completa',
+      data: summary
     });
   } catch (error) {
     res.status(500).json({

@@ -5,6 +5,7 @@ import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppoint
 import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
 import { generateAppointmentICS } from '../services/icsService.js';
+import { santiagoToUtc, formatDayMonthSantiago } from '../utils/timezone.js';
 import {
   MAX_PATIENTS_PER_SLOT,
   PATIENT_BOOK_AHEAD_HOURS,
@@ -23,10 +24,31 @@ const DEDUCTIBLE_TYPES = ['kinesiologia', 'entrenamiento'];
 // Consciente del tipo de cita: un paciente con plan de kinesiología no debe
 // pasar este chequeo para agendar entrenamiento, aunque tenga saldo de kine.
 // Devuelve null si puede agendar, o un objeto { status, body } listo para responder si no puede.
-async function checkSessionBalanceForBooking(patientId, type) {
+async function checkSessionBalanceForBooking(patientId, type, { date, startTime } = {}) {
   if (!DEDUCTIBLE_TYPES.includes(type)) return null; // evaluación: sin bloqueo de saldo
 
   const balance = await getSessionBalanceByType(patientId, type);
+
+  // Renovación pendiente de pago: se puede agendar solo dentro del plazo de pago
+  // (hasta el día 5). Más allá, hace falta que el centro registre el pago.
+  if (balance.plan?.paymentPending && balance.planSessionsAvailable > 0 && date && startTime) {
+    const [year, month, day] = new Date(date).toISOString().split('T')[0].split('-').map(Number);
+    const [hour, minute] = startTime.split(':').map(Number);
+    const sessionStart = santiagoToUtc(year, month, day, hour, minute);
+
+    if (sessionStart.getTime() >= balance.plan.paymentDueBy.getTime()) {
+      const lastDay = formatDayMonthSantiago(new Date(balance.plan.paymentDueBy.getTime() - 1));
+      return {
+        status: 403,
+        body: {
+          success: false,
+          message: `Tu renovación está pendiente de pago: por ahora puedes agendar sesiones hasta el ${lastDay}. Para agendar después, contacta a Prime F&H para registrar tu pago.`,
+          code: 'PAYMENT_PENDING'
+        }
+      };
+    }
+  }
+
   if (balance.totalAvailable > 0) return null;
 
   const message = balance.hasActivePlan
@@ -110,7 +132,7 @@ export const createAppointment = async (req, res) => {
     // plan ni sesión extra de este tipo específico, es indistinguible de "sin
     // saldo" — mismo código NO_ACTIVE_PLAN_SESSIONS, sin exponer detalles del
     // motor interno.
-    const balanceCheck = await checkSessionBalanceForBooking(patientId, sessionType);
+    const balanceCheck = await checkSessionBalanceForBooking(patientId, sessionType, { date, startTime });
     if (balanceCheck) {
       return res.status(balanceCheck.status).json(balanceCheck.body);
     }
@@ -574,7 +596,7 @@ export const bulkCreateAppointments = async (req, res) => {
             continue;
           }
 
-          const balanceCheck = await checkSessionBalanceForBooking(patientId, sessionType);
+          const balanceCheck = await checkSessionBalanceForBooking(patientId, sessionType, { date, startTime });
           if (balanceCheck) {
             skipped.push({ fecha: date, motivo: balanceCheck.body.message });
             continue;

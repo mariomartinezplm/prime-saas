@@ -97,6 +97,12 @@ const userSchema = new mongoose.Schema({
     baseWeightKg: Number,
     smoker: Boolean
   },
+  // "Miembro Fundador": pacientes con plan anual. Lo mantiene el servidor
+  // (services/planLifecycleService.js); ningún formulario puede escribirlo.
+  isFounder: {
+    type: Boolean,
+    default: false
+  },
   isActive: {
     type: Boolean,
     default: true
