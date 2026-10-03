@@ -258,7 +258,11 @@ export const updateUser = async (req, res) => {
       address,
       emergencyContact,
       medicalInfo,
-      profileImage
+      profileImage,
+      gender,
+      healthInsurance,
+      objectives,
+      referralSource
     } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -287,7 +291,20 @@ export const updateUser = async (req, res) => {
       }
     }
 
+    if (gender !== undefined && !['Masculino', 'Femenino', 'Otro', ''].includes(gender)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Género no válido'
+      });
+    }
+
     // Campos que puede editar cualquiera con permiso sobre este usuario
+    if (gender !== undefined) user.gender = gender;
+    if (healthInsurance !== undefined) user.healthInsurance = String(healthInsurance).trim();
+    if (referralSource !== undefined) user.referralSource = String(referralSource).trim();
+    if (Array.isArray(objectives)) {
+      user.objectives = objectives.map((o) => String(o).trim()).filter(Boolean);
+    }
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (email) user.email = email.toLowerCase();
@@ -319,6 +336,12 @@ export const updateUser = async (req, res) => {
       data: { user }
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ya existe otra persona con ese correo'
+      });
+    }
     res.status(500).json({
       success: false,
       message: error.message || 'Error al actualizar usuario'

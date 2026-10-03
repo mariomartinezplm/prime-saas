@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Calendar, Ruler, Dumbbell, Activity, FileText, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Ruler, Dumbbell, Activity, FileText, Send, Loader2, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -29,6 +29,7 @@ import EVAForm from '@/components/forms/EVAForm';
 import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
+import EditPatientDialog from '@/components/forms/EditPatientDialog';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
 import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress, formatPaymentDeadline } from '@/config/planCatalog';
 import type { User, PatientProfile, SessionBalance, Appointment } from '@/types';
@@ -44,6 +45,7 @@ const PatientDetail = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isResending, setIsResending] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchData = async () => {
     if (!id) return;
@@ -103,7 +105,7 @@ const PatientDetail = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate('/app/admin/pacientes')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -118,6 +120,11 @@ const PatientDetail = () => {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+          <Pencil className="h-4 w-4 mr-2" />
+          Editar datos
+        </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" size="sm" disabled={isResending}>
@@ -144,7 +151,16 @@ const PatientDetail = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        </div>
       </div>
+
+      <EditPatientDialog
+        patient={patient}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        canAssign={user?.role === 'admin'}
+        onSaved={fetchData}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -202,11 +218,35 @@ const PatientDetail = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Fecha nacimiento</span>
-                  <span>{patient.dateOfBirth ? format(parseISO(patient.dateOfBirth), 'dd/MM/yyyy') : '-'}</span>
+                  <span>{patient.dateOfBirth ? format(parseISO(patient.dateOfBirth.slice(0, 10)), 'dd/MM/yyyy') : '-'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Dirección</span>
                   <span>{patient.address || '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Género</span>
+                  <span>{patient.gender || '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Previsión</span>
+                  <span>{patient.healthInsurance || '-'}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground shrink-0">Cómo llegó</span>
+                  <span className="text-right">{patient.referralSource || '-'}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground shrink-0">Objetivos</span>
+                  <span className="text-right">{patient.objectives?.length ? patient.objectives.join(', ') : '-'}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground shrink-0">Profesional</span>
+                  <span className="text-right">
+                    {typeof assignedProfessional === 'object' && assignedProfessional
+                      ? `${assignedProfessional.firstName} ${assignedProfessional.lastName}`
+                      : patient.assignedProfessional || 'Sin asignar'}
+                  </span>
                 </div>
               </CardContent>
             </Card>

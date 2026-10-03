@@ -12,6 +12,10 @@ export interface User {
   dateOfBirth?: string;
   rut?: string;
   address?: string;
+  gender?: 'Masculino' | 'Femenino' | 'Otro' | '';
+  healthInsurance?: string;
+  objectives?: string[];
+  referralSource?: string;
   profileImage?: string;
   specialty?: string;
   emergencyContact?: EmergencyContact;
