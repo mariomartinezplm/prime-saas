@@ -1,14 +1,30 @@
 import { sendDueReminders } from './appointmentReminderService.js';
 import { runPlanLifecycleJob } from './planLifecycleService.js';
+import { importNewPatients, isAirtableConfigured, AUTO_IMPORT_FROM } from '../utils/airtableSync.js';
 
 const TICK_MS = 10 * 60 * 1000;
 
 let running = false;
+let lastNoEmailCount = 0;
 
 async function tick() {
   // Si la vuelta anterior todavía no termina, se salta esta (nunca dos a la vez)
   if (running) return;
   running = true;
+
+  if (isAirtableConfigured()) {
+    try {
+      const imported = await importNewPatients({ createdSince: AUTO_IMPORT_FROM });
+      const noEmail = imported.skippedNoEmail.length;
+      if (imported.created || imported.failed || noEmail !== lastNoEmailCount) {
+        console.log(`📥 Airtable: ${imported.created} pacientes nuevos, ${imported.failed} con error, ${noEmail} sin correo (no se pueden importar)`);
+      }
+      lastNoEmailCount = noEmail;
+    } catch (error) {
+      console.error('Error importando desde Airtable:', error.message);
+    }
+  }
+
   try {
     const summary = await sendDueReminders();
     if (summary.sent24h || summary.sent4h || summary.failed) {

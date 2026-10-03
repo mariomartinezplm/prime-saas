@@ -4,7 +4,7 @@ import Measurement from '../models/Measurement.js';
 import ExerciseProgress from '../models/Exercise.js';
 import EVA from '../models/EVA.js';
 import ClientPlan from '../models/ClientPlan.js';
-import { syncAllPatients } from '../utils/airtableSync.js';
+import { importNewPatients } from '../utils/airtableSync.js';
 import { canAccessPatient } from '../middleware/auth.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { generateUnusablePassword, createInvite } from '../services/inviteService.js';
@@ -535,15 +535,16 @@ export const getDashboardStats = async (req, res) => {
   }
 };
 
-// @desc    Sincronizar todos los pacientes manualmente desde Airtable
+// @desc    Traer desde Airtable los pacientes que aún no están en la app (incluye
+//          los históricos). Nunca modifica a un paciente que ya existe.
 // @route   POST /api/users/sync-airtable
 // @access  Private/Admin
 export const syncAirtableUsers = async (req, res) => {
   try {
-    const result = await syncAllPatients();
+    const result = await importNewPatients();
     res.status(200).json({
       success: true,
-      message: 'Sincronización con Airtable completada',
+      message: 'Importación desde Airtable completada',
       data: result
     });
   } catch (error) {

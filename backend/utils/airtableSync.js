@@ -20,6 +20,20 @@ function getFieldValue(fields, ...possibleNames) {
     return undefined;
 }
 
+// El modelo solo acepta Masculino/Femenino/Otro: un valor distinto en Airtable
+// ("Hombre", "F"...) haría fallar el alta y el paciente no llegaría a la app.
+function normalizeGender(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    const value = normalizeText(raw);
+    if (['masculino', 'hombre', 'm'].includes(value)) return 'Masculino';
+    if (['femenino', 'mujer', 'f'].includes(value)) return 'Femenino';
+    return 'Otro';
+}
+
+function normalizeText(str) {
+    return String(str).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
+
 export function mapAirtableToPatient(record) {
     const fields = record.fields;
 
@@ -32,7 +46,7 @@ export function mapAirtableToPatient(record) {
     const phone = getFieldValue(fields, 'Teléfono', 'Celular');
     const rut = getFieldValue(fields, 'RUT', 'Rut');
     const address = getFieldValue(fields, 'Dirección', 'Direccion');
-    const gender = getFieldValue(fields, 'Género', 'Genero') || '';
+    const gender = normalizeGender(getFieldValue(fields, 'Género', 'Genero'));
     const healthInsurance = getFieldValue(fields, 'Previsión', 'Prevision');
 
     let dateOfBirth = getFieldValue(fields, 'Fecha de Nacimiento');
@@ -120,11 +134,16 @@ export function mapAirtableToPatient(record) {
     return patient;
 }
 
-export async function fetchAllAirtableRecords() {
+export function isAirtableConfigured() {
     const { AIRTABLE_API_KEY, AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME } = process.env;
-    if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID || !AIRTABLE_TABLE_NAME) {
+    return !!(AIRTABLE_API_KEY && AIRTABLE_BASE_ID && AIRTABLE_TABLE_NAME);
+}
+
+export async function fetchAllAirtableRecords() {
+    if (!isAirtableConfigured()) {
         throw new Error('Variables de entorno de Airtable no configuradas (AIRTABLE_API_KEY, AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME)');
     }
+    const { AIRTABLE_API_KEY, AIRTABLE_BASE_ID, AIRTABLE_TABLE_NAME } = process.env;
 
     const base = new Airtable({ apiKey: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
     const records = [];
@@ -149,40 +168,85 @@ export async function fetchAllAirtableRecords() {
 // Era el "Just-In-Time sync al login": ante un email desconocido creaba la cuenta
 // en MongoDB con una contraseña fija, sin que nadie se hubiera autenticado. Su
 // único llamador era el login. La importación desde Airtable sigue disponible,
-// pero solo manual y solo para el admin (syncAllPatients, más abajo).
+// pero solo trae pacientes NUEVOS (importNewPatients, más abajo).
 
-// Para sincronización manual completa
-export async function syncAllPatients() {
-    const records = await fetchAllAirtableRecords();
-    let syncedCount = 0;
-    let skippedCount = 0;
+// Solo se importan automáticamente los registros creados en Airtable desde esta
+// fecha. Los anteriores (históricos, a veces dados de baja a propósito) solo
+// entran si el admin los trae a mano con el botón de la lista de pacientes.
+export const AUTO_IMPORT_FROM = new Date('2026-10-03T00:00:00-03:00');
 
+// "Mario" a secas puede ser dos profesionales distintos: solo se asigna si el
+// texto de Airtable corresponde a UN único profesional. Ante la duda el
+// paciente queda sin asignar (visible para todo el personal), nunca se pierde.
+export function matchStaffByName(text, staff) {
+    const target = text ? normalizeText(text) : '';
+    if (!target) return undefined;
+    const matches = staff.filter((s) => {
+        const full = normalizeText(`${s.firstName} ${s.lastName}`);
+        return target.startsWith(full) || full.startsWith(target);
+    });
+    return matches.length === 1 ? matches[0] : undefined;
+}
+
+// La app manda: un paciente que ya existe (mismo registro de Airtable o mismo
+// correo) NUNCA se modifica, así lo que el personal editó en la app no se pierde.
+export async function importRecords(records, { createdSince } = {}) {
+    const summary = { total: records.length, created: 0, alreadyInApp: 0, skippedNoEmail: [], failed: 0 };
+
+    const candidates = [];
     for (const raw of records) {
+        const createdTime = raw._rawJson?.createdTime ?? raw.createdTime;
+        if (createdSince && !(createdTime && new Date(createdTime) >= createdSince)) continue;
         try {
             const mapped = mapAirtableToPatient(raw);
             if (!mapped.email) {
-                skippedCount++;
+                summary.skippedNoEmail.push(`${mapped.firstName} ${mapped.lastName}`.trim());
                 continue;
             }
+            candidates.push(mapped);
+        } catch (error) {
+            summary.failed++;
+            console.error(`Airtable ${raw.id}: no se pudo leer el registro (${error.message})`);
+        }
+    }
+    if (candidates.length === 0) return summary;
 
-            const filter = { email: mapped.email };
-            const docToUpdate = { ...mapped };
-            delete docToUpdate.password;
+    const existing = await User.find({
+        $or: [
+            { airtableId: { $in: candidates.map((c) => c.airtableId) } },
+            { email: { $in: candidates.map((c) => c.email) } }
+        ]
+    }).select('airtableId email');
+    const knownIds = new Set(existing.map((u) => u.airtableId).filter(Boolean));
+    const knownEmails = new Set(existing.map((u) => u.email));
 
-            const existingUser = await User.findOne(filter);
-            if (!existingUser) {
-                await User.create(mapped);
-                syncedCount++;
+    const staff = await User.find({ role: { $in: ['admin', 'professional'] }, isActive: true }).select('firstName lastName');
+
+    for (const patient of candidates) {
+        if (knownIds.has(patient.airtableId) || knownEmails.has(patient.email)) {
+            summary.alreadyInApp++;
+            continue;
+        }
+        const professional = matchStaffByName(patient.assignedProfessional, staff);
+        if (professional) patient.assignedProfessionalId = professional._id;
+
+        try {
+            await User.create(patient);
+            summary.created++;
+        } catch (error) {
+            // 11000 = ya existe (otro proceso, o dos filas con el mismo correo en Airtable)
+            if (error.code === 11000) {
+                summary.alreadyInApp++;
             } else {
-                Object.assign(existingUser, docToUpdate);
-                await existingUser.save();
-                syncedCount++;
+                summary.failed++;
+                console.error(`Airtable ${patient.airtableId}: no se pudo crear el paciente (${error.message})`);
             }
-        } catch (err) {
-            console.error('Error sincronizando registro de Airtable:', err);
-            skippedCount++;
         }
     }
 
-    return { syncedCount, skippedCount, total: records.length };
+    return summary;
+}
+
+export async function importNewPatients(options) {
+    return importRecords(await fetchAllAirtableRecords(), options);
 }

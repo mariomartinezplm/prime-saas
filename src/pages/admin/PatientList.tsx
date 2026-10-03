@@ -86,8 +86,18 @@ const PatientList = () => {
     setSyncing(true);
     try {
       const result = await userService.syncAirtable();
-      toast.success(`Sincronización completa: ${result.syncedCount} pacientes creados/actualizados.`);
-      // Refrescar la lista para mostrar los nuevos/actualizados
+      const sinCorreo: string[] = result.skippedNoEmail ?? [];
+      toast.success(
+        result.created > 0
+          ? `Se importaron ${result.created} pacientes nuevos desde Airtable.`
+          : 'No hay pacientes nuevos en Airtable.'
+      );
+      if (sinCorreo.length > 0) {
+        toast.warning(`Sin correo en Airtable (no se pueden importar): ${sinCorreo.join(', ')}`);
+      }
+      if (result.failed > 0) {
+        toast.error(`${result.failed} registros no se pudieron importar. Revisa los datos en Airtable.`);
+      }
       await fetchPatients();
     } catch (error: any) {
       console.error('Error syncing Airtable:', error);
@@ -197,10 +207,12 @@ const PatientList = () => {
               Exportar CSV
             </Button>
           )}
-          <Button variant="outline" onClick={handleSyncAirtable} disabled={syncing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-            Sincronizar Airtable
-          </Button>
+          {isAdmin && (
+            <Button variant="outline" onClick={handleSyncAirtable} disabled={syncing}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+              Importar nuevos de Airtable
+            </Button>
+          )}
           <Button onClick={() => navigate('/app/admin/registro')}>
             <UserPlus className="h-4 w-4 mr-2" />
             Nuevo paciente

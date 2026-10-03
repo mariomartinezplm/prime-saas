@@ -56,6 +56,9 @@ describe('GET /api/health', () => {
     delete process.env.R2_SECRET_ACCESS_KEY;
     delete process.env.R2_BUCKET_NAME;
     delete process.env.R2_BUCKET;
+    delete process.env.AIRTABLE_API_KEY;
+    delete process.env.AIRTABLE_BASE_ID;
+    delete process.env.AIRTABLE_TABLE_NAME;
 
     const res = fakeRes();
     getHealth({}, res);
@@ -64,7 +67,8 @@ describe('GET /api/health', () => {
     expect(res.body.scheduler).toBe('off');
     expect(res.body.storage).toBe('off');
     expect(res.body.email).toBe('off');
-    expect(Object.keys(res.body).sort()).toEqual(['db', 'email', 'scheduler', 'status', 'storage', 'version']);
+    expect(res.body.airtable).toBe('off');
+    expect(Object.keys(res.body).sort()).toEqual(['airtable', 'db', 'email', 'scheduler', 'status', 'storage', 'version']);
   });
 
   it('con las variables de R2 y Resend cargadas: storage y email "on", sin mostrar ningún valor', () => {
