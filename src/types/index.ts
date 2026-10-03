@@ -480,3 +480,22 @@ export interface FileDownloadLink {
   fileName: string;
   mimeType: string;
 }
+
+// Fotos de progreso. "private" = solo quien la sube y el admin (nunca el profesional asignado)
+export type PhotoPosition = 'front' | 'back' | 'side-left' | 'side-right' | 'other';
+export type PhotoVisibility = 'shared' | 'private';
+
+export interface ProgressPhoto {
+  id: string;
+  patient: string;
+  uploadedBy: { _id?: string; id?: string; firstName: string; lastName: string; role: 'admin' | 'professional' | 'patient' } | string;
+  position: PhotoPosition;
+  takenAt: string;
+  visibility: PhotoVisibility;
+  note?: string;
+  mimeType: string;
+  createdAt: string;
+  // URL firmada y temporal (15 min): se pide de nuevo cuando vence, nunca se guarda
+  url: string;
+  expiresIn: number;
+}

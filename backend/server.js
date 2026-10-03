@@ -22,6 +22,7 @@ import extraSessionRoutes from './routes/extraSessionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import wellnessRoutes from './routes/wellnessRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
+import photoRoutes from './routes/photoRoutes.js';
 import { startScheduler } from './services/scheduler.js';
 import googleCalendarRoutes from './routes/googleCalendarRoutes.js';
 
@@ -108,6 +109,7 @@ app.use('/api/extra-sessions', extraSessionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/wellness', wellnessRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/photos', photoRoutes);
 
 app.use('/api/google-calendar', googleCalendarRoutes);
 

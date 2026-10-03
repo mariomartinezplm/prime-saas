@@ -42,7 +42,7 @@ export async function uploadObject(key, body, contentType) {
   }));
 }
 
-export async function getSignedDownloadUrl(key, { fileName, contentType } = {}) {
+export async function getSignedDownloadUrl(key, { fileName, contentType, expiresIn = SIGNED_URL_TTL_SECONDS } = {}) {
   const command = new GetObjectCommand({
     Bucket: bucketName(),
     Key: key,
@@ -51,7 +51,7 @@ export async function getSignedDownloadUrl(key, { fileName, contentType } = {}) 
       ResponseContentDisposition: `inline; filename*=UTF-8''${encodeURIComponent(fileName)}`
     })
   });
-  return getSignedUrl(getClient(), command, { expiresIn: SIGNED_URL_TTL_SECONDS });
+  return getSignedUrl(getClient(), command, { expiresIn });
 }
 
 export async function deleteObject(key) {

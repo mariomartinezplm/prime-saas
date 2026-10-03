@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Settings,
   Ruler,
+  Camera,
   Dumbbell,
   Activity,
   User,
@@ -45,6 +46,7 @@ const AppSidebar = () => {
     { label: 'Mi Perfil', icon: User, path: '/app/mi-perfil' },
     { label: 'Mediciones', icon: Ruler, path: '/app/mediciones' },
     { label: 'Ejercicios', icon: Dumbbell, path: '/app/ejercicios' },
+    { label: 'Fotos', icon: Camera, path: '/app/fotos' },
     { label: 'Dolor (EVA)', icon: Activity, path: '/app/dolor' },
   ];
 

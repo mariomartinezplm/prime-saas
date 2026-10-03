@@ -28,6 +28,7 @@ import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
 import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
+import PatientPhotos from '@/components/photos/PatientPhotos';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import EditPatientDialog from '@/components/forms/EditPatientDialog';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
@@ -203,6 +204,7 @@ const PatientDetail = () => {
           <TabsTrigger value="exercises">Ejercicios</TabsTrigger>
           <TabsTrigger value="eva">EVA</TabsTrigger>
           <TabsTrigger value="files">Archivos</TabsTrigger>
+          <TabsTrigger value="photos">Fotos</TabsTrigger>
           <TabsTrigger value="wellness">Bienestar</TabsTrigger>
           <TabsTrigger value="plan">Plan</TabsTrigger>
         </TabsList>
@@ -344,6 +346,10 @@ const PatientDetail = () => {
 
         <TabsContent value="files" className="mt-4">
           <PatientFilesTab patientId={id!} />
+        </TabsContent>
+
+        <TabsContent value="photos" className="mt-4">
+          <PatientPhotos patientId={id!} />
         </TabsContent>
 
         <TabsContent value="wellness" className="mt-4">

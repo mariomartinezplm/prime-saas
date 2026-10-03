@@ -29,6 +29,7 @@ import MyProfile from "./pages/patient/MyProfile";
 import PatientMeasurements from "./pages/patient/Measurements";
 import PatientExercises from "./pages/patient/Exercises";
 import PainRecords from "./pages/patient/PainRecords";
+import PatientPhotosPage from "./pages/patient/Photos";
 
 // Admin/Staff pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -117,6 +118,10 @@ const App = () => (
               <Route
                 path="dolor"
                 element={<RoleRoute roles={['patient']}><PainRecords /></RoleRoute>}
+              />
+              <Route
+                path="fotos"
+                element={<RoleRoute roles={['patient']}><PatientPhotosPage /></RoleRoute>}
               />
               {/* Admin/Staff routes */}
               <Route
