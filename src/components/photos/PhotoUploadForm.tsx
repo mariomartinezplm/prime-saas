@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { photoService } from '@/services/photoService';
-import { prepareImageForUpload, ImageReadError } from '@/lib/imageResize';
+import { prepareImageForUpload, ImageReadError, type PreparedImage } from '@/lib/imageResize';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
 import { showApiError } from '@/lib/apiError';
 import { Button } from '@/components/ui/button';
@@ -20,34 +20,44 @@ interface PhotoUploadFormProps {
 }
 
 const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormProps) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  // La foto ya reducida y lista para subir (se prepara apenas se elige)
+  const [prepared, setPrepared] = useState<PreparedImage | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [position, setPosition] = useState<PhotoPosition>('front');
   const [takenAt, setTakenAt] = useState(todayLocal());
   const [note, setNote] = useState('');
   const [visibility, setVisibility] = useState<PhotoVisibility>('shared');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!file) {
-      setPreview(null);
-      return;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosen = e.target.files?.[0];
+    setPrepared(null);
+    setFileError(null);
+    if (!chosen) return;
+
+    setPreparing(true);
+    try {
+      setPrepared(await prepareImageForUpload(chosen));
+    } catch (err: unknown) {
+      const message = err instanceof ImageReadError ? err.message : 'No se pudo leer la imagen. Prueba con otra foto.';
+      setFileError(message);
+      // Permite volver a elegir la misma foto después de corregirla
+      e.target.value = '';
+    } finally {
+      setPreparing(false);
     }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      toast.error('Elige una foto');
+    if (!prepared) {
+      toast.error(fileError ?? 'Elige una foto');
       return;
     }
     setLoading(true);
     try {
-      const prepared = await prepareImageForUpload(file);
-      await photoService.upload(patientId, prepared, {
+      await photoService.upload(patientId, prepared.file, {
         position,
         takenAt: localNoonISO(takenAt),
         note: note.trim() || undefined,
@@ -56,8 +66,7 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
       toast.success('Foto subida');
       onSuccess();
     } catch (err: unknown) {
-      if (err instanceof ImageReadError) toast.error(err.message);
-      else showApiError(err, 'No se pudo subir la foto');
+      showApiError(err, 'No se pudo subir la foto');
     } finally {
       setLoading(false);
     }
@@ -67,9 +76,16 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1.5">
         <Label>Foto *</Label>
-        <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        {preview && (
-          <img src={preview} alt="Vista previa" className="mt-2 max-h-64 rounded-lg border border-border object-contain" />
+        <Input type="file" accept="image/*" onChange={handleFileChange} />
+        {preparing && (
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Preparando la foto…
+          </p>
+        )}
+        {fileError && <p role="alert" className="text-sm text-red-400">{fileError}</p>}
+        {prepared && (
+          <img src={prepared.previewUrl} alt="Vista previa" className="mt-2 max-h-64 rounded-lg border border-border object-contain" />
         )}
       </div>
 
@@ -122,7 +138,7 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
         </div>
       )}
 
-      <Button type="submit" className="w-full" disabled={loading || !file}>
+      <Button type="submit" className="w-full" disabled={loading || preparing || !prepared}>
         {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
         Subir foto
       </Button>
