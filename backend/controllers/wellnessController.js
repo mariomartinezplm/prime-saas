@@ -3,9 +3,18 @@ import User from '../models/User.js';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
 import { todayInSantiago } from '../utils/timezone.js';
+import {
+  READINESS_KEYS,
+  SCALE_MAX,
+  serializeCheckin,
+  normalizedValues,
+  computeReadiness,
+  statusFromScore,
+  isValidAnswer
+} from '../utils/readiness.js';
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu check-in.';
-const ALERT_THRESHOLD = 2.5;
+const MAX_NOTES_LENGTH = 500;
 
 // @desc    Registrar el check-in de bienestar del día
 // @route   POST /api/wellness
@@ -13,7 +22,15 @@ const ALERT_THRESHOLD = 2.5;
 export const createCheckin = async (req, res) => {
   try {
     const patientId = req.user._id;
-    const { sleep, energy, stress, soreness, mood, notes } = req.body;
+    const { notes } = req.body;
+
+    const invalid = READINESS_KEYS.find((key) => !isValidAnswer(req.body[key]));
+    if (invalid) {
+      return res.status(400).json({
+        success: false,
+        message: `Cada respuesta debe ser un número entero entre 1 y ${SCALE_MAX}`
+      });
+    }
 
     if (!(await hasActivePlan(patientId))) {
       return res.status(403).json({
@@ -26,21 +43,24 @@ export const createCheckin = async (req, res) => {
     const checkin = await WellnessCheckin.create({
       patient: patientId,
       date: todayInSantiago(),
-      sleep,
-      energy,
-      stress,
-      soreness,
-      mood,
-      notes
+      scale: SCALE_MAX,
+      sleep: req.body.sleep,
+      energy: req.body.energy,
+      stress: req.body.stress,
+      soreness: req.body.soreness,
+      mood: req.body.mood,
+      notes: typeof notes === 'string' ? notes.trim().slice(0, MAX_NOTES_LENGTH) || undefined : undefined
     });
 
-    // Alerta al profesional si el promedio del día es bajo (Paso 19: notify)
-    if (checkin.average() < ALERT_THRESHOLD) {
+    const result = serializeCheckin(checkin);
+
+    // Semáforo rojo: aviso al profesional asignado (campanita + correo, Paso 19: notify)
+    if (result.readiness.status === 'red') {
       const patientUser = await User.findById(patientId).select('firstName lastName assignedProfessionalId');
       if (patientUser?.assignedProfessionalId) {
         notify(patientUser.assignedProfessionalId, 'wellness_alert', {
           title: 'Alerta de bienestar',
-          body: `${patientUser.firstName} ${patientUser.lastName} registró un check-in de bienestar bajo hoy (promedio ${checkin.average().toFixed(1)}/5).`,
+          body: `${patientUser.firstName} ${patientUser.lastName} registró hoy un Readiness en rojo (${result.readiness.score.toFixed(1)}/${SCALE_MAX}). Conviene revisar su entrenamiento.`,
           link: `/app/admin/pacientes/${patientId}`
         }).catch((error) => {
           console.error('Error al notificar alerta de bienestar:', error.message);
@@ -51,7 +71,7 @@ export const createCheckin = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Check-in registrado exitosamente',
-      data: { checkin }
+      data: { checkin: result }
     });
   } catch (error) {
     // Índice único {patient, date}: segundo check-in del mismo día -> 409, no 500.
@@ -81,7 +101,7 @@ export const getTodayCheckin = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { checkin: checkin || null }
+      data: { checkin: checkin ? serializeCheckin(checkin) : null }
     });
   } catch (error) {
     res.status(500).json({
@@ -105,7 +125,7 @@ export const getPatientCheckins = async (req, res) => {
     res.status(200).json({
       success: true,
       count: checkins.length,
-      data: { checkins }
+      data: { checkins: checkins.map(serializeCheckin) }
     });
   } catch (error) {
     res.status(500).json({
@@ -148,27 +168,30 @@ export const getTrends = async (req, res) => {
       checkinsByPatient.get(key).push(checkin);
     }
 
-    const average = (c) => (c.sleep + c.energy + c.stress + c.soreness + c.mood) / 5;
+    const scoreOf = (c) => computeReadiness(normalizedValues(c)).score;
 
     const trends = patients
       .map((patient) => {
         const patientCheckins = checkinsByPatient.get(patient._id.toString()) || [];
         const weeklyAverage = patientCheckins.length > 0
-          ? patientCheckins.reduce((sum, c) => sum + average(c), 0) / patientCheckins.length
+          ? Math.round((patientCheckins.reduce((sum, c) => sum + scoreOf(c), 0) / patientCheckins.length) * 10) / 10
           : null;
+        const weeklyStatus = weeklyAverage !== null ? statusFromScore(weeklyAverage) : null;
 
         return {
           patient: { _id: patient._id, firstName: patient.firstName, lastName: patient.lastName },
           checkinsThisWeek: patientCheckins.length,
           weeklyAverage,
-          lastCheckin: patientCheckins[0] || null,
-          isLowAlert: weeklyAverage !== null && weeklyAverage < ALERT_THRESHOLD
+          weeklyStatus,
+          lastCheckin: patientCheckins[0] ? serializeCheckin(patientCheckins[0]) : null,
+          isLowAlert: weeklyStatus === 'red'
         };
       })
       // Los pacientes sin ningún check-in esta semana no aportan nada a la
       // vista de tendencias — se omiten en vez de listar 40 filas vacías.
       .filter((t) => t.checkinsThisWeek > 0)
-      .sort((a, b) => (a.weeklyAverage ?? 5) - (b.weeklyAverage ?? 5));
+      // Primero los que más atención necesitan
+      .sort((a, b) => (a.weeklyAverage ?? SCALE_MAX) - (b.weeklyAverage ?? SCALE_MAX));
 
     res.status(200).json({
       success: true,

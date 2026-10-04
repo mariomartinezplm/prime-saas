@@ -9,7 +9,7 @@ interface WellnessTrendChartProps {
 const METRICS: Array<{ key: keyof WellnessCheckin; label: string; color: string }> = [
   { key: 'sleep', label: 'Sueño', color: 'hsl(194 45% 44%)' },
   { key: 'energy', label: 'Energía', color: 'hsl(38 92% 50%)' },
-  { key: 'stress', label: 'Tranquilidad', color: 'hsl(280 60% 55%)' },
+  { key: 'stress', label: 'Calma', color: 'hsl(280 60% 55%)' },
   { key: 'soreness', label: 'Cuerpo', color: 'hsl(340 75% 55%)' },
   { key: 'mood', label: 'Ánimo', color: 'hsl(142 71% 40%)' },
 ];
@@ -34,7 +34,7 @@ const WellnessTrendChart = ({ checkins }: WellnessTrendChartProps) => {
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-          <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+          <YAxis domain={[1, 9]} ticks={[1, 3, 5, 7, 9]} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
           <Tooltip
             contentStyle={{
               backgroundColor: 'hsl(var(--card))',

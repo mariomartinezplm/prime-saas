@@ -432,7 +432,19 @@ export interface Notification {
   updatedAt: string;
 }
 
-// Tipos de WellnessCheckin (Paso 23 de BLUEPRINT.md)
+// Tipos de WellnessCheckin / Readiness. Las 5 respuestas llegan siempre en escala 1-9
+// con 9 = mejor (el servidor convierte los check-ins antiguos de 1-5).
+export type ReadinessStatus = 'green' | 'yellow' | 'red';
+export type ReadinessKey = 'sleep' | 'energy' | 'stress' | 'soreness' | 'mood';
+
+export interface Readiness {
+  score: number; // 1-9, un decimal
+  status: ReadinessStatus;
+  message: string;
+  // Respuestas muy malas (<= 2): impiden el verde
+  flags: ReadinessKey[];
+}
+
 export interface WellnessCheckin {
   _id: string;
   patient: string;
@@ -443,6 +455,7 @@ export interface WellnessCheckin {
   soreness: number;
   mood: number;
   notes?: string;
+  readiness: Readiness;
   createdAt: string;
   updatedAt: string;
 }
@@ -460,6 +473,7 @@ export interface WellnessTrend {
   patient: { _id: string; firstName: string; lastName: string };
   checkinsThisWeek: number;
   weeklyAverage: number | null;
+  weeklyStatus: ReadinessStatus | null;
   lastCheckin: WellnessCheckin | null;
   isLowAlert: boolean;
 }

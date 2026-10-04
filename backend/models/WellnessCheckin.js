@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 
-// Escala 1-5 uniforme para las 5 métricas: 1 = mal, 5 = bien. Para que el
-// promedio simple sirva de alerta (<2.5 = mal), "estrés" y "dolor muscular"
-// se preguntan en sentido inverso en la UI ("qué tan poco estrés/dolor" en
-// vez de "cuánto estrés/dolor") — el dato que se guarda siempre sigue esta
-// misma dirección, no hace falta invertir nada al calcular el promedio.
+// Las 5 respuestas se guardan siempre en la misma dirección: 1 = mal, 9 = bien (la
+// pantalla invierte fatiga, dolor y estrés antes de enviarlas). `energy` guarda
+// lo contrario de la fatiga. Los check-ins anteriores al 2026-10-03 están en escala
+// 1-5 y NO tienen `scale`: utils/readiness.js los convierte al leerlos. Por eso
+// `scale` no tiene valor por defecto: un default haría que se leyeran como 9.
 const wellnessCheckinSchema = new mongoose.Schema({
   patient: {
     type: mongoose.Schema.Types.ObjectId,
@@ -18,11 +18,12 @@ const wellnessCheckinSchema = new mongoose.Schema({
     type: String,
     required: [true, 'La fecha es requerida']
   },
-  sleep: { type: Number, required: true, min: 1, max: 5 },
-  energy: { type: Number, required: true, min: 1, max: 5 },
-  stress: { type: Number, required: true, min: 1, max: 5 },
-  soreness: { type: Number, required: true, min: 1, max: 5 },
-  mood: { type: Number, required: true, min: 1, max: 5 },
+  scale: { type: Number, enum: [5, 9] },
+  sleep: { type: Number, required: true, min: 1, max: 9 },
+  energy: { type: Number, required: true, min: 1, max: 9 },
+  stress: { type: Number, required: true, min: 1, max: 9 },
+  soreness: { type: Number, required: true, min: 1, max: 9 },
+  mood: { type: Number, required: true, min: 1, max: 9 },
   notes: {
     type: String,
     trim: true
@@ -34,10 +35,6 @@ const wellnessCheckinSchema = new mongoose.Schema({
 // 1 check-in por paciente por día garantizado por la base de datos, no solo
 // por el frontend (Paso 23 de BLUEPRINT.md).
 wellnessCheckinSchema.index({ patient: 1, date: 1 }, { unique: true });
-
-wellnessCheckinSchema.methods.average = function () {
-  return (this.sleep + this.energy + this.stress + this.soreness + this.mood) / 5;
-};
 
 const WellnessCheckin = mongoose.model('WellnessCheckin', wellnessCheckinSchema);
 

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { HeartPulse, Loader2 } from 'lucide-react';
 import { wellnessService } from '@/services/wellnessService';
+import { STATUS_STYLES, formatScore } from './readinessConfig';
 import type { WellnessTrend } from '@/types';
 
 const WellnessTrendsSummary = () => {
@@ -22,7 +23,7 @@ const WellnessTrendsSummary = () => {
     <Card>
       <CardHeader className="flex flex-row items-center gap-2">
         <HeartPulse className="h-4 w-4 text-muted-foreground" />
-        <CardTitle className="text-lg">Bienestar de pacientes (últimos 7 días)</CardTitle>
+        <CardTitle className="text-lg">Readiness de pacientes (últimos 7 días)</CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -33,13 +34,15 @@ const WellnessTrendsSummary = () => {
           <p className="text-muted-foreground text-sm">Nadie ha registrado un check-in esta semana todavía</p>
         ) : (
           <div className="space-y-2">
-            {trends.map((trend) => (
+            {trends.map((trend) => {
+              const style = trend.weeklyStatus ? STATUS_STYLES[trend.weeklyStatus] : null;
+              return (
               <button
                 key={trend.patient._id}
                 onClick={() => navigate(`/app/admin/pacientes/${trend.patient._id}`)}
-                className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-colors hover:bg-secondary/10 ${
-                  trend.isLowAlert ? 'border-l-4 border-l-red-500 bg-red-500/5' : 'border-border'
-                }`}
+                className={`w-full flex items-center justify-between p-3 rounded-lg border border-border text-left transition-colors hover:bg-secondary/10 ${
+                  style ? `border-l-4 ${style.border}` : ''
+                } ${trend.isLowAlert ? 'bg-red-500/5' : ''}`}
               >
                 <div>
                   <p className="font-medium text-sm">
@@ -50,15 +53,18 @@ const WellnessTrendsSummary = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {trend.isLowAlert && (
-                    <Badge className="bg-red-500/20 text-red-400">Requiere atención</Badge>
+                  {style && (
+                    <Badge className={`border ${style.badge}`}>
+                      {trend.isLowAlert ? 'Requiere atención' : style.label}
+                    </Badge>
                   )}
-                  <span className="text-sm font-semibold">
-                    {trend.weeklyAverage?.toFixed(1)}/5
+                  <span className={`text-sm font-semibold ${style?.text ?? ''}`}>
+                    {trend.weeklyAverage !== null ? formatScore(trend.weeklyAverage) : '-'}/9
                   </span>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
