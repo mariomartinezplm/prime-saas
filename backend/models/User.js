@@ -126,6 +126,14 @@ const userSchema = new mongoose.Schema({
   resetPasswordToken: String,
   resetPasswordExpire: Date,
 
+  // "Sobre cupo": sus citas NO cuentan en el máximo de 4 pacientes simultáneos y puede
+  // agendar aunque el horario esté lleno. Solo el admin lo activa (afecta la carga
+  // real del profesional). Aplica a las citas que agende de ahí en adelante.
+  exemptFromCapacity: {
+    type: Boolean,
+    default: false
+  },
+
   // Invitación de un solo uso para activar la cuenta (Paso 12 de BLUEPRINT.md).
   // Mismo patrón sha256 que resetPasswordToken/RefreshToken: solo el hash se
   // persiste, nunca el token real. _id:false porque es un objeto plano de 3

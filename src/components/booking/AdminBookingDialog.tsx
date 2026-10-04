@@ -68,14 +68,14 @@ const AdminBookingDialog = ({
     setLoadingSlots(true);
     setSelectedSlot(null);
     availabilityService
-      .getSlots(professionalId, date)
+      .getSlots(professionalId, date, patientId)
       .then(setSlots)
       .catch(() => {
         setSlots(null);
         toast.error('No se pudieron cargar los horarios');
       })
       .finally(() => setLoadingSlots(false));
-  }, [date, professionalId]);
+  }, [date, professionalId, patientId]);
 
   const allSlots = slots
     ? [...slots.availableSlots, ...slots.bookedSlots, ...(slots.blockedSlots || [])].sort()

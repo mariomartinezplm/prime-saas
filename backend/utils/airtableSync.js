@@ -34,6 +34,31 @@ function normalizeText(str) {
     return String(str).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 }
 
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_COLUMN_NAMES = ['Correo Electrónico', 'Email', 'Correo', 'correo'];
+
+// El correo es lo que permite crear la cuenta, así que se busca con tolerancia: primero
+// los nombres de columna conocidos y, si no, cualquier columna que contenga "correo" o
+// "mail" (menos las de contacto de emergencia). Si el valor no parece un correo se
+// ignora, en vez de intentar crear una cuenta con algo que va a fallar.
+export function findEmail(fields) {
+    const names = [
+        ...EMAIL_COLUMN_NAMES,
+        ...Object.keys(fields).filter((name) => {
+            const n = normalizeText(name);
+            return (n.includes('correo') || n.includes('mail')) && !n.includes('emergencia') && !n.includes('contacto');
+        })
+    ];
+    for (const name of names) {
+        let value = fields[name];
+        if (Array.isArray(value)) value = value[0];
+        if (typeof value !== 'string') continue;
+        const email = value.trim().toLowerCase();
+        if (EMAIL_FORMAT.test(email)) return { email, field: name };
+    }
+    return { email: null, field: null };
+}
+
 export function mapAirtableToPatient(record) {
     const fields = record.fields;
 
@@ -42,7 +67,7 @@ export function mapAirtableToPatient(record) {
     if (firstName) firstName = firstName.trim();
     if (lastName) lastName = lastName.trim();
 
-    const email = getFieldValue(fields, 'Correo Electrónico', 'Email', 'Correo', 'correo');
+    const { email } = findEmail(fields);
     const phone = getFieldValue(fields, 'Teléfono', 'Celular');
     const rut = getFieldValue(fields, 'RUT', 'Rut');
     const address = getFieldValue(fields, 'Dirección', 'Direccion');
@@ -94,7 +119,7 @@ export function mapAirtableToPatient(record) {
     const patient = {
         firstName: firstName || 'Sin nombre',
         lastName: lastName || 'Sin apellido',
-        email: email ? email.toLowerCase().trim() : null,
+        email,
         password: generateUnusablePassword(), // El paciente la define vía invitación
         role: 'patient',
         phone: phone ? String(phone).trim() : undefined,
@@ -190,8 +215,27 @@ export function matchStaffByName(text, staff) {
 
 // La app manda: un paciente que ya existe (mismo registro de Airtable o mismo
 // correo) NUNCA se modifica, así lo que el personal editó en la app no se pierde.
-export async function importRecords(records, { createdSince } = {}) {
+export async function importRecords(records, { createdSince, dryRun = false } = {}) {
     const summary = { total: records.length, created: 0, alreadyInApp: 0, skippedNoEmail: [], failed: 0 };
+
+    // Diagnóstico: con qué columnas llegan los registros y cuál se usó como correo.
+    // Airtable omite las columnas vacías, así que se junta lo que traen todos.
+    const fieldNames = new Set();
+    const emailColumns = {};
+    for (const raw of records) {
+        Object.keys(raw.fields || {}).forEach((name) => fieldNames.add(name));
+        const { field } = findEmail(raw.fields || {});
+        if (field) emailColumns[field] = (emailColumns[field] || 0) + 1;
+    }
+    summary.fieldsDetected = [...fieldNames].sort();
+    summary.emailColumn = Object.entries(emailColumns).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    if (dryRun) {
+        summary.dryRun = true;
+        summary.toCreate = 0;
+        summary.toCreateInactive = 0;
+        summary.withoutProfessional = 0;
+        summary.sample = [];
+    }
 
     const candidates = [];
     for (const raw of records) {
@@ -229,6 +273,23 @@ export async function importRecords(records, { createdSince } = {}) {
         }
         const professional = matchStaffByName(patient.assignedProfessional, staff);
         if (professional) patient.assignedProfessionalId = professional._id;
+
+        // Vista previa: se cuenta lo que se crearía, sin crear nada
+        if (dryRun) {
+            summary.toCreate++;
+            if (!patient.isActive) summary.toCreateInactive++;
+            if (!professional) summary.withoutProfessional++;
+            if (summary.sample.length < 8) {
+                summary.sample.push({
+                    name: `${patient.firstName} ${patient.lastName}`.trim(),
+                    email: patient.email,
+                    isActive: patient.isActive,
+                    professional: professional ? `${professional.firstName} ${professional.lastName}`.trim() : null,
+                    professionalText: patient.assignedProfessional || null
+                });
+            }
+            continue;
+        }
 
         try {
             await User.create(patient);

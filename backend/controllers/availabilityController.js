@@ -1,6 +1,6 @@
 import Availability from '../models/Availability.js';
 import { parseISO, getDay } from 'date-fns';
-import { MAX_PATIENTS_PER_SLOT, countOverlappingAppointments } from '../services/bookingRulesService.js';
+import { MAX_PATIENTS_PER_SLOT, countOverlappingAppointments, isExemptFromCapacity } from '../services/bookingRulesService.js';
 
 // @desc    Obtener disponibilidad de un profesional
 // @route   GET /api/availability/:professionalId
@@ -195,8 +195,14 @@ export const getAvailableSlots = async (req, res) => {
     const availableSlots = [];
     const bookedSlots = [];
 
+    // Quién está mirando los horarios: un paciente "sobre cupo" los ve todos disponibles.
+    // El personal puede indicar para qué paciente agenda con ?patientId=.
+    const staffRoles = ['admin', 'professional'];
+    const forPatientId = staffRoles.includes(req.user?.role) ? req.query.patientId : req.user?._id;
+    const exempt = forPatientId ? await isExemptFromCapacity(forPatientId) : false;
+
     for (const slot of candidateSlots) {
-      const overlapping = await countOverlappingAppointments(professionalId, date, slot);
+      const overlapping = exempt ? 0 : await countOverlappingAppointments(professionalId, date, slot);
       if (overlapping >= MAX_PATIENTS_PER_SLOT) {
         bookedSlots.push(slot);
       } else {

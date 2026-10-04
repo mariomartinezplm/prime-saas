@@ -118,6 +118,9 @@ const PatientDetail = () => {
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
               {patient.firstName} {patient.lastName}
               {patient.isFounder && <FounderBadge />}
+              {patient.exemptFromCapacity && (
+                <Badge className="bg-amber-500/20 text-amber-400" title="Puede agendar aunque el horario esté lleno; no cuenta en los 4 simultáneos">Sobre cupo</Badge>
+              )}
             </h1>
             <p className="text-muted-foreground">{patient.email} {patient.rut && `| ${patient.rut}`}</p>
           </div>
@@ -327,6 +330,7 @@ const PatientDetail = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   {apt.overbooked && <Badge className="bg-amber-500/20 text-amber-400">Sobrecupo</Badge>}
+                  {apt.outsideCapacity && <Badge className="bg-amber-500/20 text-amber-400">Fuera del cupo</Badge>}
                   <Badge>{apt.status}</Badge>
                 </div>
               </div>

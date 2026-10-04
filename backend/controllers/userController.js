@@ -326,6 +326,13 @@ export const updateUser = async (req, res) => {
       if (req.body.assignedProfessionalId !== undefined) {
         user.assignedProfessionalId = req.body.assignedProfessionalId || undefined;
       }
+      // "Sobre cupo": solo tiene sentido en pacientes
+      if (req.body.exemptFromCapacity !== undefined) {
+        if (typeof req.body.exemptFromCapacity !== 'boolean') {
+          return res.status(400).json({ success: false, message: 'exemptFromCapacity debe ser verdadero o falso' });
+        }
+        if (user.role === 'patient') user.exemptFromCapacity = req.body.exemptFromCapacity;
+      }
     }
 
     await user.save();
@@ -564,10 +571,12 @@ export const getDashboardStats = async (req, res) => {
 // @access  Private/Admin
 export const syncAirtableUsers = async (req, res) => {
   try {
-    const result = await importNewPatients();
+    // dryRun: solo muestra qué se importaría, sin crear nada
+    const dryRun = req.body?.dryRun === true;
+    const result = await importNewPatients({ dryRun });
     res.status(200).json({
       success: true,
-      message: 'Importación desde Airtable completada',
+      message: dryRun ? 'Vista previa de la importación' : 'Importación desde Airtable completada',
       data: result
     });
   } catch (error) {

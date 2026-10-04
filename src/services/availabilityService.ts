@@ -11,9 +11,12 @@ export const availabilityService = {
   },
 
   // Obtener slots disponibles para una fecha
-  getSlots: async (professionalId: string, date: string): Promise<AvailableSlots> => {
+  // forPatientId: cuando el personal agenda para un paciente, para que el listado
+  // respete si ese paciente está "sobre cupo". Los pacientes no lo necesitan.
+  getSlots: async (professionalId: string, date: string, forPatientId?: string): Promise<AvailableSlots> => {
     const response = await api.get<APIResponse<AvailableSlots>>(
-      `/availability/${professionalId}/slots/${date}`
+      `/availability/${professionalId}/slots/${date}`,
+      { params: forPatientId ? { patientId: forPatientId } : undefined }
     );
     return response.data.data;
   },

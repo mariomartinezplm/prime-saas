@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import User from '../models/User.js';
 import Appointment from '../models/Appointment.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
+import { googleConfigStatus, clean, GOOGLE_CONFIG_MESSAGES } from '../utils/googleConfig.js';
 
 // Rediseño completo (Paso 28 de BLUEPRINT.md) de la integración que estaba en
 // cuarentena desde el Paso 07. Reemplaza: cliente OAuth compartido → uno por
@@ -19,13 +20,24 @@ const TYPE_LABELS = { kinesiologia: 'Kinesiología', entrenamiento: 'Entrenamien
 // que es lo que causaba que las credenciales de un usuario se filtraran a otro.
 function buildOAuthClient() {
   return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
+    clean(process.env.GOOGLE_CLIENT_ID),
+    clean(process.env.GOOGLE_CLIENT_SECRET),
     `${process.env.FRONTEND_URL}/auth/google/callback`
   );
 }
 
 export const getAuthUrl = (req, res) => {
+  // Si la configuración del servidor está mal, se dice aquí con claridad en vez de
+  // mandar a la persona a una pantalla de error de Google.
+  const configStatus = googleConfigStatus();
+  if (configStatus !== 'on') {
+    return res.status(503).json({
+      success: false,
+      code: 'GOOGLE_NOT_CONFIGURED',
+      message: `${GOOGLE_CONFIG_MESSAGES[configStatus]} Avisa al administrador.`
+    });
+  }
+
   const state = jwt.sign({ uid: req.user._id.toString(), purpose: STATE_PURPOSE }, process.env.JWT_SECRET, {
     expiresIn: '10m'
   });

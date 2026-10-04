@@ -81,6 +81,13 @@ const appointmentSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // La cita es de un paciente "sobre cupo" (User.exemptFromCapacity): se guarda al
+  // agendar y NO se cuenta en el máximo de 4 simultáneos. Distinto de `overbooked`,
+  // que es una excepción puntual del admin y sí cuenta.
+  outsideCapacity: {
+    type: Boolean,
+    default: false
+  },
   // Cita agendada por el admin por encima del máximo de pacientes simultáneos.
   overbooked: {
     type: Boolean,

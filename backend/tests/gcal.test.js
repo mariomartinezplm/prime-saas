@@ -10,7 +10,7 @@
  *   - un profesional no puede sincronizar la cita de otro
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -75,6 +75,43 @@ beforeEach(() => {
 });
 
 describe('GET /google-calendar/auth-url', () => {
+  const GOOGLE_VARS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'ENCRYPTION_KEY', 'FRONTEND_URL'];
+  const saved = {};
+
+  beforeEach(() => {
+    GOOGLE_VARS.forEach((k) => { saved[k] = process.env[k]; });
+    process.env.GOOGLE_CLIENT_ID = '123456789012-abcdef123456.apps.googleusercontent.com';
+    process.env.GOOGLE_CLIENT_SECRET = 'GOCSPX-prueba';
+    process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+    process.env.FRONTEND_URL = 'https://app.primefh.cl';
+  });
+
+  afterEach(() => {
+    GOOGLE_VARS.forEach((k) => (saved[k] === undefined ? delete process.env[k] : (process.env[k] = saved[k])));
+  });
+
+  it('con un ID de cliente inválido responde 503 claro, sin mandar a la persona a la pantalla de error de Google', () => {
+    process.env.GOOGLE_CLIENT_ID = 'tu_client_id_aqui';
+    const res = fakeRes();
+
+    getAuthUrl({ user: { _id: nuevoId() } }, res);
+
+    expect(res.statusCode).toBe(503);
+    expect(res.body.code).toBe('GOOGLE_NOT_CONFIGURED');
+    expect(res.body.message).toMatch(/ID de cliente/);
+    expect(mockGenerateAuthUrl).not.toHaveBeenCalled();
+  });
+
+  it('con variables faltantes responde 503 "incompleta"', () => {
+    delete process.env.ENCRYPTION_KEY;
+    const res = fakeRes();
+
+    getAuthUrl({ user: { _id: nuevoId() } }, res);
+
+    expect(res.statusCode).toBe(503);
+    expect(res.body.message).toMatch(/incompleta/);
+  });
+
   it('genera una URL con scope mínimo (calendar.events, no calendar completo)', () => {
     mockGenerateAuthUrl.mockReturnValue('https://accounts.google.com/o/oauth2/auth?fake=1');
     const req = { user: { _id: nuevoId() } };

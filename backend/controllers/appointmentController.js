@@ -12,7 +12,8 @@ import {
   PATIENT_CANCEL_AHEAD_HOURS,
   BULK_BOOKING_MAX_ITEMS,
   nowInSantiago,
-  countOverlappingAppointments
+  countOverlappingAppointments,
+  isExemptFromCapacity
 } from '../services/bookingRulesService.js';
 
 // Tipos de cita que sí consumen una sesión del plan (Paso 15 de BLUEPRINT.md).
@@ -140,7 +141,9 @@ export const createAppointment = async (req, res) => {
 
   // ──── REGLA 5: Máximo 4 pacientes por hora por kinesiólogo ────
   // Solo el admin puede saltarse este tope (sobrecupo), de forma explícita.
-  const patientsInSlot = await countOverlappingAppointments(professional, date, startTime);
+  // Un paciente "sobre cupo" agenda aunque esté lleno y su cita no cuenta en el máximo.
+  const exemptFromCapacity = await isExemptFromCapacity(patientId);
+  const patientsInSlot = exemptFromCapacity ? 0 : await countOverlappingAppointments(professional, date, startTime);
   const isOverbooked = patientsInSlot >= MAX_PATIENTS_PER_SLOT;
   if (isOverbooked && !allowOverbook) {
     return res.status(400).json({
@@ -180,7 +183,8 @@ export const createAppointment = async (req, res) => {
       notes,
       sessionDeducted: !!deduction,
       deduction: deduction || undefined,
-      overbooked: isOverbooked
+      overbooked: isOverbooked,
+      outsideCapacity: exemptFromCapacity
     });
   } catch (createError) {
     // La sesión ya se descontó pero la cita no se pudo crear: se revierte
@@ -564,6 +568,7 @@ export const bulkCreateAppointments = async (req, res) => {
     const now = nowInSantiago();
     const created = [];
     const skipped = [];
+    const exemptFromCapacity = await isExemptFromCapacity(patientId);
 
     // Cada cita del lote se valida y descuenta individualmente (saldo, 4h,
     // cupo, tipo) — antes esto se saltaba casi todo: el saldo se chequeaba una
@@ -603,7 +608,7 @@ export const bulkCreateAppointments = async (req, res) => {
           }
         }
 
-        const patientsInSlot = await countOverlappingAppointments(professional, date, startTime);
+        const patientsInSlot = exemptFromCapacity ? 0 : await countOverlappingAppointments(professional, date, startTime);
         const isOverbooked = patientsInSlot >= MAX_PATIENTS_PER_SLOT;
         if (isOverbooked && !allowOverbook) {
           skipped.push({ fecha: date, motivo: `Horario lleno (${MAX_PATIENTS_PER_SLOT}/${MAX_PATIENTS_PER_SLOT})` });
@@ -634,7 +639,8 @@ export const bulkCreateAppointments = async (req, res) => {
             type: sessionType,
             sessionDeducted: !!deduction,
             deduction: deduction || undefined,
-            overbooked: isOverbooked
+            overbooked: isOverbooked,
+            outsideCapacity: exemptFromCapacity
           });
         } catch (createError) {
           if (deduction) await refundSession({ deduction });

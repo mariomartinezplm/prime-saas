@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -56,6 +57,7 @@ const buildForm = (patient: User) => ({
   allergies: toLines(patient.medicalInfo?.allergies),
   injuries: toLines(patient.medicalInfo?.injuries),
   assignedProfessionalId: idOf(patient.assignedProfessionalId) || NO_PROFESSIONAL,
+  exemptFromCapacity: patient.exemptFromCapacity === true,
 });
 
 const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: EditPatientDialogProps) => {
@@ -110,7 +112,10 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
           injuries: fromLines(form.injuries),
         },
         ...(canAssign
-          ? { assignedProfessionalId: form.assignedProfessionalId === NO_PROFESSIONAL ? '' : form.assignedProfessionalId }
+          ? {
+              assignedProfessionalId: form.assignedProfessionalId === NO_PROFESSIONAL ? '' : form.assignedProfessionalId,
+              exemptFromCapacity: form.exemptFromCapacity,
+            }
           : {}),
       });
       toast.success('Datos del paciente actualizados');
@@ -205,6 +210,22 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
                       )}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+              {canAssign && (
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-3 sm:col-span-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="exempt-capacity">Puede agendar sobre el cupo</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Aunque el horario ya tenga 4 pacientes, esta persona puede agendar, y sus citas no
+                      cuentan en esos 4 (no le quitan lugar a nadie). Vale para las citas que agende desde ahora.
+                    </p>
+                  </div>
+                  <Switch
+                    id="exempt-capacity"
+                    checked={form.exemptFromCapacity}
+                    onCheckedChange={(v) => setForm((prev) => ({ ...prev, exemptFromCapacity: v }))}
+                  />
                 </div>
               )}
             </div>

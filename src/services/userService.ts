@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { User, DashboardStats, PatientProfile, APIResponse } from '../types';
+import type { User, DashboardStats, PatientProfile, APIResponse, AirtableImportResult } from '../types';
 
 export const userService = {
   // Obtener todos los usuarios (admin)
@@ -57,8 +57,9 @@ export const userService = {
   },
 
   // Sincronizar pacientes con Airtable
-  syncAirtable: async (): Promise<any> => {
-    const response = await api.post<APIResponse<any>>('/users/sync-airtable');
+  // dryRun: solo muestra qué se importaría, sin crear nada
+  syncAirtable: async (dryRun = false): Promise<AirtableImportResult> => {
+    const response = await api.post<APIResponse<AirtableImportResult>>('/users/sync-airtable', { dryRun });
     return response.data.data;
   },
 

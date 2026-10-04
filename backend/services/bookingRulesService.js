@@ -1,4 +1,5 @@
 import Appointment from '../models/Appointment.js';
+import User from '../models/User.js';
 import { startOfDay, endOfDay } from 'date-fns';
 import { nowInSantiago } from '../utils/timezone.js';
 
@@ -24,6 +25,15 @@ export async function countOverlappingAppointments(professionalId, date, targetS
     date: { $gte: startOfDay(targetDate), $lte: endOfDay(targetDate) },
     startTime: { $lt: targetEndTime },
     endTime: { $gt: targetStartTime },
-    status: { $ne: 'cancelled' }
+    status: { $ne: 'cancelled' },
+    // Los pacientes "sobre cupo" no ocupan lugar en el máximo
+    outsideCapacity: { $ne: true }
   });
+}
+
+// ¿Este paciente puede agendar aunque el horario esté lleno (y no cuenta en el máximo)?
+export async function isExemptFromCapacity(patientId) {
+  if (!patientId) return false;
+  const patient = await User.findById(patientId, 'exemptFromCapacity role');
+  return !!patient && patient.role === 'patient' && patient.exemptFromCapacity === true;
 }

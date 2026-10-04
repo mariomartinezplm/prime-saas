@@ -24,6 +24,7 @@ import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { SERVICE_TYPE_LABELS, formatPlanRemaining, formatPaymentDeadline, type ServiceType } from '@/config/planCatalog';
 import type { User, SessionBalance } from '@/types';
 import FounderBadge from '@/components/plans/FounderBadge';
+import AirtableImportDialog from '@/components/admin/AirtableImportDialog';
 
 const PatientList = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const PatientList = () => {
   const [balances, setBalances] = useState<Record<string, SessionBalance>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   // Dialog "Agregar sesión extra"
@@ -81,31 +82,6 @@ const PatientList = () => {
     fetchPatients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProfessional]);
-
-  const handleSyncAirtable = async () => {
-    setSyncing(true);
-    try {
-      const result = await userService.syncAirtable();
-      const sinCorreo: string[] = result.skippedNoEmail ?? [];
-      toast.success(
-        result.created > 0
-          ? `Se importaron ${result.created} pacientes nuevos desde Airtable.`
-          : 'No hay pacientes nuevos en Airtable.'
-      );
-      if (sinCorreo.length > 0) {
-        toast.warning(`Sin correo en Airtable (no se pueden importar): ${sinCorreo.join(', ')}`);
-      }
-      if (result.failed > 0) {
-        toast.error(`${result.failed} registros no se pudieron importar. Revisa los datos en Airtable.`);
-      }
-      await fetchPatients();
-    } catch (error: any) {
-      console.error('Error syncing Airtable:', error);
-      toast.error(error.response?.data?.message || 'Error al conectar con Airtable');
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleExportCSV = async () => {
     setExporting(true);
@@ -208,9 +184,9 @@ const PatientList = () => {
             </Button>
           )}
           {isAdmin && (
-            <Button variant="outline" onClick={handleSyncAirtable} disabled={syncing}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              Importar nuevos de Airtable
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Importar de Airtable
             </Button>
           )}
           <Button onClick={() => navigate('/app/admin/registro')}>
@@ -253,6 +229,7 @@ const PatientList = () => {
                     <p className="font-medium flex items-center gap-2 flex-wrap">
                       {patient.firstName} {patient.lastName}
                       {patient.isFounder && <FounderBadge compact />}
+                      {patient.exemptFromCapacity && <Badge className="bg-amber-500/20 text-amber-400">Sobre cupo</Badge>}
                     </p>
                     <p className="text-sm text-muted-foreground">{patient.email}</p>
                     {isProfessional && <div className="mt-0.5">{planInfoFor(patient.id)}</div>}
@@ -332,6 +309,10 @@ const PatientList = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {isAdmin && (
+        <AirtableImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={fetchPatients} />
+      )}
     </div>
   );
 };

@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import mongoose from 'mongoose';
 
 import User from '../models/User.js';
-import { importRecords, matchStaffByName, mapAirtableToPatient } from '../utils/airtableSync.js';
+import { importRecords, matchStaffByName, mapAirtableToPatient, findEmail } from '../utils/airtableSync.js';
 
 const nuevoId = () => new mongoose.Types.ObjectId();
 
@@ -185,5 +185,88 @@ describe('mapAirtableToPatient', () => {
   it('nace como paciente activo, con origen airtable y sin tocar el campo de texto del profesional', () => {
     const mapped = mapAirtableToPatient(ana());
     expect(mapped).toMatchObject({ role: 'patient', isActive: true, source: 'airtable', assignedProfessional: 'Mario Martínez' });
+  });
+});
+
+describe('findEmail — la columna del correo se encuentra aunque se llame distinto', () => {
+  it('usa los nombres conocidos', () => {
+    expect(findEmail({ Correo: 'a@x.cl' })).toEqual({ email: 'a@x.cl', field: 'Correo' });
+    expect(findEmail({ 'Correo Electrónico': ' ANA@X.cl ' })).toEqual({ email: 'ana@x.cl', field: 'Correo Electrónico' });
+  });
+
+  it('encuentra cualquier columna con "correo" o "mail" en el nombre', () => {
+    expect(findEmail({ 'E-mail del paciente': 'b@x.cl' }).email).toBe('b@x.cl');
+    expect(findEmail({ 'Mail': 'c@x.cl' }).email).toBe('c@x.cl');
+    expect(findEmail({ 'Correo personal': 'd@x.cl' }).email).toBe('d@x.cl');
+  });
+
+  it('NO toma el correo del contacto de emergencia', () => {
+    expect(findEmail({ 'Correo contacto de emergencia': 'familiar@x.cl' }).email).toBeNull();
+  });
+
+  it('ignora un valor que no parece un correo, y acepta un campo de lista', () => {
+    expect(findEmail({ Correo: 'sin arroba' }).email).toBeNull();
+    expect(findEmail({ Correo: ['lista@x.cl'] }).email).toBe('lista@x.cl');
+    expect(findEmail({ Correo: 12345 }).email).toBeNull();
+  });
+
+  it('mapAirtableToPatient usa el detectado', () => {
+    const p = mapAirtableToPatient(registro('rec1', { Nombre: 'Eva', 'E-mail del paciente': 'EVA@x.cl' }));
+    expect(p.email).toBe('eva@x.cl');
+  });
+});
+
+describe('importRecords — vista previa (dryRun)', () => {
+  it('cuenta lo que se crearía y NO crea nada', async () => {
+    const create = prepararBD({ existing: [{ airtableId: 'recYa', email: 'ya@test.local' }] });
+
+    const result = await importRecords([
+      ana(),
+      registro('recYa', { Nombre: 'Ya', Apellido: 'Existe', 'Correo Electrónico': 'ya@test.local' }),
+      registro('recSin', { Nombre: 'Sin', Apellido: 'Correo' }),
+      registro('recBaja', { Nombre: 'Baja', Apellido: 'Paciente', 'Correo Electrónico': 'baja@test.local', 'Estado Actual': 'Inactivo' })
+    ], { dryRun: true });
+
+    expect(create).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      dryRun: true,
+      total: 4,
+      created: 0,
+      toCreate: 2,
+      toCreateInactive: 1,
+      alreadyInApp: 1,
+      withoutProfessional: 1,
+      skippedNoEmail: ['Sin Correo']
+    });
+    expect(result.sample.map((m) => m.name)).toEqual(['Ana Pérez', 'Baja Paciente']);
+    expect(result.sample[0]).toMatchObject({ email: 'ana@test.local', professional: 'Mario Martínez' });
+  });
+
+  it('informa las columnas detectadas y cuál usó como correo (para diagnosticar nombres distintos)', async () => {
+    prepararBD();
+    const result = await importRecords([
+      registro('r1', { Nombre: 'A', 'E-mail del paciente': 'a@x.cl', Teléfono: '1' }),
+      registro('r2', { Nombre: 'B', 'E-mail del paciente': 'b@x.cl', Peso: '70' })
+    ], { dryRun: true });
+
+    expect(result.fieldsDetected).toEqual(['E-mail del paciente', 'Nombre', 'Peso', 'Teléfono']);
+    expect(result.emailColumn).toBe('E-mail del paciente');
+  });
+
+  it('si ninguna columna sirve de correo: emailColumn es null y todos quedan "sin correo"', async () => {
+    prepararBD();
+    const result = await importRecords([registro('r1', { Nombre: 'A', Apellido: 'B' })], { dryRun: true });
+    expect(result.emailColumn).toBeNull();
+    expect(result.skippedNoEmail).toEqual(['A B']);
+    expect(result.toCreate).toBe(0);
+  });
+
+  it('sin dryRun el comportamiento es el de siempre y también trae el diagnóstico', async () => {
+    const create = prepararBD();
+    const result = await importRecords([ana()]);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(result.created).toBe(1);
+    expect(result.emailColumn).toBe('Correo Electrónico');
+    expect(result).not.toHaveProperty('dryRun');
   });
 });

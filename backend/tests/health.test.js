@@ -59,6 +59,8 @@ describe('GET /api/health', () => {
     delete process.env.AIRTABLE_API_KEY;
     delete process.env.AIRTABLE_BASE_ID;
     delete process.env.AIRTABLE_TABLE_NAME;
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
 
     const res = fakeRes();
     getHealth({}, res);
@@ -68,7 +70,8 @@ describe('GET /api/health', () => {
     expect(res.body.storage).toBe('off');
     expect(res.body.email).toBe('off');
     expect(res.body.airtable).toBe('off');
-    expect(Object.keys(res.body).sort()).toEqual(['airtable', 'db', 'email', 'scheduler', 'status', 'storage', 'version']);
+    expect(res.body.google).toBe('off');
+    expect(Object.keys(res.body).sort()).toEqual(['airtable', 'db', 'email', 'google', 'scheduler', 'status', 'storage', 'version']);
   });
 
   it('con las variables de R2 y Resend cargadas: storage y email "on", sin mostrar ningún valor', () => {
@@ -87,5 +90,27 @@ describe('GET /api/health', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/secret|re_secreta|cuenta-secreta/);
 
     ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME', 'RESEND_API_KEY'].forEach((k) => delete process.env[k]);
+  });
+
+  it('google: distingue "incomplete" y "bad-client-id" sin mostrar los valores', () => {
+    vi.spyOn(mongoose, 'connection', 'get').mockReturnValue({ readyState: 1 });
+    const ids = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'ENCRYPTION_KEY', 'FRONTEND_URL'];
+    const saved = Object.fromEntries(ids.map((k) => [k, process.env[k]]));
+
+    process.env.GOOGLE_CLIENT_ID = 'valor-de-ejemplo-secreto';
+    process.env.GOOGLE_CLIENT_SECRET = 'GOCSPX-secretisimo';
+    process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+    process.env.FRONTEND_URL = 'https://app.primefh.cl';
+    let res = fakeRes();
+    getHealth({}, res);
+    expect(res.body.google).toBe('bad-client-id');
+    expect(JSON.stringify(res.body)).not.toMatch(/ejemplo-secreto|secretisimo/);
+
+    delete process.env.ENCRYPTION_KEY;
+    res = fakeRes();
+    getHealth({}, res);
+    expect(res.body.google).toBe('incomplete');
+
+    ids.forEach((k) => (saved[k] === undefined ? delete process.env[k] : (process.env[k] = saved[k])));
   });
 });

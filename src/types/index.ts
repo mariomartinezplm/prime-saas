@@ -16,6 +16,8 @@ export interface User {
   healthInsurance?: string;
   objectives?: string[];
   referralSource?: string;
+  // Puede agendar aunque el horario esté lleno y no cuenta en el máximo de 4 (solo lo cambia el admin)
+  exemptFromCapacity?: boolean;
   profileImage?: string;
   specialty?: string;
   emergencyContact?: EmergencyContact;
@@ -83,6 +85,8 @@ export interface Appointment {
   type: 'kinesiologia' | 'entrenamiento' | 'evaluacion';
   notes?: string;
   overbooked?: boolean;
+  // Cita de un paciente "sobre cupo": no cuenta en el máximo de 4 simultáneos
+  outsideCapacity?: boolean;
   cancellationReason?: string;
   cancelledBy?: User | string;
   cancelledAt?: string;
@@ -513,4 +517,27 @@ export interface ProgressPhoto {
   // URL firmada y temporal (15 min): se pide de nuevo cuando vence, nunca se guarda
   url: string;
   expiresIn: number;
+}
+
+// Resultado de importar (o previsualizar) pacientes desde Airtable
+export interface AirtableImportResult {
+  total: number;
+  created: number;
+  alreadyInApp: number;
+  skippedNoEmail: string[];
+  failed: number;
+  fieldsDetected: string[];
+  emailColumn: string | null;
+  // Solo en la vista previa (dryRun)
+  dryRun?: boolean;
+  toCreate?: number;
+  toCreateInactive?: number;
+  withoutProfessional?: number;
+  sample?: Array<{
+    name: string;
+    email: string;
+    isActive: boolean;
+    professional: string | null;
+    professionalText: string | null;
+  }>;
 }
