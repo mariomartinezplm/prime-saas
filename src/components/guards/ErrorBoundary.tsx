@@ -11,15 +11,16 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  detail?: string;
 }
 
 // Si una pantalla falla, se muestra este aviso en vez de dejar toda la app en negro.
-// No se registra el error con datos del paciente: solo el mensaje técnico en consola.
+// Se muestra solo el mensaje técnico del error (sin datos del paciente) para poder diagnosticarlo.
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, detail: String(error?.message ?? error).slice(0, 200) };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -28,7 +29,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   componentDidUpdate(prev: ErrorBoundaryProps) {
     if (this.state.hasError && prev.resetKey !== this.props.resetKey) {
-      this.setState({ hasError: false });
+      this.setState({ hasError: false, detail: undefined });
     }
   }
 
@@ -42,6 +43,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         <p className="text-sm text-muted-foreground">
           Tus datos están a salvo. Prueba recargar; si sigue pasando, avísanos por WhatsApp.
         </p>
+        {this.state.detail && (
+          <p className="break-words rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            Detalle técnico (envíalo si avisas): {this.state.detail}
+          </p>
+        )}
         <div className="flex flex-wrap justify-center gap-2">
           <Button onClick={() => window.location.reload()}>Recargar</Button>
           <Button asChild variant="outline">
