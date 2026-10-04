@@ -1,4 +1,5 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import ErrorBoundary from '@/components/guards/ErrorBoundary';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import AppSidebar from './AppSidebar';
 import NotificationBell from '@/components/notifications/NotificationBell';
@@ -6,6 +7,7 @@ import { useAppDarkTheme } from '@/hooks/useAppDarkTheme';
 
 const AppLayout = () => {
   useAppDarkTheme();
+  const location = useLocation();
 
   return (
     <SidebarProvider>
@@ -16,7 +18,9 @@ const AppLayout = () => {
           <NotificationBell />
         </header>
         <main className="flex-1 overflow-auto p-6">
-          <Outlet />
+          <ErrorBoundary resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </SidebarInset>
     </SidebarProvider>

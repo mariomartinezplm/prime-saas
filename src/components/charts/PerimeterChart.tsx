@@ -11,10 +11,10 @@ interface PerimeterChartProps {
 
 const PerimeterChart = ({ measurements, perimeterKey, label }: PerimeterChartProps) => {
   const data = measurements
-    .filter((m) => m.perimeters[perimeterKey as keyof typeof m.perimeters] !== undefined)
+    .filter((m) => m.perimeters?.[perimeterKey as keyof typeof m.perimeters] != null)
     .map((m) => ({
       date: format(parseISO(m.date), 'dd/MM'),
-      value: m.perimeters[perimeterKey as keyof typeof m.perimeters] as number,
+      value: m.perimeters![perimeterKey as keyof typeof m.perimeters] as number,
     }))
     .reverse();
 

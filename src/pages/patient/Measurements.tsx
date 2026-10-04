@@ -79,7 +79,7 @@ const MeasurementsEnhanced = () => {
   const latestMeasurement = measurements[0];
   const zoneValues: Record<string, number> = {};
   if (latestMeasurement) {
-    Object.entries(latestMeasurement.perimeters).forEach(([key, value]) => {
+    Object.entries(latestMeasurement.perimeters ?? {}).forEach(([key, value]) => {
       if (value) zoneValues[key] = value;
     });
   }
@@ -203,7 +203,7 @@ const MeasurementsEnhanced = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                      {Object.entries(latestMeasurement.perimeters).map(([key, value]) =>
+                      {Object.entries(latestMeasurement.perimeters ?? {}).map(([key, value]) =>
                         value ? (
                           <div
                             key={key}

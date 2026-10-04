@@ -257,7 +257,8 @@ export interface Measurement {
   patient: User | string;
   recordedBy: User | string;
   date: string;
-  perimeters: Perimeters;
+  // La base no guarda el objeto si está vacío (solo peso y % de grasa): puede no venir
+  perimeters?: Perimeters;
   jumpTests?: JumpTests; // Tests de salto
   weight?: number;
   height?: number;
