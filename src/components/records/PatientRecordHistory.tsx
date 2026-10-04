@@ -8,6 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import RecordRowActions from './RecordRowActions';
+import MetricChartGrid from '@/components/charts/MetricChartGrid';
+import { GENERAL_METRICS, PERIMETER_METRICS, JUMP_METRICS } from '@/components/charts/measurementMetrics';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ExerciseProgress, Measurement } from '@/types';
 
 interface HistoryProps {
@@ -57,6 +60,29 @@ export const MeasurementHistory = ({ patientId, refreshKey }: HistoryProps) => {
   if (loading || records.length === 0) return null;
 
   return (
+    <>
+    <Card>
+      <CardHeader><CardTitle className="text-lg">Evolución</CardTitle></CardHeader>
+      <CardContent>
+        <Tabs defaultValue="body">
+          <TabsList>
+            <TabsTrigger value="body">Cuerpo</TabsTrigger>
+            <TabsTrigger value="perimeters">Perímetros</TabsTrigger>
+            <TabsTrigger value="jumps">Saltos</TabsTrigger>
+          </TabsList>
+          <TabsContent value="body" className="mt-4">
+            <MetricChartGrid measurements={records} metrics={GENERAL_METRICS} emptyMessage="Aún no hay peso, grasa ni músculo registrados." />
+          </TabsContent>
+          <TabsContent value="perimeters" className="mt-4">
+            <MetricChartGrid measurements={records} metrics={PERIMETER_METRICS} emptyMessage="Aún no hay perímetros registrados." />
+          </TabsContent>
+          <TabsContent value="jumps" className="mt-4">
+            <MetricChartGrid measurements={records} metrics={JUMP_METRICS} emptyMessage="Aún no hay tests de salto registrados." />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+
     <Card>
       <CardHeader><CardTitle className="text-lg">Mediciones registradas</CardTitle></CardHeader>
       <CardContent>
@@ -104,6 +130,7 @@ export const MeasurementHistory = ({ patientId, refreshKey }: HistoryProps) => {
         </DialogContent>
       </Dialog>
     </Card>
+    </>
   );
 };
 

@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BodyDiagram from '@/components/body/BodyDiagram';
-import PerimeterChart from '@/components/charts/PerimeterChart';
-import WeightChart from '@/components/charts/WeightChart';
-import JumpTestChart from '@/components/charts/JumpTestChart';
+import MetricChart from '@/components/charts/MetricChart';
+import MetricChartGrid from '@/components/charts/MetricChartGrid';
+import {
+  GENERAL_METRICS,
+  PERIMETER_METRICS,
+  JUMP_METRICS,
+  PERIMETER_LABELS,
+  JUMP_TEST_LABELS,
+  buildSeries,
+} from '@/components/charts/measurementMetrics';
 import { format, parseISO } from 'date-fns';
 import { Ruler, Activity, TrendingUp, Zap } from 'lucide-react';
 import api from '@/lib/api';
@@ -17,34 +25,6 @@ import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
 import { toast } from 'sonner';
 import type { Measurement } from '@/types';
-
-const PERIMETER_LABELS: Record<string, string> = {
-  shoulders: 'Hombros',
-  chest: 'Pecho',
-  neck: 'Cuello',
-  bicepLeft: 'Bícep Izq',
-  bicepRight: 'Bícep Der',
-  forearmLeft: 'Antebrazo Izq',
-  forearmRight: 'Antebrazo Der',
-  waist: 'Cintura',
-  hips: 'Cadera',
-  thighLeft: 'Pierna Izq',
-  thighRight: 'Pierna Der',
-  calfLeft: 'Gemelo Izq',
-  calfRight: 'Gemelo Der',
-};
-
-const JUMP_TEST_LABELS: Record<string, { label: string, description: string, color: string }> = {
-  cmj: { label: 'CMJ', description: 'Counter Movement Jump', color: '#398CA2' },
-  sj: { label: 'SJ', description: 'Squat Jump', color: '#2F7A8F' },
-  cmjLeftLeg: { label: 'CMJ Unipodal Izq', description: 'CMJ Unipodal Pie Izquierdo', color: '#4BA5BC' },
-  cmjRightLeg: { label: 'CMJ Unipodal Der', description: 'CMJ Unipodal Pie Derecho', color: '#5BB5CC' },
-  sjLeftLeg: { label: 'SJ Unipodal Izq', description: 'SJ Unipodal Pie Izquierdo', color: '#6BC5DC' },
-  sjRightLeg: { label: 'SJ Unipodal Der', description: 'SJ Unipodal Pie Derecho', color: '#7BD5EC' },
-  dropJump: { label: 'Drop Jump', description: 'Salto desde altura', color: '#F59E0B' },
-  abalakov: { label: 'Abalakov', description: 'Salto con impulso de brazos', color: '#8B5CF6' },
-  horizontalJump: { label: 'Salto Horizontal', description: 'Salto longitudinal', color: '#D946EF' },
-};
 
 const MeasurementsEnhanced = () => {
   const { user } = useAuth();
@@ -83,17 +63,6 @@ const MeasurementsEnhanced = () => {
       if (value) zoneValues[key] = value;
     });
   }
-
-  // Prepare jump test data
-  const prepareJumpData = (testKey: keyof typeof JUMP_TEST_LABELS) => {
-    return measurements
-      .filter(m => m.jumpTests?.[testKey])
-      .map(m => ({
-        date: m.date,
-        value: m.jumpTests![testKey]!,
-      }))
-      .reverse();
-  };
 
   if (loading) {
     return (
@@ -180,44 +149,34 @@ const MeasurementsEnhanced = () => {
 
             {/* Charts */}
             <div className="lg:col-span-2 space-y-4">
-              {/* Weight chart always visible */}
-              <WeightChart measurements={measurements} />
-
-              {/* Selected zone chart */}
-              {selectedZone && (
-                <PerimeterChart
+              {selectedZone ? (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedZone(null)}>
+                    Ver todos los perímetros
+                  </Button>
+                  {(() => {
+                    const metric = PERIMETER_METRICS.find((m) => m.key === selectedZone);
+                    const points = metric ? buildSeries(measurements, metric.read) : [];
+                    return points.length > 0 && metric ? (
+                      <MetricChart
+                        title={`Evolución - ${PERIMETER_LABELS[selectedZone] || selectedZone}`}
+                        unit={metric.unit}
+                        color={metric.color}
+                        points={points}
+                      />
+                    ) : (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        Aún no hay medidas de esta zona.
+                      </p>
+                    );
+                  })()}
+                </>
+              ) : (
+                <MetricChartGrid
                   measurements={measurements}
-                  perimeterKey={selectedZone}
-                  label={`Evolución - ${PERIMETER_LABELS[selectedZone] || selectedZone}`}
+                  metrics={PERIMETER_METRICS}
+                  emptyMessage="Todavía no hay perímetros registrados. Anótalos con el botón “Registrar medición”."
                 />
-              )}
-
-              {/* If no zone selected, show latest values */}
-              {!selectedZone && latestMeasurement && (
-                <Card className="shadow-card">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Última Medición - Perímetros</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {format(parseISO(latestMeasurement.date), 'dd/MM/yyyy')}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                      {Object.entries(latestMeasurement.perimeters ?? {}).map(([key, value]) =>
-                        value ? (
-                          <div
-                            key={key}
-                            className="p-3 rounded-lg border border-border cursor-pointer hover:border-primary hover:shadow-md transition-all duration-200 bg-gradient-section"
-                            onClick={() => setSelectedZone(key)}
-                          >
-                            <p className="text-muted-foreground text-xs mb-1">{PERIMETER_LABELS[key] || key}</p>
-                            <p className="font-bold text-lg text-foreground">{value} <span className="text-xs text-muted-foreground">cm</span></p>
-                          </div>
-                        ) : null
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
               )}
             </div>
           </div>
@@ -225,23 +184,11 @@ const MeasurementsEnhanced = () => {
 
         {/* Pestaña de Tests de Salto */}
         <TabsContent value="jumps" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {(Object.keys(JUMP_TEST_LABELS) as Array<keyof typeof JUMP_TEST_LABELS>).map((testKey) => {
-              const jumpData = prepareJumpData(testKey);
-              const config = JUMP_TEST_LABELS[testKey];
-
-              return (
-                <JumpTestChart
-                  key={testKey}
-                  data={jumpData}
-                  title={config.label}
-                  description={config.description}
-                  color={config.color}
-                  unit="cm"
-                />
-              );
-            })}
-          </div>
+          <MetricChartGrid
+            measurements={measurements}
+            metrics={JUMP_METRICS}
+            emptyMessage="Todavía no hay tests de salto registrados."
+          />
 
           {/* Jump tests summary */}
           {latestMeasurement?.jumpTests && (
@@ -320,7 +267,11 @@ const MeasurementsEnhanced = () => {
             </div>
           )}
 
-          <WeightChart measurements={measurements} />
+          <MetricChartGrid
+            measurements={measurements}
+            metrics={GENERAL_METRICS}
+            emptyMessage="Todavía no hay datos de peso, grasa o músculo."
+          />
 
           {/* Measurement history table */}
           {measurements.length > 0 && (
