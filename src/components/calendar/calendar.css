@@ -1,0 +1,154 @@
+/*
+  Tema oscuro de react-big-calendar con los tokens de la app (nada de colores fijos).
+  Se importa DESPUÉS del CSS de la librería para sobrescribirlo.
+*/
+.apt-calendar {
+  height: 100%;
+  font-size: 0.8125rem;
+  color: hsl(var(--foreground));
+}
+
+/* Superficies y bordes */
+.apt-calendar .rbc-time-view,
+.apt-calendar .rbc-month-view,
+.apt-calendar .rbc-agenda-view {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.apt-calendar .rbc-time-header-content,
+.apt-calendar .rbc-header,
+.apt-calendar .rbc-header + .rbc-header,
+.apt-calendar .rbc-time-content,
+.apt-calendar .rbc-time-content > * + * > *,
+.apt-calendar .rbc-time-header.rbc-overflowing,
+.apt-calendar .rbc-timeslot-group,
+.apt-calendar .rbc-day-bg + .rbc-day-bg,
+.apt-calendar .rbc-month-row + .rbc-month-row,
+.apt-calendar .rbc-month-header,
+.apt-calendar .rbc-agenda-view table.rbc-agenda-table,
+.apt-calendar .rbc-agenda-view table.rbc-agenda-table thead > tr > th,
+.apt-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr > td + td,
+.apt-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr + tr {
+  border-color: hsl(var(--border));
+}
+/* Media hora: línea más tenue que la hora */
+.apt-calendar .rbc-day-slot .rbc-time-slot {
+  border-top-color: hsl(var(--border) / 0.45);
+}
+.apt-calendar .rbc-time-content {
+  border-top-width: 1px;
+}
+
+/* Encabezados y horas */
+.apt-calendar .rbc-header {
+  padding: 0.5rem 0.25rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+.apt-calendar .rbc-header.rbc-today {
+  color: hsl(var(--secondary));
+}
+.apt-calendar .rbc-label {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  padding: 0 0.5rem;
+}
+.apt-calendar .rbc-time-gutter .rbc-timeslot-group {
+  border-bottom-color: transparent;
+}
+
+/* Hoy, fuera de mes, hora actual */
+.apt-calendar .rbc-today {
+  background: hsl(var(--primary) / 0.08);
+}
+.apt-calendar .rbc-off-range-bg {
+  background: hsl(var(--muted) / 0.4);
+}
+.apt-calendar .rbc-off-range {
+  color: hsl(var(--muted-foreground) / 0.6);
+}
+.apt-calendar .rbc-current-time-indicator {
+  background-color: hsl(var(--coral));
+  height: 2px;
+}
+.apt-calendar .rbc-date-cell {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+.apt-calendar .rbc-date-cell.rbc-now {
+  font-weight: 700;
+  color: hsl(var(--secondary));
+}
+
+/* Citas: un color por estado (mismos tonos que las insignias de estado) */
+.apt-calendar .rbc-event {
+  border: none;
+  border-radius: 6px;
+  padding: 2px 6px;
+  box-shadow: none;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+.apt-calendar .rbc-event:focus-visible,
+.apt-calendar .rbc-event.rbc-selected {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+.apt-calendar .rbc-event.apt-scheduled {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.apt-calendar .rbc-event.apt-completed {
+  background: hsl(var(--success));
+  color: hsl(var(--success-foreground));
+}
+.apt-calendar .rbc-event.apt-no-show {
+  background: hsl(var(--warning));
+  color: hsl(var(--warning-foreground));
+}
+.apt-calendar .rbc-event.apt-cancelled {
+  background: hsl(var(--destructive) / 0.35);
+  color: hsl(var(--foreground));
+  text-decoration: line-through;
+}
+.apt-calendar .rbc-event {
+  container-type: inline-size;
+}
+@container (max-width: 64px) {
+  .apt-event-name,
+  .apt-event-type {
+    display: none;
+  }
+  .apt-event-initials {
+    display: block;
+  }
+}
+.apt-calendar .rbc-event-label {
+  font-size: 0.6875rem;
+  opacity: 0.85;
+}
+.apt-calendar .rbc-show-more {
+  color: hsl(var(--secondary));
+  background: transparent;
+  font-weight: 600;
+}
+
+/* Ventana "ver más" del mes y vista agenda */
+.apt-calendar .rbc-overlay {
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px hsl(0 0% 0% / 0.4);
+}
+.apt-calendar .rbc-overlay-header {
+  border-bottom-color: hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
+.apt-calendar .rbc-agenda-empty {
+  padding: 2rem;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}

@@ -12,21 +12,15 @@ import LoadingState from '@/components/shared/LoadingState';
 import PageHeader from '@/components/shared/PageHeader';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import WellnessTrendsSummary from '@/components/wellness/WellnessTrendsSummary';
+import { dayKey, parseDay, personId, personName } from '@/lib/appointments';
 import { todayLocal } from '@/lib/evolutionDate';
 import { capitalizeFirst } from '@/lib/utils';
 import { CalendarDays, CalendarX, CalendarClock, TriangleAlert, UserPlus, Users } from 'lucide-react';
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Appointment, User } from '@/types';
+import type { Appointment } from '@/types';
 
-// Las fechas de cita vienen como medianoche UTC del día calendario: se usan solo los 10 primeros caracteres.
-const dayOf = (apt: Appointment) => apt.date.slice(0, 10);
-
-const personName = (value: User | string, fallback: string) =>
-  typeof value === 'object' && value ? `${value.firstName} ${value.lastName}` : fallback;
-
-const personId = (value: User | string) =>
-  typeof value === 'object' && value ? (value.id ?? (value as { _id?: string })._id) : undefined;
+const dayOf = (apt: Appointment) => dayKey(apt.date);
 
 const timeRange = (apt: Appointment) => `${apt.startTime} – ${apt.endTime}`;
 
@@ -227,7 +221,7 @@ const AdminDashboard = () => {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{personName(apt.patient, 'Paciente')}</p>
                       <p className="text-xs text-muted-foreground">
-                        {capitalizeFirst(format(parseISO(dayOf(apt)), "EEE d 'de' MMM", { locale: es }))}
+                        {capitalizeFirst(format(parseDay(apt.date), "EEE d 'de' MMM", { locale: es }))}
                       </p>
                     </div>
                     <p className="shrink-0 text-sm tabular-nums text-muted-foreground">{apt.startTime}</p>

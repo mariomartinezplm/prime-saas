@@ -8,6 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { AppointmentStatusBadge } from '@/components/shared/StatusBadge';
+import { appointmentTypeLabels } from '@/components/shared/statusMeta';
+import { parseDay } from '@/lib/appointments';
+import { capitalizeFirst } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -324,14 +328,16 @@ const PatientDetail = () => {
               <div key={apt._id} className="flex items-center justify-between p-3 rounded-lg border border-border">
                 <div>
                   <p className="font-medium text-sm">
-                    {format(parseISO(apt.date), "d 'de' MMMM", { locale: es })}
+                    {capitalizeFirst(format(parseDay(apt.date), "EEEE d 'de' MMMM", { locale: es }))}
                   </p>
-                  <p className="text-xs text-muted-foreground">{apt.startTime} - {apt.endTime} | {apt.type}</p>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="tabular-nums">{apt.startTime} – {apt.endTime}</span> · {appointmentTypeLabels[apt.type]}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {apt.overbooked && <Badge className="bg-warning/20 text-warning">Sobrecupo</Badge>}
-                  {apt.outsideCapacity && <Badge className="bg-warning/20 text-warning">Fuera del cupo</Badge>}
-                  <Badge>{apt.status}</Badge>
+                  {apt.overbooked && <Badge variant="warning">Sobrecupo</Badge>}
+                  {apt.outsideCapacity && <Badge variant="accent">Sobre cupo</Badge>}
+                  <AppointmentStatusBadge status={apt.status} />
                 </div>
               </div>
             ))

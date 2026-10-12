@@ -12,6 +12,7 @@ import LoadingState from '@/components/shared/LoadingState';
 import PageHeader from '@/components/shared/PageHeader';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
+import { appointmentStart, dayKey } from '@/lib/appointments';
 import { capitalizeFirst } from '@/lib/utils';
 import { getWhatsAppUrl } from '@/config/contact';
 import WellnessCheckinCard from '@/components/wellness/WellnessCheckinCard';
@@ -31,9 +32,7 @@ import { differenceInCalendarDays, format, isToday, isTomorrow, parseISO } from 
 import { es } from 'date-fns/locale';
 import type { Appointment, SessionBalance } from '@/types';
 
-const dayOf = (apt: Appointment) => apt.date.slice(0, 10);
-// Hora de inicio en la hora local del dispositivo (la de quien reserva)
-const startsAt = (apt: Appointment) => new Date(`${dayOf(apt)}T${apt.startTime}:00`);
+const dayOf = (apt: Appointment) => dayKey(apt.date);
 
 const dayLabel = (day: string) => {
   const date = parseISO(day);
@@ -68,7 +67,7 @@ const PatientDashboard = () => {
 
   // "Próxima sesión" no debe ser una de hoy que ya empezó
   const now = new Date();
-  const nextAppointment = upcoming?.find((apt) => startsAt(apt) > now) ?? null;
+  const nextAppointment = upcoming?.find((apt) => appointmentStart(apt) > now) ?? null;
   const plan = balance?.plan;
   const daysLeft = plan ? differenceInCalendarDays(parseISO(plan.endDate), now) : null;
   const sessionsPct =

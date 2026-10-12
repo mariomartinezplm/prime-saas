@@ -17,24 +17,30 @@ const ProfessionalSelector = ({ professionals, selected, onSelect }: Professiona
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {professionals.map((prof) => (
-          <Card
+          <button
             key={prof.id}
-            className={cn(
-              'cursor-pointer transition-all hover:border-secondary',
-              selected?.id === prof.id && 'border-secondary bg-secondary/10'
-            )}
+            type="button"
+            aria-pressed={selected?.id === prof.id}
             onClick={() => onSelect(prof)}
+            className="rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <CardContent className="p-4 text-center">
-              <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center mx-auto mb-2">
-                <UserIcon className="h-6 w-6 text-secondary" />
-              </div>
-              <p className="font-medium text-sm">{prof.firstName} {prof.lastName}</p>
-              {prof.specialty && (
-                <p className="text-xs text-muted-foreground mt-1">{prof.specialty}</p>
+            <Card
+              className={cn(
+                'h-full transition-colors hover:border-secondary',
+                selected?.id === prof.id && 'border-secondary bg-secondary/10'
               )}
-            </CardContent>
-          </Card>
+            >
+              <CardContent className="p-4 text-center">
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-secondary/20">
+                  <UserIcon className="h-6 w-6 text-secondary" aria-hidden="true" />
+                </div>
+                <p className="text-sm font-medium">{prof.firstName} {prof.lastName}</p>
+                {prof.specialty && (
+                  <p className="mt-1 text-xs text-muted-foreground">{prof.specialty}</p>
+                )}
+              </CardContent>
+            </Card>
+          </button>
         ))}
       </div>
     </div>

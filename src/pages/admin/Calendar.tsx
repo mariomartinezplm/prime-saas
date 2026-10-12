@@ -1,182 +1,121 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { useCallback, useEffect, useState } from 'react';
+import { Views, type View } from 'react-big-calendar';
+import { TriangleAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { userService } from '@/services/userService';
-import { googleCalendarService } from '@/services/googleCalendarService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { notify } from '@/lib/notify';
+import AgendaList from '@/components/calendar/AgendaList';
+import AppointmentCalendar from '@/components/calendar/AppointmentCalendar';
+import AppointmentDetailDialog from '@/components/calendar/AppointmentDetailDialog';
+import StatusLegend from '@/components/calendar/StatusLegend';
+import { toEvents } from '@/components/calendar/calendarUtils';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Appointment, User } from '@/types';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-
-const locales = { es };
-const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  resource: Appointment;
-}
 
 const AdminCalendar = () => {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  // En móvil la semana en 7 columnas no cabe: se muestra como lista por día
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [view, setView] = useState<View>(Views.WEEK);
+  const [date, setDate] = useState(() => new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [professionals, setProfessionals] = useState<User[]>([]);
-  const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
+  const [selectedProfessional, setSelectedProfessional] = useState('all');
+  const [selected, setSelected] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
+  // El filtro por profesional solo lo respeta el servidor para el admin
   useEffect(() => {
-    const fetchProfessionals = async () => {
-      try {
-        const [admins, profs] = await Promise.all([
-          userService.getAll({ role: 'admin' }),
-          userService.getAll({ role: 'professional' }),
-        ]);
-        setProfessionals([...admins.users, ...profs.users]);
-      } catch {
-        // ignore
-      }
-    };
-    fetchProfessionals();
-  }, []);
+    if (!isAdmin) return;
+    Promise.all([userService.getAll({ role: 'admin' }), userService.getAll({ role: 'professional' })])
+      .then(([admins, profs]) => setProfessionals([...admins.users, ...profs.users]))
+      .catch(() => {});
+  }, [isAdmin]);
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      setLoading(true);
-      try {
-        const params: Record<string, string> = {};
-        if (selectedProfessional !== 'all') {
-          params.professional = selectedProfessional;
-        }
-        const data = await appointmentService.getAll(params);
-        setAppointments(data);
-      } catch {
-        notify.error('Error al cargar citas');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAppointments();
-  }, [selectedProfessional]);
-
-  const events: CalendarEvent[] = appointments.map((apt) => {
-    const patient = typeof apt.patient === 'object' ? apt.patient : null;
-    const dateStr = apt.date.split('T')[0];
-    const [startH, startM] = apt.startTime.split(':').map(Number);
-    const [endH, endM] = apt.endTime.split(':').map(Number);
-
-    const start = new Date(dateStr);
-    start.setHours(startH, startM, 0);
-    const end = new Date(dateStr);
-    end.setHours(endH, endM, 0);
-
-    return {
-      id: apt._id,
-      title: patient ? `${patient.firstName} ${patient.lastName} - ${apt.type}` : apt.type,
-      start,
-      end,
-      resource: apt,
-    };
-  });
-
-  const handleSelectEvent = async (event: CalendarEvent) => {
-    const apt = event.resource;
-    const professionalId = typeof apt.professional === 'object' ? apt.professional.id : apt.professional;
-
-    if (professionalId !== user?.id) {
-      notify.info('Solo puedes sincronizar tus propias citas a tu Google Calendar');
-      return;
-    }
-
+  const load = useCallback(async () => {
+    setLoading(true);
+    setFailed(false);
     try {
-      await googleCalendarService.sync(apt._id);
-      notify.success('Cita sincronizada con Google Calendar');
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { code?: string; message?: string } } };
-      if (error.response?.data?.code === 'NOT_CONNECTED') {
-        notify.error('Primero conecta tu Google Calendar en Configuración', {
-          action: { label: 'Ir a Configuración', onClick: () => (window.location.href = '/app/configuracion') },
-        });
-      } else {
-        notify.error(error.response?.data?.message || 'Error al sincronizar con Google Calendar');
-      }
+      const params: Record<string, string> = {};
+      if (isAdmin && selectedProfessional !== 'all') params.professional = selectedProfessional;
+      setAppointments(await appointmentService.getAll(params));
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [isAdmin, selectedProfessional]);
 
-  const eventStyleGetter = (event: CalendarEvent) => {
-    const status = event.resource.status;
-    let backgroundColor = 'hsl(194 45% 44%)'; // secondary/teal
-    if (status === 'cancelled') backgroundColor = '#ef4444';
-    if (status === 'completed') backgroundColor = '#22c55e';
-    if (status === 'no-show') backgroundColor = '#f59e0b';
-
-    return {
-      style: {
-        backgroundColor,
-        borderRadius: '4px',
-        opacity: 0.9,
-        color: 'white',
-        border: 'none',
-        fontSize: '12px',
-      },
-    };
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Calendario</h1>
-          <p className="text-muted-foreground">
-            Vista de citas por profesional · haz clic en una cita tuya para sincronizarla con Google Calendar
-          </p>
-        </div>
-        <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Todos los profesionales" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {professionals.map((prof) => (
-              <SelectItem key={prof.id} value={prof.id}>
-                {prof.firstName} {prof.lastName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <PageHeader
+        title="Calendario"
+        description="Toca una cita para ver el detalle, sincronizarla o cambiar su estado."
+        actions={
+          isAdmin && (
+            <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
+              <SelectTrigger className="w-[220px]" aria-label="Filtrar por profesional">
+                <SelectValue placeholder="Todos los profesionales" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los profesionales</SelectItem>
+                {professionals.map((prof) => (
+                  <SelectItem key={prof.id} value={prof.id}>
+                    {prof.firstName} {prof.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        }
+      />
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="h-[600px] [&_.rbc-toolbar]:mb-4 [&_.rbc-toolbar_button]:text-foreground [&_.rbc-header]:bg-muted/30 [&_.rbc-today]:bg-secondary/10">
-            <BigCalendar
-              localizer={localizer}
-              events={events}
-              defaultView={Views.WEEK}
-              views={[Views.WEEK, Views.DAY, Views.MONTH]}
-              min={new Date(2024, 0, 1, 7, 0)}
-              max={new Date(2024, 0, 1, 21, 0)}
-              eventPropGetter={eventStyleGetter}
-              onSelectEvent={handleSelectEvent}
-              messages={{
-                today: 'Hoy',
-                previous: 'Anterior',
-                next: 'Siguiente',
-                month: 'Mes',
-                week: 'Semana',
-                day: 'Día',
-                noEventsInRange: 'No hay citas en este rango',
-              }}
-              culture="es"
+      <StatusLegend />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar las citas.</span>
+            <Button variant="outline" size="sm" onClick={load}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {loading ? (
+        <LoadingState label="Cargando citas…" />
+      ) : isMobile ? (
+        <AgendaList appointments={appointments} date={date} onNavigate={setDate} onSelect={setSelected} />
+      ) : (
+        <Card>
+          <CardContent className="p-4">
+            <AppointmentCalendar
+              events={toEvents(appointments)}
+              date={date}
+              view={view}
+              onNavigate={setDate}
+              onView={setView}
+              onSelectEvent={(event) => setSelected(event.resource)}
             />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      <AppointmentDetailDialog appointment={selected} onClose={() => setSelected(null)} onChanged={load} />
     </div>
   );
 };

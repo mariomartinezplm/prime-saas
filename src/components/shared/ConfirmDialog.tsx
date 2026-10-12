@@ -18,6 +18,8 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: ReactNode;
+  // Contenido extra bajo la descripción (p. ej. un campo de motivo)
+  children?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   // Acción que no se puede deshacer: el botón se pinta de rojo
@@ -32,6 +34,7 @@ const ConfirmDialog = ({
   onOpenChange,
   title,
   description,
+  children,
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   destructive,
@@ -60,6 +63,7 @@ const ConfirmDialog = ({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description && <AlertDialogDescription>{description}</AlertDialogDescription>}
         </AlertDialogHeader>
+        {children}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction

@@ -13,9 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
-import { CalendarPlus, AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays, Repeat, Calendar as CalendarIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays, Repeat, Calendar as CalendarIcon } from 'lucide-react';
 import { format, addHours, isBefore, parseISO } from 'date-fns';
-import { formatPlanUsage } from '@/config/planCatalog';
+import { es } from 'date-fns/locale';
+import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
+import { MIN_BOOKING_AHEAD_HOURS, PATIENT_CANCEL_AHEAD_HOURS } from '@/config/bookingRules';
+import { capitalizeFirst } from '@/lib/utils';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
 import type { User, SessionBalance, AvailableSlots } from '@/types';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 
@@ -34,6 +39,8 @@ const BookAppointment = () => {
   const [showBulk, setShowBulk] = useState(false);
   const [booking, setBooking] = useState(false);
   const [bookingMode, setBookingMode] = useState<BookingMode>('single');
+  const [slotsStatus, setSlotsStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [slotsRetry, setSlotsRetry] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,11 +92,28 @@ const BookAppointment = () => {
   useEffect(() => {
     if (!selectedDate || !selectedProfessional) {
       setSlots(null);
+      setSlotsStatus('idle');
       return;
     }
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    availabilityService.getSlots(selectedProfessional.id, dateStr).then(setSlots).catch(() => setSlots(null));
-  }, [selectedDate, selectedProfessional]);
+    // Si se cambia de día rápido, la respuesta del día anterior se descarta
+    let active = true;
+    setSlotsStatus('loading');
+    availabilityService
+      .getSlots(selectedProfessional.id, format(selectedDate, 'yyyy-MM-dd'))
+      .then((result) => {
+        if (!active) return;
+        setSlots(result);
+        setSlotsStatus('idle');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSlots(null);
+        setSlotsStatus('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedDate, selectedProfessional, slotsRetry]);
 
   // Determine session type from plan
   const getSessionType = (): 'kinesiologia' | 'entrenamiento' | 'evaluacion' => {
@@ -161,7 +185,7 @@ const BookAppointment = () => {
     const [hours, minutes] = time.split(':').map(Number);
     const slotDateTime = new Date(date);
     slotDateTime.setHours(hours, minutes, 0, 0);
-    return isBefore(slotDateTime, addHours(new Date(), 4));
+    return isBefore(slotDateTime, addHours(new Date(), MIN_BOOKING_AHEAD_HOURS));
   };
 
   // ─── Plan status info ───────────────────────────────────────────────
@@ -179,7 +203,7 @@ const BookAppointment = () => {
     const extraNote = balance.extraSessionsAvailable > 0 ? ` + ${balance.extraSessionsAvailable} extra` : '';
 
     return {
-      label: plan.serviceType === 'kinesiologia' ? '🏥 Kinesiología' : '💪 Entrenamiento',
+      label: SERVICE_TYPE_LABELS[plan.serviceType],
       description: unlimited
         ? `Sesiones ilimitadas${extraNote}`
         : `${remaining} de ${plan.sessionsTotal} sesiones restantes${extraNote}`,
@@ -196,21 +220,12 @@ const BookAppointment = () => {
   const planInfo = getPlanStatusInfo();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-      </div>
-    );
+    return <LoadingState label="Cargando…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Portal del Paciente</h1>
-          <p className="text-muted-foreground mt-1">Reserva tus sesiones con tu kinesiólogo</p>
-        </div>
-      </div>
+      <PageHeader title="Reservar hora" description="Reserva tus sesiones con tu kinesiólogo" />
 
       {balance?.paymentPending && balance.paymentDueBy && (
         <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />
@@ -238,7 +253,14 @@ const BookAppointment = () => {
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     <p className="text-xs font-medium text-muted-foreground">{planInfo.sessionCounter}</p>
-                    <div className="w-32 h-2 bg-muted rounded-full mt-1 overflow-hidden">
+                    <div
+                      className="w-32 h-2 bg-muted rounded-full mt-1 overflow-hidden"
+                      role="progressbar"
+                      aria-label="Sesiones usadas del plan"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(Math.min(planInfo.progressPercent, 100))}
+                    >
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${planInfo.progressPercent >= 80 ? 'bg-destructive' : planInfo.progressPercent >= 50 ? 'bg-warning' : 'bg-success'
                           }`}
@@ -303,8 +325,10 @@ const BookAppointment = () => {
           <Card>
             <CardContent className="p-4">
               <p className="text-sm font-semibold mb-3">¿Cómo quieres agendar?</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <button
+                  type="button"
+                  aria-pressed={bookingMode === 'single'}
                   onClick={() => setBookingMode('single')}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'single'
                     ? 'border-info bg-info/10 shadow-sm'
@@ -321,6 +345,8 @@ const BookAppointment = () => {
                 </button>
 
                 <button
+                  type="button"
+                  aria-pressed={bookingMode === 'recurring'}
                   onClick={() => {
                     setBookingMode('recurring');
                     if (balance?.hasActivePlan) setShowBulk(true);
@@ -372,12 +398,21 @@ const BookAppointment = () => {
                 <CardHeader>
                   <CardTitle className="text-lg">
                     {selectedDate
-                      ? `Horarios - ${format(selectedDate, 'dd/MM/yyyy')}`
+                      ? `Horarios · ${capitalizeFirst(format(selectedDate, "EEEE d 'de' MMMM", { locale: es }))}`
                       : 'Selecciona una fecha'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {slots ? (
+                  {slotsStatus === 'loading' ? (
+                    <LoadingState className="py-8" label="Cargando horarios…" />
+                  ) : slotsStatus === 'error' ? (
+                    <div className="flex flex-col items-center gap-3 py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No se pudieron cargar los horarios.</p>
+                      <Button variant="outline" size="sm" onClick={() => setSlotsRetry((n) => n + 1)}>
+                        Reintentar
+                      </Button>
+                    </div>
+                  ) : slots ? (
                     <SlotGrid
                       slots={{
                         ...slots,
@@ -420,11 +455,11 @@ const BookAppointment = () => {
                   <div className="flex flex-col gap-1 text-xs text-info">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Puedes agendar con un <strong>mínimo de 4 horas</strong> de anticipación</span>
+                      <span>Puedes agendar con un <strong>mínimo de {MIN_BOOKING_AHEAD_HOURS} horas</strong> de anticipación</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Ban className="w-3.5 h-3.5" />
-                      <span>Puedes cancelar hasta <strong>4 horas antes</strong> de tu sesión</span>
+                      <span>Cancela hasta <strong>{PATIENT_CANCEL_AHEAD_HOURS} horas antes</strong> y la sesión vuelve a tu plan</span>
                     </div>
                     {balance?.plan && !balance.plan.unlimited && (
                       <div className="flex items-center gap-2">
