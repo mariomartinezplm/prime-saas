@@ -15,12 +15,6 @@ import { toast } from "sonner";
 const LoginDual = () => {
     const navigate = useNavigate();
     const { login, isAuthenticated, user } = useAuth();
-
-    // Si ya está autenticado, redirigir
-    if (isAuthenticated && user) {
-        const redirectPath = user.role === 'patient' ? '/app/dashboard' : '/app/admin';
-        return <Navigate to={redirectPath} replace />;
-    }
     const [activeTab, setActiveTab] = useState("paciente");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -77,6 +71,12 @@ const LoginDual = () => {
             setIsLoading(false);
         }
     };
+
+    // Va después de todos los hooks: un return antes cambia la cantidad de hooks entre
+    // renders y React se cae (error #300) justo al iniciar sesión.
+    if (isAuthenticated && user) {
+        return <Navigate to={user.role === 'patient' ? '/app/dashboard' : '/app/admin'} replace />;
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-brand-dark via-brand-dark/95 to-brand-secondary/20 flex items-center justify-center p-4">
