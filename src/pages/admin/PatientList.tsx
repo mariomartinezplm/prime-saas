@@ -137,14 +137,14 @@ const PatientList = () => {
     if (!balance) return null;
 
     if (!balance.hasActivePlan) {
-      return <span className="text-xs text-red-400 font-medium">Sin plan activo / vencido</span>;
+      return <span className="text-xs text-destructive font-medium">Sin plan activo / vencido</span>;
     }
 
     const plan = balance.plan!;
 
     if (balance.paymentPending && balance.paymentDueBy) {
       return (
-        <span className="text-xs text-amber-400 font-medium">
+        <span className="text-xs text-warning font-medium">
           Pendiente de pago hasta el {formatPaymentDeadline(balance.paymentDueBy)} · {SERVICE_TYPE_LABELS[plan.serviceType]}
         </span>
       );
@@ -155,7 +155,7 @@ const PatientList = () => {
     const isSoon = daysLeft <= 5 && (plan.cycleNumber ?? 1) >= (plan.cyclesTotal ?? 1);
 
     return (
-      <span className={`text-xs ${isSoon ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+      <span className={`text-xs ${isSoon ? 'text-warning' : 'text-muted-foreground'}`}>
         {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanRemaining(plan)} · vence {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
       </span>
     );
@@ -229,7 +229,7 @@ const PatientList = () => {
                     <p className="font-medium flex items-center gap-2 flex-wrap">
                       {patient.firstName} {patient.lastName}
                       {patient.isFounder && <FounderBadge compact />}
-                      {patient.exemptFromCapacity && <Badge className="bg-amber-500/20 text-amber-400">Sobre cupo</Badge>}
+                      {patient.exemptFromCapacity && <Badge className="bg-warning/20 text-warning">Sobre cupo</Badge>}
                     </p>
                     <p className="text-sm text-muted-foreground">{patient.email}</p>
                     {isProfessional && <div className="mt-0.5">{planInfoFor(patient.id)}</div>}
@@ -239,7 +239,7 @@ const PatientList = () => {
                   {patient.rut && (
                     <span className="text-sm text-muted-foreground hidden sm:inline">{patient.rut}</span>
                   )}
-                  <Badge className={patient.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}>
+                  <Badge className={patient.isActive ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'}>
                     {patient.isActive ? 'Activo' : 'Inactivo'}
                   </Badge>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />

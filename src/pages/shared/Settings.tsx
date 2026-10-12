@@ -183,7 +183,7 @@ const Settings = () => {
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : gcalConnected ? (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-green-500 font-medium">Conectado</span>
+                <span className="text-sm text-success font-medium">Conectado</span>
                 <Button variant="outline" size="sm" onClick={handleDisconnectGoogle} disabled={gcalLoading}>
                   {gcalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Desconectar

@@ -74,14 +74,14 @@ const JumpTestChart = ({
                         <div className="flex items-center gap-1 text-sm">
                             {improvement > 0 && (
                                 <>
-                                    <TrendingUp className="w-4 h-4 text-green-500" />
-                                    <span className="text-green-500 font-semibold">+{improvement} {unit} ({improvementPercent}%)</span>
+                                    <TrendingUp className="w-4 h-4 text-success" />
+                                    <span className="text-success font-semibold">+{improvement} {unit} ({improvementPercent}%)</span>
                                 </>
                             )}
                             {improvement < 0 && (
                                 <>
-                                    <TrendingDown className="w-4 h-4 text-red-500" />
-                                    <span className="text-red-500 font-semibold">{improvement} {unit} ({improvementPercent}%)</span>
+                                    <TrendingDown className="w-4 h-4 text-destructive" />
+                                    <span className="text-destructive font-semibold">{improvement} {unit} ({improvementPercent}%)</span>
                                 </>
                             )}
                             {improvement === 0 && (
@@ -170,9 +170,9 @@ const JumpTestChart = ({
 
                 {/* Achievement Badge if target reached */}
                 {target && latestValue >= target && (
-                    <div className="mt-4 flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
-                        <Award className="w-5 h-5 text-green-600" />
-                        <span className="text-sm font-semibold text-green-700">
+                    <div className="mt-4 flex items-center gap-2 bg-success/10 border border-success/30 rounded-lg p-3">
+                        <Award className="w-5 h-5 text-success" />
+                        <span className="text-sm font-semibold text-success">
                             ¡Objetivo alcanzado! 🎉
                         </span>
                     </div>

@@ -187,8 +187,8 @@ const BookAppointment = () => {
       canBook,
       blockMessage: !canBook ? 'Has completado todas tus sesiones. Contacta a Prime F&H para renovar tu plan.' : null,
       color: canBook
-        ? (plan.serviceType === 'kinesiologia' ? 'border-teal-500/40 bg-teal-500/10' : 'border-blue-500/40 bg-blue-500/10')
-        : 'border-red-500/40 bg-red-500/10',
+        ? (plan.serviceType === 'kinesiologia' ? 'border-primary/40 bg-primary/10' : 'border-info/40 bg-info/10')
+        : 'border-destructive/40 bg-destructive/10',
       progressPercent: unlimited ? 0 : (plan.sessionsUsed / plan.sessionsTotal) * 100
     };
   };
@@ -223,9 +223,9 @@ const BookAppointment = () => {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
                 {planInfo.canBook ? (
-                  <CheckCircle className="w-6 h-6 text-green-500" />
+                  <CheckCircle className="w-6 h-6 text-success" />
                 ) : (
-                  <Ban className="w-6 h-6 text-red-500" />
+                  <Ban className="w-6 h-6 text-destructive" />
                 )}
                 <div>
                   <p className="font-semibold text-sm">{planInfo.label}</p>
@@ -240,7 +240,7 @@ const BookAppointment = () => {
                     <p className="text-xs font-medium text-muted-foreground">{planInfo.sessionCounter}</p>
                     <div className="w-32 h-2 bg-muted rounded-full mt-1 overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${planInfo.progressPercent >= 80 ? 'bg-red-500' : planInfo.progressPercent >= 50 ? 'bg-yellow-500' : 'bg-green-500'
+                        className={`h-full rounded-full transition-all duration-500 ${planInfo.progressPercent >= 80 ? 'bg-destructive' : planInfo.progressPercent >= 50 ? 'bg-warning' : 'bg-success'
                           }`}
                         style={{ width: `${Math.min(planInfo.progressPercent, 100)}%` }}
                       />
@@ -251,7 +251,7 @@ const BookAppointment = () => {
             </div>
 
             {planInfo.blockMessage && (
-              <div className="mt-3 flex items-center gap-2 p-3 bg-red-500/10 rounded-lg text-red-400 text-sm">
+              <div className="mt-3 flex items-center gap-2 p-3 bg-destructive/10 rounded-lg text-destructive text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 {planInfo.blockMessage}
               </div>
@@ -259,13 +259,13 @@ const BookAppointment = () => {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-2 border-yellow-500/40 bg-yellow-500/10">
+        <Card className="border-2 border-warning/40 bg-warning/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-yellow-500" />
+              <AlertCircle className="w-6 h-6 text-warning" />
               <div>
-                <p className="font-semibold text-sm text-yellow-400">No tienes un plan activo</p>
-                <p className="text-xs text-yellow-500">
+                <p className="font-semibold text-sm text-warning">No tienes un plan activo</p>
+                <p className="text-xs text-warning">
                   Contacta al equipo de Prime F&H para activar tu plan y poder agendar sesiones.
                 </p>
               </div>
@@ -282,13 +282,13 @@ const BookAppointment = () => {
           onSelect={setSelectedProfessional}
         />
       ) : (
-        <Card className="border-2 border-red-500/40 bg-red-500/10">
+        <Card className="border-2 border-destructive/40 bg-destructive/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-red-500" />
+              <AlertCircle className="w-6 h-6 text-destructive" />
               <div>
-                <p className="font-semibold text-sm text-red-400">No tienes un kinesiólogo asignado</p>
-                <p className="text-xs text-red-500">
+                <p className="font-semibold text-sm text-destructive">No tienes un kinesiólogo asignado</p>
+                <p className="text-xs text-destructive">
                   Debes tener un profesional asignado (desde tu ingreso en recepción) para poder agendar. Contacta al equipo de Prime F&H.
                 </p>
               </div>
@@ -307,13 +307,13 @@ const BookAppointment = () => {
                 <button
                   onClick={() => setBookingMode('single')}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'single'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
+                    ? 'border-info bg-info/10 shadow-sm'
                     : 'border-border hover:border-muted-foreground/40'
                     }`}
                 >
-                  <CalendarIcon className={`w-5 h-5 ${bookingMode === 'single' ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                  <CalendarIcon className={`w-5 h-5 ${bookingMode === 'single' ? 'text-info' : 'text-muted-foreground'}`} />
                   <div className="text-left">
-                    <p className={`text-sm font-medium ${bookingMode === 'single' ? 'text-blue-400' : 'text-foreground'}`}>
+                    <p className={`text-sm font-medium ${bookingMode === 'single' ? 'text-info' : 'text-foreground'}`}>
                       Agendar una hora
                     </p>
                     <p className="text-xs text-muted-foreground">Elige día y hora específicos</p>
@@ -326,13 +326,13 @@ const BookAppointment = () => {
                     if (balance?.hasActivePlan) setShowBulk(true);
                   }}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'recurring'
-                    ? 'border-purple-500 bg-purple-500/10 shadow-sm'
+                    ? 'border-coral bg-coral/10 shadow-sm'
                     : 'border-border hover:border-muted-foreground/40'
                     }`}
                 >
-                  <Repeat className={`w-5 h-5 ${bookingMode === 'recurring' ? 'text-purple-500' : 'text-muted-foreground'}`} />
+                  <Repeat className={`w-5 h-5 ${bookingMode === 'recurring' ? 'text-coral' : 'text-muted-foreground'}`} />
                   <div className="text-left">
-                    <p className={`text-sm font-medium ${bookingMode === 'recurring' ? 'text-purple-400' : 'text-foreground'}`}>
+                    <p className={`text-sm font-medium ${bookingMode === 'recurring' ? 'text-coral' : 'text-foreground'}`}>
                       Horario predeterminado
                     </p>
                     <p className="text-xs text-muted-foreground">Fija tu hora para siempre</p>
@@ -411,13 +411,13 @@ const BookAppointment = () => {
           )}
 
           {/* ─── Rules Info Card ─── */}
-          <Card className="border border-blue-500/30 bg-blue-500/10">
+          <Card className="border border-info/30 bg-info/10">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
                 <div className="space-y-1.5">
-                  <p className="text-sm font-medium text-blue-300">Reglas de agendamiento</p>
-                  <div className="flex flex-col gap-1 text-xs text-blue-400">
+                  <p className="text-sm font-medium text-info">Reglas de agendamiento</p>
+                  <div className="flex flex-col gap-1 text-xs text-info">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
                       <span>Puedes agendar con un <strong>mínimo de 4 horas</strong> de anticipación</span>

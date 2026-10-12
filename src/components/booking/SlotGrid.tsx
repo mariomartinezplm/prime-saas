@@ -31,20 +31,20 @@ const SlotGrid = ({ slots, selectedSlot, onSelect, tooSoonSlots = [] }: SlotGrid
     <div>
       <div className="flex flex-wrap gap-3 mb-4 text-xs">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-green-500" />
+          <div className="w-3 h-3 rounded bg-success" />
           <span>Disponible</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-red-500" />
+          <div className="w-3 h-3 rounded bg-destructive" />
           <span>Ocupado</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-gray-500" />
+          <div className="w-3 h-3 rounded bg-muted-foreground" />
           <span>Bloqueado</span>
         </div>
         {tooSoonSlots.length > 0 && (
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-yellow-500" />
+            <div className="w-3 h-3 rounded bg-warning" />
             <span>Muy pronto</span>
           </div>
         )}
@@ -66,11 +66,11 @@ const SlotGrid = ({ slots, selectedSlot, onSelect, tooSoonSlots = [] }: SlotGrid
               onClick={() => isAvailable && onSelect(slot)}
               className={cn(
                 'py-3 px-2 rounded-md text-sm font-medium transition-all text-center',
-                isAvailable && !isSelected && 'bg-green-500/20 text-green-400 hover:bg-green-500/30 cursor-pointer',
-                isBooked && 'bg-red-500/20 text-red-400 cursor-not-allowed',
-                isBlocked && 'bg-gray-500/20 text-gray-400 cursor-not-allowed',
-                isTooSoon && 'bg-yellow-500/20 text-yellow-600 cursor-not-allowed',
-                isSelected && 'bg-secondary text-white ring-2 ring-secondary'
+                isAvailable && !isSelected && 'bg-success/20 text-success hover:bg-success/30 cursor-pointer',
+                isBooked && 'bg-destructive/20 text-destructive cursor-not-allowed',
+                isBlocked && 'bg-muted text-muted-foreground cursor-not-allowed',
+                isTooSoon && 'bg-warning/20 text-warning cursor-not-allowed',
+                isSelected && 'bg-secondary text-secondary-foreground ring-2 ring-secondary'
               )}
             >
               {slot}

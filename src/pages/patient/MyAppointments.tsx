@@ -20,10 +20,10 @@ import { X, Loader2, CalendarPlus } from 'lucide-react';
 import type { Appointment } from '@/types';
 
 const statusColors: Record<string, string> = {
-  scheduled: 'bg-blue-500/20 text-blue-400',
-  completed: 'bg-green-500/20 text-green-400',
-  cancelled: 'bg-red-500/20 text-red-400',
-  'no-show': 'bg-yellow-500/20 text-yellow-400',
+  scheduled: 'bg-info/20 text-info',
+  completed: 'bg-success/20 text-success',
+  cancelled: 'bg-destructive/20 text-destructive',
+  'no-show': 'bg-warning/20 text-warning',
 };
 
 const statusLabels: Record<string, string> = {

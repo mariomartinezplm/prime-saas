@@ -85,7 +85,7 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
 
   const header = (
     <CardHeader className="flex flex-row items-center gap-2 pb-2">
-      <Sparkles className="h-4 w-4 text-teal-600" />
+      <Sparkles className="h-4 w-4 text-secondary" />
       <CardTitle className="text-base font-semibold">Readiness de hoy</CardTitle>
     </CardHeader>
   );
@@ -120,7 +120,7 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
           <div className="grid grid-cols-5 gap-2 text-center">
             {(Object.keys(METRIC_LABELS) as ReadinessKey[]).map((key) => (
               <div key={key}>
-                <p className="text-lg font-bold text-teal-600">{checkin[key]}</p>
+                <p className="text-lg font-bold text-secondary">{checkin[key]}</p>
                 <p className="text-[11px] text-muted-foreground">{METRIC_LABELS[key]}</p>
               </div>
             ))}
@@ -145,11 +145,11 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
       <Card className="border-2 border-secondary/30 bg-secondary/5">
         {header}
         <CardContent className="space-y-3">
-          <p className="text-sm text-red-400 font-medium">
+          <p className="text-sm text-destructive font-medium">
             Tu plan venció. Contacta a Prime F&H para renovar y poder registrar tu check-in.
           </p>
           <Button
-            className="bg-[#25D366] hover:bg-[#20BD5C] text-white"
+            className="bg-[#25D366] hover:bg-[#20BD5C] text-background"
             size="sm"
             onClick={() => window.open(getWhatsAppUrl('Hola, quiero renovar mi plan en Prime F&H'), '_blank')}
           >
@@ -230,7 +230,7 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
             {READINESS_QUESTIONS.map((q, i) => (
               <span
                 key={q.key}
-                className={`h-1.5 w-6 rounded-full ${i <= step ? 'bg-teal-500' : 'bg-muted'}`}
+                className={`h-1.5 w-6 rounded-full ${i <= step ? 'bg-primary' : 'bg-muted'}`}
               />
             ))}
           </div>
@@ -245,7 +245,7 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
                 type="button"
                 onClick={() => handlePress(n)}
                 className={`flex h-16 w-full items-center justify-center rounded-xl text-4xl font-light transition-colors hover:bg-secondary/20 active:bg-secondary/30 ${
-                  current === n ? 'bg-teal-500/20 text-teal-400' : 'text-foreground'
+                  current === n ? 'bg-primary/20 text-secondary' : 'text-foreground'
                 }`}
                 aria-label={`${n}${n === 1 ? ` — ${question.atOne}` : n === 9 ? ` — ${question.atNine}` : ''}`}
               >

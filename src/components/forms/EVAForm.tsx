@@ -87,9 +87,9 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
   };
 
   const getPainColor = (level: number) => {
-    if (level <= 3) return 'text-green-400';
-    if (level <= 6) return 'text-yellow-400';
-    return 'text-red-400';
+    if (level <= 3) return 'text-success';
+    if (level <= 6) return 'text-warning';
+    return 'text-destructive';
   };
 
   return (

@@ -73,7 +73,7 @@ const PatientDashboard = () => {
       <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} />
 
       {/* Plan destacado */}
-      <Card className={!balance?.hasActivePlan ? 'border-red-500/50' : undefined}>
+      <Card className={!balance?.hasActivePlan ? 'border-destructive/50' : undefined}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-base font-semibold">Mi Plan</CardTitle>
           <FileText className="h-4 w-4 text-muted-foreground" />
@@ -88,9 +88,9 @@ const PatientDashboard = () => {
                 </span>
               </div>
               <div className="space-y-1">
-                <div className="h-2.5 w-full rounded-full bg-gray-500/25 overflow-hidden">
+                <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-teal-500 transition-all"
+                    className="h-full rounded-full bg-primary transition-all"
                     style={{ width: `${sessionsPct}%` }}
                   />
                 </div>
@@ -106,11 +106,11 @@ const PatientDashboard = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-red-400 font-medium">
+              <p className="text-sm text-destructive font-medium">
                 Tu plan venció. Contacta a Prime F&H para renovar
               </p>
               <Button
-                className="bg-[#25D366] hover:bg-[#20BD5C] text-white"
+                className="bg-[#25D366] hover:bg-[#20BD5C] text-background"
                 size="sm"
                 onClick={() => window.open(getWhatsAppUrl('Hola, quiero renovar mi plan en Prime F&H'), '_blank')}
               >

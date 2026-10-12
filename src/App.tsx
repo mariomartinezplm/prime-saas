@@ -20,6 +20,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import InstallApp from "./pages/InstallApp";
 import NotFound from "./pages/NotFound";
+import DesignSystem from "./pages/DesignSystem";
 
 // Patient pages
 import PatientDashboard from "./pages/patient/Dashboard";
@@ -65,6 +66,9 @@ const App = () => (
             <Route path="/privacidad" element={<Privacy />} />
             <Route path="/terminos" element={<Terms />} />
             <Route path="/instalar" element={<InstallApp />} />
+
+            {/* Galería del sistema de diseño: solo en desarrollo, no existe en producción */}
+            {import.meta.env.DEV && <Route path="/diseno" element={<DesignSystem />} />}
 
             {/* Patient Portal redirection */}
             <Route path="/patient-portal" element={<Navigate to="/app/dashboard" replace />} />

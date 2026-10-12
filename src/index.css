@@ -121,47 +121,82 @@
     /* #E1E6ED */
     --sidebar-ring: 194 45% 44%;
     /* #398CA2 */
+
+    /* ====================
+       ESTADOS Y ACENTO (sistema de diseño)
+       success / warning / info reemplazan los verdes, ámbares y azules sueltos
+       (text-green-400, bg-amber-500/20...). coral es el acento de marca (#DE7654).
+       Valores del tema claro: texto legible sobre blanco.
+       ==================== */
+    --success: 152 60% 28%;
+    --success-foreground: 0 0% 100%;
+    --warning: 33 92% 32%;
+    --warning-foreground: 0 0% 100%;
+    --info: 208 75% 36%;
+    --info-foreground: 0 0% 100%;
+    --coral: 15 68% 52%;
+    --coral-foreground: 0 0% 100%;
   }
 
   /*
     Tema negro de la app interna (/app/*). La clase .dark se pone en <html>
     solo mientras el usuario está dentro de la app (hooks/useAppDarkTheme.ts);
-    la landing y el login no la usan. El fondo es el mismo canvas oscuro de la
-    landing (--landing-dark). --secondary pasa a ser un teal vivo porque en la
-    app se usa como color de texto, borde e icono (text-secondary, border-secondary).
+    la landing y el login no la usan.
+
+    Paleta de marca sobre negro cálido #181619 (280° 7% 9,2%): las superficies
+    suben de luminosidad en pasos (card < popover < muted < accent < border < input)
+    y el texto principal es la crema #FFF8E4.
+
+    Contraste (WCAG AA = 4,5:1 para texto normal), calculado sobre bg / card:
+    - foreground crema: 16,8 / 15,8       - muted-foreground: 8,0 / 7,5
+    - primary #3D95AE (turquesa de marca ajustado 3 puntos de luminosidad para
+      cumplir AA como texto Y como relleno con texto oscuro): 5,2 / 4,9
+    - secondary (turquesa claro, para texto, bordes e iconos sobre fondos oscuros): 8,0+
+    - texto #181619 sobre relleno primary: 5,2 · coral: 5,8 · success: 8,0 · warning: 10,4
+    El blanco sobre el turquesa daba 3,9:1 (no cumplía), por eso los rellenos
+    llevan texto oscuro (--*-foreground).
   */
   .dark {
     color-scheme: dark;
     background-color: hsl(var(--background));
 
-    --background: 224 44% 5%;
-    --foreground: 210 20% 96%;
-    --card: 224 30% 9%;
-    --card-foreground: 210 20% 96%;
-    --popover: 224 30% 9%;
-    --popover-foreground: 210 20% 96%;
-    --primary: 194 45% 44%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 190 55% 50%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 224 25% 13%;
-    --muted-foreground: 215 16% 66%;
-    --accent: 224 25% 16%;
-    --accent-foreground: 210 20% 96%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 224 20% 18%;
-    --input: 224 20% 20%;
-    --ring: 190 55% 50%;
+    --background: 280 7% 9.2%;
+    --foreground: 44 100% 94%;
+    --card: 280 7% 11.8%;
+    --card-foreground: 44 100% 94%;
+    --popover: 280 7% 12.8%;
+    --popover-foreground: 44 100% 94%;
+    --primary: 193 48% 46%;
+    --primary-foreground: 280 7% 9.2%;
+    --secondary: 193 55% 62%;
+    --secondary-foreground: 280 7% 9.2%;
+    --muted: 280 7% 15%;
+    --muted-foreground: 40 13% 66%;
+    --accent: 280 7% 17.5%;
+    --accent-foreground: 44 100% 94%;
+    --destructive: 355 75% 64%;
+    --destructive-foreground: 280 7% 9.2%;
+    --border: 280 7% 21%;
+    --input: 280 7% 24%;
+    --ring: 193 55% 62%;
 
-    --sidebar-background: 224 44% 4%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 194 45% 44%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 25% 14%;
-    --sidebar-accent-foreground: 210 20% 96%;
-    --sidebar-border: 224 20% 16%;
-    --sidebar-ring: 190 55% 50%;
+    --success: 152 48% 55%;
+    --success-foreground: 280 7% 9.2%;
+    --warning: 42 92% 58%;
+    --warning-foreground: 280 7% 9.2%;
+    --info: 208 75% 66%;
+    --info-foreground: 280 7% 9.2%;
+    --coral: 15 68% 60%;
+    --coral-foreground: 280 7% 9.2%;
+
+    --sidebar-background: 280 7% 7.5%;
+    --sidebar-foreground: 44 30% 90%;
+    --sidebar-primary: 193 48% 46%;
+    --sidebar-primary-foreground: 280 7% 9.2%;
+    --sidebar-accent: 280 7% 15%;
+    --sidebar-accent-foreground: 44 100% 94%;
+    --sidebar-border: 280 7% 14%;
+    --sidebar-ring: 193 55% 62%;
   }
 
   .dark body {

@@ -90,8 +90,8 @@ const PainRecords = () => {
                       </p>
                       <div className="flex items-center justify-between mt-1">
                         <span className={`text-lg font-bold ${
-                          record.painLevel <= 3 ? 'text-green-400' :
-                          record.painLevel <= 6 ? 'text-yellow-400' : 'text-red-400'
+                          record.painLevel <= 3 ? 'text-success' :
+                          record.painLevel <= 6 ? 'text-warning' : 'text-destructive'
                         }`}>
                           {record.painLevel}/10
                         </span>
@@ -137,8 +137,8 @@ const PainRecords = () => {
                       <td className="py-2 capitalize">{r.bodyArea.replace(/-/g, ' ')}</td>
                       <td className="py-2 text-center">
                         <span className={`font-bold ${
-                          r.painLevel <= 3 ? 'text-green-400' :
-                          r.painLevel <= 6 ? 'text-yellow-400' : 'text-red-400'
+                          r.painLevel <= 3 ? 'text-success' :
+                          r.painLevel <= 6 ? 'text-warning' : 'text-destructive'
                         }`}>
                           {r.painLevel}
                         </span>

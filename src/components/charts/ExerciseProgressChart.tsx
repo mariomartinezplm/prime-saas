@@ -72,8 +72,8 @@ const ExerciseProgressChart = ({
                         </div>
                         {totalImprovement !== 0 && (
                             <div className="flex items-center gap-1 text-sm">
-                                <TrendingUp className="w-4 h-4 text-green-500" />
-                                <span className="text-green-500 font-semibold">
+                                <TrendingUp className="w-4 h-4 text-success" />
+                                <span className="text-success font-semibold">
                                     +{totalImprovement} kg ({improvementPercent}%)
                                 </span>
                             </div>

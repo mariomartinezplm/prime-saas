@@ -160,8 +160,8 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
         <CardHeader><CardTitle className="text-lg">Subir archivo</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {!canUpload ? (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm space-y-3">
-              <p className="text-amber-400">
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm space-y-3">
+              <p className="text-warning">
                 Tu plan venció. Puedes ver y descargar tus archivos, pero para subir nuevos necesitas renovar.
               </p>
               <Button asChild variant="outline" size="sm" className="w-full sm:w-auto h-auto whitespace-normal py-2">
@@ -248,7 +248,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
             </div>
           ) : loadError ? (
             <div className="text-sm text-center space-y-2 py-4">
-              <p className="text-red-400">No se pudieron cargar los archivos.</p>
+              <p className="text-destructive">No se pudieron cargar los archivos.</p>
               <Button variant="outline" size="sm" onClick={load}>Reintentar</Button>
             </div>
           ) : files.length === 0 ? (
@@ -286,7 +286,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
                       onClick={() => setToDelete(file)}
                       aria-label={`Eliminar ${file.fileName}`}
                     >
-                      <Trash2 className="h-4 w-4 text-red-400" />
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   )}
                 </div>

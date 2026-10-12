@@ -61,25 +61,25 @@ function daysRemaining(endDate: string): number {
 const isLastCycle = (plan: ClientPlan) => (plan.cycleNumber ?? 1) >= (plan.cyclesTotal ?? 1);
 
 function rowHighlightClass(plan: ClientPlan): string {
-  if (plan.status === 'expired') return 'border-l-4 border-l-red-500 bg-red-500/10';
-  if (plan.paymentPending) return 'border-l-4 border-l-amber-500 bg-amber-500/10';
+  if (plan.status === 'expired') return 'border-l-4 border-l-red-500 bg-destructive/10';
+  if (plan.paymentPending) return 'border-l-4 border-l-amber-500 bg-warning/10';
   const remaining = daysRemaining(plan.endDate);
-  if (plan.status === 'active' && isLastCycle(plan) && remaining <= 5) return 'border-l-4 border-l-yellow-500 bg-yellow-500/10';
+  if (plan.status === 'active' && isLastCycle(plan) && remaining <= 5) return 'border-l-4 border-l-yellow-500 bg-warning/10';
   return '';
 }
 
 function statusBadge(plan: ClientPlan) {
   if (plan.status === 'expired') {
-    return <Badge className="bg-red-500/20 text-red-400">Vencido</Badge>;
+    return <Badge className="bg-destructive/20 text-destructive">Vencido</Badge>;
   }
   if (plan.paymentPending) {
-    return <Badge className="bg-amber-500/20 text-amber-400">Pendiente de pago</Badge>;
+    return <Badge className="bg-warning/20 text-warning">Pendiente de pago</Badge>;
   }
   const remaining = daysRemaining(plan.endDate);
   if (isLastCycle(plan) && remaining <= 5) {
-    return <Badge className="bg-yellow-500/20 text-yellow-600">Vence pronto</Badge>;
+    return <Badge className="bg-warning/20 text-warning">Vence pronto</Badge>;
   }
-  return <Badge className="bg-green-500/20 text-green-400">Activo</Badge>;
+  return <Badge className="bg-success/20 text-success">Activo</Badge>;
 }
 
 const Plans = () => {
@@ -306,7 +306,7 @@ const Plans = () => {
       {pendingPlans.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-amber-400" />
+            <Clock className="h-5 w-5 text-warning" />
             Pendientes de pago ({pendingPlans.length})
           </h2>
           <p className="text-sm text-muted-foreground mb-3">
@@ -432,7 +432,7 @@ const Plans = () => {
 
             {/* Paso 4: Duración, ciclo y renovación */}
             {pendingOfSelected ? (
-              <p className="text-xs rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-amber-400">
+              <p className="text-xs rounded-md border border-warning/40 bg-warning/10 p-3 text-warning">
                 Este paciente tiene la renovación pendiente de pago. Al confirmar se marca como pagada
                 (mismo ciclo) y conserva las sesiones que ya usó.
               </p>

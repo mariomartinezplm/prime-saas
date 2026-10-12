@@ -119,7 +119,7 @@ const PatientDetail = () => {
               {patient.firstName} {patient.lastName}
               {patient.isFounder && <FounderBadge />}
               {patient.exemptFromCapacity && (
-                <Badge className="bg-amber-500/20 text-amber-400" title="Puede agendar aunque el horario esté lleno; no cuenta en los 4 simultáneos">Sobre cupo</Badge>
+                <Badge className="bg-warning/20 text-warning" title="Puede agendar aunque el horario esté lleno; no cuenta en los 4 simultáneos">Sobre cupo</Badge>
               )}
             </h1>
             <p className="text-muted-foreground">{patient.email} {patient.rut && `| ${patient.rut}`}</p>
@@ -329,8 +329,8 @@ const PatientDetail = () => {
                   <p className="text-xs text-muted-foreground">{apt.startTime} - {apt.endTime} | {apt.type}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {apt.overbooked && <Badge className="bg-amber-500/20 text-amber-400">Sobrecupo</Badge>}
-                  {apt.outsideCapacity && <Badge className="bg-amber-500/20 text-amber-400">Fuera del cupo</Badge>}
+                  {apt.overbooked && <Badge className="bg-warning/20 text-warning">Sobrecupo</Badge>}
+                  {apt.outsideCapacity && <Badge className="bg-warning/20 text-warning">Fuera del cupo</Badge>}
                   <Badge>{apt.status}</Badge>
                 </div>
               </div>
@@ -375,13 +375,13 @@ const PatientDetail = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">{balance.paymentPending ? 'Plan pendiente de pago' : 'Plan Activo'}</CardTitle>
                   {balance.paymentPending
-                    ? <Badge className="bg-amber-500/20 text-amber-400">Pendiente de pago</Badge>
-                    : <Badge className="bg-green-500/20 text-green-400">Activo</Badge>}
+                    ? <Badge className="bg-warning/20 text-warning">Pendiente de pago</Badge>
+                    : <Badge className="bg-success/20 text-success">Activo</Badge>}
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 {balance.paymentPending && balance.paymentDueBy && (
-                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-amber-400 space-y-2">
+                  <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-warning space-y-2">
                     <p>
                       El paciente tiene hasta el {formatPaymentDeadline(balance.paymentDueBy)} para pagar y puede agendar hasta esa fecha.
                       Si no paga, el plan vence solo.

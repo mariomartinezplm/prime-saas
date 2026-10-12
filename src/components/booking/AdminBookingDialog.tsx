@@ -163,10 +163,10 @@ const AdminBookingDialog = ({
                           onClick={() => setSelectedSlot(slot)}
                           className={cn(
                             'py-2 px-2 rounded-md text-sm font-medium text-center transition-all',
-                            !isFull && !isBlocked && 'bg-green-500/20 text-green-400 hover:bg-green-500/30',
-                            isFull && canOverbook && 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30',
-                            isFull && !canOverbook && 'bg-red-500/20 text-red-400 cursor-not-allowed',
-                            isBlocked && 'bg-gray-500/20 text-gray-400 cursor-not-allowed',
+                            !isFull && !isBlocked && 'bg-success/20 text-success hover:bg-success/30',
+                            isFull && canOverbook && 'bg-warning/20 text-warning hover:bg-warning/30',
+                            isFull && !canOverbook && 'bg-destructive/20 text-destructive cursor-not-allowed',
+                            isBlocked && 'bg-muted text-muted-foreground cursor-not-allowed',
                             selectedSlot === slot && 'ring-2 ring-secondary'
                           )}
                         >
@@ -187,7 +187,7 @@ const AdminBookingDialog = ({
           )}
 
           {selectedIsFull && (
-            <div className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-400">
+            <div className="flex gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
               <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
               <span>
                 El horario {selectedSlot} ya tiene el máximo de pacientes simultáneos. Esta cita quedará marcada como sobrecupo.

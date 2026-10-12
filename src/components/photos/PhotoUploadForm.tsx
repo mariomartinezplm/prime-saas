@@ -83,7 +83,7 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
             Preparando la foto…
           </p>
         )}
-        {fileError && <p role="alert" className="text-sm text-red-400">{fileError}</p>}
+        {fileError && <p role="alert" className="text-sm text-destructive">{fileError}</p>}
         {prepared && (
           <img src={prepared.previewUrl} alt="Vista previa" className="mt-2 max-h-64 rounded-lg border border-border object-contain" />
         )}

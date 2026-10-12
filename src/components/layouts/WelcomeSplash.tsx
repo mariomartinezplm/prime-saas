@@ -29,7 +29,7 @@ const WelcomeSplash = () => {
   return (
     <motion.div
       aria-hidden="true"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070A12]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#181619]"
       style={{
         minHeight: '100dvh',
         paddingTop: 'env(safe-area-inset-top)',
