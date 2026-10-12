@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../services/authService';
 import { refreshAccessToken, setAccessToken } from '../lib/api';
+import { resetWelcome } from '../lib/welcomeSplash';
 import type { User, LoginCredentials } from '../types';
 
 interface AuthContextType {
@@ -58,6 +59,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // rebotarían de vuelta.
     setAccessToken(null);
     setUser(null);
+    resetWelcome();
     try {
       await authService.logout();
     } catch {
