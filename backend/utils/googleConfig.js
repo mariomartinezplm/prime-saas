@@ -25,3 +25,15 @@ export const GOOGLE_CONFIG_MESSAGES = {
   incomplete: 'La configuración de Google Calendar está incompleta en el servidor.',
   'bad-client-id': 'El ID de cliente de Google configurado en el servidor no es válido.'
 };
+
+// Pista del ID de cliente que usa el servidor, para compararlo con el de Google Cloud sin
+// mostrarlo entero ni tocar el secreto: número de proyecto + 4 primeros y 4 últimos
+// caracteres de la parte aleatoria. Si no tiene la forma de un ID real, solo se informa el largo.
+export function googleClientHint(env = process.env) {
+  const id = clean(env.GOOGLE_CLIENT_ID);
+  if (!id) return null;
+  if (!CLIENT_ID_FORMAT.test(id)) return `formato inválido (${id.length} caracteres)`;
+  const [project, rest] = id.split('-');
+  const random = rest.replace('.apps.googleusercontent.com', '');
+  return `${project}-${random.slice(0, 4)}…${random.slice(-4)}`;
+}

@@ -71,7 +71,8 @@ describe('GET /api/health', () => {
     expect(res.body.email).toBe('off');
     expect(res.body.airtable).toBe('off');
     expect(res.body.google).toBe('off');
-    expect(Object.keys(res.body).sort()).toEqual(['airtable', 'db', 'email', 'google', 'scheduler', 'status', 'storage', 'version']);
+    expect(res.body.googleClient).toBeNull();
+    expect(Object.keys(res.body).sort()).toEqual(['airtable', 'db', 'email', 'google', 'googleClient', 'scheduler', 'status', 'storage', 'version']);
   });
 
   it('con las variables de R2 y Resend cargadas: storage y email "on", sin mostrar ningún valor', () => {
@@ -112,5 +113,25 @@ describe('GET /api/health', () => {
     expect(res.body.google).toBe('incomplete');
 
     ids.forEach((k) => (saved[k] === undefined ? delete process.env[k] : (process.env[k] = saved[k])));
+  });
+
+  it('googleClient: muestra solo una pista del ID (proyecto + 4 y 4 caracteres) y nunca el secreto', () => {
+    vi.spyOn(mongoose, 'connection', 'get').mockReturnValue({ readyState: 1 });
+    const saved = { id: process.env.GOOGLE_CLIENT_ID, secret: process.env.GOOGLE_CLIENT_SECRET };
+    process.env.GOOGLE_CLIENT_ID = '15704662330-9tdrng78a307jji91bkksne3qotbuhmk.apps.googleusercontent.com';
+    process.env.GOOGLE_CLIENT_SECRET = 'GOCSPX-secretisimo';
+
+    let res = fakeRes();
+    getHealth({}, res);
+    expect(res.body.googleClient).toBe('15704662330-9tdr…uhmk');
+    expect(JSON.stringify(res.body)).not.toMatch(/secretisimo|a307jji91bkksne3qotb/);
+
+    process.env.GOOGLE_CLIENT_ID = 'tu_client_id_aqui';
+    res = fakeRes();
+    getHealth({}, res);
+    expect(res.body.googleClient).toBe('formato inválido (17 caracteres)');
+
+    saved.id === undefined ? delete process.env.GOOGLE_CLIENT_ID : (process.env.GOOGLE_CLIENT_ID = saved.id);
+    saved.secret === undefined ? delete process.env.GOOGLE_CLIENT_SECRET : (process.env.GOOGLE_CLIENT_SECRET = saved.secret);
   });
 });
