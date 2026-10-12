@@ -100,6 +100,30 @@ export const canAccessPatient = async (requester, patientId) => {
   return false;
 };
 
+// Acceso a UNA cita (leerla, modificarla, cancelarla, descargar su .ics):
+//   admin        → todas
+//   patient      → solo las suyas
+//   professional → las suyas (es el profesional de la cita) o las de un paciente que le pertenece
+//                  (asignado o del pool sin profesional). Nunca la cita de un paciente ajeno.
+// Acepta la cita con `patient`/`professional` crudos o ya poblados.
+export const canAccessAppointment = async (requester, appointment) => {
+  if (!requester || !appointment) return false;
+  if (requester.role === 'admin') return true;
+
+  const idOf = (value) => (value ? (value._id || value).toString() : null);
+
+  if (requester.role === 'patient') {
+    return idOf(appointment.patient) === requester._id.toString();
+  }
+
+  if (requester.role === 'professional') {
+    if (idOf(appointment.professional) === requester._id.toString()) return true;
+    return canAccessPatient(requester, appointment.patient);
+  }
+
+  return false;
+};
+
 // Versión middleware: lee el id del paciente desde los params (o el body) de la ruta
 export const authorizePatientAccess = (field = 'patientId') => {
   return async (req, res, next) => {

@@ -147,11 +147,13 @@ describe('POST /appointments — motor de descuento cableado', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
 
+    // Consulta que se puede esperar directo o encadenar con .select() (la pertenencia del personal la usa)
+    const query = (value) => ({ select: () => query(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
     vi.spyOn(User, 'findById').mockImplementation((id) => {
       const idStr = id.toString();
-      if (idStr === PATIENT_ID.toString()) return Promise.resolve({ _id: PATIENT_ID, role: 'patient', isActive: true });
-      if (idStr === PROFESSIONAL_ID.toString()) return Promise.resolve({ _id: PROFESSIONAL_ID, role: 'professional' });
-      return Promise.resolve(null);
+      if (idStr === PATIENT_ID.toString()) return query({ _id: PATIENT_ID, role: 'patient', isActive: true });
+      if (idStr === PROFESSIONAL_ID.toString()) return query({ _id: PROFESSIONAL_ID, role: 'professional' });
+      return query(null);
     });
 
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0); // cupo de horario nunca lleno
@@ -274,7 +276,7 @@ describe('PUT /appointments/:id — updateAppointment bloquea cancelar por esta 
       save: saveSpy
     });
 
-    const req = { params: { id: nuevoId().toString() }, body: { status: 'cancelled' } };
+    const req = { user: { _id: nuevoId(), role: 'admin' }, params: { id: nuevoId().toString() }, body: { status: 'cancelled' } };
     const res = fakeRes();
 
     await updateAppointment(req, res);
@@ -296,7 +298,7 @@ describe('PUT /appointments/:id — updateAppointment bloquea cancelar por esta 
     };
     vi.spyOn(Appointment, 'findById').mockResolvedValue(appointmentDoc);
 
-    const req = { params: { id: nuevoId().toString() }, body: { status: 'completed' } };
+    const req = { user: { _id: nuevoId(), role: 'admin' }, params: { id: nuevoId().toString() }, body: { status: 'completed' } };
     const res = fakeRes();
 
     await updateAppointment(req, res);
@@ -363,11 +365,13 @@ describe('POST /appointments — sobrecupo (solo admin)', () => {
 
   const setup = (overlapping) => {
     vi.restoreAllMocks();
+    // Consulta que se puede esperar directo o encadenar con .select() (la pertenencia del personal la usa)
+    const query = (value) => ({ select: () => query(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
     vi.spyOn(User, 'findById').mockImplementation((id) => {
       const idStr = id.toString();
-      if (idStr === PATIENT_ID.toString()) return Promise.resolve({ _id: PATIENT_ID, role: 'patient', isActive: true });
-      if (idStr === PROFESSIONAL_ID.toString()) return Promise.resolve({ _id: PROFESSIONAL_ID, role: 'professional' });
-      return Promise.resolve(null);
+      if (idStr === PATIENT_ID.toString()) return query({ _id: PATIENT_ID, role: 'patient', isActive: true });
+      if (idStr === PROFESSIONAL_ID.toString()) return query({ _id: PROFESSIONAL_ID, role: 'professional' });
+      return query(null);
     });
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
@@ -440,11 +444,13 @@ describe('POST /appointments — renovación pendiente de pago (plazo del 5)', (
 
   const setup = (planOverrides) => {
     vi.restoreAllMocks();
+    // Consulta que se puede esperar directo o encadenar con .select() (la pertenencia del personal la usa)
+    const query = (value) => ({ select: () => query(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
     vi.spyOn(User, 'findById').mockImplementation((id) => {
       const idStr = id.toString();
-      if (idStr === PATIENT_ID.toString()) return Promise.resolve({ _id: PATIENT_ID, role: 'patient', isActive: true });
-      if (idStr === PROFESSIONAL_ID.toString()) return Promise.resolve({ _id: PROFESSIONAL_ID, role: 'professional' });
-      return Promise.resolve(null);
+      if (idStr === PATIENT_ID.toString()) return query({ _id: PATIENT_ID, role: 'patient', isActive: true });
+      if (idStr === PROFESSIONAL_ID.toString()) return query({ _id: PROFESSIONAL_ID, role: 'professional' });
+      return query(null);
     });
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 4, ...planOverrides });
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
