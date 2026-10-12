@@ -25,3 +25,9 @@ export const activeStatusMeta: Record<'active' | 'inactive', StatusMeta> = {
   active: { label: 'Activo', tone: 'success' },
   inactive: { label: 'Inactivo', tone: 'danger' },
 };
+
+export const appointmentTypeLabels: Record<Appointment['type'], string> = {
+  kinesiologia: 'Kinesiología',
+  entrenamiento: 'Entrenamiento',
+  evaluacion: 'Evaluación',
+};

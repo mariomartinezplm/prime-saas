@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Loader2, CalendarCheck2 } from 'lucide-react';
 
 const Settings = () => {
@@ -34,7 +34,7 @@ const Settings = () => {
       const authUrl = await googleCalendarService.getAuthUrl();
       window.location.href = authUrl;
     } catch {
-      toast.error('Error al iniciar la conexión con Google Calendar');
+      notify.error('Error al iniciar la conexión con Google Calendar');
       setGcalLoading(false);
     }
   };
@@ -44,9 +44,9 @@ const Settings = () => {
     try {
       await googleCalendarService.disconnect();
       setGcalConnected(false);
-      toast.success('Google Calendar desconectado');
+      notify.success('Google Calendar desconectado');
     } catch {
-      toast.error('Error al desconectar Google Calendar');
+      notify.error('Error al desconectar Google Calendar');
     } finally {
       setGcalLoading(false);
     }
@@ -56,25 +56,25 @@ const Settings = () => {
     e.preventDefault();
 
     if (newPassword !== confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
+      notify.error('Las contraseñas no coinciden');
       return;
     }
 
     if (newPassword.length < 8) {
-      toast.error('La contraseña debe tener al menos 8 caracteres');
+      notify.error('La contraseña debe tener al menos 8 caracteres');
       return;
     }
 
     setIsLoading(true);
     try {
       await authService.changePassword(currentPassword, newPassword);
-      toast.success('Contraseña actualizada exitosamente');
+      notify.success('Contraseña actualizada exitosamente');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al cambiar contraseña');
+      notify.error(error.response?.data?.message || 'Error al cambiar contraseña');
     } finally {
       setIsLoading(false);
     }

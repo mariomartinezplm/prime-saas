@@ -17,7 +17,7 @@ import {
   type PlanTerm,
   type BillingCycle,
 } from '@/config/planCatalog';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { ArrowLeft, Loader2, Dumbbell, Stethoscope, PartyPopper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types';
@@ -77,7 +77,7 @@ const ClassifyPlans = () => {
         )
       );
     } catch {
-      toast.error('Error al cargar los pacientes');
+      notify.error('Error al cargar los pacientes');
     } finally {
       setLoading(false);
     }
@@ -129,11 +129,11 @@ const ClassifyPlans = () => {
         billingCycle: row.billingCycle,
         renews: row.renews,
       });
-      toast.success(`Plan asignado a ${patient.firstName} ${patient.lastName}`);
+      notify.success(`Plan asignado a ${patient.firstName} ${patient.lastName}`);
       setPatientsWithoutPlan((prev) => prev.filter((p) => p.id !== patient.id));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al asignar el plan');
+      notify.error(error.response?.data?.message || 'Error al asignar el plan');
       setRowState((prev) => ({ ...prev, [patient.id]: { ...prev[patient.id], submitting: false } }));
     }
   };

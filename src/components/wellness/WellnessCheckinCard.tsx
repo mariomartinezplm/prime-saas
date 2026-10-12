@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2, Sparkles, MessageCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { useAuth } from '@/contexts/AuthContext';
 import { wellnessService } from '@/services/wellnessService';
 import { showApiError } from '@/lib/apiError';
@@ -65,7 +65,7 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
       setCheckin(created);
       setStep(null);
       loadHistory();
-      toast.success('¡Listo! Gracias por contarnos cómo estás.');
+      notify.success('¡Listo! Gracias por contarnos cómo estás.');
     } catch (err: unknown) {
       showApiError(err, 'Error al registrar el check-in');
     } finally {

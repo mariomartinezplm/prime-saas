@@ -18,7 +18,7 @@ import {
 import { FileText, Image as ImageIcon, Upload, Download, Trash2, Loader2, X, MessageCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { getWhatsAppUrl } from '@/config/contact';
 import { getErrorMessage, showApiError } from '@/lib/apiError';
@@ -84,11 +84,11 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
   const pickFile = (file: File | undefined) => {
     if (!file) return;
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error('Formato no permitido. Sube un PDF, JPG o PNG');
+      notify.error('Formato no permitido. Sube un PDF, JPG o PNG');
       return;
     }
     if (file.size > MAX_SIZE_BYTES) {
-      toast.error('El archivo supera el máximo de 10 MB');
+      notify.error('El archivo supera el máximo de 10 MB');
       return;
     }
     setSelected(file);
@@ -110,7 +110,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
         fileName: name.trim() || selected.name,
         description: description.trim() || undefined,
       });
-      toast.success('Archivo subido');
+      notify.success('Archivo subido');
       resetForm();
       await load();
     } catch (err: unknown) {
@@ -131,7 +131,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
       else window.location.href = link.url;
     } catch (err: unknown) {
       tab?.close();
-      toast.error(getErrorMessage(err, 'No se pudo abrir el archivo'));
+      notify.error(getErrorMessage(err, 'No se pudo abrir el archivo'));
     } finally {
       setOpeningId(null);
     }
@@ -142,11 +142,11 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
     setDeleting(true);
     try {
       await fileService.remove(toDelete._id);
-      toast.success('Archivo eliminado');
+      notify.success('Archivo eliminado');
       setToDelete(null);
       await load();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'No se pudo eliminar el archivo'));
+      notify.error(getErrorMessage(err, 'No se pudo eliminar el archivo'));
     } finally {
       setDeleting(false);
     }

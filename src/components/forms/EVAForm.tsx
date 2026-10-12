@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import PainBodyDiagram from '@/components/body/PainBodyDiagram';
@@ -50,7 +50,7 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bodyArea && !selectedPoint) {
-      toast.error('Selecciona una zona del cuerpo o pincha en el mapa');
+      notify.error('Selecciona una zona del cuerpo o pincha en el mapa');
       return;
     }
 
@@ -68,7 +68,7 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
         point: selectedPoint || undefined,
       });
 
-      toast.success('Registro EVA creado exitosamente');
+      notify.success('Registro EVA creado exitosamente');
       setDate(todayLocal());
       setPainLevel(0);
       setBodyArea('');
@@ -80,7 +80,7 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
       onSuccess();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al registrar EVA');
+      notify.error(error.response?.data?.message || 'Error al registrar EVA');
     } finally {
       setLoading(false);
     }

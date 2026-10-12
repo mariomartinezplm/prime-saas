@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useEffect } from 'react';
@@ -49,9 +49,9 @@ const MyProfile = () => {
       });
       updateUser(updated);
       setEditing(false);
-      toast.success('Perfil actualizado');
+      notify.success('Perfil actualizado');
     } catch {
-      toast.error('Error al actualizar perfil');
+      notify.error('Error al actualizar perfil');
     } finally {
       setSaving(false);
     }

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { availabilityService } from '@/services/availabilityService';
 import { appointmentService } from '@/services/appointmentService';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import { format, addWeeks, addDays, parseISO, getDay, isBefore, addHours } from 'date-fns';
@@ -114,9 +114,9 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
         })),
       });
 
-      toast.success(`${result.created.length} citas reservadas exitosamente`);
+      notify.success(`${result.created.length} citas reservadas exitosamente`);
       if (result.skipped.length > 0) {
-        toast.warning(`${result.skipped.length} horarios no se pudieron reservar`);
+        notify.warning(`${result.skipped.length} horarios no se pudieron reservar`);
       }
       onClose();
     } catch (err: unknown) {

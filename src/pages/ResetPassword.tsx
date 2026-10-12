@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Lock, Eye, EyeOff, Loader2, ShieldAlert, MessageCircle, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
+import { notify } from '@/lib/notify';
 import logoImage from "@/assets/prime-fh-logo.png";
 import { getWhatsAppUrl } from "@/config/contact";
 
@@ -33,11 +33,11 @@ const ResetPassword = () => {
     e.preventDefault();
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      toast.error(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
+      notify.error(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
       return;
     }
     if (password !== confirmPassword) {
-      toast.error("Las contraseñas no coinciden");
+      notify.error("Las contraseñas no coinciden");
       return;
     }
 
@@ -45,13 +45,13 @@ const ResetPassword = () => {
     try {
       const response = await authService.resetPassword(token!, password);
       updateUser(response.data.user);
-      toast.success("Contraseña actualizada");
+      notify.success("Contraseña actualizada");
       navigate(response.data.user.role === "patient" ? "/app/dashboard" : "/app/admin");
     } catch (error: any) {
       if (error.response?.data?.code === "RESET_TOKEN_INVALID") {
         setTokenInvalid(true);
       } else {
-        toast.error(error.response?.data?.message || "No se pudo restablecer la contraseña. Intenta de nuevo.");
+        notify.error(error.response?.data?.message || "No se pudo restablecer la contraseña. Intenta de nuevo.");
       }
     } finally {
       setIsLoading(false);

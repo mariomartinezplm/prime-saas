@@ -8,7 +8,7 @@ import { userService } from '@/services/userService';
 import { googleCalendarService } from '@/services/googleCalendarService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import type { Appointment, User } from '@/types';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
@@ -56,7 +56,7 @@ const AdminCalendar = () => {
         const data = await appointmentService.getAll(params);
         setAppointments(data);
       } catch {
-        toast.error('Error al cargar citas');
+        notify.error('Error al cargar citas');
       } finally {
         setLoading(false);
       }
@@ -89,21 +89,21 @@ const AdminCalendar = () => {
     const professionalId = typeof apt.professional === 'object' ? apt.professional.id : apt.professional;
 
     if (professionalId !== user?.id) {
-      toast.info('Solo puedes sincronizar tus propias citas a tu Google Calendar');
+      notify.info('Solo puedes sincronizar tus propias citas a tu Google Calendar');
       return;
     }
 
     try {
       await googleCalendarService.sync(apt._id);
-      toast.success('Cita sincronizada con Google Calendar');
+      notify.success('Cita sincronizada con Google Calendar');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { code?: string; message?: string } } };
       if (error.response?.data?.code === 'NOT_CONNECTED') {
-        toast.error('Primero conecta tu Google Calendar en Configuración', {
+        notify.error('Primero conecta tu Google Calendar en Configuración', {
           action: { label: 'Ir a Configuración', onClick: () => (window.location.href = '/app/configuracion') },
         });
       } else {
-        toast.error(error.response?.data?.message || 'Error al sincronizar con Google Calendar');
+        notify.error(error.response?.data?.message || 'Error al sincronizar con Google Calendar');
       }
     }
   };

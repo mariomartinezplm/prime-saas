@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
@@ -91,10 +91,10 @@ const MeasurementForm = ({ patientId, onSuccess, embedded = false, record }: Mea
 
       if (record) {
         await api.put(`/measurements/${record._id}`, payload);
-        toast.success('Medición actualizada');
+        notify.success('Medición actualizada');
       } else {
         await api.post('/measurements', { patient: patientId, ...payload });
-        toast.success('Medición registrada exitosamente');
+        notify.success('Medición registrada exitosamente');
         setForm(emptyForm());
       }
       onSuccess();

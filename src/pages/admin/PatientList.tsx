@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, UserPlus, ChevronRight, RefreshCw, Plus, Loader2, Download } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { SERVICE_TYPE_LABELS, formatPlanRemaining, formatPaymentDeadline, type ServiceType } from '@/config/planCatalog';
 import type { User, SessionBalance } from '@/types';
@@ -72,7 +72,7 @@ const PatientList = () => {
       }
     } catch (error) {
       console.error('Error fetching patients:', error);
-      toast.error('Error al cargar la lista de pacientes');
+      notify.error('Error al cargar la lista de pacientes');
     } finally {
       setLoading(false);
     }
@@ -88,7 +88,7 @@ const PatientList = () => {
     try {
       await userService.exportCSV();
     } catch {
-      toast.error('Error al exportar el CSV');
+      notify.error('Error al exportar el CSV');
     } finally {
       setExporting(false);
     }
@@ -120,13 +120,13 @@ const PatientList = () => {
         serviceType: extraServiceType,
         reason: extraReason || undefined,
       });
-      toast.success('Sesión extra otorgada exitosamente');
+      notify.success('Sesión extra otorgada exitosamente');
       setExtraDialogOpen(false);
       resetExtraDialog();
       await fetchPatients();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al otorgar la sesión extra');
+      notify.error(error.response?.data?.message || 'Error al otorgar la sesión extra');
     } finally {
       setSubmittingExtra(false);
     }

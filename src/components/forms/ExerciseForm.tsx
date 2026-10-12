@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
@@ -67,7 +67,7 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: Exerci
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.exerciseName.trim()) {
-      toast.error('El nombre del ejercicio es requerido');
+      notify.error('El nombre del ejercicio es requerido');
       return;
     }
 
@@ -88,10 +88,10 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: Exerci
 
       if (record) {
         await api.put(`/exercises/${record._id}`, payload);
-        toast.success('Ejercicio actualizado');
+        notify.success('Ejercicio actualizado');
       } else {
         await api.post('/exercises', { patient: patientId, ...payload });
-        toast.success('Ejercicio registrado exitosamente');
+        notify.success('Ejercicio registrado exitosamente');
         setForm(emptyForm());
       }
       onSuccess();

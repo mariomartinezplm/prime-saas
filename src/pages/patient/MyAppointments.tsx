@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { format, parseISO, isBefore, addHours } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { X, Loader2, CalendarPlus } from 'lucide-react';
@@ -50,7 +50,7 @@ const MyAppointments = () => {
       const data = await appointmentService.getAll();
       setAppointments(data);
     } catch {
-      toast.error('Error al cargar citas');
+      notify.error('Error al cargar citas');
     } finally {
       setLoading(false);
     }
@@ -76,14 +76,14 @@ const MyAppointments = () => {
     setCancelling(true);
     try {
       await appointmentService.cancel(cancellingId, cancelReason);
-      toast.success('Cita cancelada');
+      notify.success('Cita cancelada');
       setCancelDialogOpen(false);
       setCancelReason('');
       setCancellingId(null);
       fetchAppointments();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al cancelar');
+      notify.error(error.response?.data?.message || 'Error al cancelar');
     } finally {
       setCancelling(false);
     }

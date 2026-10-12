@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { getErrorMessage } from '@/lib/apiError';
 import type { AirtableImportResult } from '@/types';
 
@@ -47,18 +47,18 @@ const AirtableImportDialog = ({ open, onOpenChange, onImported }: AirtableImport
     setImporting(true);
     try {
       const result = await userService.syncAirtable(false);
-      toast.success(
+      notify.success(
         result.created > 0
           ? `Se importaron ${result.created} pacientes. Quedan sin acceso hasta que les envíes la invitación.`
           : 'No había pacientes nuevos para importar.'
       );
       if (result.failed > 0) {
-        toast.error(`${result.failed} registros no se pudieron importar. Revisa sus datos en Airtable.`);
+        notify.error(`${result.failed} registros no se pudieron importar. Revisa sus datos en Airtable.`);
       }
       onImported();
       onOpenChange(false);
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'No se pudo importar desde Airtable'));
+      notify.error(getErrorMessage(err, 'No se pudo importar desde Airtable'));
     } finally {
       setImporting(false);
     }

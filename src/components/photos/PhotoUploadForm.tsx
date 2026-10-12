@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Loader2, Lock, Users } from 'lucide-react';
 import { POSITIONS, POSITION_LABELS } from './photoLabels';
 import type { PhotoPosition, PhotoVisibility } from '@/types';
@@ -52,7 +52,7 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prepared) {
-      toast.error(fileError ?? 'Elige una foto');
+      notify.error(fileError ?? 'Elige una foto');
       return;
     }
     setLoading(true);
@@ -63,7 +63,7 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
         note: note.trim() || undefined,
         visibility: isPatient ? visibility : undefined,
       });
-      toast.success('Foto subida');
+      notify.success('Foto subida');
       onSuccess();
     } catch (err: unknown) {
       showApiError(err, 'No se pudo subir la foto');

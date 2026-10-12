@@ -11,7 +11,7 @@ import BookingConfirmation from '@/components/booking/BookingConfirmation';
 import BulkBookingDialog from '@/components/booking/BulkBookingDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import { CalendarPlus, AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays, Repeat, Calendar as CalendarIcon } from 'lucide-react';
 import { format, addHours, isBefore, parseISO } from 'date-fns';
@@ -73,7 +73,7 @@ const BookAppointment = () => {
           setBalance(bal);
         }
       } catch {
-        toast.error('Error al cargar datos');
+        notify.error('Error al cargar datos');
       } finally {
         setLoading(false);
       }
@@ -116,7 +116,7 @@ const BookAppointment = () => {
         type: getSessionType(),
       });
 
-      toast.success('Cita reservada exitosamente', {
+      notify.success('Cita reservada exitosamente', {
         action: {
           label: 'Agregar a mi calendario',
           onClick: () => appointmentService.downloadICS(newAppointment._id),
@@ -393,7 +393,7 @@ const BookAppointment = () => {
                       selectedSlot={selectedSlot}
                       onSelect={(slot) => {
                         if (planInfo && !planInfo.canBook) {
-                          toast.error(planInfo.blockMessage || 'No puedes agendar en este momento');
+                          notify.error(planInfo.blockMessage || 'No puedes agendar en este momento');
                           return;
                         }
                         setSelectedSlot(slot);

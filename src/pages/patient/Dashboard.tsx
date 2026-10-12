@@ -1,189 +1,214 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { clientPlanService } from '@/services/clientPlanService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
+import { capitalizeFirst } from '@/lib/utils';
 import { getWhatsAppUrl } from '@/config/contact';
 import WellnessCheckinCard from '@/components/wellness/WellnessCheckinCard';
-import { CalendarPlus, Clock, Activity, Ruler, FileText, MessageCircle } from 'lucide-react';
-import { format, parseISO, differenceInCalendarDays } from 'date-fns';
-import { es } from 'date-fns/locale';
-import type { Appointment, SessionBalance } from '@/types';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
+import {
+  Activity,
+  CalendarCheck,
+  CalendarClock,
+  CalendarPlus,
+  FileText,
+  MessageCircle,
+  Ruler,
+  TriangleAlert,
+} from 'lucide-react';
+import { differenceInCalendarDays, format, isToday, isTomorrow, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import type { Appointment, SessionBalance } from '@/types';
+
+const dayOf = (apt: Appointment) => apt.date.slice(0, 10);
+// Hora de inicio en la hora local del dispositivo (la de quien reserva)
+const startsAt = (apt: Appointment) => new Date(`${dayOf(apt)}T${apt.startTime}:00`);
+
+const dayLabel = (day: string) => {
+  const date = parseISO(day);
+  if (isToday(date)) return 'Hoy';
+  if (isTomorrow(date)) return 'Mañana';
+  return capitalizeFirst(format(date, "EEEE d 'de' MMMM", { locale: es }));
+};
 
 const PatientDashboard = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null);
+  const [upcoming, setUpcoming] = useState<Appointment[] | null>(null);
   const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-      try {
-        const [upcoming, sessionBalance] = await Promise.all([
-          appointmentService.getUpcoming(),
-          clientPlanService.getBalance(user.id),
-        ]);
-        setNextAppointment(upcoming[0] || null);
-        setBalance(sessionBalance);
-      } catch {
-        // Silently handle errors
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const load = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const [apts, bal] = await Promise.allSettled([
+      appointmentService.getUpcoming(),
+      clientPlanService.getBalance(user.id),
+    ]);
+    setUpcoming(apts.status === 'fulfilled' ? apts.value : null);
+    setBalance(bal.status === 'fulfilled' ? bal.value : null);
+    setLoading(false);
   }, [user]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
 
+  if (loading) return <LoadingState label="Cargando tu espacio…" />;
+
+  // "Próxima sesión" no debe ser una de hoy que ya empezó
+  const now = new Date();
+  const nextAppointment = upcoming?.find((apt) => startsAt(apt) > now) ?? null;
   const plan = balance?.plan;
-  const daysLeft = plan ? differenceInCalendarDays(parseISO(plan.endDate), new Date()) : null;
-  const sessionsPct = plan && !plan.unlimited && plan.sessionsTotal > 0
-    ? Math.min(100, Math.round((plan.sessionsUsed / plan.sessionsTotal) * 100))
-    : 0;
+  const daysLeft = plan ? differenceInCalendarDays(parseISO(plan.endDate), now) : null;
+  const sessionsPct =
+    plan && !plan.unlimited && plan.sessionsTotal > 0
+      ? Math.min(100, Math.round((plan.sessionsUsed / plan.sessionsTotal) * 100))
+      : 0;
+  const failed = upcoming === null || balance === null;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
-          Hola, {user?.firstName}
-          {user?.isFounder && <FounderBadge />}
-        </h1>
-        <p className="text-muted-foreground">Bienvenido a tu espacio Prime F&H</p>
-      </div>
+      <PageHeader
+        title={`Hola, ${user?.firstName ?? ''}`}
+        badges={user?.isFounder ? <FounderBadge /> : undefined}
+        description="Bienvenido a tu espacio Prime F&H"
+      />
 
-      {balance?.paymentPending && balance.paymentDueBy && (
-        <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar algunos datos.</span>
+            <Button variant="outline" size="sm" onClick={load}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
 
-      {/* Check-in de bienestar — destacado, arriba de todo */}
+      {balance?.paymentPending && balance.paymentDueBy && <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />}
+
+      {/* Check-in de bienestar: lo primero que se hace cada día */}
       <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} />
 
-      {/* Plan destacado */}
-      <Card className={!balance?.hasActivePlan ? 'border-destructive/50' : undefined}>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-base font-semibold">Mi Plan</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {balance?.hasActivePlan && plan ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-lg font-bold">{SERVICE_TYPE_LABELS[plan.serviceType]}</p>
-                <span className="text-sm text-muted-foreground">
-                  {daysLeft !== null && daysLeft >= 0 ? `${daysLeft} día(s) restante(s)` : 'vence hoy'}
-                </span>
-              </div>
-              <div className="space-y-1">
-                <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${sessionsPct}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formatPlanUsage(plan)}
-                </p>
-              </div>
-              {balance.extraSessionsAvailable > 0 && (
-                <p className="text-xs text-secondary">
-                  +{balance.extraSessionsAvailable} sesión(es) extra disponible(s)
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-destructive font-medium">
-                Tu plan venció. Contacta a Prime F&H para renovar
-              </p>
-              <Button
-                className="bg-[#25D366] hover:bg-[#20BD5C] text-background"
-                size="sm"
-                onClick={() => window.open(getWhatsAppUrl('Hola, quiero renovar mi plan en Prime F&H'), '_blank')}
-              >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Renovar por WhatsApp
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Next appointment */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Próxima Sesión</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Próxima sesión</CardTitle>
+            <CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            {nextAppointment ? (
-              <div>
-                <p className="text-lg font-bold">
-                  {format(parseISO(nextAppointment.date), "d 'de' MMMM", { locale: es })}
+            {upcoming === null ? (
+              <p className="text-sm text-muted-foreground">No se pudo cargar tu próxima sesión.</p>
+            ) : nextAppointment ? (
+              <div className="space-y-1">
+                <p className="text-xl font-semibold">{dayLabel(dayOf(nextAppointment))}</p>
+                <p className="text-sm tabular-nums">
+                  {nextAppointment.startTime} – {nextAppointment.endTime}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {nextAppointment.startTime} - {nextAppointment.endTime}
-                </p>
-                <p className="text-sm text-secondary mt-1 capitalize">
-                  {nextAppointment.type}
-                </p>
+                <p className="text-sm text-secondary">{appointmentTypeLabels[nextAppointment.type]}</p>
+                <Button asChild variant="link" size="sm" className="mt-1 h-auto p-0">
+                  <Link to="/app/mis-citas">Ver mis citas</Link>
+                </Button>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No tienes citas programadas</p>
+              <EmptyState
+                icon={CalendarPlus}
+                title="No tienes citas programadas"
+                className="border-0 px-0 py-4"
+                action={
+                  <Button asChild size="sm">
+                    <Link to="/app/reservar">Reservar hora</Link>
+                  </Button>
+                }
+              />
             )}
           </CardContent>
         </Card>
 
-        {/* Quick actions */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Acciones rápidas</CardTitle>
+        <Card className={balance && !balance.hasActivePlan ? 'border-destructive/50' : undefined}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Mi plan</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start"
-              onClick={() => navigate('/app/reservar')}
-            >
-              <CalendarPlus className="h-4 w-4 mr-2" />
-              Reservar hora
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start"
-              onClick={() => navigate('/app/mediciones')}
-            >
-              <Ruler className="h-4 w-4 mr-2" />
-              Ver mediciones
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start"
-              onClick={() => navigate('/app/dolor')}
-            >
-              <Activity className="h-4 w-4 mr-2" />
-              Registros de dolor
-            </Button>
+          <CardContent>
+            {balance === null ? (
+              <p className="text-sm text-muted-foreground">No se pudo cargar tu plan.</p>
+            ) : balance.hasActivePlan && plan ? (
+              <div className="space-y-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-xl font-semibold">{SERVICE_TYPE_LABELS[plan.serviceType]}</p>
+                  <span className="text-sm text-muted-foreground">
+                    {daysLeft !== null && daysLeft >= 0 ? `${daysLeft} día(s) restante(s)` : 'vence hoy'}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {!plan.unlimited && <Progress value={sessionsPct} aria-label="Sesiones usadas del plan" className="h-2.5" />}
+                  <p className="text-xs text-muted-foreground">{formatPlanUsage(plan)}</p>
+                </div>
+                {balance.extraSessionsAvailable > 0 && (
+                  <p className="text-xs text-secondary">+{balance.extraSessionsAvailable} sesión(es) extra disponible(s)</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-destructive">Tu plan venció. Contacta a Prime F&H para renovar</p>
+                <Button
+                  className="bg-[#25D366] text-background hover:bg-[#20BD5C]"
+                  size="sm"
+                  onClick={() => window.open(getWhatsAppUrl('Hola, quiero renovar mi plan en Prime F&H'), '_blank')}
+                >
+                  <MessageCircle aria-hidden="true" />
+                  Renovar por WhatsApp
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Accesos rápidos</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <Button asChild>
+            <Link to="/app/reservar">
+              <CalendarPlus aria-hidden="true" />
+              Reservar hora
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/app/mis-citas">
+              <CalendarCheck aria-hidden="true" />
+              Mis citas
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/app/mediciones">
+              <Ruler aria-hidden="true" />
+              Mediciones
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/app/dolor">
+              <Activity aria-hidden="true" />
+              Dolor (EVA)
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

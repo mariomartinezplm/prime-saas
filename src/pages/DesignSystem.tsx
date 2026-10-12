@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AlertCircle, CalendarPlus, CheckCircle2, Info, TriangleAlert, Users } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { useAppDarkTheme } from '@/hooks/useAppDarkTheme';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -187,10 +187,10 @@ const DesignSystem = () => {
           </Tabs>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={() => setConfirmOpen(true)}>Abrir confirmación</Button>
-            <Button variant="outline" onClick={() => toast.success('Cambios guardados')}>Aviso éxito</Button>
-            <Button variant="outline" onClick={() => toast.error('No se pudo guardar')}>Aviso error</Button>
-            <Button variant="outline" onClick={() => toast.warning('Plan por vencer')}>Aviso atención</Button>
-            <Button variant="outline" onClick={() => toast.info('Nueva versión disponible')}>Aviso info</Button>
+            <Button variant="outline" onClick={() => notify.success('Cambios guardados')}>Aviso éxito</Button>
+            <Button variant="outline" onClick={() => notify.error('No se pudo guardar')}>Aviso error</Button>
+            <Button variant="outline" onClick={() => notify.warning('Plan por vencer')}>Aviso atención</Button>
+            <Button variant="outline" onClick={() => notify.info('Nueva versión disponible')}>Aviso info</Button>
           </div>
           <ConfirmDialog
             open={confirmOpen}

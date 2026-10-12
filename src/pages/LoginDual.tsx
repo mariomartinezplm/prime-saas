@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Mail, Lock, User, Eye, EyeOff, UserCircle, Briefcase, Loader2 } from "lucide-react";
 import logoImage from "@/assets/prime-fh-logo.png";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
+import { notify } from '@/lib/notify';
 
 const LoginDual = () => {
     const navigate = useNavigate();
@@ -49,7 +49,7 @@ const LoginDual = () => {
             if (type === 'patient' && loginMethod === "rut") {
                 const rutPattern = /^\d{7,8}-[\dkK]$/;
                 if (!rutPattern.test(patientIdentifier)) {
-                    toast.error("RUT inválido. Formato: 12345678-9 (sin puntos, con guión)");
+                    notify.error("RUT inválido. Formato: 12345678-9 (sin puntos, con guión)");
                     setIsLoading(false);
                     return;
                 }
@@ -57,7 +57,7 @@ const LoginDual = () => {
 
             const loggedUser = await login({ identifier, password });
 
-            toast.success("Bienvenido a Prime F&H");
+            notify.success("Bienvenido a Prime F&H");
 
             // SEGURIDAD (Paso 10 de BLUEPRINT.md): el redirect se decide por el
             // rol que de verdad devolvió el backend, no por la pestaña que se
@@ -66,7 +66,7 @@ const LoginDual = () => {
             navigate(loggedUser.role === 'patient' ? "/app/dashboard" : "/app/admin");
         } catch (error: any) {
             console.error(error);
-            toast.error(error.response?.data?.message || "Error al iniciar sesión. Verifica tus credenciales.");
+            notify.error(error.response?.data?.message || "Error al iniciar sesión. Verifica tus credenciales.");
         } finally {
             setIsLoading(false);
         }

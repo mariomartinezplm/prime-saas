@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -125,9 +125,9 @@ const AdminAvailability = () => {
     setSaving(true);
     try {
       await availabilityService.updateSchedule(selectedProfessional, schedule);
-      toast.success('Horario guardado exitosamente');
+      notify.success('Horario guardado exitosamente');
     } catch {
-      toast.error('Error al guardar horario');
+      notify.error('Error al guardar horario');
     } finally {
       setSaving(false);
     }
@@ -142,11 +142,11 @@ const AdminAvailability = () => {
         reason: blockReason,
       });
       setAvailability(result);
-      toast.success('Fecha bloqueada');
+      notify.success('Fecha bloqueada');
       setBlockDate('');
       setBlockReason('');
     } catch {
-      toast.error('Error al bloquear fecha');
+      notify.error('Error al bloquear fecha');
     }
   };
 
@@ -155,9 +155,9 @@ const AdminAvailability = () => {
     try {
       const result = await availabilityService.unblockDate(selectedProfessional, blockId);
       setAvailability(result);
-      toast.success('Bloqueo eliminado');
+      notify.success('Bloqueo eliminado');
     } catch {
-      toast.error('Error al eliminar bloqueo');
+      notify.error('Error al eliminar bloqueo');
     }
   };
 

@@ -168,14 +168,8 @@ const App = () => (
                   </RoleRoute>
                 }
               />
-              <Route
-                path="admin/citas"
-                element={
-                  <RoleRoute roles={['admin', 'professional']}>
-                    <AdminCalendar />
-                  </RoleRoute>
-                }
-              />
+              {/* "Citas" y "Calendario" eran la misma pantalla: la URL antigua redirige al calendario */}
+              <Route path="admin/citas" element={<Navigate to="/app/admin/calendario" replace />} />
               <Route
                 path="admin/planes"
                 element={

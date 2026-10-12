@@ -41,7 +41,7 @@ import {
   type PlanTerm,
   type BillingCycle,
 } from '@/config/planCatalog';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Loader2, Search, Plus, X, Dumbbell, Stethoscope, ClipboardList, Clock } from 'lucide-react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -107,7 +107,7 @@ const Plans = () => {
       const data = await clientPlanService.getAll();
       setClientPlans(data);
     } catch {
-      toast.error('Error al cargar los planes');
+      notify.error('Error al cargar los planes');
     }
   };
 
@@ -122,7 +122,7 @@ const Plans = () => {
         setClientPlans(plans);
         setPatients(patientsData);
       } catch {
-        toast.error('Error al cargar los datos');
+        notify.error('Error al cargar los datos');
       } finally {
         setLoading(false);
       }
@@ -190,7 +190,7 @@ const Plans = () => {
         renews,
         replaceExisting,
       });
-      toast.success('Plan registrado exitosamente');
+      notify.success('Plan registrado exitosamente');
       setConflictPlan(null);
       setDialogOpen(false);
       resetDialog();
@@ -200,7 +200,7 @@ const Plans = () => {
       if (error.response?.status === 409 && error.response.data?.data?.existingPlan) {
         setConflictPlan(error.response.data.data.existingPlan);
       } else {
-        toast.error(error.response?.data?.message || 'Error al registrar el plan');
+        notify.error(error.response?.data?.message || 'Error al registrar el plan');
       }
     } finally {
       setSubmitting(false);

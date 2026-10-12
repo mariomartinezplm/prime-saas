@@ -12,6 +12,12 @@ const AppLayout = () => {
 
   return (
     <>
+      <a
+        href="#contenido"
+        className="sr-only z-[110] rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Saltar al contenido
+      </a>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset className="min-w-0">
@@ -19,7 +25,7 @@ const AppLayout = () => {
             <SidebarTrigger className="-ml-2" />
             <NotificationBell />
           </header>
-          <main className="flex-1 overflow-auto p-6">
+          <main id="contenido" tabIndex={-1} className="flex-1 overflow-auto p-6 focus:outline-none">
             <ErrorBoundary resetKey={location.pathname}>
               <Outlet />
             </ErrorBoundary>

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { availabilityService } from '@/services/availabilityService';
 import { appointmentService } from '@/services/appointmentService';
 import { showApiError } from '@/lib/apiError';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Loader2, TriangleAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -72,7 +72,7 @@ const AdminBookingDialog = ({
       .then(setSlots)
       .catch(() => {
         setSlots(null);
-        toast.error('No se pudieron cargar los horarios');
+        notify.error('No se pudieron cargar los horarios');
       })
       .finally(() => setLoadingSlots(false));
   }, [date, professionalId, patientId]);
@@ -98,7 +98,7 @@ const AdminBookingDialog = ({
         type,
         allowOverbook: selectedIsFull,
       });
-      toast.success(selectedIsFull ? 'Cita agendada como sobrecupo' : 'Cita agendada');
+      notify.success(selectedIsFull ? 'Cita agendada como sobrecupo' : 'Cita agendada');
       onBooked();
       onClose();
     } catch (err: unknown) {

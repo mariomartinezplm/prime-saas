@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Pencil } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { differenceInYears, parseISO } from 'date-fns';
 import type { MedicalInfo } from '@/types';
 
@@ -37,10 +37,10 @@ const ClinicalBaselineFields = ({ medicalInfo, dateOfBirth, onSave }: ClinicalBa
         baseWeightKg: baseWeightKg ? Number(baseWeightKg) : undefined,
         smoker,
       });
-      toast.success('Datos actualizados');
+      notify.success('Datos actualizados');
       setEditing(false);
     } catch {
-      toast.error('Error al guardar los datos');
+      notify.error('Error al guardar los datos');
     } finally {
       setSaving(false);
     }

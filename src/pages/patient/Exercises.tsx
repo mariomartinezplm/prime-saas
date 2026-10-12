@@ -13,7 +13,7 @@ import RecordRowActions from '@/components/records/RecordRowActions';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import type { ExerciseProgress } from '@/types';
 
 const ExercisesEnhanced = () => {
@@ -43,7 +43,7 @@ const ExercisesEnhanced = () => {
   const handleDelete = async (ex: ExerciseProgress) => {
     try {
       await api.delete(`/exercises/${ex._id}`);
-      toast.success('Ejercicio eliminado');
+      notify.success('Ejercicio eliminado');
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar el ejercicio');

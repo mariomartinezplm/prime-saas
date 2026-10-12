@@ -22,7 +22,7 @@ import {
 import { ArrowLeft, Calendar, Ruler, Dumbbell, Activity, FileText, Send, Loader2, Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
@@ -98,9 +98,9 @@ const PatientDetail = () => {
     setIsResending(true);
     try {
       await userService.resendInvite(id!);
-      toast.success('Invitación reenviada');
+      notify.success('Invitación reenviada');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'No se pudo reenviar la invitación');
+      notify.error(error.response?.data?.message || 'No se pudo reenviar la invitación');
     } finally {
       setIsResending(false);
     }

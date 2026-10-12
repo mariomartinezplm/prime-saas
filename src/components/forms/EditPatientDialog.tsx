@@ -15,7 +15,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import type { User } from '@/types';
 
 interface EditPatientDialogProps {
@@ -73,14 +73,14 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
     if (!open || !canAssign || staff.length > 0) return;
     Promise.all([userService.getAll({ role: 'admin' }), userService.getAll({ role: 'professional' })])
       .then(([admins, professionals]) => setStaff([...admins.users, ...professionals.users].filter((s) => s.isActive)))
-      .catch(() => toast.error('No se pudo cargar la lista de profesionales'));
+      .catch(() => notify.error('No se pudo cargar la lista de profesionales'));
   }, [open, canAssign, staff.length]);
 
   const set = (field: keyof typeof form, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSave = async () => {
     if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
-      toast.error('Nombre, apellido y correo son obligatorios');
+      notify.error('Nombre, apellido y correo son obligatorios');
       return;
     }
     setSaving(true);
@@ -118,12 +118,12 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
             }
           : {}),
       });
-      toast.success('Datos del paciente actualizados');
+      notify.success('Datos del paciente actualizados');
       onSaved(updated);
       onOpenChange(false);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'No se pudieron guardar los cambios');
+      notify.error(error.response?.data?.message || 'No se pudieron guardar los cambios');
     } finally {
       setSaving(false);
     }

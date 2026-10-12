@@ -23,7 +23,7 @@ import RecordRowActions from '@/components/records/RecordRowActions';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import type { Measurement } from '@/types';
 
 const MeasurementsEnhanced = () => {
@@ -49,7 +49,7 @@ const MeasurementsEnhanced = () => {
   const handleDelete = async (m: Measurement) => {
     try {
       await api.delete(`/measurements/${m._id}`);
-      toast.success('Medición eliminada');
+      notify.success('Medición eliminada');
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar la medición');

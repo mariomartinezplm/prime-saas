@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import SessionsSelect from '@/components/plans/SessionsSelect';
 import PlanTermFields from '@/components/plans/PlanTermFields';
 import { SERVICE_TYPE_LABELS, DEFAULT_CHOICE, choiceToPayload, type ServiceType, type SessionsChoice, type PlanTerm, type BillingCycle } from '@/config/planCatalog';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Loader2, Dumbbell, Stethoscope, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
@@ -73,7 +73,7 @@ const RegisterPatient = () => {
       });
 
       if (planInicial === 'despues') {
-        toast.success('Paciente registrado. Le llegará un correo para crear su contraseña.');
+        notify.success('Paciente registrado. Le llegará un correo para crear su contraseña.');
       } else {
         try {
           await clientPlanService.create({
@@ -84,16 +84,16 @@ const RegisterPatient = () => {
             billingCycle,
             renews,
           });
-          toast.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
+          notify.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
         } catch {
-          toast.warning('Paciente registrado, pero no se pudo asignar el plan inicial. Puedes asignarlo después desde Planes.');
+          notify.warning('Paciente registrado, pero no se pudo asignar el plan inicial. Puedes asignarlo después desde Planes.');
         }
       }
 
       navigate('/app/admin/pacientes');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al registrar paciente');
+      notify.error(error.response?.data?.message || 'Error al registrar paciente');
     } finally {
       setLoading(false);
     }

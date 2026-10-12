@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Lock, Eye, EyeOff, Loader2, ShieldAlert, MessageCircle, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
+import { notify } from '@/lib/notify';
 import logoImage from "@/assets/prime-fh-logo.png";
 import { getWhatsAppUrl } from "@/config/contact";
 
@@ -33,11 +33,11 @@ const AcceptInvite = () => {
     e.preventDefault();
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      toast.error(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
+      notify.error(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
       return;
     }
     if (password !== confirmPassword) {
-      toast.error("Las contraseñas no coinciden");
+      notify.error("Las contraseñas no coinciden");
       return;
     }
 
@@ -45,7 +45,7 @@ const AcceptInvite = () => {
     try {
       const response = await authService.acceptInvite(token!, password);
       updateUser(response.data.user);
-      toast.success("Cuenta activada. ¡Bienvenido a Prime F&H!");
+      notify.success("Cuenta activada. ¡Bienvenido a Prime F&H!");
       // El redirect se decide por el rol real, mismo criterio que LoginDual.tsx
       navigate(response.data.user.role === "patient" ? "/app/dashboard" : "/app/admin");
     } catch (error: any) {
@@ -56,7 +56,7 @@ const AcceptInvite = () => {
       if (error.response?.data?.code === "INVITE_EXPIRED") {
         setInviteInvalid(true);
       } else {
-        toast.error(error.response?.data?.message || "No se pudo activar la cuenta. Intenta de nuevo.");
+        notify.error(error.response?.data?.message || "No se pudo activar la cuenta. Intenta de nuevo.");
       }
     } finally {
       setIsLoading(false);

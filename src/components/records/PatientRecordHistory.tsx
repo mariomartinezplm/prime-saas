@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import api from '@/lib/api';
 import { showApiError } from '@/lib/apiError';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import MeasurementForm from '@/components/forms/MeasurementForm';
@@ -50,7 +50,7 @@ export const MeasurementHistory = ({ patientId, refreshKey }: HistoryProps) => {
   const handleDelete = async (m: Measurement) => {
     try {
       await api.delete(`/measurements/${m._id}`);
-      toast.success('Medición eliminada');
+      notify.success('Medición eliminada');
       await load();
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar la medición');
@@ -141,7 +141,7 @@ export const ExerciseHistory = ({ patientId, refreshKey }: HistoryProps) => {
   const handleDelete = async (e: ExerciseProgress) => {
     try {
       await api.delete(`/exercises/${e._id}`);
-      toast.success('Ejercicio eliminado');
+      notify.success('Ejercicio eliminado');
       await load();
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar el ejercicio');

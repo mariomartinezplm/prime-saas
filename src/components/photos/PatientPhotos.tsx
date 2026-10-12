@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Camera, Loader2, Lock, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import type { PhotoPosition, ProgressPhoto } from '@/types';
 
@@ -81,7 +81,7 @@ const PatientPhotos = ({ patientId }: PatientPhotosProps) => {
     try {
       await photoService.update(photo.id, { visibility: makePrivate ? 'private' : 'shared' });
       await load();
-      toast.success(makePrivate ? 'Ahora solo tú la ves' : 'Ahora la ve tu kinesiólogo');
+      notify.success(makePrivate ? 'Ahora solo tú la ves' : 'Ahora la ve tu kinesiólogo');
     } catch (err: unknown) {
       showApiError(err, 'No se pudo cambiar la visibilidad');
     } finally {
@@ -94,7 +94,7 @@ const PatientPhotos = ({ patientId }: PatientPhotosProps) => {
     setBusy(true);
     try {
       await photoService.remove(selected.id);
-      toast.success('Foto eliminada');
+      notify.success('Foto eliminada');
       setConfirmDelete(false);
       setSelectedId(null);
       await load();

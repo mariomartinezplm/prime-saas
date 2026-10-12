@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, Mail, MessageCircle, MailCheck, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import logoImage from '@/assets/prime-fh-logo.png';
 import { getWhatsAppUrl } from '@/config/contact';
 import { authService } from '@/services/authService';
