@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { isStorageConfigured } from '../services/storageService.js';
 import { isAirtableConfigured } from '../utils/airtableSync.js';
 import { googleConfigStatus, googleClientHint } from '../utils/googleConfig.js';
+import { pushConfigStatus } from '../utils/pushConfig.js';
 
 // @desc    Chequeo de salud para monitoreo externo (UptimeRobot, Paso 27 de
 //          BLUEPRINT.md) — sin datos sensibles en la respuesta. `version` (los
@@ -23,6 +24,8 @@ export const getHealth = (req, res) => {
     storage: isStorageConfigured() ? 'on' : 'off',
     email: process.env.RESEND_API_KEY ? 'on' : 'off',
     airtable: isAirtableConfigured() ? 'on' : 'off',
+    // push: 'on' = claves VAPID cargadas con formato válido; 'incomplete' = falta alguna o tiene mal formato
+    push: pushConfigStatus(),
     google: googleConfigStatus(),
     googleClient: googleClientHint()
   });

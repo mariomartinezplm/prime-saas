@@ -72,7 +72,8 @@ describe('GET /api/health', () => {
     expect(res.body.airtable).toBe('off');
     expect(res.body.google).toBe('off');
     expect(res.body.googleClient).toBeNull();
-    expect(Object.keys(res.body).sort()).toEqual(['airtable', 'db', 'email', 'google', 'googleClient', 'scheduler', 'status', 'storage', 'version']);
+    expect(res.body.push).toBe('off');
+    expect(Object.keys(res.body).sort()).toEqual(['airtable', 'db', 'email', 'google', 'googleClient', 'push', 'scheduler', 'status', 'storage', 'version']);
   });
 
   it('con las variables de R2 y Resend cargadas: storage y email "on", sin mostrar ningún valor', () => {

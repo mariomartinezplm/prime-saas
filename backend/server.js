@@ -22,6 +22,7 @@ import extraSessionRoutes from './routes/extraSessionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import wellnessRoutes from './routes/wellnessRoutes.js';
 import achievementRoutes from './routes/achievementRoutes.js';
+import pushRoutes from './routes/pushRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 import photoRoutes from './routes/photoRoutes.js';
 import { startScheduler } from './services/scheduler.js';
@@ -110,6 +111,7 @@ app.use('/api/extra-sessions', extraSessionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/wellness', wellnessRoutes);
 app.use('/api/achievements', achievementRoutes);
+app.use('/api/push', pushRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/photos', photoRoutes);
 
