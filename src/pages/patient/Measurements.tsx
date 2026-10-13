@@ -20,6 +20,7 @@ import api from '@/lib/api';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import RecordRowActions from '@/components/records/RecordRowActions';
+import DataTable from '@/components/shared/DataTable';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
@@ -53,6 +54,7 @@ const MeasurementsEnhanced = () => {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar la medición');
+      throw err;
     }
   };
 
@@ -280,34 +282,22 @@ const MeasurementsEnhanced = () => {
                 <CardTitle className="text-lg">Historial de Mediciones</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-2 text-muted-foreground font-semibold">Fecha</th>
-                        <th className="text-right py-3 px-2 text-muted-foreground font-semibold">Peso</th>
-                        <th className="text-right py-3 px-2 text-muted-foreground font-semibold">IMC</th>
-                        <th className="text-right py-3 px-2 text-muted-foreground font-semibold">% Grasa</th>
-                        {canEdit && <th className="py-3 px-2" />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {measurements.map((m, idx) => (
-                        <tr key={m._id} className={`border-b border-border/50 hover:bg-gradient-section transition-colors ${idx % 2 === 0 ? 'bg-background' : ''}`}>
-                          <td className="py-3 px-2 font-medium">{format(parseISO(m.date), 'dd/MM/yyyy')}</td>
-                          <td className="py-3 px-2 text-right">{m.weight ? `${m.weight} kg` : '-'}</td>
-                          <td className="py-3 px-2 text-right">{m.bmi ? m.bmi.toFixed(1) : '-'}</td>
-                          <td className="py-3 px-2 text-right">{m.bodyFatPercentage ? `${m.bodyFatPercentage}%` : '-'}</td>
-                          {canEdit && (
-                            <td className="py-3 px-2">
-                              <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  caption="Historial de mediciones"
+                  rows={measurements}
+                  rowKey={(m) => m._id}
+                  columns={[
+                    { key: 'date', header: 'Fecha', cell: (m) => format(parseISO(m.date), 'dd/MM/yyyy'), primary: true },
+                    { key: 'weight', header: 'Peso', align: 'right', cell: (m) => (m.weight ? `${m.weight} kg` : '-') },
+                    { key: 'bmi', header: 'IMC', align: 'right', cell: (m) => (m.bmi ? m.bmi.toFixed(1) : '-') },
+                    { key: 'fat', header: '% Grasa', align: 'right', cell: (m) => (m.bodyFatPercentage ? `${m.bodyFatPercentage}%` : '-') },
+                  ]}
+                  actions={
+                    canEdit
+                      ? (m) => <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />
+                      : undefined
+                  }
+                />
               </CardContent>
             </Card>
           )}

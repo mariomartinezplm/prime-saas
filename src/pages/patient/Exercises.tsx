@@ -4,12 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ExerciseProgressChart from '@/components/charts/ExerciseProgressChart';
+import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { Dumbbell, TrendingUp, BarChart3, Award } from 'lucide-react';
 import api from '@/lib/api';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import RecordRowActions from '@/components/records/RecordRowActions';
+import DataTable from '@/components/shared/DataTable';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
@@ -47,6 +49,7 @@ const ExercisesEnhanced = () => {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar el ejercicio');
+      throw err;
     }
   };
 
@@ -228,48 +231,26 @@ const ExercisesEnhanced = () => {
           ) : (
             <Card className="shadow-card">
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-gradient-section">
-                        <th className="text-left p-3 text-muted-foreground font-semibold">Fecha</th>
-                        <th className="text-left p-3 text-muted-foreground font-semibold">Ejercicio</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">Categoría</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">Series</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">Reps</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">Peso</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">RPE</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">1RM</th>
-                        {canEdit && <th className="p-3" />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((ex, idx) => (
-                        <tr key={ex._id} className={`border-b border-border/50 hover:bg-gradient-section transition-colors ${idx % 2 === 0 ? 'bg-background' : ''}`}>
-                          <td className="p-3 font-medium">{format(parseISO(ex.date), 'dd/MM/yyyy')}</td>
-                          <td className="p-3 font-semibold text-foreground">{ex.exerciseName}</td>
-                          <td className="p-3 text-center capitalize">
-                            <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
-                              {ex.category}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center font-medium">{ex.sets || '-'}</td>
-                          <td className="p-3 text-center font-medium">{ex.reps || '-'}</td>
-                          <td className="p-3 text-center font-bold text-primary">{ex.weight ? `${ex.weight} ${ex.weightUnit}` : '-'}</td>
-                          <td className="p-3 text-center">{ex.rpe ? `${ex.rpe}/10` : '-'}</td>
-                          <td className="p-3 text-center font-bold text-secondary">
-                            {ex.oneRepMax ? `${ex.oneRepMax.toFixed(1)} kg` : '-'}
-                          </td>
-                          {canEdit && (
-                            <td className="p-3">
-                              <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  caption="Ejercicios registrados"
+                  rows={filtered}
+                  rowKey={(ex) => ex._id}
+                  columns={[
+                    { key: 'date', header: 'Fecha', cell: (ex) => format(parseISO(ex.date), 'dd/MM/yyyy') },
+                    { key: 'name', header: 'Ejercicio', cell: (ex) => <span className="font-semibold">{ex.exerciseName}</span>, primary: true },
+                    { key: 'category', header: 'Categoría', align: 'center', cell: (ex) => <Badge variant="neutral" className="capitalize">{ex.category}</Badge> },
+                    { key: 'sets', header: 'Series', align: 'center', cell: (ex) => ex.sets || '-' },
+                    { key: 'reps', header: 'Reps', align: 'center', cell: (ex) => ex.reps || '-' },
+                    { key: 'weight', header: 'Peso', align: 'center', cell: (ex) => <span className="font-semibold text-primary">{ex.weight ? `${ex.weight} ${ex.weightUnit}` : '-'}</span> },
+                    { key: 'rpe', header: 'RPE', align: 'center', cell: (ex) => (ex.rpe ? `${ex.rpe}/10` : '-') },
+                    { key: 'rm', header: '1RM', align: 'center', cell: (ex) => <span className="font-semibold text-secondary">{ex.oneRepMax ? `${ex.oneRepMax.toFixed(1)} kg` : '-'}</span> },
+                  ]}
+                  actions={
+                    canEdit
+                      ? (ex) => <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />
+                      : undefined
+                  }
+                />
               </CardContent>
             </Card>
           )}

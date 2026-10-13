@@ -5,6 +5,8 @@ import PainBodyDiagram from '@/components/body/PainBodyDiagram';
 import PainEvolutionChart from '@/components/charts/PainEvolutionChart';
 import { format, parseISO } from 'date-fns';
 import api from '@/lib/api';
+import DataTable from '@/components/shared/DataTable';
+import { cn } from '@/lib/utils';
 import type { EVARecord } from '@/types';
 
 const PainRecords = () => {
@@ -115,45 +117,28 @@ const PainRecords = () => {
             <CardTitle className="text-lg">Historial</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 text-muted-foreground">Fecha</th>
-                    <th className="text-left py-2 text-muted-foreground">Zona</th>
-                    <th className="text-center py-2 text-muted-foreground">Dolor</th>
-                    <th className="text-left py-2 text-muted-foreground">Tipo</th>
-                    <th className="text-left py-2 text-muted-foreground">Duración</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.map((r) => (
-                    <tr
-                      key={r._id}
-                      className="border-b border-border/50 hover:bg-muted/20 cursor-pointer"
-                      onClick={() => setSelectedZone(r.bodyArea)}
-                    >
-                      <td className="py-2">{format(parseISO(r.date), 'dd/MM/yyyy')}</td>
-                      <td className="py-2 capitalize">{r.bodyArea.replace(/-/g, ' ')}</td>
-                      <td className="py-2 text-center">
-                        <span className={`font-bold ${
-                          r.painLevel <= 3 ? 'text-success' :
-                          r.painLevel <= 6 ? 'text-warning' : 'text-destructive'
-                        }`}>
-                          {r.painLevel}
-                        </span>
-                      </td>
-                      <td className="py-2 capitalize text-muted-foreground">
-                        {r.painType?.join(', ') || '-'}
-                      </td>
-                      <td className="py-2 capitalize text-muted-foreground">
-                        {r.duration || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              caption="Registros de dolor"
+              rows={records}
+              rowKey={(r) => r._id}
+              onRowClick={(r) => setSelectedZone(r.bodyArea)}
+              columns={[
+                { key: 'date', header: 'Fecha', cell: (r) => format(parseISO(r.date), 'dd/MM/yyyy') },
+                { key: 'zone', header: 'Zona', primary: true, cell: (r) => <span className="capitalize">{r.bodyArea.replace(/-/g, ' ')}</span> },
+                {
+                  key: 'pain',
+                  header: 'Dolor',
+                  align: 'center',
+                  cell: (r) => (
+                    <span className={cn('font-bold', r.painLevel <= 3 ? 'text-success' : r.painLevel <= 6 ? 'text-warning' : 'text-destructive')}>
+                      {r.painLevel}/10
+                    </span>
+                  ),
+                },
+                { key: 'type', header: 'Tipo', cell: (r) => <span className="capitalize text-muted-foreground">{r.painType?.join(', ') || '-'}</span> },
+                { key: 'duration', header: 'Duración', cell: (r) => <span className="capitalize text-muted-foreground">{r.duration || '-'}</span> },
+              ]}
+            />
           </CardContent>
         </Card>
       )}
