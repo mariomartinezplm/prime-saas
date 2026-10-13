@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarCheck2, TriangleAlert } from 'lucide-react';
+import { CalendarCheck2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { googleCalendarService } from '@/services/googleCalendarService';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import PasswordField from '@/components/forms/PasswordField';
 import SubmitButton from '@/components/forms/SubmitButton';
 import { MIN_PASSWORD_LENGTH } from '@/components/auth/SetPasswordForm';
 import { DetailList, DetailRow } from '@/components/patients/DetailList';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import LoadingState from '@/components/shared/LoadingState';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import PageHeader from '@/components/shared/PageHeader';
 import { getErrorMessage } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
+import { useSavedFlash } from '@/hooks/useSavedFlash';
 
 const roleLabels = { admin: 'Administrador', professional: 'Profesional', patient: 'Paciente' } as const;
 
@@ -27,6 +29,7 @@ const ChangePasswordCard = () => {
   const [confirm, setConfirm] = useState('');
   const [errors, setErrors] = useState<PasswordErrors>({});
   const [loading, setLoading] = useState(false);
+  const [saved, flash] = useSavedFlash();
 
   const clear = (field: keyof PasswordErrors) => setErrors((p) => ({ ...p, [field]: undefined }));
   const focusFirstInvalid = () =>
@@ -52,7 +55,8 @@ const ChangePasswordCard = () => {
     setLoading(true);
     try {
       await authService.changePassword(current, next);
-      notify.success('Contraseña actualizada');
+      // El propio botón confirma ('Contraseña actualizada ✓'): sin aviso aparte que repita lo mismo
+      flash();
       setCurrent('');
       setNext('');
       setConfirm('');
@@ -116,7 +120,7 @@ const ChangePasswordCard = () => {
             error={errors.confirm}
             disabled={loading}
           />
-          <SubmitButton className="w-full sm:w-auto" loading={loading} loadingLabel="Cambiando…">
+          <SubmitButton className="w-full sm:w-auto" loading={loading} loadingLabel="Cambiando…" success={saved} successLabel="Contraseña actualizada">
             Cambiar contraseña
           </SubmitButton>
         </form>
@@ -129,6 +133,7 @@ const GoogleCalendarCard = () => {
   // null = todavía consultando; 'error' = no se pudo saber (no se muestra "Conectar" como si fuera cierto)
   const [status, setStatus] = useState<boolean | 'error' | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
 
   const loadStatus = () => {
     setStatus(null);
@@ -150,16 +155,15 @@ const GoogleCalendarCard = () => {
     }
   };
 
+  // El diálogo de confirmación queda abierto y bloqueado mientras el servidor responde; si falla, muestra el error
   const disconnect = async () => {
-    setBusy(true);
     try {
       await googleCalendarService.disconnect();
       setStatus(false);
       notify.success('Google Calendar desconectado');
     } catch (err) {
       notify.error(getErrorMessage(err, 'No se pudo desconectar Google Calendar'));
-    } finally {
-      setBusy(false);
+      throw err;
     }
   };
 
@@ -178,24 +182,24 @@ const GoogleCalendarCard = () => {
         {status === null ? (
           <LoadingState label="Consultando el estado…" className="py-2" />
         ) : status === 'error' ? (
-          <Alert variant="warning">
-            <TriangleAlert className="h-4 w-4" aria-hidden="true" />
-            <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-              <span>No pudimos comprobar si está conectado.</span>
-              <Button variant="outline" size="sm" onClick={loadStatus}>
-                Reintentar
-              </Button>
-            </AlertDescription>
-          </Alert>
+          <LoadErrorAlert message="No pudimos comprobar si está conectado." onRetry={loadStatus} />
         ) : status ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm font-medium text-success">Conectado</span>
-            <ActionButton busy={busy} onClick={disconnect} label="Desconectar" busyLabel="Desconectando…" variant="outline" />
+            <ActionButton busy={busy} onClick={() => setConfirmingDisconnect(true)} label="Desconectar" busyLabel="Desconectando…" variant="outline" />
           </div>
         ) : (
           <ActionButton busy={busy} onClick={connect} label="Conectar Google Calendar" busyLabel="Conectando…" />
         )}
       </CardContent>
+      <ConfirmDialog
+        open={confirmingDisconnect}
+        onOpenChange={setConfirmingDisconnect}
+        title="¿Desconectar Google Calendar?"
+        description="Tus próximas citas dejarán de sincronizarse con tu calendario de Google. Las citas que ya están en tu calendario no se borran, y puedes volver a conectarlo cuando quieras."
+        confirmLabel="Desconectar"
+        onConfirm={disconnect}
+      />
     </Card>
   );
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,6 +9,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { wellnessService } from '@/services/wellnessService';
 import { showApiError } from '@/lib/apiError';
 import { getWhatsAppUrl } from '@/config/contact';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
+import SubmitButton from '@/components/forms/SubmitButton';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import ReadinessBars from './ReadinessBars';
 import { READINESS_QUESTIONS, METRIC_LABELS, STATUS_STYLES, formatScore } from './readinessConfig';
 import type { WellnessCheckin, ReadinessKey } from '@/types';
@@ -25,7 +28,11 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
   const [checkin, setCheckin] = useState<WellnessCheckin | null>(null);
   const [history, setHistory] = useState<WellnessCheckin[]>([]);
   const [loading, setLoading] = useState(true);
+  // Si no se pudo saber si ya respondió hoy NO se muestra el cuestionario como si no lo hubiera hecho
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [historyFailed, setHistoryFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   // null = pantalla de inicio; 0..TOTAL-1 = pregunta; TOTAL = notas
   const [step, setStep] = useState<number | null>(null);
   // Lo que la persona tocó en el teclado, sin invertir
@@ -34,18 +41,25 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
 
   const loadHistory = useCallback(() => {
     if (!user) return;
-    wellnessService.getPatientCheckins(user.id).then(setHistory).catch(() => {});
+    setHistoryFailed(false);
+    wellnessService.getPatientCheckins(user.id).then(setHistory).catch(() => setHistoryFailed(true));
   }, [user]);
 
-  useEffect(() => {
+  const loadToday = useCallback(() => {
+    setLoading(true);
+    setLoadFailed(false);
     wellnessService.getToday()
       .then((today) => {
         setCheckin(today);
         if (today) loadHistory();
       })
-      .catch(() => {})
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }, [loadHistory]);
+
+  useEffect(() => {
+    loadToday();
+  }, [loadToday]);
 
   const handlePress = (value: number) => {
     if (step === null || step >= TOTAL) return;
@@ -53,7 +67,13 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
     setStep(step + 1);
   };
 
-  const handleSubmit = async () => {
+  // Un check-in a medio responder se pierde si se sale: se pregunta antes
+  useUnsavedChangesWarning(step !== null && !checkin && !submitting);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       // Fatiga, dolor y estrés se guardan invertidos: en la base 9 siempre es "bien"
@@ -69,6 +89,7 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
     } catch (err: unknown) {
       showApiError(err, 'Error al registrar el check-in');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -89,6 +110,17 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
       <CardTitle className="text-base font-semibold">Readiness de hoy</CardTitle>
     </CardHeader>
   );
+
+  if (loadFailed) {
+    return (
+      <Card>
+        {header}
+        <CardContent>
+          <LoadErrorAlert message="No pudimos comprobar tu check-in de hoy." onRetry={loadToday} />
+        </CardContent>
+      </Card>
+    );
+  }
 
   // --- Ya respondió hoy: resultado ---
   if (checkin) {
@@ -128,6 +160,7 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
 
           {checkin.notes && <p className="text-sm text-muted-foreground italic">"{checkin.notes}"</p>}
 
+          {historyFailed && <LoadErrorAlert message="No se pudieron cargar tus últimos días." onRetry={loadHistory} />}
           {history.length > 1 && (
             <div className="space-y-1 pt-2">
               <p className="text-xs font-medium text-muted-foreground">Tus últimos días</p>
@@ -184,14 +217,16 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
     return (
       <Card className="border-2 border-secondary/30 bg-secondary/5">
         {header}
-        <CardContent className="space-y-4">
-          <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setStep(TOTAL - 1)} disabled={submitting}>
+        <CardContent>
+         <form onSubmit={handleSubmit} className="space-y-4">
+          <Button type="button" variant="ghost" size="sm" className="-ml-2" onClick={() => setStep(TOTAL - 1)} disabled={submitting}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Atrás
           </Button>
           <div className="space-y-1.5">
-            <Label className="text-sm">¿Algo más que quieras contarnos? (opcional)</Label>
+            <Label htmlFor="checkin-notes" className="text-sm">¿Algo más que quieras contarnos? (opcional)</Label>
             <Textarea
+              id="checkin-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
@@ -199,10 +234,10 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
               rows={3}
             />
           </div>
-          <Button onClick={handleSubmit} disabled={submitting} className="w-full">
-            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          <SubmitButton loading={submitting} loadingLabel="Guardando…" className="w-full">
             Guardar y ver mi Readiness
-          </Button>
+          </SubmitButton>
+         </form>
         </CardContent>
       </Card>
     );

@@ -103,6 +103,13 @@ const AppointmentCalendar = ({ events, date, view, onNavigate, onView, onSelectE
         onNavigate={onNavigate}
         onView={onView}
         onSelectEvent={onSelectEvent}
+        // Con teclado: Enter o Espacio sobre una cita abre su detalle (antes solo se podía con el ratón o el dedo)
+        onKeyPressEvent={(event, e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectEvent(event);
+          }
+        }}
         min={new Date(1970, 0, 1, minHour, 0)}
         max={new Date(1970, 0, 1, maxHour, 0)}
         scrollToTime={new Date(1970, 0, 1, 8, 0)}

@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/shared/PageHeader';
-import LoadingState from '@/components/shared/LoadingState';
+import { ListSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import EmptyState from '@/components/shared/EmptyState';
 import SessionsSelect from '@/components/plans/SessionsSelect';
 import PlanTermFields from '@/components/plans/PlanTermFields';
@@ -179,7 +179,9 @@ const ClassifyPlans = () => {
       )}
 
       {loading ? (
-        <LoadingState label="Cargando pacientes…" />
+        <SkeletonRegion label="Cargando pacientes…">
+          <ListSkeleton rows={4} />
+        </SkeletonRegion>
       ) : loadFailed ? null : patientsWithoutPlan.length === 0 ? (
         <EmptyState
           icon={patients.length === 0 ? Users : PartyPopper}

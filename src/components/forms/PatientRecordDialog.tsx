@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
+import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,6 +27,7 @@ interface PatientRecordDialogProps {
 const PatientRecordDialog = ({ label, title, description, requirePlan = true, children }: PatientRecordDialogProps) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const { confirmLeave } = useUnsavedChangesApi();
   const planStatus = useHasActivePlan(requirePlan ? user?.id : undefined);
   const hasActivePlan = requirePlan ? planStatus : true;
 
@@ -54,7 +56,8 @@ const PatientRecordDialog = ({ label, title, description, requirePlan = true, ch
         <Plus className="h-4 w-4 mr-2" />
         {label}
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* Cerrar con Esc, la X o tocando fuera pregunta si hay datos sin guardar; al guardar se cierra directo */}
+      <Dialog open={open} onOpenChange={(next) => (next ? setOpen(true) : confirmLeave(() => setOpen(false)))}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>

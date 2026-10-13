@@ -45,7 +45,7 @@ import {
 import { notify } from '@/lib/notify';
 import { getErrorMessage } from '@/lib/apiError';
 import PageHeader from '@/components/shared/PageHeader';
-import LoadingState from '@/components/shared/LoadingState';
+import { ListSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import EmptyState from '@/components/shared/EmptyState';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import SubmitButton from '@/components/forms/SubmitButton';
@@ -335,7 +335,9 @@ const Plans = () => {
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-3">Planes de pacientes</h2>
         {loading ? (
-          <LoadingState label="Cargando planes…" className="py-10" />
+          <SkeletonRegion label="Cargando planes…">
+            <ListSkeleton rows={4} />
+          </SkeletonRegion>
         ) : loadFailed ? null : otherPlans.length === 0 ? (
           <EmptyState icon={FileText} title="No hay planes registrados todavía" description="Los planes que registres aparecerán aquí." />
         ) : (

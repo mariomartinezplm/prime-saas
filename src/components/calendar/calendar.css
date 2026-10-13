@@ -152,3 +152,18 @@
   text-align: center;
   color: hsl(var(--muted-foreground));
 }
+
+
+/* Pantallas táctiles: el nombre del día (que abre ese día) mide 18 px de alto; se agranda hasta 44 px */
+@media (pointer: coarse) {
+  .apt-calendar .rbc-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .apt-calendar .rbc-header > button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

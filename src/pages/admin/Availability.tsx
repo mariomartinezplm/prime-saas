@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, getDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Copy, Loader2, Plus, Save, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, Copy, Loader2, Plus, Save, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { availabilityService } from '@/services/availabilityService';
@@ -17,12 +17,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import EmptyState from '@/components/shared/EmptyState';
-import LoadingState from '@/components/shared/LoadingState';
+import { BlockSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import PageHeader from '@/components/shared/PageHeader';
 import { dayKey, parseDay } from '@/lib/appointments';
 import { showApiError } from '@/lib/apiError';
 import { todayLocal } from '@/lib/evolutionDate';
 import { notify } from '@/lib/notify';
+import { useSavedFlash } from '@/hooks/useSavedFlash';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { capitalizeFirst, cn } from '@/lib/utils';
 import type { Availability, BlockedDate, DaySchedule, TimeSlot, User } from '@/types';
 
@@ -98,16 +101,27 @@ const AdminAvailability = () => {
   const [unblocking, setUnblocking] = useState<BlockedDate | null>(null);
 
   const dirty = useMemo(() => normalize(schedule) !== normalize(savedSchedule), [schedule, savedSchedule]);
+  // Un horario a medias no se pierde en silencio al salir por el menú, cerrar sesión o cerrar la pestaña
+  useUnsavedChangesWarning(dirty);
+  const [savedFlash, flashSaved] = useSavedFlash();
 
-  useEffect(() => {
+  // Sin la lista de profesionales no hay horario que editar: si falla se avisa (antes quedaba un editor vacío)
+  const [professionalsError, setProfessionalsError] = useState(false);
+
+  const loadProfessionals = useCallback(() => {
+    setProfessionalsError(false);
     Promise.all([userService.getAll({ role: 'admin' }), userService.getAll({ role: 'professional' })])
       .then(([admins, profs]) => {
         const all = [...admins.users, ...profs.users];
         setProfessionals(all);
         if (all.length > 0 && user) setSelectedProfessional(user.id);
       })
-      .catch(() => {});
+      .catch(() => setProfessionalsError(true));
   }, [user]);
+
+  useEffect(() => {
+    loadProfessionals();
+  }, [loadProfessionals]);
 
   const loadAvailability = useCallback(async () => {
     if (!selectedProfessional) return;
@@ -159,7 +173,8 @@ const AdminAvailability = () => {
       await availabilityService.updateSchedule(selectedProfessional, toSave);
       setSchedule(toSave);
       setSavedSchedule(toSave);
-      notify.success('Horario guardado');
+      // El botón confirma ('Guardado ✓') y el texto de abajo pasa a 'Todo guardado': sin aviso aparte
+      flashSaved();
     } catch (err) {
       showApiError(err, 'No se pudo guardar el horario');
     } finally {
@@ -233,8 +248,12 @@ const AdminAvailability = () => {
         }
       />
 
-      {loading ? (
-        <LoadingState label="Cargando horario…" />
+      {professionalsError ? (
+        <LoadErrorAlert message="No se pudo cargar la lista de profesionales, por eso no se muestra el horario." onRetry={loadProfessionals} />
+      ) : loading ? (
+        <SkeletonRegion label="Cargando horario…">
+          <BlockSkeleton className="h-[360px]" />
+        </SkeletonRegion>
       ) : loadError ? (
         <Alert variant="warning">
           <TriangleAlert className="h-4 w-4" aria-hidden="true" />
@@ -310,9 +329,15 @@ const AdminAvailability = () => {
                     <Undo2 aria-hidden="true" />
                     Descartar
                   </Button>
-                  <Button onClick={handleSave} disabled={!dirty || saving}>
-                    {saving ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Save aria-hidden="true" />}
-                    Guardar cambios
+                  <Button onClick={handleSave} disabled={!dirty || saving} aria-busy={saving || undefined}>
+                    {saving ? (
+                      <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                    ) : savedFlash ? (
+                      <Check aria-hidden="true" />
+                    ) : (
+                      <Save aria-hidden="true" />
+                    )}
+                    {saving ? 'Guardando…' : savedFlash ? 'Guardado' : 'Guardar cambios'}
                   </Button>
                 </div>
               </div>

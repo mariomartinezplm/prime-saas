@@ -14,7 +14,6 @@ import SubmitButton from '@/components/forms/SubmitButton';
 import { getErrorMessage } from '@/lib/apiError';
 import { isEmail } from '@/lib/validation';
 import { normalizeRut } from '@/lib/rut';
-import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 
 type Kind = 'patient' | 'staff';
@@ -76,7 +75,7 @@ const CredentialsForm = ({ kind }: CredentialsFormProps) => {
     setLoading(true);
     try {
       const loggedUser = await login({ identifier: isRut ? normalizeRut(identifier) : identifier.trim(), password });
-      notify.success('Bienvenido a Prime F&H');
+      // Sin aviso de bienvenida: la pantalla con el logo y el panel que se abre ya lo dicen
       // SEGURIDAD (Paso 10 de BLUEPRINT.md): el redirect se decide por el rol que de verdad devolvió el
       // backend, no por la pestaña usada para entrar.
       navigate(loggedUser.role === 'patient' ? '/app/dashboard' : '/app/admin');

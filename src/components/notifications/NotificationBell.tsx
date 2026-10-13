@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 import {
   Activity,
   AlertCircle,
@@ -48,6 +49,7 @@ const timeAgo = (iso: string) => {
 
 const NotificationBell = () => {
   const navigate = useNavigate();
+  const { confirmLeave } = useUnsavedChangesApi();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -104,7 +106,8 @@ const NotificationBell = () => {
       notificationService.markAsRead(notification._id).catch(() => {});
     }
     setOpen(false);
-    if (notification.link) navigate(notification.link);
+    const link = notification.link;
+    if (link) confirmLeave(() => navigate(link));
   };
 
   const handleMarkAllAsRead = async () => {

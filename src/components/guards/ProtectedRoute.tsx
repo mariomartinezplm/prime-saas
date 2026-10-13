@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import LoadingState from '@/components/shared/LoadingState';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -7,8 +8,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#181619]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
+      // `dark`: esta pantalla aparece antes de que la app active su tema oscuro
+      <div className="dark flex min-h-screen items-center justify-center bg-[#181619]">
+        <LoadingState label="Abriendo tu sesión…" className="py-0" />
       </div>
     );
   }
