@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
@@ -77,6 +78,11 @@ const PatientDetail = () => {
   const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState('profile');
+  // Cambiar de sección descarta lo escrito en la anterior: si hay un formulario a medias, se pregunta
+  const { confirmLeave } = useUnsavedChangesApi();
+  const changeTab = (next: string) => {
+    if (next !== tab) confirmLeave(() => setTab(next));
+  };
   const [bookingOpen, setBookingOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -230,7 +236,7 @@ const PatientDetail = () => {
           <button
             key={label}
             type="button"
-            onClick={() => setTab(target)}
+            onClick={() => changeTab(target)}
             className="rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <Card className="h-full transition-colors hover:bg-accent/40">
@@ -246,10 +252,10 @@ const PatientDetail = () => {
         ))}
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={changeTab}>
         {/* En móvil 9 pestañas no caben: se elige la sección con un selector */}
         <div className="md:hidden">
-          <Select value={tab} onValueChange={setTab}>
+          <Select value={tab} onValueChange={changeTab}>
             <SelectTrigger aria-label="Sección de la ficha">
               <SelectValue />
             </SelectTrigger>

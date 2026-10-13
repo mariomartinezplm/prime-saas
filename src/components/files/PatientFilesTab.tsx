@@ -4,7 +4,9 @@ import { fileService } from '@/services/fileService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/forms/FormField';
+import SubmitButton from '@/components/forms/SubmitButton';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +62,12 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
   const [description, setDescription] = useState('');
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const uploadingRef = useRef(false);
+  // Error de la selección, junto a la zona de carga (antes un aviso que desaparecía)
+  const [pickError, setPickError] = useState<string | null>(null);
+
+  // Un archivo elegido y sin subir se pierde si se sale: se pregunta antes
+  useUnsavedChangesWarning(!!selected && !uploading);
 
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<ClientFile | null>(null);
@@ -84,13 +92,14 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
   const pickFile = (file: File | undefined) => {
     if (!file) return;
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      notify.error('Formato no permitido. Sube un PDF, JPG o PNG');
+      setPickError('Formato no permitido. Sube un PDF, JPG o PNG.');
       return;
     }
     if (file.size > MAX_SIZE_BYTES) {
-      notify.error('El archivo supera el máximo de 10 MB');
+      setPickError('El archivo supera el máximo de 10 MB.');
       return;
     }
+    setPickError(null);
     setSelected(file);
     setName(file.name.replace(/\.[^.]+$/, ''));
   };
@@ -102,8 +111,10 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
     if (inputRef.current) inputRef.current.value = '';
   };
 
-  const handleUpload = async () => {
-    if (!selected) return;
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected || uploadingRef.current) return;
+    uploadingRef.current = true;
     setUploading(true);
     try {
       await fileService.upload(patientId, selected, {
@@ -116,6 +127,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
     } catch (err: unknown) {
       showApiError(err, 'No se pudo subir el archivo');
     } finally {
+      uploadingRef.current = false;
       setUploading(false);
     }
   };
@@ -178,8 +190,14 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
                 type="file"
                 accept={ACCEPT_ATTR}
                 className="hidden"
+                aria-label="Elegir archivo"
                 onChange={(e) => pickFile(e.target.files?.[0])}
               />
+              {pickError && (
+                <p role="alert" className="text-sm text-destructive">
+                  {pickError}
+                </p>
+              )}
 
               {!selected ? (
                 <button
@@ -202,7 +220,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
                   <p className="text-xs text-muted-foreground mt-1">PDF, JPG o PNG · máximo 10 MB</p>
                 </button>
               ) : (
-                <div className="space-y-3">
+                <form onSubmit={handleUpload} noValidate className="space-y-3">
                   <div className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{selected.name}</p>
@@ -213,26 +231,27 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
                     </Button>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="file-name">Nombre</Label>
-                    <Input id="file-name" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="file-description">Descripción (opcional)</Label>
-                    <Input
-                      id="file-description"
-                      value={description}
-                      maxLength={500}
-                      placeholder="Ej: Resonancia de rodilla, marzo 2026"
-                      onChange={(e) => setDescription(e.target.value)}
-                    />
-                  </div>
+                  <FormField label="Nombre">
+                    {(c) => <Input {...c} value={name} maxLength={200} onChange={(e) => setName(e.target.value)} disabled={uploading} />}
+                  </FormField>
+                  <FormField label="Descripción (opcional)">
+                    {(c) => (
+                      <Input
+                        {...c}
+                        value={description}
+                        maxLength={500}
+                        placeholder="Ej: Resonancia de rodilla, marzo 2026"
+                        onChange={(e) => setDescription(e.target.value)}
+                        disabled={uploading}
+                      />
+                    )}
+                  </FormField>
 
-                  <Button onClick={handleUpload} disabled={uploading} className="w-full">
-                    {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-                    {uploading ? 'Subiendo...' : 'Subir archivo'}
-                  </Button>
-                </div>
+                  <SubmitButton loading={uploading} loadingLabel="Subiendo…" className="w-full">
+                    <Upload aria-hidden="true" />
+                    Subir archivo
+                  </SubmitButton>
+                </form>
               )}
             </>
           )}

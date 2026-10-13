@@ -15,6 +15,7 @@ import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import PageHeader from '@/components/shared/PageHeader';
 import { getErrorMessage } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
+import { useSavedFlash } from '@/hooks/useSavedFlash';
 
 const roleLabels = { admin: 'Administrador', professional: 'Profesional', patient: 'Paciente' } as const;
 
@@ -28,6 +29,7 @@ const ChangePasswordCard = () => {
   const [confirm, setConfirm] = useState('');
   const [errors, setErrors] = useState<PasswordErrors>({});
   const [loading, setLoading] = useState(false);
+  const [saved, flash] = useSavedFlash();
 
   const clear = (field: keyof PasswordErrors) => setErrors((p) => ({ ...p, [field]: undefined }));
   const focusFirstInvalid = () =>
@@ -53,7 +55,8 @@ const ChangePasswordCard = () => {
     setLoading(true);
     try {
       await authService.changePassword(current, next);
-      notify.success('Contraseña actualizada');
+      // El propio botón confirma ('Contraseña actualizada ✓'): sin aviso aparte que repita lo mismo
+      flash();
       setCurrent('');
       setNext('');
       setConfirm('');
@@ -117,7 +120,7 @@ const ChangePasswordCard = () => {
             error={errors.confirm}
             disabled={loading}
           />
-          <SubmitButton className="w-full sm:w-auto" loading={loading} loadingLabel="Cambiando…">
+          <SubmitButton className="w-full sm:w-auto" loading={loading} loadingLabel="Cambiando…" success={saved} successLabel="Contraseña actualizada">
             Cambiar contraseña
           </SubmitButton>
         </form>

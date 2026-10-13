@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { photoService } from '@/services/photoService';
 import { prepareImageForUpload, ImageReadError, type PreparedImage } from '@/lib/imageResize';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
 import { showApiError } from '@/lib/apiError';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/forms/FormField';
+import SubmitButton from '@/components/forms/SubmitButton';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { notify } from '@/lib/notify';
 import { Loader2, Lock, Users } from 'lucide-react';
@@ -29,6 +30,12 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
   const [note, setNote] = useState('');
   const [visibility, setVisibility] = useState<PhotoVisibility>('shared');
   const [loading, setLoading] = useState(false);
+  const [dateError, setDateError] = useState<string | undefined>();
+  const formRef = useRef<HTMLFormElement>(null);
+  const submittingRef = useRef(false);
+
+  // Con una foto elegida o una nota escrita, salir sin subirla se pregunta
+  useUnsavedChangesWarning((!!prepared || note.trim() !== '') && !loading);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const chosen = e.target.files?.[0];
@@ -51,13 +58,21 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prepared) {
-      notify.error(fileError ?? 'Elige una foto');
+    if (submittingRef.current || preparing) return;
+
+    const noPhoto = !prepared;
+    const badDate = !takenAt ? 'Indica la fecha' : takenAt > todayLocal() ? 'La fecha no puede ser futura' : undefined;
+    if (noPhoto && !fileError) setFileError('Elige una foto para subir');
+    setDateError(badDate);
+    if (noPhoto || badDate) {
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
       return;
     }
+
+    submittingRef.current = true;
     setLoading(true);
     try {
-      await photoService.upload(patientId, prepared.file, {
+      await photoService.upload(patientId, prepared!.file, {
         position,
         takenAt: localNoonISO(takenAt),
         note: note.trim() || undefined,
@@ -68,55 +83,60 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
     } catch (err: unknown) {
       showApiError(err, 'No se pudo subir la foto');
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label>Foto *</Label>
-        <Input type="file" accept="image/*" onChange={handleFileChange} />
-        {preparing && (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Preparando la foto…
-          </p>
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
+      <FormField label="Foto" required error={fileError ?? undefined}>
+        {(c) => (
+          <>
+            <Input {...c} type="file" accept="image/*" onChange={(e) => { setFileError(null); handleFileChange(e); }} disabled={loading} />
+            {preparing && (
+              <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                Preparando la foto…
+              </p>
+            )}
+            {prepared && (
+              <img src={prepared.previewUrl} alt="Vista previa de la foto elegida" className="mt-2 max-h-64 rounded-lg border border-border object-contain" />
+            )}
+          </>
         )}
-        {fileError && <p role="alert" className="text-sm text-destructive">{fileError}</p>}
-        {prepared && (
-          <img src={prepared.previewUrl} alt="Vista previa" className="mt-2 max-h-64 rounded-lg border border-border object-contain" />
-        )}
-      </div>
+      </FormField>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label>Posición</Label>
-          <Select value={position} onValueChange={(v) => setPosition(v as PhotoPosition)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {POSITIONS.map((p) => (
-                <SelectItem key={p} value={p}>{POSITION_LABELS[p]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Fecha en que se tomó</Label>
-          <Input type="date" max={todayLocal()} value={takenAt} onChange={(e) => setTakenAt(e.target.value)} />
-        </div>
+        <FormField label="Posición">
+          {(c) => (
+            <Select value={position} onValueChange={(v) => setPosition(v as PhotoPosition)}>
+              <SelectTrigger id={c.id}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {POSITIONS.map((p) => (
+                  <SelectItem key={p} value={p}>{POSITION_LABELS[p]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
+        <FormField label="Fecha en que se tomó" required error={dateError}>
+          {(c) => (
+            <Input {...c} type="date" max={todayLocal()} value={takenAt} onChange={(e) => { setTakenAt(e.target.value); setDateError(undefined); }} />
+          )}
+        </FormField>
       </div>
 
-      <div className="space-y-1.5">
-        <Label>Nota (opcional)</Label>
-        <Input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} placeholder="Ej: en ayunas, después del entrenamiento" />
-      </div>
+      <FormField label="Nota (opcional)">
+        {(c) => <Input {...c} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} placeholder="Ej: en ayunas, después del entrenamiento" />}
+      </FormField>
 
       {isPatient && (
-        <div className="space-y-1.5">
-          <Label>¿Quién puede verla?</Label>
+        <FormField label="¿Quién puede verla?">
+          {(c) => (
+          <>
           <Select value={visibility} onValueChange={(v) => setVisibility(v as PhotoVisibility)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger id={c.id}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="shared">Compartida con mi kinesiólogo</SelectItem>
               <SelectItem value="private">Solo yo</SelectItem>
@@ -135,13 +155,14 @@ const PhotoUploadForm = ({ patientId, isPatient, onSuccess }: PhotoUploadFormPro
               </>
             )}
           </p>
-        </div>
+          </>
+          )}
+        </FormField>
       )}
 
-      <Button type="submit" className="w-full" disabled={loading || preparing || !prepared}>
-        {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+      <SubmitButton className="w-full" loading={loading} loadingLabel="Subiendo foto…" disabled={preparing}>
         Subir foto
-      </Button>
+      </SubmitButton>
     </form>
   );
 };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, getDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Copy, Loader2, Plus, Save, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { Check, Copy, Loader2, Plus, Save, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { availabilityService } from '@/services/availabilityService';
@@ -24,6 +24,8 @@ import { dayKey, parseDay } from '@/lib/appointments';
 import { showApiError } from '@/lib/apiError';
 import { todayLocal } from '@/lib/evolutionDate';
 import { notify } from '@/lib/notify';
+import { useSavedFlash } from '@/hooks/useSavedFlash';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { capitalizeFirst, cn } from '@/lib/utils';
 import type { Availability, BlockedDate, DaySchedule, TimeSlot, User } from '@/types';
 
@@ -99,6 +101,9 @@ const AdminAvailability = () => {
   const [unblocking, setUnblocking] = useState<BlockedDate | null>(null);
 
   const dirty = useMemo(() => normalize(schedule) !== normalize(savedSchedule), [schedule, savedSchedule]);
+  // Un horario a medias no se pierde en silencio al salir por el menú, cerrar sesión o cerrar la pestaña
+  useUnsavedChangesWarning(dirty);
+  const [savedFlash, flashSaved] = useSavedFlash();
 
   // Sin la lista de profesionales no hay horario que editar: si falla se avisa (antes quedaba un editor vacío)
   const [professionalsError, setProfessionalsError] = useState(false);
@@ -168,7 +173,8 @@ const AdminAvailability = () => {
       await availabilityService.updateSchedule(selectedProfessional, toSave);
       setSchedule(toSave);
       setSavedSchedule(toSave);
-      notify.success('Horario guardado');
+      // El botón confirma ('Guardado ✓') y el texto de abajo pasa a 'Todo guardado': sin aviso aparte
+      flashSaved();
     } catch (err) {
       showApiError(err, 'No se pudo guardar el horario');
     } finally {
@@ -323,9 +329,15 @@ const AdminAvailability = () => {
                     <Undo2 aria-hidden="true" />
                     Descartar
                   </Button>
-                  <Button onClick={handleSave} disabled={!dirty || saving}>
-                    {saving ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Save aria-hidden="true" />}
-                    Guardar cambios
+                  <Button onClick={handleSave} disabled={!dirty || saving} aria-busy={saving || undefined}>
+                    {saving ? (
+                      <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                    ) : savedFlash ? (
+                      <Check aria-hidden="true" />
+                    ) : (
+                      <Save aria-hidden="true" />
+                    )}
+                    {saving ? 'Guardando…' : savedFlash ? 'Guardado' : 'Guardar cambios'}
                   </Button>
                 </div>
               </div>

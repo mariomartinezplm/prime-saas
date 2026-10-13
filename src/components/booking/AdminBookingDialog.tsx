@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,17 +8,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { availabilityService } from '@/services/availabilityService';
 import { appointmentService } from '@/services/appointmentService';
 import LoadingState from '@/components/shared/LoadingState';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
+import SubmitButton from '@/components/forms/SubmitButton';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
-import { Loader2, TriangleAlert } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { AvailableSlots, CreateAppointmentData } from '@/types';
@@ -52,6 +53,9 @@ const AdminBookingDialog = ({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [slotsError, setSlotsError] = useState(false);
+  const [slotsAttempt, setSlotsAttempt] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -66,31 +70,37 @@ const AdminBookingDialog = ({
     // Si se cambia la fecha rápido, la respuesta de la fecha anterior se descarta
     let active = true;
     setLoadingSlots(true);
+    setSlotsError(false);
     setSelectedSlot(null);
     availabilityService
       .getSlots(professionalId, date, patientId)
       .then((result) => active && setSlots(result))
+      // El error se muestra junto a los horarios, con 'Reintentar' (antes un aviso que desaparecía)
       .catch(() => {
         if (!active) return;
         setSlots(null);
-        notify.error('No se pudieron cargar los horarios');
+        setSlotsError(true);
       })
       .finally(() => active && setLoadingSlots(false));
     return () => {
       active = false;
     };
-  }, [date, professionalId, patientId]);
+  }, [date, professionalId, patientId, slotsAttempt]);
+
+  const retrySlots = useCallback(() => setSlotsAttempt((n) => n + 1), []);
 
   const allSlots = slots
     ? [...slots.availableSlots, ...slots.bookedSlots, ...(slots.blockedSlots || [])].sort()
     : [];
   const selectedIsFull = !!selectedSlot && !!slots?.bookedSlots.includes(selectedSlot);
 
-  const handleBook = async () => {
-    if (!selectedSlot || !date) return;
+  const handleBook = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!selectedSlot || !date || submittingRef.current) return;
     const [h, m] = selectedSlot.split(':').map(Number);
     const endTime = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       await appointmentService.create({
@@ -108,6 +118,7 @@ const AdminBookingDialog = ({
     } catch (err: unknown) {
       showApiError(err, 'Error al agendar la cita');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -120,7 +131,7 @@ const AdminBookingDialog = ({
           <DialogDescription>Elige el tipo de sesión, la fecha y el horario.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <form id="admin-booking-form" onSubmit={handleBook} className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="admin-booking-type">Tipo de sesión</Label>
             <Select value={type} onValueChange={(v) => setType(v as AppointmentType)}>
@@ -149,6 +160,8 @@ const AdminBookingDialog = ({
               <Label>Horario</Label>
               {loadingSlots ? (
                 <LoadingState className="py-6" label="Cargando horarios…" />
+              ) : slotsError ? (
+                <LoadErrorAlert message="No se pudieron cargar los horarios de ese día." onRetry={retrySlots} />
               ) : allSlots.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No hay horarios configurados para este día.</p>
               ) : (
@@ -199,13 +212,18 @@ const AdminBookingDialog = ({
               </AlertDescription>
             </Alert>
           )}
-        </div>
+        </form>
 
         <DialogFooter>
-          <Button onClick={handleBook} disabled={!selectedSlot || submitting} className="w-full">
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+          <SubmitButton
+            form="admin-booking-form"
+            disabled={!selectedSlot}
+            loading={submitting}
+            loadingLabel="Agendando…"
+            className="w-full"
+          >
             {selectedIsFull ? 'Agendar como sobrecupo' : 'Agendar'}
-          </Button>
+          </SubmitButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
