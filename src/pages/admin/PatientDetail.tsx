@@ -85,11 +85,11 @@ const PatientDetail = () => {
   const fetchData = useCallback(async () => {
     if (!id) return;
     // El perfil es imprescindible; el saldo y las citas se muestran si llegan. Las citas se piden
-    // desde hoy: el servidor entrega las de su alcance y aquí se dejan las de este paciente.
+    // desde hoy y ya filtradas por este paciente en el servidor.
     const [prof, bal, apts] = await Promise.allSettled([
       userService.getPatientProfile(id),
       clientPlanService.getBalance(id),
-      appointmentService.getAll({ status: 'scheduled', from: todayLocal() }),
+      appointmentService.getAll({ status: 'scheduled', from: todayLocal(), patient: id }),
     ]);
 
     if (prof.status === 'rejected') {
@@ -99,11 +99,7 @@ const PatientDetail = () => {
     }
     setProfile(prof.value);
     setBalance(bal.status === 'fulfilled' ? bal.value : null);
-    setAppointments(
-      apts.status === 'fulfilled'
-        ? apts.value.filter((a) => (typeof a.patient === 'object' ? a.patient.id : a.patient) === id)
-        : []
-    );
+    setAppointments(apts.status === 'fulfilled' ? apts.value : []);
     setState('ready');
   }, [id]);
 

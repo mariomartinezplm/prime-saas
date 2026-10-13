@@ -1,21 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { TriangleAlert } from 'lucide-react';
 import { userService } from '@/services/userService';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { FormField } from '@/components/forms/FormField';
+import SubmitButton from '@/components/forms/SubmitButton';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import { showApiError } from '@/lib/apiError';
+import { todayLocal } from '@/lib/evolutionDate';
 import { notify } from '@/lib/notify';
+import { isValidRut, normalizeRut } from '@/lib/rut';
+import { birthDateError, isEmail, isPhone, joinLines, parseLines } from '@/lib/validation';
 import type { User } from '@/types';
 
 interface EditPatientDialogProps {
@@ -30,11 +31,6 @@ interface EditPatientDialogProps {
 const NO_PROFESSIONAL = 'none';
 const NO_GENDER = 'none';
 
-// Una lista por línea: no se pierde nada si un texto trae comas (así vienen
-// muchos datos importados de Airtable).
-const toLines = (list?: string[]) => (list ?? []).join('\n');
-const fromLines = (text: string) => text.split('\n').map((s) => s.trim()).filter(Boolean);
-
 const idOf = (value?: User | string) => (typeof value === 'object' ? value?.id : value) ?? '';
 
 const buildForm = (patient: User) => ({
@@ -48,25 +44,37 @@ const buildForm = (patient: User) => ({
   gender: patient.gender || NO_GENDER,
   healthInsurance: patient.healthInsurance ?? '',
   referralSource: patient.referralSource ?? '',
-  objectives: toLines(patient.objectives),
+  objectives: joinLines(patient.objectives),
   emergencyName: patient.emergencyContact?.name ?? '',
   emergencyPhone: patient.emergencyContact?.phone ?? '',
   emergencyRelationship: patient.emergencyContact?.relationship ?? '',
-  chronicConditions: toLines(patient.medicalInfo?.chronicConditions),
-  medications: toLines(patient.medicalInfo?.medications),
-  allergies: toLines(patient.medicalInfo?.allergies),
-  injuries: toLines(patient.medicalInfo?.injuries),
+  chronicConditions: joinLines(patient.medicalInfo?.chronicConditions),
+  medications: joinLines(patient.medicalInfo?.medications),
+  allergies: joinLines(patient.medicalInfo?.allergies),
+  injuries: joinLines(patient.medicalInfo?.injuries),
   assignedProfessionalId: idOf(patient.assignedProfessionalId) || NO_PROFESSIONAL,
   exemptFromCapacity: patient.exemptFromCapacity === true,
 });
+type FormState = ReturnType<typeof buildForm>;
+type Errors = Partial<Record<keyof FormState, string>>;
 
 const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: EditPatientDialogProps) => {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const savingRef = useRef(false);
   const [form, setForm] = useState(() => buildForm(patient));
+  const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
   const [staff, setStaff] = useState<User[]>([]);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const initial = useMemo(() => buildForm(patient), [patient]);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
 
   useEffect(() => {
-    if (open) setForm(buildForm(patient));
+    if (open) {
+      setForm(buildForm(patient));
+      setErrors({});
+    }
   }, [open, patient]);
 
   useEffect(() => {
@@ -76,40 +84,77 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
       .catch(() => notify.error('No se pudo cargar la lista de profesionales'));
   }, [open, canAssign, staff.length]);
 
-  const set = (field: keyof typeof form, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
+  const set = <K extends keyof FormState>(field: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
 
-  const handleSave = async () => {
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
-      notify.error('Nombre, apellido y correo son obligatorios');
+  // Cerrar con cambios sin guardar pregunta antes de descartarlos
+  const requestClose = (next: boolean) => {
+    if (next) return onOpenChange(true);
+    if (saving) return;
+    if (dirty) setConfirmDiscard(true);
+    else onOpenChange(false);
+  };
+
+  const validate = (): Errors => {
+    const found: Errors = {};
+    if (!form.firstName.trim()) found.firstName = 'Ingresa el nombre';
+    if (!form.lastName.trim()) found.lastName = 'Ingresa el apellido';
+    if (!form.email.trim()) found.email = 'Ingresa el correo';
+    else if (!isEmail(form.email)) found.email = 'Ingresa un correo válido';
+    // El RUT solo se exige válido si se cambió: una ficha antigua con un RUT raro igual se puede editar
+    if (form.rut.trim() && form.rut.trim() !== (patient.rut ?? '') && !isValidRut(form.rut)) {
+      found.rut = 'RUT inválido: revisa los números y el dígito verificador';
+    }
+    if (form.phone.trim() && !isPhone(form.phone)) found.phone = 'Ingresa un teléfono válido';
+    const birth = birthDateError(form.dateOfBirth, todayLocal());
+    if (birth) found.dateOfBirth = birth;
+    if (form.emergencyPhone.trim() && !isPhone(form.emergencyPhone)) found.emergencyPhone = 'Ingresa un teléfono válido';
+    return found;
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savingRef.current) return;
+
+    const found = validate();
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
       return;
     }
+
+    savingRef.current = true;
     setSaving(true);
     try {
+      const rut = form.rut.trim();
       const updated = await userService.update(patient.id, {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
-        rut: form.rut.trim(),
+        // Un RUT válido se guarda normalizado (el login por RUT busca el texto exacto); uno antiguo sin tocar se deja como está
+        rut: rut && isValidRut(rut) ? normalizeRut(rut) : rut,
         dateOfBirth: form.dateOfBirth || undefined,
         address: form.address.trim(),
         gender: form.gender === NO_GENDER ? '' : (form.gender as User['gender']),
         healthInsurance: form.healthInsurance.trim(),
         referralSource: form.referralSource.trim(),
-        objectives: fromLines(form.objectives),
+        objectives: parseLines(form.objectives),
         emergencyContact: {
           name: form.emergencyName.trim(),
           phone: form.emergencyPhone.trim(),
           relationship: form.emergencyRelationship.trim(),
         },
-        // El servidor reemplaza medicalInfo completo: se conserva lo que este
-        // formulario no toca (altura, peso base, fumador, cirugías).
+        // El servidor reemplaza medicalInfo completo: se conserva lo que este formulario no toca
+        // (altura, peso base, fumador, cirugías).
         medicalInfo: {
           ...patient.medicalInfo,
-          chronicConditions: fromLines(form.chronicConditions),
-          medications: fromLines(form.medications),
-          allergies: fromLines(form.allergies),
-          injuries: fromLines(form.injuries),
+          chronicConditions: parseLines(form.chronicConditions),
+          medications: parseLines(form.medications),
+          allergies: parseLines(form.allergies),
+          injuries: parseLines(form.injuries),
         },
         ...(canAssign
           ? {
@@ -122,166 +167,191 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
       onSaved(updated);
       onOpenChange(false);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      notify.error(error.response?.data?.message || 'No se pudieron guardar los cambios');
+      const response = (err as { response?: { status?: number } }).response;
+      if (response?.status === 409) {
+        // Correo repetido: se marca en el campo y no se pierde nada de lo escrito
+        setErrors((prev) => ({ ...prev, email: 'Ya existe otra persona con este correo' }));
+        requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      } else {
+        showApiError(err, 'No se pudieron guardar los cambios. Tus datos siguen aquí: intenta de nuevo.');
+      }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
 
+  const errorCount = Object.values(errors).filter(Boolean).length;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Editar datos de {patient.firstName}</DialogTitle>
-          <DialogDescription>Solo el personal puede modificar estos datos.</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={requestClose}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar datos del paciente</DialogTitle>
+            <DialogDescription>Los campos con * son obligatorios. Las listas se escriben una por línea.</DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-6">
-          <section className="space-y-3">
-            <h3 className="font-semibold text-foreground">Datos personales</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Nombre *</Label>
-                <Input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Apellido *</Label>
-                <Input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Correo *</Label>
-                <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
-                <p className="text-xs text-muted-foreground">Es el correo con el que el paciente inicia sesión.</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Teléfono</Label>
-                <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>RUT</Label>
-                <Input value={form.rut} onChange={(e) => set('rut', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Fecha de nacimiento</Label>
-                <Input type="date" value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Género</Label>
-                <Select value={form.gender} onValueChange={(v) => set('gender', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_GENDER}>Sin especificar</SelectItem>
-                    <SelectItem value="Masculino">Masculino</SelectItem>
-                    <SelectItem value="Femenino">Femenino</SelectItem>
-                    <SelectItem value="Otro">Otro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Dirección</Label>
-                <Input value={form.address} onChange={(e) => set('address', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Previsión</Label>
-                <Input value={form.healthInsurance} onChange={(e) => set('healthInsurance', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Cómo llegó</Label>
-                <Input value={form.referralSource} onChange={(e) => set('referralSource', e.target.value)} />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Objetivos</Label>
-                <Textarea rows={3} value={form.objectives} onChange={(e) => set('objectives', e.target.value)} />
-                <p className="text-xs text-muted-foreground">Uno por línea.</p>
-              </div>
-              {canAssign && (
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label>Profesional asignado</Label>
-                  <Select value={form.assignedProfessionalId} onValueChange={(v) => set('assignedProfessionalId', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_PROFESSIONAL}>Sin asignar (lo ve todo el personal)</SelectItem>
-                      {staff.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.firstName} {s.lastName}</SelectItem>
-                      ))}
-                      {form.assignedProfessionalId !== NO_PROFESSIONAL && !staff.some((s) => s.id === form.assignedProfessionalId) && (
-                        <SelectItem value={form.assignedProfessionalId}>Profesional actual</SelectItem>
+          <form onSubmit={handleSave} noValidate>
+            <div ref={bodyRef} className="space-y-6">
+              {errorCount > 0 && (
+                <Alert variant="destructive">
+                  <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+                  <AlertDescription>Revisa {errorCount === 1 ? 'el campo marcado' : `los ${errorCount} campos marcados`}.</AlertDescription>
+                </Alert>
+              )}
+
+              <section className="space-y-3">
+                <h3 className="font-semibold text-foreground">Datos personales</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField label="Nombre" required error={errors.firstName}>
+                    {(c) => <Input {...c} autoComplete="off" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Apellido" required error={errors.lastName}>
+                    {(c) => <Input {...c} autoComplete="off" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Correo" required error={errors.email} className="sm:col-span-2">
+                    {(c) => <Input {...c} type="email" inputMode="email" autoComplete="off" value={form.email} onChange={(e) => set('email', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Teléfono" error={errors.phone}>
+                    {(c) => <Input {...c} type="tel" inputMode="tel" autoComplete="off" value={form.phone} onChange={(e) => set('phone', e.target.value)} />}
+                  </FormField>
+                  <FormField label="RUT" error={errors.rut}>
+                    {(c) => (
+                      <Input
+                        {...c}
+                        autoComplete="off"
+                        value={form.rut}
+                        onChange={(e) => set('rut', e.target.value)}
+                        onBlur={() => form.rut.trim() && isValidRut(form.rut) && set('rut', normalizeRut(form.rut))}
+                      />
+                    )}
+                  </FormField>
+                  <FormField label="Fecha de nacimiento" error={errors.dateOfBirth}>
+                    {(c) => <Input {...c} type="date" max={todayLocal()} value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Género">
+                    {(c) => (
+                      <Select value={form.gender} onValueChange={(v) => set('gender', v)}>
+                        <SelectTrigger id={c.id}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_GENDER}>Sin especificar</SelectItem>
+                          <SelectItem value="Masculino">Masculino</SelectItem>
+                          <SelectItem value="Femenino">Femenino</SelectItem>
+                          <SelectItem value="Otro">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </FormField>
+                  <FormField label="Dirección" className="sm:col-span-2">
+                    {(c) => <Input {...c} autoComplete="off" value={form.address} onChange={(e) => set('address', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Previsión">
+                    {(c) => <Input {...c} autoComplete="off" value={form.healthInsurance} onChange={(e) => set('healthInsurance', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Cómo llegó">
+                    {(c) => <Input {...c} autoComplete="off" value={form.referralSource} onChange={(e) => set('referralSource', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Objetivos" hint="Uno por línea." className="sm:col-span-2">
+                    {(c) => <Textarea {...c} rows={3} value={form.objectives} onChange={(e) => set('objectives', e.target.value)} />}
+                  </FormField>
+                  {canAssign && (
+                    <FormField label="Profesional asignado" className="sm:col-span-2">
+                      {(c) => (
+                        <Select value={form.assignedProfessionalId} onValueChange={(v) => set('assignedProfessionalId', v)}>
+                          <SelectTrigger id={c.id}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_PROFESSIONAL}>Sin asignar (lo ve todo el personal)</SelectItem>
+                            {staff.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.firstName} {s.lastName}
+                              </SelectItem>
+                            ))}
+                            {form.assignedProfessionalId !== NO_PROFESSIONAL && !staff.some((s) => s.id === form.assignedProfessionalId) && (
+                              <SelectItem value={form.assignedProfessionalId}>Profesional actual</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
                       )}
-                    </SelectContent>
-                  </Select>
+                    </FormField>
+                  )}
+                  {canAssign && (
+                    <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-3 sm:col-span-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="exempt-capacity">Puede agendar sobre el cupo</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Aunque el horario ya tenga 4 pacientes, esta persona puede agendar, y sus citas no cuentan en esos 4 (no le quitan lugar a
+                          nadie). Vale para las citas que agende desde ahora.
+                        </p>
+                      </div>
+                      <Switch id="exempt-capacity" checked={form.exemptFromCapacity} onCheckedChange={(v) => set('exemptFromCapacity', v)} />
+                    </div>
+                  )}
                 </div>
-              )}
-              {canAssign && (
-                <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-3 sm:col-span-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="exempt-capacity">Puede agendar sobre el cupo</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Aunque el horario ya tenga 4 pacientes, esta persona puede agendar, y sus citas no
-                      cuentan en esos 4 (no le quitan lugar a nadie). Vale para las citas que agende desde ahora.
-                    </p>
-                  </div>
-                  <Switch
-                    id="exempt-capacity"
-                    checked={form.exemptFromCapacity}
-                    onCheckedChange={(v) => setForm((prev) => ({ ...prev, exemptFromCapacity: v }))}
-                  />
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="font-semibold text-foreground">Contacto de emergencia</h3>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <FormField label="Nombre">
+                    {(c) => <Input {...c} autoComplete="off" value={form.emergencyName} onChange={(e) => set('emergencyName', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Teléfono" error={errors.emergencyPhone}>
+                    {(c) => <Input {...c} type="tel" inputMode="tel" autoComplete="off" value={form.emergencyPhone} onChange={(e) => set('emergencyPhone', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Relación">
+                    {(c) => <Input {...c} autoComplete="off" value={form.emergencyRelationship} onChange={(e) => set('emergencyRelationship', e.target.value)} />}
+                  </FormField>
                 </div>
-              )}
-            </div>
-          </section>
+              </section>
 
-          <section className="space-y-3">
-            <h3 className="font-semibold text-foreground">Contacto de emergencia</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label>Nombre</Label>
-                <Input value={form.emergencyName} onChange={(e) => set('emergencyName', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Teléfono</Label>
-                <Input value={form.emergencyPhone} onChange={(e) => set('emergencyPhone', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Relación</Label>
-                <Input value={form.emergencyRelationship} onChange={(e) => set('emergencyRelationship', e.target.value)} />
-              </div>
+              <section className="space-y-3">
+                <h3 className="font-semibold text-foreground">Información médica</h3>
+                <p className="text-xs text-muted-foreground">Una por línea. Peso y altura base se editan en la tarjeta de Información médica.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField label="Condiciones crónicas">
+                    {(c) => <Textarea {...c} rows={3} value={form.chronicConditions} onChange={(e) => set('chronicConditions', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Medicamentos">
+                    {(c) => <Textarea {...c} rows={3} value={form.medications} onChange={(e) => set('medications', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Alergias">
+                    {(c) => <Textarea {...c} rows={3} value={form.allergies} onChange={(e) => set('allergies', e.target.value)} />}
+                  </FormField>
+                  <FormField label="Lesiones">
+                    {(c) => <Textarea {...c} rows={3} value={form.injuries} onChange={(e) => set('injuries', e.target.value)} />}
+                  </FormField>
+                </div>
+              </section>
             </div>
-          </section>
 
-          <section className="space-y-3">
-            <h3 className="font-semibold text-foreground">Información médica</h3>
-            <p className="text-xs text-muted-foreground">Uno por línea. Peso y altura base se editan en la tarjeta de Información Médica.</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Condiciones crónicas</Label>
-                <Textarea rows={3} value={form.chronicConditions} onChange={(e) => set('chronicConditions', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Medicamentos</Label>
-                <Textarea rows={3} value={form.medications} onChange={(e) => set('medications', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Alergias</Label>
-                <Textarea rows={3} value={form.allergies} onChange={(e) => set('allergies', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Lesiones</Label>
-                <Textarea rows={3} value={form.injuries} onChange={(e) => set('injuries', e.target.value)} />
-              </div>
-            </div>
-          </section>
-        </div>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => requestClose(false)} disabled={saving}>
+                Cancelar
+              </Button>
+              <SubmitButton loading={saving} loadingLabel="Guardando…" disabled={!dirty}>
+                Guardar cambios
+              </SubmitButton>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Guardar cambios
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <ConfirmDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title="¿Descartar los cambios?"
+        description="Hiciste cambios que todavía no guardaste. Si cierras, se pierden."
+        confirmLabel="Descartar"
+        cancelLabel="Seguir editando"
+        destructive
+        onConfirm={() => onOpenChange(false)}
+      />
+    </>
   );
 };
 

@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { notify } from '@/lib/notify';
-import { Loader2 } from 'lucide-react';
+import { showApiError } from '@/lib/apiError';
 import api from '@/lib/api';
+import { FormField } from '@/components/forms/FormField';
+import SubmitButton from '@/components/forms/SubmitButton';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import PainBodyDiagram from '@/components/body/PainBodyDiagram';
 import { Input } from '@/components/ui/input';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
@@ -33,7 +35,11 @@ const PAIN_TYPES = [
 ];
 
 const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
+  const formRef = useRef<HTMLFormElement>(null);
+  const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
+  const [zoneError, setZoneError] = useState<string | undefined>();
+  const [dateError, setDateError] = useState<string | undefined>();
   const [date, setDate] = useState(todayLocal());
   const [painLevel, setPainLevel] = useState(0);
   const [bodyArea, setBodyArea] = useState('');
@@ -47,13 +53,24 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
     setSelectedPoint({ x, y, gender: 'male' }); // The gender is handled by local state inside PainBodyDiagram now, but we can pass it later if needed.
   };
 
+  // Hay datos escritos que todavía no se guardaron
+  const dirty = !!(bodyArea || painType || duration || observations || treatmentPlan || selectedPoint || painLevel > 0 || date !== todayLocal());
+  useUnsavedChangesWarning(dirty && !loading);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bodyArea && !selectedPoint) {
-      notify.error('Selecciona una zona del cuerpo o pincha en el mapa');
+    if (submittingRef.current) return;
+
+    const zone = !bodyArea && !selectedPoint ? 'Selecciona una zona del cuerpo o pincha el punto en el mapa' : undefined;
+    const when = !date ? 'Indica la fecha del registro' : date > todayLocal() ? 'La fecha no puede ser futura' : undefined;
+    setZoneError(zone);
+    setDateError(when);
+    if (zone || when) {
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
     try {
       await api.post('/eva', {
@@ -68,7 +85,7 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
         point: selectedPoint || undefined,
       });
 
-      notify.success('Registro EVA creado exitosamente');
+      notify.success('Registro de dolor guardado');
       setDate(todayLocal());
       setPainLevel(0);
       setBodyArea('');
@@ -79,9 +96,10 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
       setSelectedPoint(null);
       onSuccess();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      notify.error(error.response?.data?.message || 'Error al registrar EVA');
+      // Si falla se conserva todo lo escrito para reintentar
+      showApiError(err, 'No se pudo guardar el registro de dolor. Tus datos siguen aquí.');
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
@@ -93,24 +111,24 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form ref={formRef} onSubmit={handleSubmit} noValidate>
       <Card>
-        <CardHeader><CardTitle className="text-lg">Nuevo Registro EVA</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">Nuevo registro de dolor (EVA)</CardTitle></CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-1 max-w-[200px]">
-            <Label className="text-xs">Fecha del registro</Label>
-            <Input type="date" max={todayLocal()} value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
+          <FormField label="Fecha del registro" required error={dateError} className="max-w-[220px]">
+            {(c) => <Input {...c} type="date" max={todayLocal()} value={date} onChange={(e) => { setDate(e.target.value); setDateError(undefined); }} />}
+          </FormField>
 
           {/* Pain level slider */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Nivel de Dolor</Label>
+              <Label id="eva-pain-label">Nivel de dolor</Label>
               <span className={`text-2xl font-bold ${getPainColor(painLevel)}`}>
                 {painLevel}/10
               </span>
             </div>
             <Slider
+              aria-labelledby="eva-pain-label"
               value={[painLevel]}
               onValueChange={(v) => setPainLevel(v[0])}
               max={10}
@@ -123,26 +141,27 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Zona del cuerpo *</Label>
-              <Select value={bodyArea} onValueChange={setBodyArea}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar zona (o pincha el mapa)" /></SelectTrigger>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="Zona del cuerpo" required error={zoneError}>
+              {(c) => (
+              <Select value={bodyArea} onValueChange={(v) => { setBodyArea(v); setZoneError(undefined); }}>
+                <SelectTrigger id={c.id} aria-invalid={c['aria-invalid']} aria-describedby={c['aria-describedby']}><SelectValue placeholder="Seleccionar zona (o pincha el mapa)" /></SelectTrigger>
                 <SelectContent>
                   {BODY_AREAS.map((area) => (
                     <SelectItem key={area} value={area}>
                       {area.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </SelectItem>
                   ))}
-                  <SelectItem value="otro">Otro (Punto en mapa)</SelectItem>
+                  <SelectItem value="otro">Otro (punto en el mapa)</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+              )}
+            </FormField>
 
-            <div className="space-y-2">
-              <Label>Tipo de dolor</Label>
+            <FormField label="Tipo de dolor">
+              {(c) => (
               <Select value={painType} onValueChange={setPainType}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
+                <SelectTrigger id={c.id}><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
                 <SelectContent>
                   {PAIN_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>
@@ -151,23 +170,25 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+              )}
+            </FormField>
           </div>
 
-          <div className="space-y-2">
-            <Label>Duración</Label>
+          <FormField label="Duración">
+            {(c) => (
             <Select value={duration} onValueChange={setDuration}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+              <SelectTrigger id={c.id}><SelectValue placeholder="Seleccionar" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="agudo">Agudo (menos de 6 semanas)</SelectItem>
                 <SelectItem value="subagudo">Subagudo (6-12 semanas)</SelectItem>
                 <SelectItem value="cronico">Crónico (más de 12 semanas)</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+            )}
+          </FormField>
 
           <div className="space-y-4 border-t pt-4">
-            <Label>Mapa de Dolor (Opcional - Selecciona el punto exacto)</Label>
+            <Label>Mapa de dolor (opcional: toca el punto exacto)</Label>
             <div className="border border-border rounded-xl p-4 bg-muted/20">
               <PainBodyDiagram
                 selectedZone={bodyArea !== 'otro' ? bodyArea : null}
@@ -182,20 +203,17 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Notas y Observaciones</Label>
-            <Textarea value={observations} onChange={(e) => setObservations(e.target.value)} />
-          </div>
+          <FormField label="Notas y observaciones">
+            {(c) => <Textarea {...c} value={observations} onChange={(e) => setObservations(e.target.value)} />}
+          </FormField>
 
-          <div className="space-y-2">
-            <Label>Plan de tratamiento</Label>
-            <Textarea value={treatmentPlan} onChange={(e) => setTreatmentPlan(e.target.value)} />
-          </div>
+          <FormField label="Plan de tratamiento">
+            {(c) => <Textarea {...c} value={treatmentPlan} onChange={(e) => setTreatmentPlan(e.target.value)} />}
+          </FormField>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Registrar EVA
-          </Button>
+          <SubmitButton className="w-full" loading={loading} loadingLabel="Guardando…">
+            Registrar dolor
+          </SubmitButton>
         </CardContent>
       </Card>
     </form>

@@ -14,6 +14,7 @@ export const appointmentService = {
     from?: string;
     to?: string;
     type?: string;
+    patient?: string;
   }): Promise<Appointment[]> => {
     const response = await api.get<APIResponse<{ appointments: Appointment[] }>>('/appointments', { params });
     return response.data.data.appointments;
