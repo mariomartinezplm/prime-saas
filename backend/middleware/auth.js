@@ -100,6 +100,15 @@ export const canAccessPatient = async (requester, patientId) => {
   return false;
 };
 
+// Condición de Mongo (`$or`) de los pacientes que le pertenecen a un profesional: los asignados
+// a él + los que aún no tienen profesional (el "pool" común). Es la misma regla que aplica
+// `canAccessPatient`, expresada como consulta para poder filtrar listas en la base de datos.
+export const ownedPatientsOr = (professionalId) => [
+  { assignedProfessionalId: professionalId },
+  { assignedProfessionalId: { $exists: false } },
+  { assignedProfessionalId: null }
+];
+
 // Acceso a UNA cita (leerla, modificarla, cancelarla, descargar su .ics):
 //   admin        → todas
 //   patient      → solo las suyas

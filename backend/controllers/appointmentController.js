@@ -272,7 +272,7 @@ export const createAppointment = async (req, res) => {
 // @access  Private
 export const getAppointments = async (req, res) => {
   try {
-    const { status, from, to, type } = req.query;
+    const { status, from, to, type, patient } = req.query;
 
     // Construir query
     let query = {};
@@ -290,6 +290,20 @@ export const getAppointments = async (req, res) => {
     // Filtrar por profesional (admin puede filtrar por cualquier profesional)
     if (req.query.professional && req.user.role === 'admin') {
       query.professional = req.query.professional;
+    }
+
+    // Filtrar por paciente (solo personal; el paciente siempre ve solo lo suyo). El profesional debe
+    // poder acceder a ese paciente (404 si no) y ve TODAS sus citas, también las agendadas con un
+    // colega: misma regla que `canAccessAppointment`.
+    if (typeof patient === 'string' && patient && req.user.role !== 'patient') {
+      if (!(await canAccessPatient(req.user, patient))) {
+        return res.status(404).json({
+          success: false,
+          message: 'Paciente no encontrado'
+        });
+      }
+      query.patient = patient;
+      if (req.user.role === 'professional') delete query.professional;
     }
 
     // Filtros

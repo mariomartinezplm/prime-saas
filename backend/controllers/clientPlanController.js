@@ -9,6 +9,7 @@ import {
   runPlanLifecycleJob
 } from '../services/planLifecycleService.js';
 import { TERMS, BILLING_CYCLES } from '../services/planCycles.js';
+import { ownedPatientsOr } from '../middleware/auth.js';
 
 function isStaff(user) {
   return ['admin', 'professional'].includes(user.role);
@@ -210,7 +211,8 @@ export const cancelClientPlan = async (req, res) => {
   }
 };
 
-// @desc    Listar planes (activos y vencidos) de TODOS los pacientes, para el panel admin
+// @desc    Listar planes (activos y vencidos): el admin ve los de todos los pacientes; un
+//          profesional, solo los de SUS pacientes (asignados + pool sin profesional)
 // @route   GET /api/client-plans
 // @access  Private/Staff (admin o professional)
 export const getAllClientPlans = async (req, res) => {
@@ -218,7 +220,15 @@ export const getAllClientPlans = async (req, res) => {
     // Dejar los planes en el estado de "ahora" antes de listar
     await advancePlans();
 
-    const clientPlans = await ClientPlan.find({ status: { $in: ['active', 'expired'] } })
+    const filter = { status: { $in: ['active', 'expired'] } };
+    // SEGURIDAD: antes un profesional recibía los planes (con nombre y correo) de todos los
+    // pacientes del centro. El alcance lo decide el servidor, con la misma regla de pertenencia.
+    if (req.user.role === 'professional') {
+      const ownedIds = await User.distinct('_id', { role: 'patient', $or: ownedPatientsOr(req.user._id) });
+      filter.patient = { $in: ownedIds };
+    }
+
+    const clientPlans = await ClientPlan.find(filter)
       .populate('patient', 'firstName lastName email')
       .populate('registeredBy', 'firstName lastName')
       .sort({ endDate: 1 });

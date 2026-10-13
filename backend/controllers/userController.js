@@ -5,7 +5,7 @@ import ExerciseProgress from '../models/Exercise.js';
 import EVA from '../models/EVA.js';
 import ClientPlan from '../models/ClientPlan.js';
 import { importNewPatients } from '../utils/airtableSync.js';
-import { canAccessPatient } from '../middleware/auth.js';
+import { canAccessPatient, ownedPatientsOr } from '../middleware/auth.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { generateUnusablePassword, createInvite } from '../services/inviteService.js';
 import { toCSV } from '../utils/csv.js';
@@ -47,11 +47,7 @@ export const getAllUsers = async (req, res) => {
         // Estos últimos quedan en un "pool" común para que nadie desaparezca del
         // sistema por un dato incompleto; al asignarles profesional salen del pool.
         query.role = 'patient';
-        ownershipOr = [
-          { assignedProfessionalId: req.user._id },
-          { assignedProfessionalId: { $exists: false } },
-          { assignedProfessionalId: null }
-        ];
+        ownershipOr = ownedPatientsOr(req.user._id);
       }
     } else {
       // Paciente: únicamente el directorio de staff, con datos mínimos.
@@ -526,11 +522,7 @@ export const getDashboardStats = async (req, res) => {
     const appointmentScope = {};
     if (isProfessional) {
       // Sus pacientes asignados + el "pool" sin profesional asignado
-      patientQuery.$or = [
-        { assignedProfessionalId: req.user._id },
-        { assignedProfessionalId: { $exists: false } },
-        { assignedProfessionalId: null }
-      ];
+      patientQuery.$or = ownedPatientsOr(req.user._id);
       // Solo sus propias citas
       appointmentScope.professional = req.user._id;
     }
