@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import DateBadge from '@/components/shared/DateBadge';
 import EmptyState from '@/components/shared/EmptyState';
 import { ListSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
@@ -18,15 +19,18 @@ import { PATIENT_CANCEL_AHEAD_HOURS } from '@/config/bookingRules';
 import { appointmentEnd, appointmentStart, parseDay, personName } from '@/lib/appointments';
 import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
-import { capitalizeFirst } from '@/lib/utils';
+import { capitalizeFirst, cn } from '@/lib/utils';
 import type { Appointment } from '@/types';
 
 const AppointmentCard = ({
   apt,
   onCancel,
+  highlight,
 }: {
   apt: Appointment;
   onCancel: (apt: Appointment) => void;
+  // La próxima sesión se destaca para encontrarla sin leer la lista
+  highlight?: boolean;
 }) => {
   // Se puede cancelar mientras la cita no haya empezado. Con menos de 4 horas la sesión se pierde
   // (lo decide el servidor); aquí solo se avisa en la confirmación.
@@ -45,8 +49,17 @@ const AppointmentCard = ({
   };
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0 space-y-1">
+    <li
+      className={cn(
+        'flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between',
+        highlight ? 'border-primary/50 bg-primary/5' : 'border-border bg-card',
+        (apt.status === 'cancelled' || apt.status === 'no-show') && 'opacity-80'
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-4">
+        <DateBadge date={parseDay(apt.date)} />
+        <div className="min-w-0 space-y-1">
+        {highlight && <p className="text-xs font-semibold uppercase tracking-wider text-secondary">Próxima sesión</p>}
         <p className="font-medium">{capitalizeFirst(format(parseDay(apt.date), "EEEE d 'de' MMMM", { locale: es }))}</p>
         <p className="text-sm tabular-nums text-muted-foreground">
           {apt.startTime} – {apt.endTime}
@@ -55,6 +68,7 @@ const AppointmentCard = ({
           {appointmentTypeLabels[apt.type]}
           {typeof apt.professional === 'object' && <span className="text-secondary"> · {personName(apt.professional, '')}</span>}
         </p>
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <AppointmentStatusBadge status={apt.status} />
@@ -134,13 +148,13 @@ const MyAppointments = () => {
     );
   }
 
-  const renderList = (items: Appointment[], empty: React.ReactNode) =>
+  const renderList = (items: Appointment[], empty: React.ReactNode, highlightFirst = false) =>
     items.length === 0 ? (
       empty
     ) : (
       <ul className="space-y-3">
-        {items.map((apt) => (
-          <AppointmentCard key={apt._id} apt={apt} onCancel={setCancelling} />
+        {items.map((apt, index) => (
+          <AppointmentCard key={apt._id} apt={apt} onCancel={setCancelling} highlight={highlightFirst && index === 0} />
         ))}
       </ul>
     );
@@ -191,7 +205,8 @@ const MyAppointments = () => {
                   <Link to="/app/reservar">Reservar hora</Link>
                 </Button>
               }
-            />
+            />,
+            true
           )}
         </TabsContent>
         <TabsContent value="past" className="mt-4">

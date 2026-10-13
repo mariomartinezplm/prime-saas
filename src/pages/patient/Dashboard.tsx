@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import DateBadge from '@/components/shared/DateBadge';
 import EmptyState from '@/components/shared/EmptyState';
 import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
@@ -130,15 +131,18 @@ const PatientDashboard = () => {
             {upcoming === null ? (
               <p className="text-sm text-muted-foreground">No se pudo cargar tu próxima sesión.</p>
             ) : nextAppointment ? (
-              <div className="space-y-1">
-                <p className="text-xl font-semibold">{dayLabel(dayOf(nextAppointment))}</p>
-                <p className="text-sm tabular-nums">
-                  {nextAppointment.startTime} – {nextAppointment.endTime}
-                </p>
-                <p className="text-sm text-secondary">{appointmentTypeLabels[nextAppointment.type]}</p>
-                <Button asChild variant="link" size="sm" className="mt-1 h-auto p-0">
-                  <Link to="/app/mis-citas">Ver mis citas</Link>
-                </Button>
+              <div className="flex items-center gap-4">
+                <DateBadge date={parseISO(dayOf(nextAppointment))} />
+                <div className="min-w-0 space-y-1">
+                  <p className="text-xl font-semibold">{dayLabel(dayOf(nextAppointment))}</p>
+                  <p className="text-sm tabular-nums">
+                    {nextAppointment.startTime} – {nextAppointment.endTime}
+                  </p>
+                  <p className="text-sm text-secondary">{appointmentTypeLabels[nextAppointment.type]}</p>
+                  <Button asChild variant="link" size="sm" className="mt-1 h-auto p-0">
+                    <Link to="/app/mis-citas">Ver mis citas</Link>
+                  </Button>
+                </div>
               </div>
             ) : (
               <EmptyState

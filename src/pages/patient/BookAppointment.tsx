@@ -336,13 +336,13 @@ const BookAppointment = () => {
                   aria-pressed={bookingMode === 'single'}
                   onClick={() => setBookingMode('single')}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'single'
-                    ? 'border-info bg-info/10 shadow-sm'
+                    ? 'border-primary bg-primary/10 shadow-sm'
                     : 'border-border hover:border-muted-foreground/40'
                     }`}
                 >
-                  <CalendarIcon className={`w-5 h-5 ${bookingMode === 'single' ? 'text-info' : 'text-muted-foreground'}`} />
+                  <CalendarIcon className={`w-5 h-5 ${bookingMode === 'single' ? 'text-secondary' : 'text-muted-foreground'}`} aria-hidden="true" />
                   <div className="text-left">
-                    <p className={`text-sm font-medium ${bookingMode === 'single' ? 'text-info' : 'text-foreground'}`}>
+                    <p className="text-sm font-medium text-foreground">
                       Agendar una hora
                     </p>
                     <p className="text-xs text-muted-foreground">Elige día y hora específicos</p>
@@ -357,13 +357,13 @@ const BookAppointment = () => {
                     if (balance?.hasActivePlan) setShowBulk(true);
                   }}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'recurring'
-                    ? 'border-coral bg-coral/10 shadow-sm'
+                    ? 'border-primary bg-primary/10 shadow-sm'
                     : 'border-border hover:border-muted-foreground/40'
                     }`}
                 >
-                  <Repeat className={`w-5 h-5 ${bookingMode === 'recurring' ? 'text-coral' : 'text-muted-foreground'}`} />
+                  <Repeat className={`w-5 h-5 ${bookingMode === 'recurring' ? 'text-secondary' : 'text-muted-foreground'}`} aria-hidden="true" />
                   <div className="text-left">
-                    <p className={`text-sm font-medium ${bookingMode === 'recurring' ? 'text-coral' : 'text-foreground'}`}>
+                    <p className="text-sm font-medium text-foreground">
                       Horario predeterminado
                     </p>
                     <p className="text-xs text-muted-foreground">Fija tu hora para siempre</p>
@@ -375,7 +375,7 @@ const BookAppointment = () => {
 
           {/* ─── Single Booking Mode: Calendar + Slots ─── */}
           {bookingMode === 'single' && (
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid items-start gap-6 md:grid-cols-2">
               {/* Calendar */}
               <Card>
                 <CardHeader>
@@ -451,13 +451,13 @@ const BookAppointment = () => {
           )}
 
           {/* ─── Rules Info Card ─── */}
-          <Card className="border border-info/30 bg-info/10">
+          <Card className="border border-primary/30 bg-primary/5">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
+                <Info className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" aria-hidden="true" />
                 <div className="space-y-1.5">
-                  <p className="text-sm font-medium text-info">Reglas de agendamiento</p>
-                  <div className="flex flex-col gap-1 text-xs text-info">
+                  <p className="text-sm font-medium text-foreground">Reglas de agendamiento</p>
+                  <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
                       <span>Puedes agendar con un <strong>mínimo de {MIN_BOOKING_AHEAD_HOURS} horas</strong> de anticipación</span>
