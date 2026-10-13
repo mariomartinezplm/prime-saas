@@ -6,10 +6,13 @@ import NotificationBell from '@/components/notifications/NotificationBell';
 import { useAppDarkTheme } from '@/hooks/useAppDarkTheme';
 import WelcomeSplash from './WelcomeSplash';
 import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext';
+import AchievementUnlockHost from '@/components/achievements/AchievementUnlockHost';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AppLayout = () => {
   useAppDarkTheme();
   const location = useLocation();
+  const { user } = useAuth();
 
   return (
     <UnsavedChangesProvider>
@@ -37,6 +40,8 @@ const AppLayout = () => {
         </SidebarInset>
       </SidebarProvider>
       <WelcomeSplash />
+      {/* Animación de logros nuevos: solo para pacientes y solo en pantallas tranquilas */}
+      {user?.role === 'patient' && <AchievementUnlockHost />}
     </UnsavedChangesProvider>
   );
 };

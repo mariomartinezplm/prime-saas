@@ -34,6 +34,7 @@ import EVAForm from '@/components/forms/EVAForm';
 import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
 import PatientPhotos from '@/components/photos/PatientPhotos';
+import PatientAchievementsTab from '@/components/achievements/PatientAchievementsTab';
 import { MeasurementHistory, ExerciseHistory } from '@/components/records/PatientRecordHistory';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import EditPatientDialog from '@/components/forms/EditPatientDialog';
@@ -65,6 +66,7 @@ const SECTIONS = [
   { value: 'files', label: 'Archivos' },
   { value: 'photos', label: 'Fotos' },
   { value: 'wellness', label: 'Bienestar' },
+  { value: 'achievements', label: 'Logros' },
   { value: 'plan', label: 'Plan' },
 ] as const;
 
@@ -253,7 +255,7 @@ const PatientDetail = () => {
       </div>
 
       <Tabs value={tab} onValueChange={changeTab}>
-        {/* En móvil 9 pestañas no caben: se elige la sección con un selector */}
+        {/* En móvil 10 pestañas no caben: se elige la sección con un selector */}
         <div className="md:hidden">
           <Select value={tab} onValueChange={changeTab}>
             <SelectTrigger aria-label="Sección de la ficha">
@@ -408,6 +410,10 @@ const PatientDetail = () => {
 
         <TabsContent value="wellness" className="mt-4">
           <WellnessHistoryTab patientId={id!} />
+        </TabsContent>
+
+        <TabsContent value="achievements" className="mt-4">
+          <PatientAchievementsTab patientId={id!} />
         </TabsContent>
 
         <TabsContent value="plan" className="mt-4">

@@ -11,6 +11,7 @@ import {
   Settings,
   Ruler,
   Camera,
+  Trophy,
   Dumbbell,
   Activity,
   User,
@@ -65,6 +66,7 @@ const patientNav: NavGroup[] = [
       { label: 'Ejercicios', icon: Dumbbell, path: '/app/ejercicios' },
       { label: 'Fotos', icon: Camera, path: '/app/fotos' },
       { label: 'Dolor (EVA)', icon: Activity, path: '/app/dolor' },
+      { label: 'Mis logros', icon: Trophy, path: '/app/logros' },
     ],
   },
   {

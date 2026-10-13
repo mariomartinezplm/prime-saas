@@ -27,6 +27,7 @@ import PatientDashboard from "./pages/patient/Dashboard";
 import BookAppointment from "./pages/patient/BookAppointment";
 import MyAppointments from "./pages/patient/MyAppointments";
 import MyProfile from "./pages/patient/MyProfile";
+import MyAchievements from "./pages/patient/MyAchievements";
 import PatientMeasurements from "./pages/patient/Measurements";
 import PatientExercises from "./pages/patient/Exercises";
 import PainRecords from "./pages/patient/PainRecords";
@@ -110,6 +111,10 @@ const App = () => (
               <Route
                 path="mi-perfil"
                 element={<RoleRoute roles={['patient']}><MyProfile /></RoleRoute>}
+              />
+              <Route
+                path="logros"
+                element={<RoleRoute roles={['patient']}><MyAchievements /></RoleRoute>}
               />
               <Route
                 path="mediciones"

@@ -6,6 +6,8 @@ interface UnsavedChangesApi {
   setDirty: (key: string, dirty: boolean) => void;
   // Ejecuta `leave` de inmediato si no hay nada sin guardar; si lo hay, pregunta primero
   confirmLeave: (leave: () => void) => void;
+  // ¿Hay algo escrito sin guardar ahora mismo? (para no interrumpir con avisos que no son urgentes)
+  isDirty: () => boolean;
 }
 
 const UnsavedChangesContext = createContext<UnsavedChangesApi | null>(null);
@@ -32,7 +34,9 @@ export const UnsavedChangesProvider = ({ children }: { children: ReactNode }) =>
     }
   }, []);
 
-  const api = useMemo(() => ({ setDirty, confirmLeave }), [setDirty, confirmLeave]);
+  const isDirty = useCallback(() => dirtyKeys.current.size > 0, []);
+
+  const api = useMemo(() => ({ setDirty, confirmLeave, isDirty }), [setDirty, confirmLeave, isDirty]);
 
   return (
     <UnsavedChangesContext.Provider value={api}>
@@ -63,4 +67,4 @@ export const UnsavedChangesProvider = ({ children }: { children: ReactNode }) =>
 
 // Fuera del layout (por ejemplo en una pantalla pública) no hay nada que proteger: deja pasar.
 export const useUnsavedChangesApi = (): UnsavedChangesApi =>
-  useContext(UnsavedChangesContext) ?? { setDirty: () => {}, confirmLeave: (leave) => leave() };
+  useContext(UnsavedChangesContext) ?? { setDirty: () => {}, confirmLeave: (leave) => leave(), isDirty: () => false };
