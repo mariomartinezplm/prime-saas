@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import LoadingState from '@/components/shared/LoadingState';
+import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { TriangleAlert } from 'lucide-react';
 import PainBodyDiagram from '@/components/body/PainBodyDiagram';
@@ -48,7 +48,11 @@ const PainRecords = () => {
   });
 
   if (loading) {
-    return <LoadingState label="Cargando tus registros de dolor…" />;
+    return (
+      <PageSkeleton label="Cargando tus registros de dolor…">
+        <CardsSkeleton count={2} bodyHeight="h-56" />
+      </PageSkeleton>
+    );
   }
 
   return (

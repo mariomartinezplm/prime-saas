@@ -42,7 +42,7 @@ import { DetailList, DetailRow } from '@/components/patients/DetailList';
 import PlanLine from '@/components/patients/PlanLine';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import EmptyState from '@/components/shared/EmptyState';
-import LoadingState from '@/components/shared/LoadingState';
+import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { ActiveStatusBadge, AppointmentStatusBadge, StatusBadge } from '@/components/shared/StatusBadge';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
@@ -108,7 +108,14 @@ const PatientDetail = () => {
     fetchData();
   }, [fetchData]);
 
-  if (state === 'loading') return <LoadingState label="Cargando ficha…" />;
+  if (state === 'loading') {
+    return (
+      <PageSkeleton label="Cargando ficha…">
+        <StatsSkeleton count={4} />
+        <CardsSkeleton count={2} />
+      </PageSkeleton>
+    );
+  }
 
   if (state === 'not-found') {
     return (

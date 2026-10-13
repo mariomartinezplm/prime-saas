@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import EmptyState from '@/components/shared/EmptyState';
-import LoadingState from '@/components/shared/LoadingState';
+import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
@@ -63,7 +63,14 @@ const PatientDashboard = () => {
     load();
   }, [load]);
 
-  if (loading) return <LoadingState label="Cargando tu espacio…" />;
+  if (loading) {
+    return (
+      <PageSkeleton label="Cargando tu espacio…">
+        <StatsSkeleton count={3} />
+        <CardsSkeleton count={2} />
+      </PageSkeleton>
+    );
+  }
 
   // "Próxima sesión" no debe ser una de hoy que ya empezó
   const now = new Date();

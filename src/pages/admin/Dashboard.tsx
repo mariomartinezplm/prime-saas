@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import EmptyState from '@/components/shared/EmptyState';
-import LoadingState from '@/components/shared/LoadingState';
+import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import WellnessTrendsSummary from '@/components/wellness/WellnessTrendsSummary';
@@ -83,7 +83,14 @@ const AdminDashboard = () => {
     load();
   }, [load]);
 
-  if (loading) return <LoadingState label="Cargando tu panel…" />;
+  if (loading) {
+    return (
+      <PageSkeleton label="Cargando tu panel…">
+        <StatsSkeleton count={4} />
+        <CardsSkeleton count={2} />
+      </PageSkeleton>
+    );
+  }
 
   const today = todayLocal();
   const todayList = appointments?.filter((a) => dayOf(a) === today) ?? [];

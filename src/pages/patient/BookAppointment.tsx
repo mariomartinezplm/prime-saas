@@ -20,6 +20,7 @@ import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
 import { MIN_BOOKING_AHEAD_HOURS, PATIENT_CANCEL_AHEAD_HOURS } from '@/config/bookingRules';
 import { capitalizeFirst } from '@/lib/utils';
 import LoadingState from '@/components/shared/LoadingState';
+import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import type { User, SessionBalance, AvailableSlots } from '@/types';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
@@ -220,7 +221,11 @@ const BookAppointment = () => {
   const planInfo = getPlanStatusInfo();
 
   if (loading) {
-    return <LoadingState label="Cargando…" />;
+    return (
+      <PageSkeleton label="Cargando…">
+        <CardsSkeleton count={2} bodyHeight="h-48" />
+      </PageSkeleton>
+    );
   }
 
   return (

@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import LoadingState from '@/components/shared/LoadingState';
+import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { TriangleAlert } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -79,7 +79,11 @@ const MeasurementsEnhanced = () => {
   }
 
   if (loading) {
-    return <LoadingState label="Cargando tus mediciones…" />;
+    return (
+      <PageSkeleton label="Cargando tus mediciones…">
+        <CardsSkeleton count={2} bodyHeight="h-56" />
+      </PageSkeleton>
+    );
   }
 
   return (

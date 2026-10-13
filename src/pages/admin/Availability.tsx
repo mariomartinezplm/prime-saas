@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import EmptyState from '@/components/shared/EmptyState';
-import LoadingState from '@/components/shared/LoadingState';
+import { BlockSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import PageHeader from '@/components/shared/PageHeader';
 import { dayKey, parseDay } from '@/lib/appointments';
@@ -245,7 +245,9 @@ const AdminAvailability = () => {
       {professionalsError ? (
         <LoadErrorAlert message="No se pudo cargar la lista de profesionales, por eso no se muestra el horario." onRetry={loadProfessionals} />
       ) : loading ? (
-        <LoadingState label="Cargando horario…" />
+        <SkeletonRegion label="Cargando horario…">
+          <BlockSkeleton className="h-[360px]" />
+        </SkeletonRegion>
       ) : loadError ? (
         <Alert variant="warning">
           <TriangleAlert className="h-4 w-4" aria-hidden="true" />

@@ -13,7 +13,7 @@ import AppointmentCalendar from '@/components/calendar/AppointmentCalendar';
 import AppointmentDetailDialog from '@/components/calendar/AppointmentDetailDialog';
 import StatusLegend from '@/components/calendar/StatusLegend';
 import { toEvents } from '@/components/calendar/calendarUtils';
-import LoadingState from '@/components/shared/LoadingState';
+import { BlockSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { notify } from '@/lib/notify';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -99,7 +99,9 @@ const AdminCalendar = () => {
       )}
 
       {loading ? (
-        <LoadingState label="Cargando citas…" />
+        <SkeletonRegion label="Cargando citas…">
+          <BlockSkeleton className="h-[520px]" />
+        </SkeletonRegion>
       ) : isMobile ? (
         <AgendaList appointments={appointments} date={date} onNavigate={setDate} onSelect={setSelected} />
       ) : (

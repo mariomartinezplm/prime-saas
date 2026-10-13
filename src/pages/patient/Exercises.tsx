@@ -7,7 +7,7 @@ import ExerciseProgressChart from '@/components/charts/ExerciseProgressChart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import LoadingState from '@/components/shared/LoadingState';
+import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { TriangleAlert } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -96,7 +96,12 @@ const ExercisesEnhanced = () => {
   }, 0);
 
   if (loading) {
-    return <LoadingState label="Cargando tus ejercicios…" />;
+    return (
+      <PageSkeleton label="Cargando tus ejercicios…">
+        <StatsSkeleton count={3} />
+        <CardsSkeleton count={2} bodyHeight="h-56" />
+      </PageSkeleton>
+    );
   }
 
   return (

@@ -19,7 +19,7 @@ import AirtableImportDialog from '@/components/admin/AirtableImportDialog';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PlanLine from '@/components/patients/PlanLine';
 import EmptyState from '@/components/shared/EmptyState';
-import LoadingState from '@/components/shared/LoadingState';
+import { ListSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { ActiveStatusBadge } from '@/components/shared/StatusBadge';
 import type { ServiceType } from '@/config/planCatalog';
@@ -281,7 +281,9 @@ const PatientList = () => {
       )}
 
       {loading ? (
-        <LoadingState label="Cargando pacientes…" />
+        <SkeletonRegion label="Cargando pacientes…">
+          <ListSkeleton rows={7} />
+        </SkeletonRegion>
       ) : failed ? (
         <Alert variant="warning">
           <TriangleAlert className="h-4 w-4" aria-hidden="true" />

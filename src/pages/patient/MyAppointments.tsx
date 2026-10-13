@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import EmptyState from '@/components/shared/EmptyState';
-import LoadingState from '@/components/shared/LoadingState';
+import { ListSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { AppointmentStatusBadge } from '@/components/shared/StatusBadge';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
@@ -126,7 +126,13 @@ const MyAppointments = () => {
     }
   };
 
-  if (loading) return <LoadingState label="Cargando tus citas…" />;
+  if (loading) {
+    return (
+      <PageSkeleton label="Cargando tus citas…">
+        <ListSkeleton rows={4} />
+      </PageSkeleton>
+    );
+  }
 
   const renderList = (items: Appointment[], empty: React.ReactNode) =>
     items.length === 0 ? (
