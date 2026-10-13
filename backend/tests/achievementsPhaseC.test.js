@@ -12,6 +12,7 @@ import mongoose from 'mongoose';
 import Appointment from '../models/Appointment.js';
 import ClientPlan from '../models/ClientPlan.js';
 import AchievementAward from '../models/AchievementAward.js';
+import AchievementPause from '../models/AchievementPause.js';
 import Notification from '../models/Notification.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 import {
@@ -248,6 +249,7 @@ const query = (value) => ({ select: () => query(value), lean: () => Promise.reso
 function datos({ citas = [], planes = [] }) {
   vi.spyOn(Appointment, 'find').mockImplementation(() => query(citas));
   vi.spyOn(ClientPlan, 'find').mockImplementation(() => query(planes));
+  vi.spyOn(AchievementPause, 'find').mockImplementation(() => query([]));
 }
 
 function almacen(inicial = []) {
@@ -407,6 +409,7 @@ describe('triggerAchievementEvaluation y programador', () => {
       return query(llamada % 2 === 0 ? muchas(5, () => kine()) : []);
     });
     vi.spyOn(ClientPlan, 'find').mockImplementation(() => query([]));
+    vi.spyOn(AchievementPause, 'find').mockImplementation(() => query([]));
     almacen();
     avisos();
 

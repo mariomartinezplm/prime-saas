@@ -2,9 +2,11 @@ import mongoose from 'mongoose';
 import Appointment from '../../models/Appointment.js';
 import ClientPlan from '../../models/ClientPlan.js';
 import AchievementAward from '../../models/AchievementAward.js';
+import AchievementPause from '../../models/AchievementPause.js';
 import { grantAchievement, flagForReview, restoreFromReview } from '../achievementService.js';
 import { computeKinesiologyCandidates, kinesiologyMilestoneStillMet } from './kinesiology.js';
 import { computeConsistencyCandidates, consistencyPeriodStillMet } from './consistency.js';
+import { computeStreakCandidates, streakMilestoneStillMet } from './streaks.js';
 
 /**
  * Evaluación de logros de un paciente a partir de SUS datos reales.
@@ -15,22 +17,27 @@ import { computeConsistencyCandidates, consistencyPeriodStillMet } from './consi
 
 async function loadData(patientId) {
   const id = new mongoose.Types.ObjectId(String(patientId));
-  const [appointments, plans] = await Promise.all([
+  const [appointments, plans, pauses] = await Promise.all([
     Appointment.find({ patient: id }).select('_id type status date startTime deduction').lean(),
-    ClientPlan.find({ patient: id }).select('_id serviceType sessionsTotal unlimited status startDate endDate').lean()
+    ClientPlan.find({ patient: id }).select('_id serviceType sessionsTotal unlimited status startDate endDate').lean(),
+    AchievementPause.find({ patient: id }).select('periodKey').lean()
   ]);
-  return { appointments, plans };
+  return { appointments, plans, pauses };
 }
 
 // Logros que corresponde conceder hoy. Cada categoría aporta los suyos; las siguientes fases agregan más.
-export function computeCandidates({ appointments, plans }) {
-  return [...computeKinesiologyCandidates(appointments), ...computeConsistencyCandidates(plans, appointments)];
+export function computeCandidates({ appointments, plans, pauses = [] }, now = new Date()) {
+  return [
+    ...computeKinesiologyCandidates(appointments),
+    ...computeConsistencyCandidates(plans, appointments),
+    ...computeStreakCandidates(plans, appointments, pauses, now)
+  ];
 }
 
 // Concede lo que corresponda. Con dryRun solo informa qué concedería (para revisar antes de un backfill).
-export async function evaluatePatientAchievements(patientId, { dryRun = false } = {}) {
+export async function evaluatePatientAchievements(patientId, { dryRun = false, now = new Date() } = {}) {
   const data = await loadData(patientId);
-  const candidates = computeCandidates(data);
+  const candidates = computeCandidates(data, now);
   const granted = [];
 
   for (const candidate of candidates) {
@@ -52,20 +59,21 @@ const reviewNote = (text) => `${REVIEW_MARK}${text}`;
 // Tras una corrección (una cita que dejó de estar completada, una cita borrada…): revisa los logros YA
 // concedidos. Si ya no se cumplen con los datos de hoy, NO se retiran: quedan "en revisión" con una nota.
 // Si una corrección posterior los vuelve a respaldar, vuelven a "activo" (solo los marcados por el sistema).
-export async function reconcilePatientAchievements(patientId) {
+export async function reconcilePatientAchievements(patientId, { now = new Date() } = {}) {
   const data = await loadData(patientId);
   const awards = await AchievementAward.find({
     patient: patientId,
-    key: { $in: ['kine_5', 'consistency_month'] }
+    key: { $in: ['kine_5', 'consistency_month', 'streak_3', 'streak_6', 'streak_12'] }
   });
 
   const flagged = [];
   const restored = [];
 
   for (const award of awards) {
-    const stillMet = award.key === 'kine_5'
-      ? kinesiologyMilestoneStillMet(data.appointments, award.key)
-      : consistencyPeriodStillMet(data.plans, data.appointments, award.periodKey);
+    let stillMet;
+    if (award.key === 'kine_5') stillMet = kinesiologyMilestoneStillMet(data.appointments, award.key);
+    else if (award.key === 'consistency_month') stillMet = consistencyPeriodStillMet(data.plans, data.appointments, award.periodKey);
+    else stillMet = streakMilestoneStillMet(data.plans, data.appointments, data.pauses, now, award.key);
 
     if (!stillMet && award.status === 'active') {
       await flagForReview({

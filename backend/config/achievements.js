@@ -72,6 +72,44 @@ export const ACHIEVEMENTS = {
     message: 'Mes de constancia. Cumpliste tu plan de este periodo: tu esfuerzo se nota.',
     ruleVersion: 1,
     periodic: true
+  },
+
+  // ── Trayectoria en PRIME ────────────────────────────────────────────────────
+  // Meses CONSECUTIVOS con "Mes de constancia". Un mes sin plan o con pausa autorizada no suma ni corta la
+  // racha; solo un mes con plan, ya cerrado, sin llegar al objetivo y sin pausa la reinicia. Ver
+  // services/achievements/streaks.js.
+  streak_3: {
+    key: 'streak_3',
+    category: 'trayectoria',
+    title: '3 meses en movimiento',
+    description: 'Cumpliste tu plan de entrenamiento tres meses seguidos.',
+    criteria: 'Completar las sesiones de tu plan de entrenamiento durante 3 meses consecutivos. Los meses sin plan o con una pausa autorizada no suman ni cortan la racha.',
+    message: 'Tres meses en movimiento. Tu constancia está construyendo algo sólido.',
+    ruleVersion: 1,
+    periodic: false,
+    months: 3
+  },
+  streak_6: {
+    key: 'streak_6',
+    category: 'trayectoria',
+    title: '6 meses de compromiso',
+    description: 'Cumpliste tu plan de entrenamiento seis meses seguidos.',
+    criteria: 'Completar las sesiones de tu plan de entrenamiento durante 6 meses consecutivos. Los meses sin plan o con una pausa autorizada no suman ni cortan la racha.',
+    message: 'Seis meses de compromiso. Gracias por mantener tu ritmo.',
+    ruleVersion: 1,
+    periodic: false,
+    months: 6
+  },
+  streak_12: {
+    key: 'streak_12',
+    category: 'trayectoria',
+    title: 'Un año en PRIME',
+    description: 'Cumpliste tu plan de entrenamiento doce meses seguidos.',
+    criteria: 'Completar las sesiones de tu plan de entrenamiento durante 12 meses consecutivos. Los meses sin plan o con una pausa autorizada no suman ni cortan la racha.',
+    message: 'Un año en PRIME. Doce meses de constancia: cada sesión sumó.',
+    ruleVersion: 1,
+    periodic: false,
+    months: 12
   }
 };
 
