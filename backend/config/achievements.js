@@ -89,6 +89,35 @@ export const ACHIEVEMENTS = {
     window: 7
   },
 
+  // ── Sueño y descanso / Estrés y recuperación ────────────────────────────────
+  // FUENTE: autorreporte del Readiness (no horas de sueño ni datos de un dispositivo). 5 días favorables
+  // (respuesta >= 7 de 9) dentro de una ventana de 7 días; un día sin registro no cuenta ni a favor ni en
+  // contra, y nunca se concede por una sola medición. No son diagnósticos.
+  rest_week: {
+    key: 'rest_week',
+    category: 'descanso',
+    title: 'Una semana de buen descanso',
+    description: 'En tu Readiness reportaste un buen descanso 5 días dentro de una misma semana.',
+    criteria: 'Según lo que registras en tu Readiness (autorreporte, no una medición del sueño): una respuesta de sueño de 7 o más en 5 de 7 días. Un día sin registro no cuenta ni a favor ni en contra.',
+    message: 'Una semana de buen descanso. Dormir bien también es parte de tu progreso.',
+    ruleVersion: 1,
+    periodic: false,
+    days: 5,
+    window: 7
+  },
+  balance_week: {
+    key: 'balance_week',
+    category: 'estres',
+    title: 'Semana de equilibrio',
+    description: 'En tu Readiness reportaste sentirte en calma 5 días dentro de una misma semana.',
+    criteria: 'Según lo que registras en tu Readiness (autorreporte, no una medición fisiológica del estrés): una respuesta de calma de 7 o más en 5 de 7 días. Un día sin registro no cuenta ni a favor ni en contra.',
+    message: 'Semana de equilibrio. Cuidar tu calma suma tanto como entrenar.',
+    ruleVersion: 1,
+    periodic: false,
+    days: 5,
+    window: 7
+  },
+
   // ── Trayectoria en PRIME ────────────────────────────────────────────────────
   // Meses CONSECUTIVOS con "Mes de constancia". Un mes sin plan o con pausa autorizada no suma ni corta la
   // racha; solo un mes con plan, ya cerrado, sin llegar al objetivo y sin pausa la reinicia. Ver

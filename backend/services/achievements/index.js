@@ -9,6 +9,7 @@ import { computeKinesiologyCandidates, kinesiologyMilestoneStillMet } from './ki
 import { computeConsistencyCandidates, consistencyPeriodStillMet } from './consistency.js';
 import { computeStreakCandidates, streakMilestoneStillMet } from './streaks.js';
 import { computeReadinessCandidates } from './readiness.js';
+import { computeWellbeingCandidates } from './wellbeing.js';
 
 /**
  * Evaluación de logros de un paciente a partir de SUS datos reales.
@@ -23,7 +24,7 @@ async function loadData(patientId) {
     Appointment.find({ patient: id }).select('_id type status date startTime deduction').lean(),
     ClientPlan.find({ patient: id }).select('_id serviceType sessionsTotal unlimited status startDate endDate').lean(),
     AchievementPause.find({ patient: id }).select('periodKey').lean(),
-    WellnessCheckin.find({ patient: id }).select('_id date').lean()
+    WellnessCheckin.find({ patient: id }).select('_id date scale sleep stress').lean()
   ]);
   return { appointments, plans, pauses, checkins };
 }
@@ -34,7 +35,8 @@ export function computeCandidates({ appointments, plans, pauses = [], checkins =
     ...computeKinesiologyCandidates(appointments),
     ...computeConsistencyCandidates(plans, appointments),
     ...computeStreakCandidates(plans, appointments, pauses, now),
-    ...computeReadinessCandidates(checkins)
+    ...computeReadinessCandidates(checkins),
+    ...computeWellbeingCandidates(checkins)
   ];
 }
 
