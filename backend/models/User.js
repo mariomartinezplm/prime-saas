@@ -126,6 +126,16 @@ const userSchema = new mongoose.Schema({
   resetPasswordToken: String,
   resetPasswordExpire: Date,
 
+  // Preferencias de la persona. Hoy: el recordatorio diario del Readiness (solo dentro de la app; no es una
+  // notificación push del celular). `hour` es la hora de Santiago a partir de la cual se muestra el aviso.
+  // Quien no tiene el campo usa los valores por defecto (activado, 20:00).
+  preferences: {
+    readinessReminder: {
+      enabled: { type: Boolean, default: true },
+      hour: { type: Number, min: 0, max: 23, default: 20 }
+    }
+  },
+
   // "Sobre cupo": sus citas NO cuentan en el máximo de 4 pacientes simultáneos y puede
   // agendar aunque el horario esté lleno. Solo el admin lo activa (afecta la carga
   // real del profesional). Aplica a las citas que agende de ahí en adelante.

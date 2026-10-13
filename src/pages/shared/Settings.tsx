@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CalendarCheck2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { googleCalendarService } from '@/services/googleCalendarService';
+import { wellnessService, type ReadinessReminder } from '@/services/wellnessService';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import PasswordField from '@/components/forms/PasswordField';
@@ -129,6 +133,94 @@ const ChangePasswordCard = () => {
   );
 };
 
+// Recordatorio diario del Readiness. Es un aviso DENTRO de la app (campanita), no una notificación del
+// celular. Cada cambio se confirma con el servidor antes de mostrarse como guardado.
+const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 06:00 a 23:00
+const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`;
+
+const ReadinessReminderCard = () => {
+  const [reminder, setReminder] = useState<ReadinessReminder | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(() => {
+    setFailed(false);
+    wellnessService
+      .getReminder()
+      .then(setReminder)
+      .catch(() => setFailed(true));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const change = async (changes: Partial<ReadinessReminder>) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      setReminder(await wellnessService.updateReminder(changes));
+      notify.success(changes.enabled === false ? 'Recordatorio desactivado' : 'Recordatorio guardado');
+    } catch (err) {
+      notify.error(getErrorMessage(err, 'No se pudo guardar el recordatorio. Intenta de nuevo.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Recordatorio del Readiness</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Te avisamos una vez al día, dentro de la app, para que completes tu Readiness. Si ya lo hiciste, no te avisamos.
+          Es un aviso de la campanita: no es una notificación del celular.
+        </p>
+        {reminder === null && !failed ? (
+          <LoadingState label="Cargando tu preferencia…" className="py-4" />
+        ) : failed || reminder === null ? (
+          <LoadErrorAlert message="No pudimos cargar tu preferencia." onRetry={load} />
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="readiness-reminder-enabled" className="cursor-pointer">
+                Recibir el recordatorio
+              </Label>
+              <Switch
+                id="readiness-reminder-enabled"
+                checked={reminder.enabled}
+                disabled={saving}
+                onCheckedChange={(enabled) => change({ enabled })}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="readiness-reminder-hour">Hora del aviso (hora de Chile)</Label>
+              <Select
+                value={String(reminder.hour)}
+                disabled={saving || !reminder.enabled}
+                onValueChange={(value) => change({ hour: Number(value) })}
+              >
+                <SelectTrigger id="readiness-reminder-hour" className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HOURS.map((h) => (
+                    <SelectItem key={h} value={String(h)}>
+                      {hourLabel(h)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const GoogleCalendarCard = () => {
   // null = todavía consultando; 'error' = no se pudo saber (no se muestra "Conectar" como si fuera cierto)
   const [status, setStatus] = useState<boolean | 'error' | null>(null);
@@ -248,6 +340,8 @@ const Settings = () => {
       </Card>
 
       <ChangePasswordCard />
+
+      {user?.role === 'patient' && <ReadinessReminderCard />}
 
       {isStaff && <GoogleCalendarCard />}
     </div>

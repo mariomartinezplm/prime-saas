@@ -421,7 +421,9 @@ export type NotificationType =
   | 'plan_expired'
   | 'appointment_booked'
   | 'appointment_cancelled'
-  | 'wellness_alert';
+  | 'wellness_alert'
+  | 'achievement_unlocked'
+  | 'readiness_reminder';
 
 export interface Notification {
   _id: string;

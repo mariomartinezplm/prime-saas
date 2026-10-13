@@ -1,6 +1,7 @@
 import { sendDueReminders } from './appointmentReminderService.js';
 import { runPlanLifecycleJob } from './planLifecycleService.js';
 import { runAchievementSweep } from './achievements/index.js';
+import { sendReadinessReminders } from './readinessReminderService.js';
 import { importNewPatients, isAirtableConfigured, AUTO_IMPORT_FROM } from '../utils/airtableSync.js';
 
 const TICK_MS = 10 * 60 * 1000;
@@ -33,6 +34,15 @@ async function tick() {
     }
   } catch (error) {
     console.error('Error en el programador de recordatorios:', error.message);
+  }
+
+  try {
+    const readiness = await sendReadinessReminders();
+    if (readiness.sent || readiness.failed) {
+      console.log(`💚 Readiness: ${readiness.sent} recordatorios, ${readiness.failed} con error`);
+    }
+  } catch (error) {
+    console.error('Error en los recordatorios de Readiness:', error.message);
   }
 
   try {

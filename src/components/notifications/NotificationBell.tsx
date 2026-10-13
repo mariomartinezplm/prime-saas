@@ -12,6 +12,8 @@ import {
   Clock,
   HeartPulse,
   Loader2,
+  Sparkles,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,6 +37,8 @@ const TYPE_META: Record<string, { icon: LucideIcon; tone: string }> = {
   plan_expired: { icon: AlertCircle, tone: 'bg-destructive/15 text-destructive' },
   wellness_alert: { icon: HeartPulse, tone: 'bg-destructive/15 text-destructive' },
   evolution_updated: { icon: Activity, tone: 'bg-info/15 text-info' },
+  achievement_unlocked: { icon: Trophy, tone: 'bg-primary/15 text-primary' },
+  readiness_reminder: { icon: Sparkles, tone: 'bg-primary/15 text-primary' },
 };
 const FALLBACK_META = { icon: Bell, tone: 'bg-muted text-muted-foreground' };
 

@@ -3,7 +3,9 @@ import {
   createCheckin,
   getTodayCheckin,
   getPatientCheckins,
-  getTrends
+  getTrends,
+  getReminderPreference,
+  updateReminderPreference
 } from '../controllers/wellnessController.js';
 import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
 
@@ -16,6 +18,9 @@ router.use(protect);
 // complete "¿cómo te sientes hoy?" en nombre de otra persona.
 router.post('/', authorize('patient'), createCheckin);
 router.get('/me', authorize('patient'), getTodayCheckin);
+// Preferencia del recordatorio diario: solo el propio paciente
+router.get('/reminder', authorize('patient'), getReminderPreference);
+router.put('/reminder', authorize('patient'), updateReminderPreference);
 
 // Antes de ':patientId' — si no, Express confundiría "trends" con un id.
 router.get('/trends', authorize('admin', 'professional'), getTrends);

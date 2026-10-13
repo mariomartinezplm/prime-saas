@@ -13,6 +13,7 @@ import Appointment from '../models/Appointment.js';
 import ClientPlan from '../models/ClientPlan.js';
 import AchievementAward from '../models/AchievementAward.js';
 import AchievementPause from '../models/AchievementPause.js';
+import WellnessCheckin from '../models/WellnessCheckin.js';
 import Notification from '../models/Notification.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 import {
@@ -250,6 +251,7 @@ function datos({ citas = [], planes = [] }) {
   vi.spyOn(Appointment, 'find').mockImplementation(() => query(citas));
   vi.spyOn(ClientPlan, 'find').mockImplementation(() => query(planes));
   vi.spyOn(AchievementPause, 'find').mockImplementation(() => query([]));
+  vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
 }
 
 function almacen(inicial = []) {
@@ -410,6 +412,8 @@ describe('triggerAchievementEvaluation y programador', () => {
     });
     vi.spyOn(ClientPlan, 'find').mockImplementation(() => query([]));
     vi.spyOn(AchievementPause, 'find').mockImplementation(() => query([]));
+    vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
+    vi.spyOn(WellnessCheckin, 'distinct').mockResolvedValue([]);
     almacen();
     avisos();
 

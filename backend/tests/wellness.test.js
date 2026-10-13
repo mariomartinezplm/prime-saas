@@ -15,7 +15,11 @@ import { createCheckin, getTodayCheckin, getTrends, getPatientCheckins } from '.
 vi.mock('../services/clientPlanService.js', () => ({
   hasActivePlan: vi.fn()
 }));
+vi.mock('../services/achievements/index.js', () => ({
+  triggerAchievementEvaluation: vi.fn(async () => {})
+}));
 import { hasActivePlan } from '../services/clientPlanService.js';
+import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 
 const nuevoId = () => new mongoose.Types.ObjectId();
 
@@ -277,5 +281,31 @@ describe('GET /wellness/patient/:patientId', () => {
     expect(sortSpy).toHaveBeenCalledWith({ date: -1 });
     expect(res.statusCode).toBe(200);
     expect(res.body.count).toBe(1);
+  });
+});
+
+
+describe('logros del hábito de Readiness', () => {
+  it('al registrar el check-in se evalúan los logros del paciente (sin afectar la respuesta)', async () => {
+    vi.restoreAllMocks();
+    triggerAchievementEvaluation.mockClear();
+    vi.mocked(hasActivePlan).mockResolvedValue(true);
+    vi.spyOn(WellnessCheckin, 'create').mockImplementation(fakeCreate);
+    triggerAchievementEvaluation.mockRejectedValueOnce(new Error('boom'));
+
+    const patientId = nuevoId();
+    const res = fakeRes();
+    await createCheckin({ user: { _id: patientId }, body: baseBody() }, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(triggerAchievementEvaluation).toHaveBeenCalledWith(patientId);
+  });
+
+  it('un check-in rechazado (sin plan o repetido) NO evalúa logros', async () => {
+    vi.restoreAllMocks();
+    triggerAchievementEvaluation.mockClear();
+    vi.mocked(hasActivePlan).mockResolvedValue(false);
+    await createCheckin({ user: { _id: nuevoId() }, body: baseBody() }, fakeRes());
+    expect(triggerAchievementEvaluation).not.toHaveBeenCalled();
   });
 });

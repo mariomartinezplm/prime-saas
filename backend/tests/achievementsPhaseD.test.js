@@ -13,6 +13,7 @@ import Appointment from '../models/Appointment.js';
 import ClientPlan from '../models/ClientPlan.js';
 import AchievementAward from '../models/AchievementAward.js';
 import AchievementPause from '../models/AchievementPause.js';
+import WellnessCheckin from '../models/WellnessCheckin.js';
 import Notification from '../models/Notification.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 import {
@@ -213,6 +214,7 @@ function datos({ plans, citas, pausas = [] }) {
   vi.spyOn(ClientPlan, 'find').mockImplementation(() => query(plans));
   const state = { pausas };
   vi.spyOn(AchievementPause, 'find').mockImplementation(() => query(state.pausas));
+  vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
   return state;
 }
 

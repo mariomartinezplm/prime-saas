@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { clientPlanService } from '@/services/clientPlanService';
@@ -46,6 +46,16 @@ const PatientDashboard = () => {
   const [upcoming, setUpcoming] = useState<Appointment[] | null>(null);
   const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const readinessRef = useRef<HTMLDivElement>(null);
+
+  // Desde el recordatorio ('?readiness=1') se baja directo al Readiness y se enfoca para teclado/lector
+  const wantsReadiness = searchParams.get('readiness') === '1';
+  useEffect(() => {
+    if (loading || !wantsReadiness) return;
+    readinessRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    readinessRef.current?.focus({ preventScroll: true });
+  }, [loading, wantsReadiness]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -106,7 +116,9 @@ const PatientDashboard = () => {
       {balance?.paymentPending && balance.paymentDueBy && <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />}
 
       {/* Check-in de bienestar: lo primero que se hace cada día */}
-      <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} />
+      <div id="readiness" ref={readinessRef} tabIndex={-1} className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
+        <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

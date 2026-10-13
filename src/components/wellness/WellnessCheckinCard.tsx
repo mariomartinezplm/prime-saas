@@ -143,6 +143,9 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
           </div>
 
           <p className="text-sm text-foreground">{readiness.message}</p>
+          <p className="text-xs text-muted-foreground">
+            Basado en lo que tú respondiste hoy: es un autorreporte, no una medición médica ni un diagnóstico.
+          </p>
           {flagged.length > 0 && (
             <p className="text-xs text-muted-foreground">
               Ojo con: {flagged.join(', ')}. Una respuesta muy baja no deja el semáforo en verde.

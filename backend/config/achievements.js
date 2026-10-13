@@ -74,6 +74,21 @@ export const ACHIEVEMENTS = {
     periodic: true
   },
 
+  // ── Readiness diario ────────────────────────────────────────────────────────
+  // Reconoce el HÁBITO de registrar el Readiness, no el resultado: no importa si fue verde, amarillo o rojo.
+  readiness_week: {
+    key: 'readiness_week',
+    category: 'readiness',
+    title: 'Una semana de Readiness',
+    description: 'Registraste tu Readiness 5 días dentro de una misma semana.',
+    criteria: 'Completar tu Readiness en 5 de 7 días seguidos. Solo cuenta registrarlo: no importa el resultado.',
+    message: 'Una semana de Readiness. Escucharte cada día es parte de tu entrenamiento.',
+    ruleVersion: 1,
+    periodic: false,
+    days: 5,
+    window: 7
+  },
+
   // ── Trayectoria en PRIME ────────────────────────────────────────────────────
   // Meses CONSECUTIVOS con "Mes de constancia". Un mes sin plan o con pausa autorizada no suma ni corta la
   // racha; solo un mes con plan, ya cerrado, sin llegar al objetivo y sin pausa la reinicia. Ver

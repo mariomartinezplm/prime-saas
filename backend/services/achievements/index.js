@@ -3,10 +3,12 @@ import Appointment from '../../models/Appointment.js';
 import ClientPlan from '../../models/ClientPlan.js';
 import AchievementAward from '../../models/AchievementAward.js';
 import AchievementPause from '../../models/AchievementPause.js';
+import WellnessCheckin from '../../models/WellnessCheckin.js';
 import { grantAchievement, flagForReview, restoreFromReview } from '../achievementService.js';
 import { computeKinesiologyCandidates, kinesiologyMilestoneStillMet } from './kinesiology.js';
 import { computeConsistencyCandidates, consistencyPeriodStillMet } from './consistency.js';
 import { computeStreakCandidates, streakMilestoneStillMet } from './streaks.js';
+import { computeReadinessCandidates } from './readiness.js';
 
 /**
  * Evaluación de logros de un paciente a partir de SUS datos reales.
@@ -17,20 +19,22 @@ import { computeStreakCandidates, streakMilestoneStillMet } from './streaks.js';
 
 async function loadData(patientId) {
   const id = new mongoose.Types.ObjectId(String(patientId));
-  const [appointments, plans, pauses] = await Promise.all([
+  const [appointments, plans, pauses, checkins] = await Promise.all([
     Appointment.find({ patient: id }).select('_id type status date startTime deduction').lean(),
     ClientPlan.find({ patient: id }).select('_id serviceType sessionsTotal unlimited status startDate endDate').lean(),
-    AchievementPause.find({ patient: id }).select('periodKey').lean()
+    AchievementPause.find({ patient: id }).select('periodKey').lean(),
+    WellnessCheckin.find({ patient: id }).select('_id date').lean()
   ]);
-  return { appointments, plans, pauses };
+  return { appointments, plans, pauses, checkins };
 }
 
 // Logros que corresponde conceder hoy. Cada categoría aporta los suyos; las siguientes fases agregan más.
-export function computeCandidates({ appointments, plans, pauses = [] }, now = new Date()) {
+export function computeCandidates({ appointments, plans, pauses = [], checkins = [] }, now = new Date()) {
   return [
     ...computeKinesiologyCandidates(appointments),
     ...computeConsistencyCandidates(plans, appointments),
-    ...computeStreakCandidates(plans, appointments, pauses, now)
+    ...computeStreakCandidates(plans, appointments, pauses, now),
+    ...computeReadinessCandidates(checkins)
   ];
 }
 
@@ -107,7 +111,12 @@ export async function triggerAchievementEvaluation(patientId) {
 // (servidor caído, error puntual) sin recorrer a todos los pacientes en cada vuelta.
 export async function runAchievementSweep({ now = new Date(), windowDays = 3, limit = 500 } = {}) {
   const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
-  const patientIds = await Appointment.distinct('patient', { updatedAt: { $gte: since } });
+  // Pacientes con citas tocadas o con un check-in nuevo en la ventana
+  const [fromAppointments, fromCheckins] = await Promise.all([
+    Appointment.distinct('patient', { updatedAt: { $gte: since } }),
+    WellnessCheckin.distinct('patient', { createdAt: { $gte: since } })
+  ]);
+  const patientIds = [...new Map([...fromAppointments, ...fromCheckins].map((id) => [String(id), id])).values()];
 
   const summary = { patients: 0, granted: 0, flagged: 0, restored: 0, failed: 0 };
   for (const patientId of patientIds.slice(0, limit)) {

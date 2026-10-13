@@ -2,6 +2,8 @@ import WellnessCheckin from '../models/WellnessCheckin.js';
 import User from '../models/User.js';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
+import { triggerAchievementEvaluation } from '../services/achievements/index.js';
+import { reminderPreference } from '../services/readinessReminderService.js';
 import { todayInSantiago } from '../utils/timezone.js';
 import {
   READINESS_KEYS,
@@ -54,6 +56,9 @@ export const createCheckin = async (req, res) => {
 
     const result = serializeCheckin(checkin);
 
+    // Logros del hábito de Readiness (fire-and-forget: nunca tumba el registro del check-in)
+    triggerAchievementEvaluation(patientId).catch(() => {});
+
     // Semáforo rojo: aviso al profesional asignado (campanita + correo, Paso 19: notify)
     if (result.readiness.status === 'red') {
       const patientUser = await User.findById(patientId).select('firstName lastName assignedProfessionalId');
@@ -86,6 +91,48 @@ export const createCheckin = async (req, res) => {
       success: false,
       message: error.message || 'Error al registrar el check-in'
     });
+  }
+};
+
+// @desc    Preferencia del recordatorio diario del Readiness del paciente autenticado
+// @route   GET /api/wellness/reminder
+// @access  Private/Patient
+export const getReminderPreference = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('preferences');
+    res.status(200).json({ success: true, data: { reminder: reminderPreference(user) } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Error al obtener la preferencia' });
+  }
+};
+
+// @desc    Cambiar el recordatorio diario del Readiness (activar/desactivar y hora, hora de Santiago)
+// @route   PUT /api/wellness/reminder
+// @access  Private/Patient (solo la suya)
+export const updateReminderPreference = async (req, res) => {
+  try {
+    const { enabled, hour } = req.body;
+
+    if (enabled === undefined && hour === undefined) {
+      return res.status(400).json({ success: false, message: 'Indica si quieres el recordatorio y/o la hora' });
+    }
+    if (enabled !== undefined && typeof enabled !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'El recordatorio debe estar activado o desactivado' });
+    }
+    if (hour !== undefined && !(Number.isInteger(hour) && hour >= 0 && hour <= 23)) {
+      return res.status(400).json({ success: false, message: 'La hora debe ser un número entero entre 0 y 23' });
+    }
+
+    const set = {};
+    if (enabled !== undefined) set['preferences.readinessReminder.enabled'] = enabled;
+    if (hour !== undefined) set['preferences.readinessReminder.hour'] = hour;
+
+    // Solo se toca la propia preferencia del paciente autenticado
+    const user = await User.findByIdAndUpdate(req.user._id, { $set: set }, { new: true }).select('preferences');
+
+    res.status(200).json({ success: true, data: { reminder: reminderPreference(user) } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Error al guardar la preferencia' });
   }
 };
 
