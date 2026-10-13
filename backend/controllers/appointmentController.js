@@ -5,6 +5,7 @@ import { parseISO, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail, sendAppointmentConfirmationToPatientEmail } from '../services/emailService.js';
 import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
+import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 import { generateAppointmentICS } from '../services/icsService.js';
 import { santiagoToUtc, formatDayMonthSantiago } from '../utils/timezone.js';
 import {
@@ -524,6 +525,8 @@ export const updateAppointment = async (req, res) => {
       });
     }
 
+    const previousStatus = appointment.status;
+
     // Track changes for email
     const changes = [];
     if (date && date !== appointment.date?.toISOString()?.split('T')[0]) changes.push('Fecha');
@@ -545,6 +548,12 @@ export const updateAppointment = async (req, res) => {
 
     await appointment.populate('patient', 'firstName lastName email phone');
     await appointment.populate('professional', 'firstName lastName email');
+
+    // Logros: una cita que pasa a (o deja de estar) completada puede conceder un logro o dejar uno en revisión.
+    // Fire-and-forget: si falla, la operación sigue y la pasada del programador lo recupera.
+    if (status && status !== previousStatus && (status === 'completed' || previousStatus === 'completed')) {
+      triggerAchievementEvaluation(appointment.patient?._id ?? appointment.patient).catch(() => {});
+    }
 
     // ──── ENVIAR EMAIL DE MODIFICACIÓN AL PROFESIONAL ────
     if (changes.length > 0) {
@@ -733,7 +742,11 @@ export const deleteAppointment = async (req, res) => {
       });
     }
 
+    const wasCompleted = appointment.status === 'completed';
     await appointment.deleteOne();
+
+    // Borrar una cita completada puede dejar un logro sin respaldo: se revisa (nunca se retira en silencio)
+    if (wasCompleted) triggerAchievementEvaluation(appointment.patient).catch(() => {});
 
     res.status(200).json({
       success: true,

@@ -28,8 +28,14 @@ import {
   cancelAppointment,
   updateAppointment,
   createAppointment,
-  bulkCreateAppointments
+  bulkCreateAppointments,
+  deleteAppointment
 } from '../controllers/appointmentController.js';
+import { triggerAchievementEvaluation } from '../services/achievements/index.js';
+
+vi.mock('../services/achievements/index.js', () => ({
+  triggerAchievementEvaluation: vi.fn(async () => {})
+}));
 
 vi.mock('../services/planLifecycleService.js', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -260,5 +266,48 @@ describe('agendar a nombre de un paciente', () => {
     );
     expect(res.statusCode).toBe(404);
     expect(Appointment.create).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('logros: se evalúan solo cuando una sesión pasa a (o deja de estar) completada', () => {
+  beforeEach(() => triggerAchievementEvaluation.mockClear());
+
+  it('al marcar completada se evalúa al paciente de la cita', async () => {
+    const doc = cita(PACIENTE_MIO, MI_ID);
+    await updateAppointment(reqCita(profesional, doc, { status: 'completed' }), fakeRes());
+    expect(triggerAchievementEvaluation).toHaveBeenCalledTimes(1);
+    expect(String(triggerAchievementEvaluation.mock.calls[0][0])).toBe(String(PACIENTE_MIO));
+  });
+
+  it('corregir una completada a otro estado también se revisa', async () => {
+    const doc = cita(PACIENTE_MIO, MI_ID, { status: 'completed' });
+    await updateAppointment(reqCita(profesional, doc, { status: 'no-show' }), fakeRes());
+    expect(triggerAchievementEvaluation).toHaveBeenCalledTimes(1);
+  });
+
+  it('un cambio que no toca "completada" no dispara nada (ausente, notas, mismo estado)', async () => {
+    await updateAppointment(reqCita(profesional, cita(PACIENTE_MIO, MI_ID), { status: 'no-show' }), fakeRes());
+    await updateAppointment(reqCita(profesional, cita(PACIENTE_MIO, MI_ID), { sessionNotes: 'x' }), fakeRes());
+    await updateAppointment(reqCita(profesional, cita(PACIENTE_MIO, MI_ID, { status: 'completed' }), { status: 'completed' }), fakeRes());
+    expect(triggerAchievementEvaluation).not.toHaveBeenCalled();
+  });
+
+  it('si la evaluación de logros falla, la actualización de la cita sigue funcionando', async () => {
+    triggerAchievementEvaluation.mockRejectedValueOnce(new Error('boom'));
+    const res = fakeRes();
+    await updateAppointment(reqCita(profesional, cita(PACIENTE_MIO, MI_ID), { status: 'completed' }), res);
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('borrar una cita completada se revisa; borrar una agendada no', async () => {
+    const hecha = cita(PACIENTE_MIO, MI_ID, { status: 'completed', deleteOne: vi.fn().mockResolvedValue(true) });
+    await deleteAppointment(reqCita(admin, hecha), fakeRes());
+    expect(triggerAchievementEvaluation).toHaveBeenCalledTimes(1);
+
+    triggerAchievementEvaluation.mockClear();
+    const agendada = cita(PACIENTE_MIO, MI_ID, { deleteOne: vi.fn().mockResolvedValue(true) });
+    await deleteAppointment(reqCita(admin, agendada), fakeRes());
+    expect(triggerAchievementEvaluation).not.toHaveBeenCalled();
   });
 });

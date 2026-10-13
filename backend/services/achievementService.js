@@ -82,6 +82,15 @@ export async function flagForReview({ patientId, key, periodKey = ONCE, note }) 
   );
 }
 
+// Un logro que el sistema dejó "en revisión" vuelve a "activo" cuando una corrección posterior lo respalda otra vez.
+export async function restoreFromReview({ patientId, key, periodKey = ONCE }) {
+  return AchievementAward.findOneAndUpdate(
+    { patient: toObjectId(patientId), key, periodKey, status: 'under_review' },
+    { $set: { status: 'active' }, $unset: { reviewNote: '', reviewFlaggedAt: '' } },
+    { new: true }
+  );
+}
+
 export async function markSeen({ patientId, awardId }) {
   return AchievementAward.findOneAndUpdate(
     // Solo el dueño puede marcar su propio logro como visto, y solo la primera vez

@@ -1,5 +1,6 @@
 import { sendDueReminders } from './appointmentReminderService.js';
 import { runPlanLifecycleJob } from './planLifecycleService.js';
+import { runAchievementSweep } from './achievements/index.js';
 import { importNewPatients, isAirtableConfigured, AUTO_IMPORT_FROM } from '../utils/airtableSync.js';
 
 const TICK_MS = 10 * 60 * 1000;
@@ -32,6 +33,15 @@ async function tick() {
     }
   } catch (error) {
     console.error('Error en el programador de recordatorios:', error.message);
+  }
+
+  try {
+    const logros = await runAchievementSweep();
+    if (logros.granted || logros.flagged || logros.restored || logros.failed) {
+      console.log(`🏅 Logros: ${logros.granted} concedidos, ${logros.flagged} en revisión, ${logros.restored} restaurados, ${logros.failed} con error (${logros.patients} pacientes revisados)`);
+    }
+  } catch (error) {
+    console.error('Error en la pasada de logros:', error.message);
   }
 
   try {
