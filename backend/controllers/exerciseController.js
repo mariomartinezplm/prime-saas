@@ -6,6 +6,7 @@ import { canAccessPatient } from '../middleware/auth.js';
 import { evolutionDateError } from '../utils/evolutionDate.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { notify } from '../services/notificationService.js';
+import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
 
@@ -99,6 +100,8 @@ export const createExerciseProgress = async (req, res) => {
     });
 
     if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(patientUser);
+    // Récords de fuerza (fire-and-forget: nunca tumba el registro)
+    triggerAchievementEvaluation(patient).catch(() => {});
 
     await exerciseProgress.populate('patient', 'firstName lastName');
     await exerciseProgress.populate('recordedBy', 'firstName lastName');
@@ -273,6 +276,7 @@ export const updateExerciseProgress = async (req, res) => {
     if (videoUrl !== undefined) exerciseProgress.videoUrl = videoUrl;
 
     await exerciseProgress.save();
+    triggerAchievementEvaluation(exerciseProgress.patient).catch(() => {});
 
     if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(req.user);
 
@@ -316,6 +320,7 @@ export const deleteExerciseProgress = async (req, res) => {
     }
 
     await exerciseProgress.deleteOne();
+    triggerAchievementEvaluation(exerciseProgress.patient).catch(() => {});
 
     if (req.user.role === 'patient') {
       notifyProfessionalOfEvolutionUpdate(req.user, { title: 'Ejercicio eliminado', action: 'eliminó un registro de ejercicio' });

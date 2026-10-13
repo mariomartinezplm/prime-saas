@@ -130,6 +130,14 @@ const userSchema = new mongoose.Schema({
   // notificación push del celular). `hour` es la hora de Santiago a partir de la cual se muestra el aviso.
   // Quien no tiene el campo usa los valores por defecto (activado, 20:00).
   preferences: {
+    // Meta corporal para los hitos de evolución (peso). Solo la define la persona o su profesional y se puede
+    // desactivar cuando quiera: sin meta activa NO se evalúa ningún hito de peso. `startedAt` fija desde cuándo
+    // se mide (la medición de referencia es la última hasta esa fecha). 'maintain' todavía no genera hitos.
+    bodyGoal: {
+      direction: { type: String, enum: ['lose', 'gain', 'maintain'] },
+      enabled: { type: Boolean, default: true },
+      startedAt: { type: Date }
+    },
     readinessReminder: {
       enabled: { type: Boolean, default: true },
       hour: { type: Number, min: 0, max: 23, default: 20 }

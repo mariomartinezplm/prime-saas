@@ -16,6 +16,10 @@ import { createMeasurement } from '../controllers/measurementController.js';
 import { getUnreadCount, markAsRead } from '../controllers/notificationController.js';
 import { hasActivePlan } from '../services/clientPlanService.js';
 
+vi.mock('../services/achievements/index.js', () => ({
+  triggerAchievementEvaluation: vi.fn(async () => {})
+}));
+
 vi.mock('../services/clientPlanService.js', () => ({
   hasActivePlan: vi.fn().mockResolvedValue(true)
 }));

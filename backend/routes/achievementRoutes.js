@@ -1,5 +1,13 @@
 import express from 'express';
-import { getPauses, createPause, deletePause } from '../controllers/achievementController.js';
+import {
+  getPauses,
+  createPause,
+  deletePause,
+  getMyBodyGoal,
+  updateMyBodyGoal,
+  getPatientBodyGoal,
+  updatePatientBodyGoal
+} from '../controllers/achievementController.js';
 import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -11,5 +19,12 @@ router.use(protect);
 router.get('/patients/:patientId/pauses', authorize('admin', 'professional'), authorizePatientAccess('patientId'), getPauses);
 router.post('/patients/:patientId/pauses', authorize('admin', 'professional'), authorizePatientAccess('patientId'), createPause);
 router.delete('/patients/:patientId/pauses/:periodKey', authorize('admin', 'professional'), authorizePatientAccess('patientId'), deletePause);
+
+// Meta corporal: el propio paciente la define/desactiva; el personal con acceso puede hacerlo por él.
+// Va ANTES de '/patients/…' para que Express no confunda 'body-goal' con un id.
+router.get('/body-goal', authorize('patient'), getMyBodyGoal);
+router.put('/body-goal', authorize('patient'), updateMyBodyGoal);
+router.get('/patients/:patientId/body-goal', authorize('admin', 'professional'), authorizePatientAccess('patientId'), getPatientBodyGoal);
+router.put('/patients/:patientId/body-goal', authorize('admin', 'professional'), authorizePatientAccess('patientId'), updatePatientBodyGoal);
 
 export default router;

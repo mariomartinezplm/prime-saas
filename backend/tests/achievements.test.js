@@ -173,7 +173,8 @@ describe('notificaciones de logros', () => {
     await grantAchievement({ patientId, key: 'demo_once', evidence: { summary: 'x', values: { weight: 70 } } }, { definitions: DEFS });
 
     expect(notifs[0]).toMatchObject({ type: 'achievement_unlocked', title: GENERIC_NOTIFICATION.title, body: GENERIC_NOTIFICATION.body, link: '/app/logros' });
-    expect(JSON.stringify(notifs[0])).not.toMatch(/70|weight|peso|sesion/i);
+    // (se revisa el texto visible, no la clave técnica: un ObjectId aleatorio podría contener cualquier número)
+    expect(JSON.stringify({ title: notifs[0].title, body: notifs[0].body, link: notifs[0].link })).not.toMatch(/70|weight|peso|sesion/i);
     expect(notifs[0].dedupeKey).toBe(awardNotificationKey(String(patientId), 'demo_once', 'once'));
   });
 

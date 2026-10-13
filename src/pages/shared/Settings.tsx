@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { googleCalendarService } from '@/services/googleCalendarService';
 import { wellnessService, type ReadinessReminder } from '@/services/wellnessService';
+import { achievementService, type BodyGoal, type BodyGoalDirection } from '@/services/achievementService';
 import { disablePush, enablePush, getPushStatus, hasLocalSubscription, pushPermission, pushSupport } from '@/lib/push';
 import { Link } from 'react-router-dom';
 import { Label } from '@/components/ui/label';
@@ -216,6 +217,115 @@ const ReadinessReminderCard = () => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Meta corporal (opcional). Sin meta no se reconoce nada de peso: no se asume que bajar de peso sea el objetivo de
+// nadie. Cada cambio se confirma con el servidor antes de mostrarse.
+const GOAL_LABELS: Record<BodyGoalDirection, string> = {
+  lose: 'Bajar de peso',
+  gain: 'Subir de peso',
+  maintain: 'Mantener mi peso',
+};
+const NO_GOAL = 'none';
+
+const BodyGoalCard = () => {
+  const [goal, setGoal] = useState<BodyGoal | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(() => {
+    setFailed(false);
+    achievementService
+      .getBodyGoal()
+      .then(setGoal)
+      .catch(() => setFailed(true));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const change = async (changes: { direction?: BodyGoalDirection | null; enabled?: boolean }, message: string) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      setGoal(await achievementService.updateBodyGoal(changes));
+      notify.success(message);
+    } catch (err) {
+      notify.error(getErrorMessage(err, 'No se pudo guardar tu meta. Intenta de nuevo.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasGoal = !!goal?.direction;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Mi meta corporal (opcional)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Si defines una meta, reconoceremos tu evolución a partir de tus mediciones de peso. Cada hito necesita dos mediciones con al menos
+          14 días de diferencia, para que una variación de un día no cuente. Sin meta, no se reconoce nada de peso. Puedes cambiarla o
+          desactivarla cuando quieras. Tu peso solo lo ves tú y tu profesional.
+        </p>
+
+        {goal === null && !failed ? (
+          <LoadingState label="Cargando tu meta…" className="py-4" />
+        ) : failed || goal === null ? (
+          <LoadErrorAlert message="No pudimos cargar tu meta." onRetry={load} />
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="body-goal-direction">Mi meta</Label>
+              <Select
+                value={goal.direction ?? NO_GOAL}
+                disabled={saving}
+                onValueChange={(value) =>
+                  change(
+                    { direction: value === NO_GOAL ? null : (value as BodyGoalDirection) },
+                    value === NO_GOAL ? 'Meta quitada' : 'Meta guardada'
+                  )
+                }
+              >
+                <SelectTrigger id="body-goal-direction" className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_GOAL}>Sin meta</SelectItem>
+                  {(Object.keys(GOAL_LABELS) as BodyGoalDirection[]).map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {GOAL_LABELS[d]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {hasGoal && (
+              <div className="flex items-center justify-between gap-4">
+                <Label htmlFor="body-goal-enabled" className="cursor-pointer">
+                  Reconocer mi evolución
+                </Label>
+                <Switch
+                  id="body-goal-enabled"
+                  checked={goal.enabled}
+                  disabled={saving}
+                  onCheckedChange={(enabled) => change({ enabled }, enabled ? 'Reconocimientos activados' : 'Reconocimientos desactivados')}
+                />
+              </div>
+            )}
+
+            {goal.direction === 'maintain' && (
+              <p className="text-xs text-muted-foreground">Para «mantener mi peso» todavía no hay hitos definidos; tu meta queda anotada.</p>
+            )}
           </div>
         )}
       </CardContent>
@@ -471,6 +581,8 @@ const Settings = () => {
       {user?.role === 'patient' && <ReadinessReminderCard />}
 
       {user?.role === 'patient' && <PushNotificationsCard />}
+
+      {user?.role === 'patient' && <BodyGoalCard />}
 
       {isStaff && <GoogleCalendarCard />}
     </div>

@@ -13,6 +13,9 @@ import ClientPlan from '../models/ClientPlan.js';
 import AchievementAward from '../models/AchievementAward.js';
 import AchievementPause from '../models/AchievementPause.js';
 import WellnessCheckin from '../models/WellnessCheckin.js';
+import Measurement from '../models/Measurement.js';
+import ExerciseProgress from '../models/Exercise.js';
+import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import {
   computeWellbeingCandidates,
@@ -136,6 +139,9 @@ describe('servicio: se concede una sola vez y sin datos suficientes no concede n
     vi.spyOn(ClientPlan, 'find').mockImplementation(() => query([]));
     vi.spyOn(AchievementPause, 'find').mockImplementation(() => query([]));
     vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query(checkins));
+    vi.spyOn(Measurement, 'find').mockImplementation(() => query([]));
+    vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query([]));
+    vi.spyOn(User, 'findById').mockImplementation(() => query(null));
     const filas = [];
     const llave = (f) => `${f.patient}|${f.key}|${f.periodKey}`;
     vi.spyOn(AchievementAward, 'findOneAndUpdate').mockImplementation(async (filter, update) => {

@@ -14,6 +14,9 @@ import ClientPlan from '../models/ClientPlan.js';
 import AchievementAward from '../models/AchievementAward.js';
 import AchievementPause from '../models/AchievementPause.js';
 import WellnessCheckin from '../models/WellnessCheckin.js';
+import Measurement from '../models/Measurement.js';
+import ExerciseProgress from '../models/Exercise.js';
+import UserModel from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 import {
@@ -215,6 +218,9 @@ function datos({ plans, citas, pausas = [] }) {
   const state = { pausas };
   vi.spyOn(AchievementPause, 'find').mockImplementation(() => query(state.pausas));
   vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
+  vi.spyOn(Measurement, 'find').mockImplementation(() => query([]));
+  vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query([]));
+  vi.spyOn(UserModel, 'findById').mockImplementation(() => query(null));
   return state;
 }
 
@@ -333,8 +339,9 @@ describe('pausas autorizadas (API)', () => {
 describe('pausas: permisos (solo personal con acceso al paciente)', () => {
   it('las tres rutas pasan por protect, authorize(admin, professional) y authorizePatientAccess', () => {
     const rutas = achievementRouter.stack.filter((l) => l.route);
-    expect(rutas).toHaveLength(3);
-    for (const layer of rutas) expect(layer.route.stack.length).toBe(3);
+    expect(rutas).toHaveLength(7);
+    // 3 de pausas + 4 de meta corporal; las de pausas y las de personal pasan por 3 manejadores
+    for (const layer of rutas.filter((l) => l.route.path.includes('pauses'))) expect(layer.route.stack.length).toBe(3);
     expect(achievementRouter.stack[0].name).toBe('protect');
   });
 

@@ -118,6 +118,70 @@ export const ACHIEVEMENTS = {
     window: 7
   },
 
+  // ── Evolución corporal ──────────────────────────────────────────────────────
+  // Solo con una META activa (bajar, subir) definida por la persona o su profesional, y desactivable. Referencia =
+  // la última medición de peso hasta el día en que empezó la meta. Un hito se concede cuando DOS mediciones
+  // separadas por al menos 14 días lo confirman (nunca por una fluctuación puntual) y una sola vez por umbral.
+  // El texto no celebra la rapidez ni sugiere que un peso menor sea siempre mejor.
+  body_1kg: {
+    key: 'body_1kg',
+    category: 'cuerpo',
+    title: '1 kg de evolución',
+    description: 'Llevas 1 kg de evolución hacia tu meta corporal, confirmado en dos mediciones.',
+    criteria: 'Con una meta corporal activa: dos mediciones de peso, separadas por al menos 14 días, que muestren 1 kg de cambio hacia tu meta respecto de tu medición de referencia.',
+    message: 'Primer hito corporal: 1 kg de evolución. Avanzas a tu ritmo.',
+    ruleVersion: 1,
+    periodic: false,
+    kg: 1
+  },
+  body_3kg: {
+    key: 'body_3kg',
+    category: 'cuerpo',
+    title: '3 kg de evolución',
+    description: 'Llevas 3 kg de evolución hacia tu meta corporal, confirmado en dos mediciones.',
+    criteria: 'Con una meta corporal activa: dos mediciones de peso, separadas por al menos 14 días, que muestren 3 kg de cambio hacia tu meta respecto de tu medición de referencia.',
+    message: '3 kg de evolución. Es un cambio sostenido: bien hecho.',
+    ruleVersion: 1,
+    periodic: false,
+    kg: 3
+  },
+  body_5kg: {
+    key: 'body_5kg',
+    category: 'cuerpo',
+    title: '5 kg de evolución',
+    description: 'Llevas 5 kg de evolución hacia tu meta corporal, confirmado en dos mediciones.',
+    criteria: 'Con una meta corporal activa: dos mediciones de peso, separadas por al menos 14 días, que muestren 5 kg de cambio hacia tu meta respecto de tu medición de referencia.',
+    message: '5 kg de evolución. Tu constancia se refleja en tus mediciones.',
+    ruleVersion: 1,
+    periodic: false,
+    kg: 5
+  },
+  body_10kg: {
+    key: 'body_10kg',
+    category: 'cuerpo',
+    title: '10 kg de evolución',
+    description: 'Llevas 10 kg de evolución hacia tu meta corporal, confirmado en dos mediciones.',
+    criteria: 'Con una meta corporal activa: dos mediciones de peso, separadas por al menos 14 días, que muestren 10 kg de cambio hacia tu meta respecto de tu medición de referencia.',
+    message: '10 kg de evolución. Un hito importante: cuida tu bienestar en cada paso.',
+    ruleVersion: 1,
+    periodic: false,
+    kg: 10
+  },
+
+  // ── Fuerza y rendimiento ────────────────────────────────────────────────────
+  // Récord personal de CARGA: mayor peso en el mismo ejercicio (mismo nombre normalizado y misma unidad), con al
+  // menos 3 registros previos, superando el mejor anterior en 2,5 % o más. Un aviso por ejercicio y por semana.
+  strength_pr: {
+    key: 'strength_pr',
+    category: 'fuerza',
+    title: 'Nuevo récord personal',
+    description: 'Registraste una carga mayor que tu mejor marca anterior en este ejercicio.',
+    criteria: 'Registrar en un ejercicio una carga al menos 2,5 % mayor que tu mejor marca anterior en ese mismo ejercicio (misma unidad), con al menos 3 registros previos. Un récord por ejercicio y por semana.',
+    message: 'Nuevo récord personal. Sigue avanzando con buena técnica y según las indicaciones de tu profesional.',
+    ruleVersion: 1,
+    periodKind: 'exercise-week'
+  },
+
   // ── Trayectoria en PRIME ────────────────────────────────────────────────────
   // Meses CONSECUTIVOS con "Mes de constancia". Un mes sin plan o con pausa autorizada no suma ni corta la
   // racha; solo un mes con plan, ya cerrado, sin llegar al objetivo y sin pausa la reinicia. Ver
@@ -168,3 +232,16 @@ export function listDefinitions(definitions = ACHIEVEMENTS) {
 // Periodos: 'once' o 'YYYY-MM' (mes del plan, en hora de Santiago)
 export const ONCE = 'once';
 export const isValidPeriodKey = (periodKey) => periodKey === ONCE || /^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey);
+
+// Tipos de periodo de un logro:
+//   once           una sola vez                           periodKey 'once'
+//   month          una vez por mes                        periodKey 'YYYY-MM'
+//   exercise-week  una vez por ejercicio y por semana     periodKey '<ejercicio>@YYYY-Www' (récords de fuerza)
+export const periodKindOf = (definition) => definition.periodKind ?? (definition.periodic ? 'month' : 'once');
+
+export const isValidPeriodKeyForKind = (kind, periodKey) => {
+  if (kind === 'once') return periodKey === ONCE;
+  if (kind === 'month') return /^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey);
+  if (kind === 'exercise-week') return /^[a-z0-9-]{1,40}@\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/.test(periodKey);
+  return false;
+};

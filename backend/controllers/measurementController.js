@@ -5,6 +5,7 @@ import { hasActivePlan } from '../services/clientPlanService.js';
 import { canAccessPatient } from '../middleware/auth.js';
 import { notify } from '../services/notificationService.js';
 import { evolutionDateError } from '../utils/evolutionDate.js';
+import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 
 // El paciente registró/editó su evolución — avisa a su profesional asignado
 // (Paso 19 de BLUEPRINT.md). Solo cuando el ACTOR es el propio paciente: si
@@ -79,6 +80,8 @@ export const createMeasurement = async (req, res) => {
     });
 
     if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(patientUser);
+    // Logros de evolución corporal (fire-and-forget: nunca tumba el registro)
+    triggerAchievementEvaluation(patient).catch(() => {});
 
     await measurement.populate('patient', 'firstName lastName email');
     await measurement.populate('recordedBy', 'firstName lastName');
@@ -247,6 +250,7 @@ export const updateMeasurement = async (req, res) => {
 
     await measurement.save();
 
+    triggerAchievementEvaluation(measurement.patient).catch(() => {});
     if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(req.user);
 
     await measurement.populate('patient', 'firstName lastName email');
@@ -289,6 +293,8 @@ export const deleteMeasurement = async (req, res) => {
     }
 
     await measurement.deleteOne();
+    // Borrar una medición puede dejar un hito sin respaldo: se revisa (queda 'en revisión', nunca se borra)
+    triggerAchievementEvaluation(measurement.patient).catch(() => {});
 
     if (req.user.role === 'patient') {
       notifyProfessionalOfEvolutionUpdate(req.user, { title: 'Medición eliminada', action: 'eliminó una medición corporal' });

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import AchievementAward from '../models/AchievementAward.js';
-import { ACHIEVEMENTS, GENERIC_NOTIFICATION, ONCE, getDefinition, isValidPeriodKey } from '../config/achievements.js';
+import { ACHIEVEMENTS, GENERIC_NOTIFICATION, ONCE, getDefinition, isValidPeriodKeyForKind, periodKindOf } from '../config/achievements.js';
 import { notifyOnce } from './notificationService.js';
 
 /**
@@ -18,14 +18,15 @@ export const awardNotificationKey = (patientId, key, periodKey) => `achievement:
 //   created = true  → se concedió ahora (y se avisó)
 //   created = false → ya lo tenía: no se hace nada más
 export async function grantAchievement(
-  { patientId, key, periodKey = ONCE, awardedAt = new Date(), evidence, source = 'auto', grantedBy, reason },
+  { patientId, key, periodKey = ONCE, awardedAt = new Date(), evidence, source = 'auto', grantedBy, reason, notify = true },
   { definitions = ACHIEVEMENTS } = {}
 ) {
   const definition = getDefinition(key, definitions);
   if (!definition) throw new Error(`Logro desconocido: "${key}"`);
-  if (!isValidPeriodKey(periodKey)) throw new Error(`Periodo inválido: "${periodKey}"`);
-  if (definition.periodic ? periodKey === ONCE : periodKey !== ONCE) {
-    throw new Error(`El logro "${key}" ${definition.periodic ? 'requiere un periodo mensual' : 'se concede una sola vez'}`);
+  const kind = periodKindOf(definition);
+  if (!isValidPeriodKeyForKind(kind, periodKey)) {
+    const need = { once: 'se concede una sola vez', month: 'requiere un periodo mensual', 'exercise-week': 'requiere un periodo de ejercicio y semana' }[kind];
+    throw new Error(`El logro "${key}" ${need} (periodo recibido: "${periodKey}")`);
   }
   if (source === 'manual' && (!grantedBy || !reason?.trim())) {
     throw new Error('Un reconocimiento manual debe registrar quién lo concede y por qué');
@@ -62,7 +63,8 @@ export async function grantAchievement(
   const award = result.value;
   const created = result.lastErrorObject?.updatedExisting === false;
 
-  if (created) {
+  // `notify: false` concede el logro (queda en el historial) sin avisar: para no saturar con muchos avisos seguidos
+  if (created && notify) {
     await notifyOnce(filter.patient, 'achievement_unlocked', {
       ...GENERIC_NOTIFICATION,
       dedupeKey: awardNotificationKey(String(filter.patient), key, periodKey)

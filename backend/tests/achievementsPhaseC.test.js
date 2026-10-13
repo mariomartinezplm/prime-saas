@@ -14,6 +14,9 @@ import ClientPlan from '../models/ClientPlan.js';
 import AchievementAward from '../models/AchievementAward.js';
 import AchievementPause from '../models/AchievementPause.js';
 import WellnessCheckin from '../models/WellnessCheckin.js';
+import Measurement from '../models/Measurement.js';
+import ExerciseProgress from '../models/Exercise.js';
+import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 import {
@@ -252,6 +255,9 @@ function datos({ citas = [], planes = [] }) {
   vi.spyOn(ClientPlan, 'find').mockImplementation(() => query(planes));
   vi.spyOn(AchievementPause, 'find').mockImplementation(() => query([]));
   vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
+  vi.spyOn(Measurement, 'find').mockImplementation(() => query([]));
+  vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query([]));
+  vi.spyOn(User, 'findById').mockImplementation(() => query(null));
 }
 
 function almacen(inicial = []) {
@@ -414,6 +420,11 @@ describe('triggerAchievementEvaluation y programador', () => {
     vi.spyOn(AchievementPause, 'find').mockImplementation(() => query([]));
     vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
     vi.spyOn(WellnessCheckin, 'distinct').mockResolvedValue([]);
+    vi.spyOn(Measurement, 'find').mockImplementation(() => query([]));
+    vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query([]));
+    vi.spyOn(User, 'findById').mockImplementation(() => query(null));
+    vi.spyOn(Measurement, 'distinct').mockResolvedValue([]);
+    vi.spyOn(ExerciseProgress, 'distinct').mockResolvedValue([]);
     almacen();
     avisos();
 

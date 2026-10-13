@@ -30,6 +30,10 @@ import {
   deleteExerciseProgress
 } from '../controllers/exerciseController.js';
 
+vi.mock('../services/achievements/index.js', () => ({
+  triggerAchievementEvaluation: vi.fn(async () => {})
+}));
+
 const nuevoId = () => new mongoose.Types.ObjectId();
 
 const fakeRes = () => ({
