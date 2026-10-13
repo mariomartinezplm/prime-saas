@@ -22,12 +22,15 @@ const AppLayout = () => {
         <AppSidebar />
         <SidebarInset className="min-w-0">
           <header className="flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-6">
-            <SidebarTrigger className="-ml-2" />
+            <SidebarTrigger className="-ml-2 h-9 w-9 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" />
             <NotificationBell />
           </header>
           <main id="contenido" tabIndex={-1} className="flex-1 overflow-auto p-6 focus:outline-none">
             <ErrorBoundary resetKey={location.pathname}>
-              <Outlet />
+              {/* Entrada suave al cambiar de pantalla (se anula si el sistema pide menos movimiento) */}
+              <div key={location.pathname} className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
+                <Outlet />
+              </div>
             </ErrorBoundary>
           </main>
         </SidebarInset>

@@ -1,3 +1,4 @@
+import { CHART } from '@/lib/chartColors';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { format, parseISO } from 'date-fns';
@@ -20,8 +21,10 @@ interface ExerciseProgressChartProps {
 const ExerciseProgressChart = ({
     exerciseName,
     data,
-    color = '#398CA2'
+    color = CHART.primary
 }: ExerciseProgressChartProps) => {
+    // Un id sin espacios ni tildes: con 'Press de banca' el relleno del gráfico quedaba inválido
+    const gradientId = `weight-gradient-${exerciseName.replace(/[^a-zA-Z0-9]/g, '-')}`;
     if (!data || data.length === 0) {
         return (
             <Card>
@@ -103,7 +106,7 @@ const ExerciseProgressChart = ({
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={chartData}>
                             <defs>
-                                <linearGradient id={`colorWeight-${exerciseName}`} x1="0" y1="0" x2="0" y2="1">
+                                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={color} stopOpacity={0.3} />
                                     <stop offset="95%" stopColor={color} stopOpacity={0} />
                                 </linearGradient>
@@ -145,7 +148,7 @@ const ExerciseProgressChart = ({
                                 dataKey="weight"
                                 stroke={color}
                                 strokeWidth={2}
-                                fill={`url(#colorWeight-${exerciseName})`}
+                                fill={`url(#${gradientId})`}
                                 dot={{ fill: color, strokeWidth: 2, r: 4 }}
                                 activeDot={{ r: 6, fill: color, strokeWidth: 0 }}
                             />

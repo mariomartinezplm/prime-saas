@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { TriangleAlert } from 'lucide-react';
 import PainBodyDiagram from '@/components/body/PainBodyDiagram';
 import PainEvolutionChart from '@/components/charts/PainEvolutionChart';
 import { format, parseISO } from 'date-fns';
@@ -14,14 +19,23 @@ const PainRecords = () => {
   const [records, setRecords] = useState<EVARecord[]>([]);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!user) return;
+    setFailed(false);
     api.get(`/eva/patient/${user.id}`)
       .then((res) => setRecords(res.data.data.evaRecords || []))
-      .catch(() => {})
+      // Si falla la carga se avisa: antes se mostraba como si no hubiera registros
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, attempt]);
+
+  const retry = () => {
+    setLoading(true);
+    setAttempt((n) => n + 1);
+  };
 
   // Calculate latest pain levels by zone
   const painLevels: Record<string, number> = {};
@@ -34,21 +48,25 @@ const PainRecords = () => {
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-      </div>
-    );
+    return <LoadingState label="Cargando tus registros de dolor…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Registros de Dolor (EVA)</h1>
-        <p className="text-muted-foreground">
-          Toca una zona del cuerpo para ver la evolución del dolor
-        </p>
-      </div>
+      <PageHeader title="Registros de dolor (EVA)" description="Toca una zona del cuerpo para ver la evolución del dolor" />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar tus registros de dolor.</span>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Pain body diagram */}

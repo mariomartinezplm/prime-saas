@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { TriangleAlert } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BodyDiagram from '@/components/body/BodyDiagram';
 import MetricChart from '@/components/charts/MetricChart';
@@ -32,6 +36,7 @@ const MeasurementsEnhanced = () => {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [activeTab, setActiveTab] = useState('perimeters');
   const [refreshKey, setRefreshKey] = useState(0);
   const [editing, setEditing] = useState<Measurement | null>(null);
@@ -39,11 +44,18 @@ const MeasurementsEnhanced = () => {
 
   useEffect(() => {
     if (!user) return;
+    setFailed(false);
     api.get(`/measurements/patient/${user.id}`)
       .then((res) => setMeasurements(res.data.data.measurements || []))
-      .catch(() => { })
+      // Si falla la carga se avisa: antes se mostraba como si no hubiera mediciones
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, [user, refreshKey]);
+
+  const retry = () => {
+    setLoading(true);
+    setRefreshKey((k) => k + 1);
+  };
 
   const canEdit = hasActivePlan === true;
 
@@ -67,24 +79,16 @@ const MeasurementsEnhanced = () => {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingState label="Cargando tus mediciones…" />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Mediciones y Progreso</h1>
-          <p className="text-muted-foreground mt-1">
-            Monitorea tu evolución física y de rendimiento
-          </p>
-        </div>
-        <div className="flex flex-wrap items-start gap-3">
+      <PageHeader
+        title="Mediciones y progreso"
+        description="Monitorea tu evolución física y de rendimiento"
+        actions={
+          <>
           {latestMeasurement && (
             <div className="bg-gradient-section rounded-lg p-4 border border-border">
               <div className="text-xs text-muted-foreground mb-1">Última medición</div>
@@ -106,8 +110,21 @@ const MeasurementsEnhanced = () => {
               />
             )}
           </PatientRecordDialog>
-        </div>
-      </div>
+          </>
+        }
+      />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar tus mediciones.</span>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Tabs para diferentes vistas */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

@@ -327,6 +327,17 @@
       animation: none !important;
       transition: none !important;
     }
+
+    /* Para quien pide menos movimiento: ninguna animación ni transición dura más que un parpadeo
+       (queda en 0,01 ms y no en 'none' para que los menús y diálogos sigan cerrándose bien) */
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   /* 

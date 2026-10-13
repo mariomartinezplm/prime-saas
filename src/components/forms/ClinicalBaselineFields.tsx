@@ -95,7 +95,7 @@ const ClinicalBaselineFields = ({ medicalInfo, dateOfBirth, onSave }: ClinicalBa
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Datos clínicos base</span>
-        <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setEditing(true)}>
+        <Button size="sm" variant="ghost" className="-mr-2" onClick={() => setEditing(true)}>
           <Pencil className="h-3 w-3 mr-1" />
           Editar
         </Button>

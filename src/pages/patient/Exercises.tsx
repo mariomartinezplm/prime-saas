@@ -5,6 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ExerciseProgressChart from '@/components/charts/ExerciseProgressChart';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { TriangleAlert } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Dumbbell, TrendingUp, BarChart3, Award } from 'lucide-react';
 import api from '@/lib/api';
@@ -24,21 +29,29 @@ const ExercisesEnhanced = () => {
   const [exerciseNames, setExerciseNames] = useState<string[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editing, setEditing] = useState<ExerciseProgress | null>(null);
   const hasActivePlan = useHasActivePlan(user?.id);
 
   useEffect(() => {
     if (!user) return;
+    setFailed(false);
     Promise.all([
       api.get(`/exercises/patient/${user.id}`),
       api.get(`/exercises/list/${user.id}`),
     ]).then(([exRes, listRes]) => {
       setExercises(exRes.data.data.exercises || []);
       setExerciseNames(listRes.data.data.exercises || []);
-    }).catch(() => { })
+    // Si falla la carga se avisa: antes se mostraba como si no hubiera ejercicios
+    }).catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, [user, refreshKey]);
+
+  const retry = () => {
+    setLoading(true);
+    setRefreshKey((k) => k + 1);
+  };
 
   const canEdit = hasActivePlan === true;
 
@@ -83,35 +96,43 @@ const ExercisesEnhanced = () => {
   }, 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingState label="Cargando tus ejercicios…" />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with Stats */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-1">Progreso de Ejercicios</h1>
-          <p className="text-muted-foreground">Monitorea tu evolución en cada ejercicio</p>
-        </div>
-        <PatientRecordDialog
-          label="Registrar ejercicio"
-          title="Registrar ejercicio"
-          description="Anota el ejercicio, el peso y las repeticiones que hiciste."
-        >
-          {(close) => (
-            <ExerciseForm
-              patientId={user!.id}
-              embedded
-              onSuccess={() => { close(); setRefreshKey((k) => k + 1); }}
-            />
-          )}
-        </PatientRecordDialog>
-      </div>
+      <PageHeader
+        title="Progreso de ejercicios"
+        description="Monitorea tu evolución en cada ejercicio"
+        actions={
+          <PatientRecordDialog
+            label="Registrar ejercicio"
+            title="Registrar ejercicio"
+            description="Anota el ejercicio, el peso y las repeticiones que hiciste."
+          >
+            {(close) => (
+              <ExerciseForm
+                patientId={user!.id}
+                embedded
+                onSuccess={() => { close(); setRefreshKey((k) => k + 1); }}
+              />
+            )}
+          </PatientRecordDialog>
+        }
+      />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar tus ejercicios.</span>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-3">

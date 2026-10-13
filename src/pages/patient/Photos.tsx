@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import PatientPhotos from '@/components/photos/PatientPhotos';
+import PageHeader from '@/components/shared/PageHeader';
 
 const Photos = () => {
   const { user } = useAuth();
@@ -7,10 +8,7 @@ const Photos = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Fotos de progreso</h1>
-        <p className="text-muted-foreground mt-1">Mira tu avance y compara cómo has cambiado</p>
-      </div>
+      <PageHeader title="Fotos de progreso" description="Mira tu avance y compara cómo has cambiado" />
       <PatientPhotos patientId={user.id} />
     </div>
   );
