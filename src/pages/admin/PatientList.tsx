@@ -36,18 +36,6 @@ type SortKey = 'name' | 'recent' | 'planEnd';
 const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const digits = (text: string) => text.replace(/[^0-9kK]/g, '').toLowerCase();
 
-// El servidor entrega los pacientes por páginas (50 por defecto): se piden todas para que ni la
-// lista ni la búsqueda dejen pacientes fuera.
-const PAGE_SIZE = 100;
-async function loadAllPatients(): Promise<User[]> {
-  const first = await userService.getAll({ role: 'patient', limit: PAGE_SIZE, page: 1 });
-  let users = first.users;
-  for (let page = 2; page <= first.pages; page++) {
-    users = users.concat((await userService.getAll({ role: 'patient', limit: PAGE_SIZE, page })).users);
-  }
-  return users;
-}
-
 const planFilterMatches = (filter: PlanFilter, state: PlanState) => {
   switch (filter) {
     case 'with':
@@ -94,7 +82,7 @@ const PatientList = () => {
     setFailed(false);
     try {
       // El servidor limita ambas listas al alcance de quien pregunta (profesional: sus pacientes)
-      const [list, plans] = await Promise.allSettled([loadAllPatients(), clientPlanService.getAll()]);
+      const [list, plans] = await Promise.allSettled([userService.getAllPatients(), clientPlanService.getAll()]);
       if (list.status === 'rejected') throw list.reason;
       setPatients(list.value);
       setPlanInfo(plans.status === 'fulfilled' ? planInfoByPatient(plans.value as ClientPlan[]) : null);

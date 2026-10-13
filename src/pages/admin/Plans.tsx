@@ -1,15 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -42,7 +43,13 @@ import {
   type BillingCycle,
 } from '@/config/planCatalog';
 import { notify } from '@/lib/notify';
-import { Loader2, Search, Plus, X, Dumbbell, Stethoscope, ClipboardList, Clock } from 'lucide-react';
+import { getErrorMessage } from '@/lib/apiError';
+import PageHeader from '@/components/shared/PageHeader';
+import LoadingState from '@/components/shared/LoadingState';
+import EmptyState from '@/components/shared/EmptyState';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import SubmitButton from '@/components/forms/SubmitButton';
+import { Loader2, Search, Plus, X, Dumbbell, Stethoscope, ClipboardList, Clock, TriangleAlert, FileText } from 'lucide-react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { ClientPlan, User } from '@/types';
@@ -61,25 +68,19 @@ function daysRemaining(endDate: string): number {
 const isLastCycle = (plan: ClientPlan) => (plan.cycleNumber ?? 1) >= (plan.cyclesTotal ?? 1);
 
 function rowHighlightClass(plan: ClientPlan): string {
-  if (plan.status === 'expired') return 'border-l-4 border-l-red-500 bg-destructive/10';
-  if (plan.paymentPending) return 'border-l-4 border-l-amber-500 bg-warning/10';
+  if (plan.status === 'expired') return 'border-l-4 border-l-destructive bg-destructive/10';
+  if (plan.paymentPending) return 'border-l-4 border-l-warning bg-warning/10';
   const remaining = daysRemaining(plan.endDate);
-  if (plan.status === 'active' && isLastCycle(plan) && remaining <= 5) return 'border-l-4 border-l-yellow-500 bg-warning/10';
+  if (plan.status === 'active' && isLastCycle(plan) && remaining <= 5) return 'border-l-4 border-l-warning bg-warning/10';
   return '';
 }
 
 function statusBadge(plan: ClientPlan) {
-  if (plan.status === 'expired') {
-    return <Badge className="bg-destructive/20 text-destructive">Vencido</Badge>;
-  }
-  if (plan.paymentPending) {
-    return <Badge className="bg-warning/20 text-warning">Pendiente de pago</Badge>;
-  }
+  if (plan.status === 'expired') return <StatusBadge tone="danger">Vencido</StatusBadge>;
+  if (plan.paymentPending) return <StatusBadge tone="warning">Pendiente de pago</StatusBadge>;
   const remaining = daysRemaining(plan.endDate);
-  if (isLastCycle(plan) && remaining <= 5) {
-    return <Badge className="bg-warning/20 text-warning">Vence pronto</Badge>;
-  }
-  return <Badge className="bg-success/20 text-success">Activo</Badge>;
+  if (isLastCycle(plan) && remaining <= 5) return <StatusBadge tone="warning">Vence pronto</StatusBadge>;
+  return <StatusBadge tone="success">Activo</StatusBadge>;
 }
 
 const Plans = () => {
@@ -87,6 +88,8 @@ const Plans = () => {
   const [clientPlans, setClientPlans] = useState<ClientPlan[]>([]);
   const [patients, setPatients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const submittingRef = useRef(false);
 
   // Dialog "Registrar pago"
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -104,41 +107,37 @@ const Plans = () => {
 
   const fetchClientPlans = async () => {
     try {
-      const data = await clientPlanService.getAll();
-      setClientPlans(data);
-    } catch {
-      notify.error('Error al cargar los planes');
+      setClientPlans(await clientPlanService.getAll());
+    } catch (err) {
+      notify.error(getErrorMessage(err, 'El pago se registró, pero no se pudo actualizar la lista. Recarga la página.'));
     }
   };
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [plans, patientsData] = await Promise.all([
-          clientPlanService.getAll(),
-          userService.getPatients(),
-        ]);
-        setClientPlans(plans);
-        setPatients(patientsData);
-      } catch {
-        notify.error('Error al cargar los datos');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadFailed(false);
+    try {
+      // getAllPatients recorre todas las páginas: con más de 50 pacientes el buscador dejaba a los demás fuera
+      const [plans, patientsData] = await Promise.all([clientPlanService.getAll(), userService.getAllPatients()]);
+      setClientPlans(plans);
+      setPatients(patientsData);
+    } catch {
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Sin tildes ni mayúsculas: "matias" encuentra a "Matías"
   const filteredPatients = useMemo(() => {
-    const term = patientSearch.toLowerCase();
-    if (!term) return patients;
-    return patients.filter(
-      (p) =>
-        p.firstName.toLowerCase().includes(term) ||
-        p.lastName.toLowerCase().includes(term) ||
-        p.email.toLowerCase().includes(term)
-    );
+    const clean = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const q = clean(patientSearch.trim());
+    if (!q) return patients;
+    return patients.filter((p) => clean(`${p.firstName} ${p.lastName} ${p.email}`).includes(q));
   }, [patients, patientSearch]);
 
   const resetDialog = () => {
@@ -178,7 +177,8 @@ const Plans = () => {
   };
 
   const submitPlan = async (replaceExisting: boolean) => {
-    if (!selectedPatient) return;
+    if (!selectedPatient || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       await clientPlanService.create({
@@ -200,9 +200,10 @@ const Plans = () => {
       if (error.response?.status === 409 && error.response.data?.data?.existingPlan) {
         setConflictPlan(error.response.data.data.existingPlan);
       } else {
-        notify.error(error.response?.data?.message || 'Error al registrar el plan');
+        notify.error(error.response?.data?.message || 'No se pudo registrar el plan. Intenta de nuevo.');
       }
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -256,22 +257,34 @@ const Plans = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Planes</h1>
-          <p className="text-muted-foreground">Gestión de planes y sesiones de pacientes</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button variant="outline" onClick={() => navigate('/app/admin/planes/clasificar')} className="w-full sm:w-auto">
-            <ClipboardList className="h-4 w-4 mr-2" />
-            Clasificar pacientes sin plan
-          </Button>
-          <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Registrar pago
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Planes"
+        description="Gestión de planes y sesiones de pacientes"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => navigate('/app/admin/planes/clasificar')}>
+              <ClipboardList aria-hidden="true" />
+              Clasificar pacientes sin plan
+            </Button>
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus aria-hidden="true" />
+              Registrar pago
+            </Button>
+          </>
+        }
+      />
+
+      {loadFailed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar los planes ni los pacientes.</span>
+            <Button variant="outline" size="sm" onClick={load}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Catálogo de planes (referencia) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -322,11 +335,9 @@ const Plans = () => {
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-3">Planes de pacientes</h2>
         {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-          </div>
-        ) : otherPlans.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No hay planes registrados todavía</p>
+          <LoadingState label="Cargando planes…" className="py-10" />
+        ) : loadFailed ? null : otherPlans.length === 0 ? (
+          <EmptyState icon={FileText} title="No hay planes registrados todavía" description="Los planes que registres aparecerán aquí." />
         ) : (
           <div className="space-y-3">
             {otherPlans.map((plan) => renderPlanCard(plan))}
@@ -345,14 +356,15 @@ const Plans = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Registrar pago</DialogTitle>
+            <DialogDescription>Elige al paciente y el plan que pagó. Quedará registrado como pagado.</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Paso 1: Paciente */}
             <div className="space-y-2">
-              <Label>Paciente</Label>
+              <Label htmlFor="plan-patient-search">Paciente</Label>
               {selectedPatient ? (
-                <div className="flex items-center justify-between p-2 rounded-md border bg-secondary/10">
+                <div className="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 p-2 pl-3">
                   <span className="text-sm font-medium">
                     {selectedPatient.firstName} {selectedPatient.lastName}
                   </span>
@@ -360,47 +372,51 @@ const Plans = () => {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    aria-label="Cambiar de paciente"
                     onClick={() => setSelectedPatient(null)}
                   >
-                    <X className="h-4 w-4" />
+                    <X aria-hidden="true" />
                   </Button>
                 </div>
               ) : (
                 <>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por nombre o email..."
+                      id="plan-patient-search"
+                      type="search"
+                      autoComplete="off"
+                      placeholder="Buscar por nombre o correo"
                       value={patientSearch}
                       onChange={(e) => setPatientSearch(e.target.value)}
                       className="pl-10"
                     />
                   </div>
-                  <div className="max-h-40 overflow-y-auto space-y-1 border rounded-md p-1">
+                  <ul className="max-h-44 space-y-1 overflow-y-auto rounded-md border border-border p-1" aria-label="Pacientes">
                     {filteredPatients.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-2">Sin resultados</p>
+                      <li className="p-2 text-xs text-muted-foreground">Sin resultados</li>
                     ) : (
                       filteredPatients.map((p) => (
-                        <button
-                          type="button"
-                          key={p.id}
-                          onClick={() => setSelectedPatient(p)}
-                          className="w-full text-left p-2 rounded-md hover:bg-secondary/10 text-sm"
-                        >
-                          <span className="font-medium">{p.firstName} {p.lastName}</span>
-                          <span className="text-muted-foreground ml-2 text-xs">{p.email}</span>
-                        </button>
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPatient(p)}
+                            className="flex min-h-11 w-full flex-col items-start justify-center rounded-md px-2 py-1 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <span className="font-medium">{p.firstName} {p.lastName}</span>
+                            <span className="text-xs text-muted-foreground">{p.email}</span>
+                          </button>
+                        </li>
                       ))
                     )}
-                  </div>
+                  </ul>
                 </>
               )}
             </div>
 
             {/* Paso 2: Tipo de plan */}
-            <div className="space-y-2">
-              <Label>Tipo de plan</Label>
+            <div className="space-y-2" role="radiogroup" aria-labelledby="plan-type-label">
+              <Label id="plan-type-label">Tipo de plan</Label>
               <div className="grid grid-cols-2 gap-3">
                 {(Object.keys(SERVICE_TYPE_LABELS) as ServiceType[]).map((type) => {
                   const Icon = SERVICE_ICON[type];
@@ -408,15 +424,17 @@ const Plans = () => {
                     <button
                       key={type}
                       type="button"
+                      role="radio"
+                      aria-checked={serviceType === type}
                       onClick={() => handleServiceTypeChange(type)}
                       className={cn(
-                        'p-3 rounded-lg border-2 text-left transition-all',
+                        'rounded-lg border-2 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         serviceType === type
-                          ? 'border-secondary bg-secondary/10 shadow-sm'
+                          ? 'border-primary bg-primary/10 shadow-sm'
                           : 'border-border hover:border-muted-foreground/40'
                       )}
                     >
-                      <Icon className="h-4 w-4 mb-1 text-secondary" />
+                      <Icon aria-hidden="true" className="mb-1 h-4 w-4 text-secondary" />
                       <p className="text-sm font-semibold">{SERVICE_TYPE_LABELS[type]}</p>
                     </button>
                   );
@@ -426,8 +444,8 @@ const Plans = () => {
 
             {/* Paso 3: Sesiones */}
             <div className="space-y-2">
-              <Label>Sesiones por mes</Label>
-              <SessionsSelect serviceType={serviceType} value={choice} onChange={setChoice} />
+              <Label htmlFor="plan-sessions">Sesiones por mes</Label>
+              <SessionsSelect id="plan-sessions" serviceType={serviceType} value={choice} onChange={setChoice} />
             </div>
 
             {/* Paso 4: Duración, ciclo y renovación */}
@@ -447,10 +465,9 @@ const Plans = () => {
             <RenewsCheckbox id="plan-renews" checked={renews} onChange={setRenews} />
 
             <DialogFooter>
-              <Button type="submit" disabled={!selectedPatient || submitting} className="w-full">
-                {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <SubmitButton disabled={!selectedPatient} loading={submitting} loadingLabel="Registrando…" className="w-full">
                 Confirmar pago
-              </Button>
+              </SubmitButton>
             </DialogFooter>
           </form>
         </DialogContent>

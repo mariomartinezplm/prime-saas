@@ -1,27 +1,23 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, MailCheck, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
-import { ArrowLeft, Mail, MessageCircle, MailCheck, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { notify } from '@/lib/notify';
-import logoImage from '@/assets/prime-fh-logo.png';
+import AuthLayout from '@/components/auth/AuthLayout';
+import { FormField } from '@/components/forms/FormField';
+import SubmitButton from '@/components/forms/SubmitButton';
 import { getWhatsAppUrl } from '@/config/contact';
 import { authService } from '@/services/authService';
+import { isEmail } from '@/lib/validation';
 
 /**
- * Recuperación de contraseña (Paso 13 de BLUEPRINT.md).
- *
- * Reemplaza la versión interina que solo derivaba a WhatsApp (Paso 01):
- * ahora el reseteo automático por email ya existe (Paso 11 + 13), así que
- * esta pantalla vuelve a pedir el correo. El WhatsApp queda como red de
- * seguridad secundaria, por si el correo nunca llega.
+ * Recuperación de contraseña (Paso 13 de BLUEPRINT.md): pide el correo y el servidor envía el link.
+ * El WhatsApp queda como red de seguridad por si el correo nunca llega.
  */
 const RecoverPassword = () => {
-  const navigate = useNavigate();
+  const submittingRef = useRef(false);
   const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -31,131 +27,93 @@ const RecoverPassword = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+
+    const value = email.trim();
+    if (!value) return setError('Ingresa tu correo');
+    if (!isEmail(value)) return setError('Revisa el correo: parece incompleto');
+
+    submittingRef.current = true;
     setIsLoading(true);
     try {
-      // El backend SIEMPRE responde 200 genérico (exista o no el email) —
-      // no revela qué correos están registrados.
-      await authService.forgotPassword(email);
+      // El backend SIEMPRE responde 200 genérico (exista o no el email): no revela qué correos están registrados.
+      await authService.forgotPassword(value);
     } catch {
-      // Falla de red/servidor: se muestra igual el mensaje genérico, mismo
-      // criterio que el backend — no se confirma ni se niega nada del email.
+      // Falla de red/servidor: se muestra igual el mensaje genérico, mismo criterio que el backend.
     } finally {
+      submittingRef.current = false;
       setIsLoading(false);
       setSent(true);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-dark via-brand-dark/95 to-brand-secondary/20 flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-secondary/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
+    <AuthLayout title="Recuperar acceso" subtitle="Te ayudamos a volver a entrar a tu cuenta">
+      {sent ? (
+        <div className="space-y-4" role="status">
+          <div className="flex justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+              <MailCheck aria-hidden="true" className="h-7 w-7 text-primary" />
+            </div>
+          </div>
+          <div className="space-y-1 text-center">
+            <p className="text-foreground">
+              Si <strong className="break-all">{email.trim()}</strong> está registrado, te llegará un correo con instrucciones para
+              restablecer tu contraseña.
+            </p>
+            <p className="text-sm text-muted-foreground">El link es válido por 10 minutos. Revisa también spam o promociones.</p>
+          </div>
 
-      <motion.div
-        className="w-full max-w-md relative z-10"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="text-center mb-6">
-          <img src={logoImage} alt="Prime F&H" className="h-14 mx-auto mb-3" />
-          <h1 className="text-2xl font-bold text-white">Recuperar acceso</h1>
-          <p className="text-brand-light/70 text-sm mt-1">
-            Te ayudamos a volver a entrar a tu cuenta
-          </p>
+          <Button asChild variant="ghost" className="w-full">
+            <Link to="/login">
+              <ArrowLeft aria-hidden="true" />
+              Volver al inicio de sesión
+            </Link>
+          </Button>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-center text-xs text-muted-foreground">¿No te llegó el correo?</p>
+            <Button asChild variant="outline" className="w-full">
+              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                <MessageCircle aria-hidden="true" />
+                Escribir por WhatsApp
+                <span className="sr-only"> (se abre en otra pestaña)</span>
+              </a>
+            </Button>
+          </div>
         </div>
-
-        <Card className="p-6 bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
-          {sent ? (
-            <>
-              <div className="flex justify-center mb-4">
-                <div className="w-14 h-14 rounded-full bg-brand-secondary/10 flex items-center justify-center">
-                  <MailCheck className="w-7 h-7 text-brand-secondary" />
-                </div>
-              </div>
-
-              <p className="text-center text-gray-700 mb-2">
-                Si <strong>{email}</strong> está registrado, te llegará un correo
-                con instrucciones para restablecer tu contraseña.
-              </p>
-              <p className="text-center text-sm text-gray-500 mb-6">
-                El link es válido por 10 minutos. Revisa también spam/promociones.
-              </p>
-
-              <Button
-                variant="ghost"
-                className="w-full text-gray-600"
-                onClick={() => navigate('/login')}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver al inicio de sesión
-              </Button>
-
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <p className="text-center text-xs text-gray-400 mb-2">
-                  ¿No te llegó el correo?
-                </p>
-                <Button asChild variant="outline" className="w-full border-[#25D366] text-[#20BD5A] hover:bg-[#25D366]/10">
-                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Escribir por WhatsApp
-                  </a>
-                </Button>
-              </div>
-            </>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <p className="text-center text-gray-700 mb-2">
-                Ingresa el correo con el que te registraste.
-              </p>
-
-              <div>
-                <Label htmlFor="email">Correo electrónico</Label>
-                <div className="relative mt-1">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="tu@correo.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-brand-secondary hover:bg-brand-secondary/90"
+      ) : (
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          <p className="text-center text-sm text-muted-foreground">Ingresa el correo con el que te registraste.</p>
+          <FormField label="Correo electrónico" required error={error}>
+            {(c) => (
+              <Input
+                {...c}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="tu@correo.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(undefined);
+                }}
                 disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  "Enviar instrucciones"
-                )}
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-gray-600"
-                onClick={() => navigate('/login')}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver al inicio de sesión
-              </Button>
-            </form>
-          )}
-        </Card>
-      </motion.div>
-    </div>
+              />
+            )}
+          </FormField>
+          <SubmitButton className="w-full" loading={isLoading} loadingLabel="Enviando…">
+            Enviar instrucciones
+          </SubmitButton>
+          <Button asChild variant="ghost" className="w-full">
+            <Link to="/login">
+              <ArrowLeft aria-hidden="true" />
+              Volver al inicio de sesión
+            </Link>
+          </Button>
+        </form>
+      )}
+    </AuthLayout>
   );
 };
 

@@ -1,35 +1,161 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { format, parseISO } from 'date-fns';
+import { MessageCircle, Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { clientPlanService } from '@/services/clientPlanService';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
+import { FormField } from '@/components/forms/FormField';
+import SubmitButton from '@/components/forms/SubmitButton';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
+import { DetailList, DetailRow } from '@/components/patients/DetailList';
+import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { notify } from '@/lib/notify';
-import { Loader2 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { useEffect } from 'react';
+import { getWhatsAppUrl } from '@/config/contact';
 import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress } from '@/config/planCatalog';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
-import type { SessionBalance } from '@/types';
+import { showApiError } from '@/lib/apiError';
+import { todayLocal } from '@/lib/evolutionDate';
+import { notify } from '@/lib/notify';
+import { birthDateError, isPhone } from '@/lib/validation';
+import type { SessionBalance, User } from '@/types';
+
+const formFromUser = (user: User) => ({
+  firstName: user.firstName || '',
+  lastName: user.lastName || '',
+  phone: user.phone || '',
+  address: user.address || '',
+  dateOfBirth: user.dateOfBirth?.split('T')[0] || '',
+});
+type ProfileForm = ReturnType<typeof formFromUser>;
+type ProfileErrors = Partial<Record<keyof ProfileForm, string>>;
+
+const PersonalDataCard = ({ user, onSaved }: { user: User; onSaved: (user: User) => void }) => {
+  const formRef = useRef<HTMLFormElement>(null);
+  const savingRef = useRef(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<ProfileForm>(() => formFromUser(user));
+  const [errors, setErrors] = useState<ProfileErrors>({});
+
+  const set = (field: keyof ProfileForm, value: string) => {
+    setForm((p) => ({ ...p, [field]: value }));
+    if (errors[field]) setErrors((p) => ({ ...p, [field]: undefined }));
+  };
+
+  const startEditing = () => {
+    // Siempre se parte de los datos guardados: antes, tras Cancelar, reaparecía lo que se había escrito
+    setForm(formFromUser(user));
+    setErrors({});
+    setEditing(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savingRef.current) return;
+
+    const found: ProfileErrors = {};
+    if (!form.firstName.trim()) found.firstName = 'Ingresa tu nombre';
+    if (!form.lastName.trim()) found.lastName = 'Ingresa tu apellido';
+    if (form.phone.trim() && !isPhone(form.phone)) found.phone = 'Ingresa un teléfono válido';
+    const birth = birthDateError(form.dateOfBirth, todayLocal());
+    if (birth) found.dateOfBirth = birth;
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      return;
+    }
+
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const updated = await authService.updateProfile({
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        phone: form.phone.trim() || undefined,
+        address: form.address.trim() || undefined,
+        dateOfBirth: form.dateOfBirth || undefined,
+      });
+      onSaved(updated);
+      setEditing(false);
+      notify.success('Perfil actualizado');
+    } catch (err) {
+      // Se conserva lo escrito para reintentar
+      showApiError(err, 'No se pudo actualizar tu perfil. Tus datos siguen aquí.');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+        <CardTitle className="text-lg">Datos personales</CardTitle>
+        {!editing && (
+          <Button variant="outline" size="sm" onClick={startEditing}>
+            <Pencil aria-hidden="true" />
+            Editar
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {editing ? (
+          <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Nombre" required error={errors.firstName}>
+                {(c) => <Input {...c} autoComplete="given-name" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />}
+              </FormField>
+              <FormField label="Apellido" required error={errors.lastName}>
+                {(c) => <Input {...c} autoComplete="family-name" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />}
+              </FormField>
+              <FormField label="Teléfono" error={errors.phone}>
+                {(c) => <Input {...c} type="tel" inputMode="tel" autoComplete="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} />}
+              </FormField>
+              <FormField label="Fecha de nacimiento" error={errors.dateOfBirth}>
+                {(c) => (
+                  <Input {...c} type="date" max={todayLocal()} autoComplete="bday" value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} />
+                )}
+              </FormField>
+              <FormField label="Dirección" className="md:col-span-2">
+                {(c) => <Input {...c} autoComplete="street-address" value={form.address} onChange={(e) => set('address', e.target.value)} />}
+              </FormField>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <SubmitButton loading={saving} loadingLabel="Guardando…">
+                Guardar cambios
+              </SubmitButton>
+              <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={saving}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <DetailList>
+            <DetailRow label="Nombre">
+              {user.firstName} {user.lastName}
+            </DetailRow>
+            <DetailRow label="Correo">{user.email}</DetailRow>
+            <DetailRow label="RUT">{user.rut}</DetailRow>
+            <DetailRow label="Teléfono">{user.phone}</DetailRow>
+            <DetailRow label="Fecha de nacimiento">
+              {user.dateOfBirth ? format(parseISO(user.dateOfBirth.slice(0, 10)), 'dd/MM/yyyy') : undefined}
+            </DetailRow>
+            <DetailRow label="Dirección">{user.address}</DetailRow>
+          </DetailList>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 const MyProfile = () => {
   const { user, updateUser } = useAuth();
   const [balance, setBalance] = useState<SessionBalance | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
-    dateOfBirth: user?.dateOfBirth?.split('T')[0] || '',
-  });
 
   useEffect(() => {
     if (user) {
@@ -37,119 +163,47 @@ const MyProfile = () => {
     }
   }, [user]);
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const updated = await authService.updateProfile({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        phone: form.phone || undefined,
-        address: form.address || undefined,
-        dateOfBirth: form.dateOfBirth || undefined,
-      });
-      updateUser(updated);
-      setEditing(false);
-      notify.success('Perfil actualizado');
-    } catch {
-      notify.error('Error al actualizar perfil');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   if (!user) return null;
+
+  const renewUrl = getWhatsAppUrl('Hola, quiero renovar mi plan en Prime F&H');
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
-          Mi Perfil
-          {user.isFounder && <FounderBadge />}
-        </h1>
-        <p className="text-muted-foreground">Información de tu cuenta</p>
-      </div>
+      <PageHeader title="Mi perfil" badges={user.isFounder ? <FounderBadge /> : undefined} description="Información de tu cuenta" />
 
       <Tabs defaultValue="personal">
         <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="personal">Datos Personales</TabsTrigger>
+          <TabsTrigger value="personal">Datos personales</TabsTrigger>
           <TabsTrigger value="emergency">Emergencia</TabsTrigger>
-          <TabsTrigger value="medical">Info Médica</TabsTrigger>
+          <TabsTrigger value="medical">Info médica</TabsTrigger>
           <TabsTrigger value="files">Archivos</TabsTrigger>
-          <TabsTrigger value="plan">Mi Plan</TabsTrigger>
+          <TabsTrigger value="plan">Mi plan</TabsTrigger>
         </TabsList>
 
         <TabsContent value="personal" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Datos Personales</CardTitle>
-              {!editing ? (
-                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                  Editar
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setEditing(false)}>
-                    Cancelar
-                  </Button>
-                  <Button size="sm" onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                    Guardar
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {editing ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Nombre</Label>
-                    <Input value={form.firstName} onChange={(e) => setForm(p => ({ ...p, firstName: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Apellido</Label>
-                    <Input value={form.lastName} onChange={(e) => setForm(p => ({ ...p, lastName: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Teléfono</Label>
-                    <Input value={form.phone} onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Fecha de Nacimiento</Label>
-                    <Input type="date" value={form.dateOfBirth} onChange={(e) => setForm(p => ({ ...p, dateOfBirth: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Dirección</Label>
-                    <Input value={form.address} onChange={(e) => setForm(p => ({ ...p, address: e.target.value }))} />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Nombre</span><span>{user.firstName} {user.lastName}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span>{user.email}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">RUT</span><span>{user.rut || '-'}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Teléfono</span><span>{user.phone || '-'}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Fecha nacimiento</span><span>{user.dateOfBirth ? format(parseISO(user.dateOfBirth.slice(0, 10)), 'dd/MM/yyyy') : '-'}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Dirección</span><span>{user.address || '-'}</span></div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <PersonalDataCard user={user} onSaved={updateUser} />
         </TabsContent>
 
         <TabsContent value="emergency" className="mt-4">
           <Card>
-            <CardHeader><CardTitle className="text-lg">Contacto de Emergencia</CardTitle></CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Nombre</span><span>{user.emergencyContact?.name || '-'}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Teléfono</span><span>{user.emergencyContact?.phone || '-'}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Relación</span><span>{user.emergencyContact?.relationship || '-'}</span></div>
+            <CardHeader>
+              <CardTitle className="text-lg">Contacto de emergencia</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DetailList>
+                <DetailRow label="Nombre">{user.emergencyContact?.name}</DetailRow>
+                <DetailRow label="Teléfono">{user.emergencyContact?.phone}</DetailRow>
+                <DetailRow label="Relación">{user.emergencyContact?.relationship}</DetailRow>
+              </DetailList>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="medical" className="mt-4">
           <Card>
-            <CardHeader><CardTitle className="text-lg">Información Médica</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Información médica</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <ClinicalBaselineFields
                 medicalInfo={user.medicalInfo}
@@ -159,7 +213,7 @@ const MyProfile = () => {
                   updateUser(updated);
                 }}
               />
-              <div className="border-t border-border pt-3 space-y-3">
+              <div className="space-y-3 border-t border-border pt-3">
                 <div><span className="text-muted-foreground">Condiciones crónicas: </span>{user.medicalInfo?.chronicConditions?.join(', ') || 'Ninguna'}</div>
                 <div><span className="text-muted-foreground">Medicamentos: </span>{user.medicalInfo?.medications?.join(', ') || 'Ninguno'}</div>
                 <div><span className="text-muted-foreground">Alergias: </span>{user.medicalInfo?.allergies?.join(', ') || 'Ninguna'}</div>
@@ -175,26 +229,33 @@ const MyProfile = () => {
 
         <TabsContent value="plan" className="mt-4">
           <Card>
-            <CardHeader><CardTitle className="text-lg">Mi Plan</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Mi plan</CardTitle>
+            </CardHeader>
             <CardContent>
               {balance?.hasActivePlan && balance.plan ? (
-                <div className="space-y-3 text-sm">
-                  {balance.paymentPending && balance.paymentDueBy && (
-                    <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />
-                  )}
-                  <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span className="font-medium">{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Sesiones</span><span>{formatPlanUsage(balance.plan)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Inicio</span><span>{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</span></div>
-                  {formatCycleProgress(balance.plan) && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Plan</span><span>{formatCycleProgress(balance.plan)}</span></div>
-                  )}
-                  <div className="flex justify-between"><span className="text-muted-foreground">Vence</span><span>{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</span></div>
-                  {balance.extraSessionsAvailable > 0 && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Sesiones extra</span><span>{balance.extraSessionsAvailable}</span></div>
-                  )}
+                <div className="space-y-4">
+                  {balance.paymentPending && balance.paymentDueBy && <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />}
+                  <DetailList>
+                    <DetailRow label="Tipo">{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</DetailRow>
+                    <DetailRow label="Sesiones">{formatPlanUsage(balance.plan)}</DetailRow>
+                    <DetailRow label="Inicio">{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</DetailRow>
+                    {formatCycleProgress(balance.plan) && <DetailRow label="Plan">{formatCycleProgress(balance.plan)}</DetailRow>}
+                    <DetailRow label="Vence">{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</DetailRow>
+                    {balance.extraSessionsAvailable > 0 && <DetailRow label="Sesiones extra">{balance.extraSessionsAvailable}</DetailRow>}
+                  </DetailList>
                 </div>
               ) : (
-                <p className="text-muted-foreground text-sm">No tienes un plan activo. Contacta a tu profesional.</p>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">No tienes un plan activo. Contacta a Prime F&H para renovar.</p>
+                  <Button asChild variant="outline" size="sm">
+                    <a href={renewUrl} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle aria-hidden="true" />
+                      Escribir por WhatsApp
+                      <span className="sr-only"> (se abre en otra pestaña)</span>
+                    </a>
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
