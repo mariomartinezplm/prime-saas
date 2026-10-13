@@ -23,6 +23,35 @@ export const CATEGORIES = {
   fuerza: { label: 'Fuerza y rendimiento' }
 };
 
+// Orden en que se muestran las categorías en "Mis logros"
+export const CATEGORY_ORDER = ['kinesiologia', 'constancia', 'readiness', 'descanso', 'estres', 'trayectoria', 'cuerpo', 'fuerza'];
+
+// Retos que se mencionan pero TODAVÍA NO funcionan: se muestran como "pendientes", nunca como si ya existieran.
+// `note` es lo que ve la persona (sin tecnicismos); no concede nada y no tiene progreso.
+export const PENDING_ACHIEVEMENTS = [
+  {
+    key: 'recovery_sustained',
+    category: 'estres',
+    title: 'Recuperación sostenida',
+    description: 'Un patrón favorable de recuperación durante varios días.',
+    note: 'Pendiente: falta definir con tu centro qué significa un patrón favorable antes de activarlo.'
+  },
+  {
+    key: 'self_care',
+    category: 'estres',
+    title: 'Constancia en el autocuidado',
+    description: 'Completar las actividades de recuperación que definas con tu profesional.',
+    note: 'Pendiente: todavía no existe el registro de actividades de recuperación acordadas con tu profesional.'
+  },
+  {
+    key: 'device_sleep',
+    category: 'descanso',
+    title: 'Descanso medido con un dispositivo',
+    description: 'Reconocimientos basados en la medición del sueño de un reloj o pulsera.',
+    note: 'Pendiente: PRIME F&H todavía no se conecta con ningún dispositivo. Hoy el descanso se reconoce según lo que tú registras.'
+  }
+];
+
 // Texto de la notificación: SIEMPRE genérico (puede verse en pantalla bloqueada o llegar por correo).
 export const GENERIC_NOTIFICATION = {
   title: 'Nuevo logro desbloqueado',

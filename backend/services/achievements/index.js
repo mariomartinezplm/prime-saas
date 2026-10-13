@@ -14,6 +14,7 @@ import { computeStreakCandidates, streakMilestoneStillMet } from './streaks.js';
 import { computeReadinessCandidates } from './readiness.js';
 import { computeWellbeingCandidates } from './wellbeing.js';
 import { computeBodyCandidates, bodyMilestoneStillMet } from './body.js';
+import { buildOverview } from './overview.js';
 import { computeStrengthCandidates, strengthRecordStillValid, PR_NOTIFY_CAP_PER_WEEK } from './strength.js';
 
 /**
@@ -23,7 +24,7 @@ import { computeStrengthCandidates, strengthRecordStillValid, PR_NOTIFY_CAP_PER_
  * nunca desde la pantalla. Es idempotente: evaluar muchas veces deja el mismo resultado.
  */
 
-async function loadData(patientId) {
+export async function loadData(patientId) {
   const id = new mongoose.Types.ObjectId(String(patientId));
   const [appointments, plans, pauses, checkins, measurements, exercises, user] = await Promise.all([
     Appointment.find({ patient: id }).select('_id type status date startTime deduction').lean(),
@@ -165,4 +166,12 @@ export async function runAchievementSweep({ now = new Date(), windowDays = 3, li
     }
   }
   return summary;
+}
+
+
+// "Mis logros" de un paciente. audience 'patient' = lo que ve la propia persona; 'staff' = además la evidencia, el
+// estado de revisión y las notas (solo para personal con acceso a ese paciente).
+export async function getAchievementsOverview(patientId, { audience = 'patient', now = new Date() } = {}) {
+  const [data, awards] = await Promise.all([loadData(patientId), AchievementAward.find({ patient: patientId }).lean()]);
+  return buildOverview({ ...data, awards }, { audience, now });
 }

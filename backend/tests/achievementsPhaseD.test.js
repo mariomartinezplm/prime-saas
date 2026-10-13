@@ -338,10 +338,9 @@ describe('pausas autorizadas (API)', () => {
 
 describe('pausas: permisos (solo personal con acceso al paciente)', () => {
   it('las tres rutas pasan por protect, authorize(admin, professional) y authorizePatientAccess', () => {
-    const rutas = achievementRouter.stack.filter((l) => l.route);
-    expect(rutas).toHaveLength(7);
-    // 3 de pausas + 4 de meta corporal; las de pausas y las de personal pasan por 3 manejadores
-    for (const layer of rutas.filter((l) => l.route.path.includes('pauses'))) expect(layer.route.stack.length).toBe(3);
+    const rutas = achievementRouter.stack.filter((l) => l.route && l.route.path.includes('pauses'));
+    expect(rutas).toHaveLength(3);
+    for (const layer of rutas) expect(layer.route.stack.length).toBe(3);
     expect(achievementRouter.stack[0].name).toBe('protect');
   });
 

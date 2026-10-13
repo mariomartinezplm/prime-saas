@@ -1,7 +1,11 @@
 import AchievementPause from '../models/AchievementPause.js';
 import User from '../models/User.js';
 import { isValidPeriodKey, ONCE } from '../config/achievements.js';
-import { triggerAchievementEvaluation } from '../services/achievements/index.js';
+import mongoose from 'mongoose';
+import AchievementAward from '../models/AchievementAward.js';
+import { ACHIEVEMENTS, CATEGORIES } from '../config/achievements.js';
+import { markSeen } from '../services/achievementService.js';
+import { triggerAchievementEvaluation, getAchievementsOverview } from '../services/achievements/index.js';
 
 const isMonth = (periodKey) => typeof periodKey === 'string' && periodKey !== ONCE && isValidPeriodKey(periodKey);
 
@@ -187,5 +191,88 @@ export const updatePatientBodyGoal = async (req, res) => {
     await saveGoal(req.params.patientId, req.body, res);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Error al guardar la meta' });
+  }
+};
+
+
+// ── "Mis logros" ─────────────────────────────────────────────────────────────
+
+// @desc    Mis logros: categorías, retos, progreso, historial y próximo hito (solo los del propio paciente)
+// @route   GET /api/achievements/me
+// @access  Private/Patient
+export const getMyAchievements = async (req, res) => {
+  try {
+    const overview = await getAchievementsOverview(req.user._id, { audience: 'patient' });
+    res.status(200).json({ success: true, data: overview });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Error al obtener tus logros' });
+  }
+};
+
+// @desc    Logros todavía no mostrados con la animación (liviano: solo lee los logros concedidos)
+// @route   GET /api/achievements/me/unseen
+// @access  Private/Patient
+export const getMyUnseen = async (req, res) => {
+  try {
+    const awards = await AchievementAward.find({ patient: req.user._id, seenAt: { $exists: false } }).sort({ awardedAt: 1 }).limit(10).lean();
+    const unseen = awards
+      .filter((a) => ACHIEVEMENTS[a.key])
+      .map((a) => ({
+        id: String(a._id),
+        key: a.key,
+        title: ACHIEVEMENTS[a.key].title,
+        message: ACHIEVEMENTS[a.key].message,
+        category: a.category,
+        categoryLabel: CATEGORIES[a.category]?.label ?? '',
+        awardedAt: a.awardedAt
+      }));
+    res.status(200).json({ success: true, data: { unseen } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Error al obtener tus logros nuevos' });
+  }
+};
+
+// @desc    Marcar un logro como visto (la animación no vuelve a aparecer, tampoco en otro dispositivo)
+// @route   POST /api/achievements/me/:awardId/seen
+// @access  Private/Patient (solo sus propios logros)
+export const markMyAchievementSeen = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.awardId)) {
+      return res.status(400).json({ success: false, message: 'Logro no válido' });
+    }
+    // Idempotente: si ya estaba visto, o no es del paciente, no cambia nada y responde igual
+    await markSeen({ patientId: req.user._id, awardId: req.params.awardId });
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Error al marcar el logro' });
+  }
+};
+
+// @desc    Logros de un paciente con la evidencia y el estado de revisión (personal con acceso al paciente)
+// @route   GET /api/achievements/patients/:patientId
+// @access  Private/Staff
+export const getPatientAchievements = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const user = await readGoal(patientId, res);
+    if (!user) return;
+
+    const [overview, pauses] = await Promise.all([
+      getAchievementsOverview(patientId, { audience: 'staff' }),
+      AchievementPause.find({ patient: patientId }).sort({ periodKey: -1 }).populate('createdBy', 'firstName lastName').lean()
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...overview,
+        goal: goalView(user),
+        pauses,
+        // Logros que quedaron "en revisión" tras una corrección: el personal los revisa, nunca se borran solos
+        reviewCount: overview.history.filter((h) => h.status === 'under_review').length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Error al obtener los logros del paciente' });
   }
 };
