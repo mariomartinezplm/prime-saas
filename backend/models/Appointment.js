@@ -57,6 +57,13 @@ const appointmentSchema = new mongoose.Schema({
   cancelledAt: {
     type: Date
   },
+  // Cuándo se marcó como completada (la fija el modelo al pasar a 'completed'). Los logros la usan para
+  // fechar la sesión: la fecha de la cita puede ser anterior a cuando el profesional la registró. En las
+  // citas completadas antes de que existiera este campo falta; ahí se usa la fecha de la cita.
+  completedAt: {
+    type: Date,
+    default: null
+  },
   reminderSent: {
     type: Boolean,
     default: false
@@ -124,6 +131,19 @@ appointmentSchema.pre('save', function (next) {
       return next(new Error('No se pueden crear citas en el pasado'));
     }
   }
+  next();
+});
+
+// `completedAt` sigue al estado: se fija la primera vez que la cita pasa a 'completed' y se borra si se
+// corrige a otro estado (así nunca queda una fecha de "completada" en una cita que ya no lo está).
+export function syncCompletedAt(appointment) {
+  if (appointment.isModified('status')) {
+    if (appointment.status === 'completed') appointment.completedAt = appointment.completedAt || new Date();
+    else appointment.completedAt = null;
+  }
+}
+appointmentSchema.pre('save', function (next) {
+  syncCompletedAt(this);
   next();
 });
 

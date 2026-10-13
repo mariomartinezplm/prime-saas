@@ -14,7 +14,8 @@ const notificationSchema = new mongoose.Schema({
       'plan_expired',
       'appointment_booked',
       'appointment_cancelled',
-      'wellness_alert'
+      'wellness_alert',
+      'achievement_unlocked'
     ],
     required: [true, 'El tipo de notificación es requerido']
   },
@@ -32,6 +33,12 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  // Clave opcional que identifica un aviso "de una sola vez" (p. ej. 'achievement:<paciente>:<logro>:<periodo>').
+  // El índice único evita duplicados aunque el mismo evento se procese dos veces.
+  dedupeKey: {
+    type: String,
+    trim: true
+  },
   read: {
     type: Boolean,
     default: false
@@ -44,6 +51,7 @@ const notificationSchema = new mongoose.Schema({
 });
 
 notificationSchema.index({ user: 1, read: 1, createdAt: -1 });
+notificationSchema.index({ dedupeKey: 1 }, { unique: true, sparse: true });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

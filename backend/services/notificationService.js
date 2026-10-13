@@ -29,3 +29,16 @@ export async function notify(userId, type, { title, body, link } = {}) {
 
   return notification;
 }
+
+// Aviso "de una sola vez": si ya existe uno con la misma dedupeKey no crea otro y devuelve null.
+// Es lo que impide duplicados cuando la página se recarga o el mismo evento se procesa dos veces.
+// Solo in-app (sin correo): los avisos de logros y recordatorios no se espejan por email.
+export async function notifyOnce(userId, type, { title, body, link, dedupeKey } = {}) {
+  if (!dedupeKey) throw new Error('notifyOnce requiere una dedupeKey');
+  try {
+    return await Notification.create({ user: userId, type, title, body, link, dedupeKey });
+  } catch (error) {
+    if (error?.code === 11000) return null;
+    throw error;
+  }
+}
