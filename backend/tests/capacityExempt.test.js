@@ -39,13 +39,15 @@ const futureDate = () => new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(
 
 function setup({ overlapping, exempt }) {
   vi.restoreAllMocks();
+  // Consulta que se puede esperar directo o encadenar con .select() (la pertenencia del personal la usa)
+  const query = (value) => ({ select: () => query(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
   vi.spyOn(User, 'findById').mockImplementation((id) => {
     const idStr = id.toString();
     if (idStr === PATIENT_ID.toString()) {
-      return Promise.resolve({ _id: PATIENT_ID, role: 'patient', isActive: true, exemptFromCapacity: exempt });
+      return query({ _id: PATIENT_ID, role: 'patient', isActive: true, exemptFromCapacity: exempt });
     }
-    if (idStr === PROFESSIONAL_ID.toString()) return Promise.resolve({ _id: PROFESSIONAL_ID, role: 'professional' });
-    return Promise.resolve(null);
+    if (idStr === PROFESSIONAL_ID.toString()) return query({ _id: PROFESSIONAL_ID, role: 'professional' });
+    return query(null);
   });
   vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
   vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });

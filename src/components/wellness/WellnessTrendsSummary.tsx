@@ -42,7 +42,7 @@ const WellnessTrendsSummary = () => {
                 onClick={() => navigate(`/app/admin/pacientes/${trend.patient._id}`)}
                 className={`w-full flex items-center justify-between p-3 rounded-lg border border-border text-left transition-colors hover:bg-secondary/10 ${
                   style ? `border-l-4 ${style.border}` : ''
-                } ${trend.isLowAlert ? 'bg-red-500/5' : ''}`}
+                } ${trend.isLowAlert ? 'bg-destructive/5' : ''}`}
               >
                 <div>
                   <p className="font-medium text-sm">

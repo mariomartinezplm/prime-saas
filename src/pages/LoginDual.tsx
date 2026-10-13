@@ -1,324 +1,244 @@
-import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { IS_APP_HOST, PUBLIC_SITE_URL } from "@/config/host";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { Mail, Lock, User, Eye, EyeOff, UserCircle, Briefcase, Loader2 } from "lucide-react";
-import logoImage from "@/assets/prime-fh-logo.png";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
+import { useRef, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Briefcase, Mail, TriangleAlert, User, UserCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { IS_APP_HOST, PUBLIC_SITE_URL } from '@/config/host';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AuthLayout from '@/components/auth/AuthLayout';
+import { FormField } from '@/components/forms/FormField';
+import PasswordField from '@/components/forms/PasswordField';
+import SubmitButton from '@/components/forms/SubmitButton';
+import { getErrorMessage } from '@/lib/apiError';
+import { isEmail } from '@/lib/validation';
+import { normalizeRut } from '@/lib/rut';
+import { notify } from '@/lib/notify';
+import { cn } from '@/lib/utils';
 
-const LoginDual = () => {
-    const navigate = useNavigate();
-    const { login, isAuthenticated, user } = useAuth();
-    const [activeTab, setActiveTab] = useState("paciente");
-    const [showPassword, setShowPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+type Kind = 'patient' | 'staff';
+type Method = 'email' | 'rut';
 
-    // Estado para login de paciente
-    const [patientIdentifier, setPatientIdentifier] = useState("");
-    const [patientPassword, setPatientPassword] = useState("");
-    const [loginMethod, setLoginMethod] = useState<"email" | "rut">("email");
+const RUT_PATTERN = /^\d{7,8}-[\dK]$/;
 
-    // Estado para login de personal
-    const [staffEmail, setStaffEmail] = useState("");
-    const [staffPassword, setStaffPassword] = useState("");
+interface CredentialsFormProps {
+  kind: Kind;
+}
 
-    const formatRUT = (value: string) => {
-        // Formato: sin puntos, con guión (ej: 12345678-9)
-        const cleaned = value.replace(/[^\dkK]/g, '');
-        if (cleaned.length <= 1) return cleaned;
+// Un mismo formulario para paciente y personal: cambian el texto y que el paciente puede entrar con RUT.
+const CredentialsForm = ({ kind }: CredentialsFormProps) => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const formRef = useRef<HTMLFormElement>(null);
+  const submittingRef = useRef(false);
 
-        const rut = cleaned.slice(0, -1);
-        const dv = cleaned.slice(-1);
-        return `${rut}-${dv}`;
-    };
+  const [method, setMethod] = useState<Method>('email');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
+  const [formError, setFormError] = useState<string | undefined>();
+  const [loading, setLoading] = useState(false);
 
-    const handleLogin = async (e: React.FormEvent, type: 'patient' | 'staff') => {
-        e.preventDefault();
-        setIsLoading(true);
+  const isRut = kind === 'patient' && method === 'rut';
+  const identifierLabel = isRut ? 'RUT' : kind === 'staff' ? 'Correo corporativo' : 'Correo electrónico';
 
-        try {
-            const identifier = type === 'patient' ? patientIdentifier : staffEmail;
-            const password = type === 'patient' ? patientPassword : staffPassword;
+  const changeMethod = (next: Method) => {
+    setMethod(next);
+    setIdentifier('');
+    setErrors({});
+    setFormError(undefined);
+  };
 
-            if (type === 'patient' && loginMethod === "rut") {
-                const rutPattern = /^\d{7,8}-[\dkK]$/;
-                if (!rutPattern.test(patientIdentifier)) {
-                    toast.error("RUT inválido. Formato: 12345678-9 (sin puntos, con guión)");
-                    setIsLoading(false);
-                    return;
-                }
-            }
+  const validate = () => {
+    const found: { identifier?: string; password?: string } = {};
+    const value = identifier.trim();
+    if (!value) found.identifier = isRut ? 'Ingresa tu RUT' : 'Ingresa tu correo';
+    else if (isRut && !RUT_PATTERN.test(normalizeRut(value))) found.identifier = 'RUT inválido. Ejemplo: 12345678-9';
+    else if (!isRut && !isEmail(value)) found.identifier = 'Revisa el correo: parece incompleto';
+    if (!password) found.password = 'Ingresa tu contraseña';
+    return found;
+  };
 
-            const loggedUser = await login({ identifier, password });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submittingRef.current) return;
 
-            toast.success("Bienvenido a Prime F&H");
-
-            // SEGURIDAD (Paso 10 de BLUEPRINT.md): el redirect se decide por el
-            // rol que de verdad devolvió el backend, no por la pestaña que se
-            // usó para entrar — antes, si alguien entraba por la pestaña
-            // equivocada, terminaba en un panel que no le correspondía.
-            navigate(loggedUser.role === 'patient' ? "/app/dashboard" : "/app/admin");
-        } catch (error: any) {
-            console.error(error);
-            toast.error(error.response?.data?.message || "Error al iniciar sesión. Verifica tus credenciales.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Va después de todos los hooks: un return antes cambia la cantidad de hooks entre
-    // renders y React se cae (error #300) justo al iniciar sesión.
-    if (isAuthenticated && user) {
-        return <Navigate to={user.role === 'patient' ? '/app/dashboard' : '/app/admin'} replace />;
+    const found = validate();
+    setErrors(found);
+    setFormError(undefined);
+    if (found.identifier || found.password) {
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      return;
     }
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-brand-dark via-brand-dark/95 to-brand-secondary/20 flex items-center justify-center p-4">
-            {/* Floating background elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-secondary/10 rounded-full blur-3xl animate-pulse"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-            </div>
+    submittingRef.current = true;
+    setLoading(true);
+    try {
+      const loggedUser = await login({ identifier: isRut ? normalizeRut(identifier) : identifier.trim(), password });
+      notify.success('Bienvenido a Prime F&H');
+      // SEGURIDAD (Paso 10 de BLUEPRINT.md): el redirect se decide por el rol que de verdad devolvió el
+      // backend, no por la pestaña usada para entrar.
+      navigate(loggedUser.role === 'patient' ? '/app/dashboard' : '/app/admin');
+    } catch (err: unknown) {
+      // Mensaje en el formulario (no solo un aviso que desaparece): incluye el bloqueo por demasiados intentos.
+      setFormError(getErrorMessage(err, 'No pudimos iniciar sesión. Revisa tus datos e intenta de nuevo.'));
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
+    }
+  };
 
-            <motion.div
-                className="w-full max-w-md relative z-10"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+  return (
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
+      <p className="text-center text-sm text-muted-foreground">
+        {kind === 'patient' ? 'Ingresa con tu correo o tu RUT' : 'Acceso exclusivo para el equipo'}
+      </p>
+
+      {formError && (
+        <Alert variant="destructive">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      )}
+
+      {kind === 'patient' && (
+        <div role="group" aria-label="Ingresar con" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+          {(['email', 'rut'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={method === m}
+              onClick={() => changeMethod(m)}
+              className={cn(
+                'min-h-9 rounded-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                method === m ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              )}
             >
-                {/* Logo */}
-                <div className="text-center mb-8">
-                    <img
-                        src={logoImage}
-                        alt="Prime F&H"
-                        className="h-16 mx-auto mb-4"
-                    />
-                    <h1 className="text-3xl font-bold text-white mb-2">Portal Prime F&H</h1>
-                    <p className="text-brand-light/70">Accede a tu cuenta</p>
-                </div>
-
-                <Card className="bg-white/95 backdrop-blur-sm shadow-elevated border-none p-6">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 mb-6">
-                            <TabsTrigger value="paciente" className="flex items-center gap-2">
-                                <UserCircle className="w-4 h-4" />
-                                Paciente
-                            </TabsTrigger>
-                            <TabsTrigger value="personal" className="flex items-center gap-2">
-                                <Briefcase className="w-4 h-4" />
-                                Personal
-                            </TabsTrigger>
-                        </TabsList>
-
-                        {/* Login de Paciente */}
-                        <TabsContent value="paciente">
-                            <form onSubmit={(e) => handleLogin(e, 'patient')} className="space-y-4">
-                                <div className="text-center mb-4">
-                                    <h2 className="text-xl font-semibold text-brand-dark">Portal del Paciente</h2>
-                                    <p className="text-sm text-gray-600 mt-1">Ingresa con tu email o RUT</p>
-                                </div>
-
-                                {/* Toggle Email/RUT */}
-                                <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
-                                    <button
-                                        type="button"
-                                        onClick={() => setLoginMethod("email")}
-                                        className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${loginMethod === "email"
-                                            ? "bg-white text-brand-dark shadow-sm"
-                                            : "text-gray-600 hover:text-brand-dark"
-                                            }`}
-                                    >
-                                        Email
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setLoginMethod("rut")}
-                                        className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${loginMethod === "rut"
-                                            ? "bg-white text-brand-dark shadow-sm"
-                                            : "text-gray-600 hover:text-brand-dark"
-                                            }`}
-                                    >
-                                        RUT
-                                    </button>
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="patient-identifier">
-                                        {loginMethod === "email" ? "Correo electrónico" : "RUT"}
-                                    </Label>
-                                    <div className="relative mt-1">
-                                        {loginMethod === "email" ? (
-                                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        ) : (
-                                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        )}
-                                        <Input
-                                            id="patient-identifier"
-                                            type={loginMethod === "email" ? "email" : "text"}
-                                            placeholder={loginMethod === "email" ? "tu@correo.com" : "12345678-9"}
-                                            value={patientIdentifier}
-                                            onChange={(e) => {
-                                                if (loginMethod === "rut") {
-                                                    setPatientIdentifier(formatRUT(e.target.value));
-                                                } else {
-                                                    setPatientIdentifier(e.target.value);
-                                                }
-                                            }}
-                                            className="pl-10"
-                                            required
-                                            disabled={isLoading}
-                                        />
-                                    </div>
-                                    {loginMethod === "rut" && (
-                                        <p className="text-xs text-gray-500 mt-1">Sin puntos, con guión (ej: 12345678-9)</p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="patient-password">Contraseña</Label>
-                                    <div className="relative mt-1">
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <Input
-                                            id="patient-password"
-                                            type={showPassword ? "text" : "password"}
-                                            placeholder="Tu contraseña"
-                                            value={patientPassword}
-                                            onChange={(e) => setPatientPassword(e.target.value)}
-                                            className="pl-10 pr-10"
-                                            required
-                                            disabled={isLoading}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-dark"
-                                        >
-                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <Button
-                                    type="submit"
-                                    className="w-full bg-brand-secondary hover:bg-brand-secondary/90"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Ingresando...
-                                        </>
-                                    ) : (
-                                        "Ingresar al Portal"
-                                    )}
-                                </Button>
-
-                                <div className="text-center space-y-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/recuperar-contrasena')}
-                                        className="text-sm text-brand-secondary hover:underline"
-                                    >
-                                        ¿Olvidaste tu contraseña?
-                                    </button>
-                                    <p className="text-xs text-gray-400">
-                                        ¿Primera vez aquí? Tu profesional te envía la invitación para crear tu acceso.
-                                    </p>
-                                </div>
-                            </form>
-                        </TabsContent>
-
-                        {/* Login de Personal */}
-                        <TabsContent value="personal">
-                            <form onSubmit={(e) => handleLogin(e, 'staff')} className="space-y-4">
-                                <div className="text-center mb-4">
-                                    <h2 className="text-xl font-semibold text-brand-dark">Personal Prime</h2>
-                                    <p className="text-sm text-gray-600 mt-1">Acceso exclusivo para el equipo</p>
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="staff-email">Correo corporativo</Label>
-                                    <div className="relative mt-1">
-                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <Input
-                                            id="staff-email"
-                                            type="email"
-                                            placeholder="tu@primefh.cl"
-                                            value={staffEmail}
-                                            onChange={(e) => setStaffEmail(e.target.value)}
-                                            className="pl-10"
-                                            required
-                                            disabled={isLoading}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="staff-password">Contraseña</Label>
-                                    <div className="relative mt-1">
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <Input
-                                            id="staff-password"
-                                            type={showPassword ? "text" : "password"}
-                                            placeholder="Tu contraseña"
-                                            value={staffPassword}
-                                            onChange={(e) => setStaffPassword(e.target.value)}
-                                            className="pl-10 pr-10"
-                                            required
-                                            disabled={isLoading}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-dark"
-                                        >
-                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <Button
-                                    type="submit"
-                                    className="w-full bg-brand-dark hover:bg-brand-dark/90"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Accediendo...
-                                        </>
-                                    ) : (
-                                        "Acceder al Dashboard"
-                                    )}
-                                </Button>
-                            </form>
-                        </TabsContent>
-                    </Tabs>
-
-                    <div className="mt-6 pt-6 border-t border-gray-200 text-center space-y-3">
-                        <button
-                            onClick={() => navigate("/instalar")}
-                            className="block w-full text-sm font-medium text-brand-dark hover:underline"
-                        >
-                            Instalar la app en mi celular
-                        </button>
-                        <button
-                            onClick={() => (IS_APP_HOST ? window.location.assign(PUBLIC_SITE_URL) : navigate("/"))}
-                            className="text-sm text-gray-600 hover:text-brand-dark transition-colors"
-                        >
-                            ← Volver al sitio
-                        </button>
-                    </div>
-                </Card>
-            </motion.div>
+              {m === 'email' ? 'Correo' : 'RUT'}
+            </button>
+          ))}
         </div>
-    );
+      )}
+
+      <FormField
+        label={identifierLabel}
+        required
+        error={errors.identifier}
+        hint={isRut ? 'Sin puntos y con guión, por ejemplo 12345678-9' : undefined}
+      >
+        {(c) => (
+          <div className="relative">
+            {isRut ? (
+              <User aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            ) : (
+              <Mail aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            )}
+            <Input
+              {...c}
+              type={isRut ? 'text' : 'email'}
+              inputMode={isRut ? 'text' : 'email'}
+              autoComplete={isRut ? 'username' : 'email'}
+              autoCapitalize="none"
+              placeholder={isRut ? '12345678-9' : kind === 'staff' ? 'tu@primefh.cl' : 'tu@correo.com'}
+              value={identifier}
+              onChange={(e) => {
+                setIdentifier(isRut ? normalizeRut(e.target.value) : e.target.value);
+                setErrors((p) => ({ ...p, identifier: undefined }));
+              }}
+              disabled={loading}
+              className="pl-10"
+            />
+          </div>
+        )}
+      </FormField>
+
+      <PasswordField
+        label="Contraseña"
+        required
+        autoComplete="current-password"
+        placeholder="Tu contraseña"
+        value={password}
+        onChange={(v) => {
+          setPassword(v);
+          setErrors((p) => ({ ...p, password: undefined }));
+        }}
+        error={errors.password}
+        disabled={loading}
+      />
+
+      <SubmitButton className="w-full" loading={loading} loadingLabel="Ingresando…">
+        {kind === 'patient' ? 'Ingresar al portal' : 'Acceder al panel'}
+      </SubmitButton>
+
+      {kind === 'patient' && (
+        <div className="space-y-2 text-center">
+          <Link to="/recuperar-contrasena" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+            ¿Olvidaste tu contraseña?
+          </Link>
+          <p className="text-xs text-muted-foreground">
+            ¿Primera vez aquí? Tu profesional te envía la invitación para crear tu acceso.
+          </p>
+        </div>
+      )}
+    </form>
+  );
+};
+
+const LoginDual = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const [activeTab, setActiveTab] = useState('paciente');
+
+  // Va después de todos los hooks: un return antes cambia la cantidad de hooks entre
+  // renders y React se cae (error #300) justo al iniciar sesión.
+  if (isAuthenticated && user) {
+    return <Navigate to={user.role === 'patient' ? '/app/dashboard' : '/app/admin'} replace />;
+  }
+
+  return (
+    <AuthLayout
+      title="Portal Prime F&H"
+      subtitle="Accede a tu cuenta"
+      footer={
+        <>
+          <Link to="/instalar" className="block font-medium text-foreground underline-offset-4 hover:underline">
+            Instalar la app en mi celular
+          </Link>
+          {IS_APP_HOST ? (
+            <a href={PUBLIC_SITE_URL} className="block text-muted-foreground hover:text-foreground">
+              ← Volver al sitio
+            </a>
+          ) : (
+            <Button variant="link" className="h-auto p-0 text-muted-foreground" onClick={() => navigate('/')}>
+              ← Volver al sitio
+            </Button>
+          )}
+        </>
+      }
+    >
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-5 grid w-full grid-cols-2">
+          <TabsTrigger value="paciente" className="gap-2">
+            <UserCircle aria-hidden="true" className="h-4 w-4" />
+            Paciente
+          </TabsTrigger>
+          <TabsTrigger value="personal" className="gap-2">
+            <Briefcase aria-hidden="true" className="h-4 w-4" />
+            Personal
+          </TabsTrigger>
+        </TabsList>
+
+        {/* forceMount: al cambiar de pestaña no se pierde lo que ya se escribió */}
+        <TabsContent value="paciente" forceMount className="mt-0 data-[state=inactive]:hidden">
+          <CredentialsForm kind="patient" />
+        </TabsContent>
+        <TabsContent value="personal" forceMount className="mt-0 data-[state=inactive]:hidden">
+          <CredentialsForm kind="staff" />
+        </TabsContent>
+      </Tabs>
+    </AuthLayout>
+  );
 };
 
 export default LoginDual;

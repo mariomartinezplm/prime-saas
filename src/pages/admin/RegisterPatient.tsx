@@ -1,79 +1,144 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Clock, Dumbbell, Stethoscope, TriangleAlert } from 'lucide-react';
 import { userService } from '@/services/userService';
 import { clientPlanService } from '@/services/clientPlanService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { FormField } from '@/components/forms/FormField';
+import FormSection from '@/components/forms/FormSection';
+import SubmitButton from '@/components/forms/SubmitButton';
 import SessionsSelect from '@/components/plans/SessionsSelect';
 import PlanTermFields from '@/components/plans/PlanTermFields';
-import { SERVICE_TYPE_LABELS, DEFAULT_CHOICE, choiceToPayload, type ServiceType, type SessionsChoice, type PlanTerm, type BillingCycle } from '@/config/planCatalog';
-import { toast } from 'sonner';
-import { Loader2, Dumbbell, Stethoscope, Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
+import PageHeader from '@/components/shared/PageHeader';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  SERVICE_TYPE_LABELS,
+  DEFAULT_CHOICE,
+  choiceToPayload,
+  type ServiceType,
+  type SessionsChoice,
+  type PlanTerm,
+  type BillingCycle,
+} from '@/config/planCatalog';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { showApiError } from '@/lib/apiError';
+import { todayLocal } from '@/lib/evolutionDate';
+import { notify } from '@/lib/notify';
+import { isValidRut, normalizeRut } from '@/lib/rut';
+import { birthDateError, isEmail, isPhone, parseLines } from '@/lib/validation';
+import { cn } from '@/lib/utils';
 
 type PlanInicialOption = ServiceType | 'despues';
 
+const emptyForm = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  rut: '',
+  dateOfBirth: '',
+  address: '',
+  emergencyName: '',
+  emergencyPhone: '',
+  emergencyRelationship: '',
+  chronicConditions: '',
+  allergies: '',
+  injuries: '',
+};
+type FormState = typeof emptyForm;
+type Errors = Partial<Record<keyof FormState, string>>;
+
+const PLAN_OPTIONS = [
+  { value: 'kinesiologia', label: SERVICE_TYPE_LABELS.kinesiologia, icon: Stethoscope },
+  { value: 'entrenamiento', label: SERVICE_TYPE_LABELS.entrenamiento, icon: Dumbbell },
+  { value: 'despues', label: 'Asignar después', icon: Clock },
+] as const;
+
+function validate(form: FormState): Errors {
+  const errors: Errors = {};
+  if (!form.firstName.trim()) errors.firstName = 'Ingresa el nombre';
+  if (!form.lastName.trim()) errors.lastName = 'Ingresa el apellido';
+  if (!form.email.trim()) errors.email = 'Ingresa el correo';
+  else if (!isEmail(form.email)) errors.email = 'Ingresa un correo válido, por ejemplo nombre@correo.cl';
+  if (form.rut.trim() && !isValidRut(form.rut)) errors.rut = 'RUT inválido: revisa los números y el dígito verificador';
+  if (form.phone.trim() && !isPhone(form.phone)) errors.phone = 'Ingresa un teléfono válido, por ejemplo +56 9 1234 5678';
+  const birth = birthDateError(form.dateOfBirth, todayLocal());
+  if (birth) errors.dateOfBirth = birth;
+  const hasEmergency = form.emergencyName.trim() || form.emergencyPhone.trim() || form.emergencyRelationship.trim();
+  if (hasEmergency && !form.emergencyName.trim()) errors.emergencyName = 'Indica el nombre del contacto (si no, estos datos no se guardan)';
+  if (form.emergencyPhone.trim() && !isPhone(form.emergencyPhone)) errors.emergencyPhone = 'Ingresa un teléfono válido';
+  return errors;
+}
+
 const RegisterPatient = () => {
   const navigate = useNavigate();
+  const formRef = useRef<HTMLFormElement>(null);
+  const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Errors>({});
   const [planInicial, setPlanInicial] = useState<PlanInicialOption>('despues');
   const [choice, setChoice] = useState<SessionsChoice>(DEFAULT_CHOICE.kinesiologia);
   const [term, setTerm] = useState<PlanTerm>('mensual');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [renews, setRenews] = useState(true);
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    rut: '',
-    dateOfBirth: '',
-    address: '',
-    emergencyName: '',
-    emergencyPhone: '',
-    emergencyRelationship: '',
-    chronicConditions: '',
-    allergies: '',
-    injuries: '',
-  });
+  const [form, setForm] = useState<FormState>(emptyForm);
 
-  const handleChange = (field: string, value: string) => {
+  const dirty = useMemo(() => Object.keys(emptyForm).some((k) => form[k as keyof FormState] !== ''), [form]);
+  useUnsavedChangesWarning(dirty && !loading);
+
+  const set = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    // El error de un campo desaparece apenas se vuelve a editar
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const focusFirstInvalid = () => {
+    requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Un doble clic o dos Enter seguidos no deben crear dos pacientes
+    if (submittingRef.current) return;
+
+    const found = validate(form);
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      focusFirstInvalid();
+      return;
+    }
+
+    submittingRef.current = true;
     setLoading(true);
     try {
-      // Paso 12/13: ya no se pide contraseña — la cuenta nace inutilizable y
-      // el paciente recibe una invitación por email para elegir la suya.
+      // La cuenta nace inutilizable y el paciente recibe una invitación por correo para elegir su contraseña.
+      const hasEmergency = form.emergencyName.trim();
       const nuevoPaciente = await userService.create({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        phone: form.phone || undefined,
-        rut: form.rut || undefined,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || undefined,
+        // Se guarda normalizado ("12345678-5"): el login por RUT busca el texto exacto
+        rut: form.rut.trim() ? normalizeRut(form.rut) : undefined,
         dateOfBirth: form.dateOfBirth || undefined,
-        address: form.address || undefined,
+        address: form.address.trim() || undefined,
         role: 'patient',
-        emergencyContact: form.emergencyName ? {
-          name: form.emergencyName,
-          phone: form.emergencyPhone,
-          relationship: form.emergencyRelationship,
-        } : undefined,
+        emergencyContact: hasEmergency
+          ? { name: form.emergencyName.trim(), phone: form.emergencyPhone.trim(), relationship: form.emergencyRelationship.trim() }
+          : undefined,
         medicalInfo: {
-          chronicConditions: form.chronicConditions ? form.chronicConditions.split(',').map(s => s.trim()) : [],
-          allergies: form.allergies ? form.allergies.split(',').map(s => s.trim()) : [],
-          injuries: form.injuries ? form.injuries.split(',').map(s => s.trim()) : [],
+          chronicConditions: parseLines(form.chronicConditions),
+          allergies: parseLines(form.allergies),
+          injuries: parseLines(form.injuries),
         },
       });
 
       if (planInicial === 'despues') {
-        toast.success('Paciente registrado. Le llegará un correo para crear su contraseña.');
+        notify.success('Paciente registrado. Le llegará un correo para crear su contraseña.');
       } else {
         try {
           await clientPlanService.create({
@@ -84,17 +149,31 @@ const RegisterPatient = () => {
             billingCycle,
             renews,
           });
-          toast.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
+          notify.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
         } catch {
-          toast.warning('Paciente registrado, pero no se pudo asignar el plan inicial. Puedes asignarlo después desde Planes.');
+          notify.warning('Paciente registrado, pero no se pudo asignar el plan inicial. Puedes asignarlo después desde Planes.');
         }
       }
 
+      // Los datos ya se guardaron: se puede salir sin el aviso de "cambios sin guardar"
+      setForm(emptyForm);
       navigate('/app/admin/pacientes');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al registrar paciente');
+      const response = (err as { response?: { status?: number; data?: { message?: string } } }).response;
+      const message = response?.data?.message ?? '';
+      // Correo o RUT repetido: se marca en su campo y se conservan todos los datos escritos
+      // (al crear el servidor responde 400 "El email ya está registrado"; al editar, 409).
+      if (response?.status === 409 || /email ya est/i.test(message)) {
+        setErrors((prev) => ({ ...prev, email: 'Ya existe una persona registrada con este correo' }));
+        focusFirstInvalid();
+      } else if (/rut/i.test(message) && /duplicate|ya existe|ya est/i.test(message)) {
+        setErrors((prev) => ({ ...prev, rut: 'Ya existe una persona registrada con este RUT' }));
+        focusFirstInvalid();
+      } else {
+        showApiError(err, 'No se pudo registrar al paciente. Tus datos siguen aquí: intenta de nuevo.');
+      }
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
@@ -104,121 +183,101 @@ const RegisterPatient = () => {
     if (option !== 'despues') setChoice(DEFAULT_CHOICE[option]);
   };
 
+  const errorCount = Object.values(errors).filter(Boolean).length;
+
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Registrar Paciente</h1>
-        <p className="text-muted-foreground">Ingresa los datos del nuevo paciente</p>
-      </div>
+    <div className="max-w-3xl space-y-6">
+      <PageHeader title="Registrar paciente" description="Al guardar, el paciente recibe un correo para crear su contraseña." />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Datos Personales</CardTitle></CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Nombre *</Label>
-              <Input required value={form.firstName} onChange={(e) => handleChange('firstName', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Apellido *</Label>
-              <Input required value={form.lastName} onChange={(e) => handleChange('lastName', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Email *</Label>
-              <Input type="email" required value={form.email} onChange={(e) => handleChange('email', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>RUT</Label>
-              <Input value={form.rut} onChange={(e) => handleChange('rut', e.target.value)} placeholder="12.345.678-9" />
-            </div>
-            <div className="space-y-2">
-              <Label>Teléfono</Label>
-              <Input value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} placeholder="+56912345678" />
-            </div>
-            <div className="space-y-2">
-              <Label>Fecha de Nacimiento</Label>
-              <Input type="date" value={form.dateOfBirth} onChange={(e) => handleChange('dateOfBirth', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Dirección</Label>
-              <Input value={form.address} onChange={(e) => handleChange('address', e.target.value)} />
-            </div>
-          </CardContent>
-        </Card>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-6">
+        {errorCount > 0 && (
+          <Alert variant="destructive">
+            <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+            <AlertDescription>
+              Revisa {errorCount === 1 ? 'el campo marcado' : `los ${errorCount} campos marcados`} para poder registrar al paciente.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <FormSection title="Datos personales" description="Los campos con * son obligatorios.">
+          <FormField label="Nombre" required error={errors.firstName}>
+            {(c) => <Input {...c} autoComplete="off" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />}
+          </FormField>
+          <FormField label="Apellido" required error={errors.lastName}>
+            {(c) => <Input {...c} autoComplete="off" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />}
+          </FormField>
+          <FormField label="Correo" required error={errors.email} hint="Aquí recibe la invitación para crear su contraseña.">
+            {(c) => <Input {...c} type="email" inputMode="email" autoComplete="off" value={form.email} onChange={(e) => set('email', e.target.value)} />}
+          </FormField>
+          <FormField label="RUT" error={errors.rut} hint="Con o sin puntos; se guarda como 12345678-5, que es como entra con su RUT.">
+            {(c) => (
+              <Input
+                {...c}
+                autoComplete="off"
+                placeholder="12.345.678-5"
+                value={form.rut}
+                onChange={(e) => set('rut', e.target.value)}
+                onBlur={() => form.rut.trim() && set('rut', normalizeRut(form.rut))}
+              />
+            )}
+          </FormField>
+          <FormField label="Teléfono" error={errors.phone}>
+            {(c) => <Input {...c} type="tel" inputMode="tel" autoComplete="off" placeholder="+56 9 1234 5678" value={form.phone} onChange={(e) => set('phone', e.target.value)} />}
+          </FormField>
+          <FormField label="Fecha de nacimiento" error={errors.dateOfBirth}>
+            {(c) => <Input {...c} type="date" max={todayLocal()} value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} />}
+          </FormField>
+          <FormField label="Dirección" className="md:col-span-2">
+            {(c) => <Input {...c} autoComplete="off" value={form.address} onChange={(e) => set('address', e.target.value)} />}
+          </FormField>
+        </FormSection>
+
+        <FormSection title="Contacto de emergencia" description="Opcional. Si completas algún dato, indica también el nombre." className="md:grid-cols-3">
+          <FormField label="Nombre" error={errors.emergencyName}>
+            {(c) => <Input {...c} autoComplete="off" value={form.emergencyName} onChange={(e) => set('emergencyName', e.target.value)} />}
+          </FormField>
+          <FormField label="Teléfono" error={errors.emergencyPhone}>
+            {(c) => <Input {...c} type="tel" inputMode="tel" autoComplete="off" value={form.emergencyPhone} onChange={(e) => set('emergencyPhone', e.target.value)} />}
+          </FormField>
+          <FormField label="Relación">
+            {(c) => <Input {...c} autoComplete="off" placeholder="Madre, pareja…" value={form.emergencyRelationship} onChange={(e) => set('emergencyRelationship', e.target.value)} />}
+          </FormField>
+        </FormSection>
+
+        <FormSection title="Información médica" description="Opcional. Escribe uno por línea." className="md:grid-cols-1">
+          <FormField label="Condiciones crónicas">
+            {(c) => <Textarea {...c} rows={2} value={form.chronicConditions} onChange={(e) => set('chronicConditions', e.target.value)} />}
+          </FormField>
+          <FormField label="Alergias">
+            {(c) => <Textarea {...c} rows={2} value={form.allergies} onChange={(e) => set('allergies', e.target.value)} />}
+          </FormField>
+          <FormField label="Lesiones">
+            {(c) => <Textarea {...c} rows={2} value={form.injuries} onChange={(e) => set('injuries', e.target.value)} />}
+          </FormField>
+        </FormSection>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">Contacto de Emergencia</CardTitle></CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Nombre</Label>
-              <Input value={form.emergencyName} onChange={(e) => handleChange('emergencyName', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Teléfono</Label>
-              <Input value={form.emergencyPhone} onChange={(e) => handleChange('emergencyPhone', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Relación</Label>
-              <Input value={form.emergencyRelationship} onChange={(e) => handleChange('emergencyRelationship', e.target.value)} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Información Médica</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg">Plan inicial</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Condiciones crónicas (separadas por coma)</Label>
-              <Textarea value={form.chronicConditions} onChange={(e) => handleChange('chronicConditions', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Alergias (separadas por coma)</Label>
-              <Textarea value={form.allergies} onChange={(e) => handleChange('allergies', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Lesiones (separadas por coma)</Label>
-              <Textarea value={form.injuries} onChange={(e) => handleChange('injuries', e.target.value)} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Plan inicial</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => handlePlanInicialChange('kinesiologia')}
-                className={cn(
-                  'p-3 rounded-lg border-2 text-left transition-all',
-                  planInicial === 'kinesiologia' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-border hover:border-muted-foreground/40'
-                )}
-              >
-                <Stethoscope className="h-4 w-4 mb-1 text-secondary" />
-                <p className="text-sm font-semibold">{SERVICE_TYPE_LABELS.kinesiologia}</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePlanInicialChange('entrenamiento')}
-                className={cn(
-                  'p-3 rounded-lg border-2 text-left transition-all',
-                  planInicial === 'entrenamiento' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-border hover:border-muted-foreground/40'
-                )}
-              >
-                <Dumbbell className="h-4 w-4 mb-1 text-secondary" />
-                <p className="text-sm font-semibold">{SERVICE_TYPE_LABELS.entrenamiento}</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePlanInicialChange('despues')}
-                className={cn(
-                  'p-3 rounded-lg border-2 text-left transition-all',
-                  planInicial === 'despues' ? 'border-secondary bg-secondary/10 shadow-sm' : 'border-border hover:border-muted-foreground/40'
-                )}
-              >
-                <Clock className="h-4 w-4 mb-1 text-secondary" />
-                <p className="text-sm font-semibold">Asignar después</p>
-              </button>
+            <div role="radiogroup" aria-label="Plan inicial" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {PLAN_OPTIONS.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={planInicial === value}
+                  onClick={() => handlePlanInicialChange(value)}
+                  className={cn(
+                    'rounded-lg border-2 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    planInicial === value ? 'border-secondary bg-secondary/10' : 'border-border hover:border-muted-foreground/40'
+                  )}
+                >
+                  <Icon className="mb-1 h-4 w-4 text-secondary" aria-hidden="true" />
+                  <p className="text-sm font-semibold">{label}</p>
+                </button>
+              ))}
             </div>
 
             {planInicial !== 'despues' && (
@@ -227,22 +286,16 @@ const RegisterPatient = () => {
                   <Label>Sesiones por mes</Label>
                   <SessionsSelect serviceType={planInicial} value={choice} onChange={setChoice} />
                 </div>
-                <PlanTermFields
-                  term={term}
-                  billingCycle={billingCycle}
-                  onTermChange={setTerm}
-                  onBillingCycleChange={setBillingCycle}
-                />
+                <PlanTermFields term={term} billingCycle={billingCycle} onTermChange={setTerm} onBillingCycleChange={setBillingCycle} />
                 <RenewsCheckbox id="register-renews" checked={renews} onChange={setRenews} />
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Registrar Paciente
-        </Button>
+        <SubmitButton className="w-full" loading={loading} loadingLabel="Registrando…">
+          Registrar paciente
+        </SubmitButton>
       </form>
     </div>
   );

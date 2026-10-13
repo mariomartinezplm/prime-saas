@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { FormField, NumberField } from '@/components/forms/FormField';
+import SubmitButton from '@/components/forms/SubmitButton';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
-import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
+import { numberRangeError } from '@/lib/validation';
 import type { ExerciseProgress } from '@/types';
 
 interface ExerciseFormProps {
@@ -41,10 +42,12 @@ const emptyForm = () => ({
   rpe: '',
   notes: '',
 });
+type FormState = ReturnType<typeof emptyForm>;
+type Errors = Partial<Record<keyof FormState, string>>;
 
 const text = (value?: number | null) => (value === undefined || value === null ? '' : String(value));
 
-const formFromRecord = (e: ExerciseProgress) => ({
+const formFromRecord = (e: ExerciseProgress): FormState => ({
   date: format(parseISO(e.date), 'yyyy-MM-dd'),
   exerciseName: e.exerciseName,
   category: e.category,
@@ -55,124 +58,145 @@ const formFromRecord = (e: ExerciseProgress) => ({
   notes: e.notes ?? '',
 });
 
+const integerError = (value: string, min: number, max: number): string | undefined =>
+  numberRangeError(value, min, max) ?? (value.trim() && !Number.isInteger(Number(value)) ? 'Ingresa un número entero' : undefined);
+
+function validate(form: FormState): Errors {
+  const errors: Errors = {};
+  if (!form.date) errors.date = 'Indica la fecha';
+  else if (form.date > todayLocal()) errors.date = 'La fecha no puede ser futura';
+  if (!form.exerciseName.trim()) errors.exerciseName = 'Ingresa el nombre del ejercicio';
+  else if (form.exerciseName.trim().length > 80) errors.exerciseName = 'Máximo 80 caracteres';
+  const sets = integerError(form.sets, 1, 50);
+  if (sets) errors.sets = sets;
+  const reps = integerError(form.reps, 1, 1000);
+  if (reps) errors.reps = reps;
+  const weight = numberRangeError(form.weight, 0, 1000, ' kg');
+  if (weight) errors.weight = weight;
+  const rpe = integerError(form.rpe, 1, 10);
+  if (rpe) errors.rpe = rpe;
+  return errors;
+}
+
 const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: ExerciseFormProps) => {
   const isEdit = !!record;
+  const formRef = useRef<HTMLFormElement>(null);
+  const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState(() => (record ? formFromRecord(record) : emptyForm()));
+  const [errors, setErrors] = useState<Errors>({});
+  const [form, setForm] = useState<FormState>(() => (record ? formFromRecord(record) : emptyForm()));
 
-  const handleChange = (field: string, value: string) => {
+  const dirty = !isEdit && JSON.stringify(form) !== JSON.stringify(emptyForm());
+  useUnsavedChangesWarning(dirty && !loading);
+
+  const set = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.exerciseName.trim()) {
-      toast.error('El nombre del ejercicio es requerido');
+    if (submittingRef.current) return;
+
+    const found = validate(form);
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
     try {
       // Al corregir, un campo vaciado se envía como null para borrarlo de verdad
       const empty = isEdit ? null : undefined;
       const payload = {
         date: form.date ? localNoonISO(form.date) : undefined,
-        exerciseName: form.exerciseName,
+        exerciseName: form.exerciseName.trim(),
         category: form.category,
-        sets: form.sets ? parseInt(form.sets) : empty,
-        reps: form.reps ? parseInt(form.reps) : empty,
-        weight: form.weight ? parseFloat(form.weight) : empty,
-        rpe: form.rpe ? parseInt(form.rpe) : empty,
-        notes: form.notes || (isEdit ? '' : undefined),
+        sets: form.sets ? parseInt(form.sets, 10) : empty,
+        reps: form.reps ? parseInt(form.reps, 10) : empty,
+        weight: form.weight ? parseFloat(form.weight.replace(',', '.')) : empty,
+        rpe: form.rpe ? parseInt(form.rpe, 10) : empty,
+        notes: form.notes.trim() || (isEdit ? '' : undefined),
       };
 
       if (record) {
         await api.put(`/exercises/${record._id}`, payload);
-        toast.success('Ejercicio actualizado');
+        notify.success('Ejercicio actualizado');
       } else {
         await api.post('/exercises', { patient: patientId, ...payload });
-        toast.success('Ejercicio registrado exitosamente');
+        notify.success('Ejercicio registrado');
         setForm(emptyForm());
       }
       onSuccess();
     } catch (err: unknown) {
-      showApiError(err, isEdit ? 'Error al actualizar el ejercicio' : 'Error al registrar ejercicio');
+      // Si falla se conserva todo lo escrito para reintentar
+      showApiError(err, isEdit ? 'No se pudo actualizar el ejercicio' : 'No se pudo registrar el ejercicio. Tus datos siguen aquí.');
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
 
   const fields = (
     <>
-          <div className="space-y-1 max-w-[200px]">
-            <Label className="text-xs">Fecha</Label>
-            <Input type="date" max={todayLocal()} value={form.date} onChange={(e) => handleChange('date', e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Ejercicio *</Label>
-              <Input
-                value={form.exerciseName}
-                onChange={(e) => handleChange('exerciseName', e.target.value)}
-                placeholder="Ej: Sentadilla"
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Categoría</Label>
-              <Select value={form.category} onValueChange={(v) => handleChange('category', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+      <FormField label="Fecha" required error={errors.date} className="max-w-[220px]">
+        {(c) => <Input {...c} type="date" max={todayLocal()} value={form.date} onChange={(e) => set('date', e.target.value)} />}
+      </FormField>
 
-          <div className="grid grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Series</Label>
-              <Input type="number" value={form.sets} onChange={(e) => handleChange('sets', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Reps</Label>
-              <Input type="number" value={form.reps} onChange={(e) => handleChange('reps', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Peso (kg)</Label>
-              <Input type="number" step="0.5" value={form.weight} onChange={(e) => handleChange('weight', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">RPE (1-10)</Label>
-              <Input type="number" min="1" max="10" value={form.rpe} onChange={(e) => handleChange('rpe', e.target.value)} />
-            </div>
-          </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField label="Ejercicio" required error={errors.exerciseName}>
+          {(c) => <Input {...c} autoComplete="off" placeholder="Ej: Sentadilla" value={form.exerciseName} onChange={(e) => set('exerciseName', e.target.value)} />}
+        </FormField>
+        <FormField label="Categoría">
+          {(c) => (
+            <Select value={form.category} onValueChange={(v) => set('category', v)}>
+              <SelectTrigger id={c.id}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
+      </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs">Notas</Label>
-            <Textarea value={form.notes} onChange={(e) => handleChange('notes', e.target.value)} />
-          </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <NumberField label="Series" step="1" value={form.sets} onChange={(v) => set('sets', v)} error={errors.sets} />
+        <NumberField label="Repeticiones" step="1" value={form.reps} onChange={(v) => set('reps', v)} error={errors.reps} />
+        <NumberField label="Peso" unit="kg" step="0.5" value={form.weight} onChange={(v) => set('weight', v)} error={errors.weight} />
+        <NumberField label="RPE" unit="1 a 10" step="1" value={form.rpe} onChange={(v) => set('rpe', v)} error={errors.rpe} />
+      </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {isEdit ? 'Guardar cambios' : 'Registrar Ejercicio'}
-          </Button>
+      <FormField label="Notas">{(c) => <Textarea {...c} value={form.notes} onChange={(e) => set('notes', e.target.value)} />}</FormField>
+
+      <SubmitButton className="w-full" loading={loading} loadingLabel={isEdit ? 'Guardando…' : 'Registrando…'}>
+        {isEdit ? 'Guardar cambios' : 'Registrar ejercicio'}
+      </SubmitButton>
     </>
   );
 
   if (embedded) {
-    return <form onSubmit={handleSubmit} className="space-y-4">{fields}</form>;
+    return (
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
+        {fields}
+      </form>
+    );
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form ref={formRef} onSubmit={handleSubmit} noValidate>
       <Card>
-        <CardHeader><CardTitle className="text-lg">Nuevo Ejercicio</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          {fields}
-        </CardContent>
+        <CardHeader>
+          <CardTitle className="text-lg">Nuevo ejercicio</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">{fields}</CardContent>
       </Card>
     </form>
   );

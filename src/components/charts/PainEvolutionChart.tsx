@@ -1,3 +1,4 @@
+import { CHART } from '@/lib/chartColors';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, parseISO } from 'date-fns';
@@ -67,9 +68,9 @@ const PainEvolutionChart = ({ records, bodyArea }: PainEvolutionChartProps) => {
               <Line
                 type="monotone"
                 dataKey="pain"
-                stroke="#ef4444"
+                stroke={CHART.danger}
                 strokeWidth={2}
-                dot={{ fill: '#ef4444', r: 4 }}
+                dot={{ fill: CHART.danger, r: 4 }}
                 name="Dolor"
               />
             </LineChart>

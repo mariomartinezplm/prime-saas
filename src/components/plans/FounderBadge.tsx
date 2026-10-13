@@ -12,11 +12,11 @@ const FounderBadge = ({ compact, className }: FounderBadgeProps) => (
   <span
     title="Miembro Fundador"
     className={cn(
-      'inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-xs font-medium text-amber-300 align-middle',
+      'inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/15 px-2 py-0.5 text-xs font-medium text-coral align-middle',
       className
     )}
   >
-    <Star className="h-3 w-3 fill-amber-300" />
+    <Star className="h-3 w-3 fill-coral" />
     {!compact && 'Miembro Fundador'}
   </span>
 );

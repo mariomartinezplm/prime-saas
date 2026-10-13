@@ -38,7 +38,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
-        <AlertTriangle className="h-10 w-10 text-amber-400" />
+        <AlertTriangle className="h-10 w-10 text-warning" />
         <h2 className="text-xl font-semibold text-foreground">Algo salió mal en esta pantalla</h2>
         <p className="text-sm text-muted-foreground">
           Tus datos están a salvo. Prueba recargar; si sigue pasando, avísanos por WhatsApp.

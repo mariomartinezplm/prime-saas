@@ -2,18 +2,22 @@ import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { availabilityService } from '@/services/availabilityService';
 import { appointmentService } from '@/services/appointmentService';
+import LoadingState from '@/components/shared/LoadingState';
+import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { showApiError } from '@/lib/apiError';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Loader2, TriangleAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -32,12 +36,6 @@ interface AdminBookingDialogProps {
   canOverbook: boolean;
   onBooked: () => void;
 }
-
-const TYPE_LABELS: Record<AppointmentType, string> = {
-  kinesiologia: 'Kinesiología',
-  entrenamiento: 'Entrenamiento',
-  evaluacion: 'Evaluación',
-};
 
 const AdminBookingDialog = ({
   open,
@@ -65,16 +63,22 @@ const AdminBookingDialog = ({
 
   useEffect(() => {
     if (!date) return;
+    // Si se cambia la fecha rápido, la respuesta de la fecha anterior se descarta
+    let active = true;
     setLoadingSlots(true);
     setSelectedSlot(null);
     availabilityService
       .getSlots(professionalId, date, patientId)
-      .then(setSlots)
+      .then((result) => active && setSlots(result))
       .catch(() => {
+        if (!active) return;
         setSlots(null);
-        toast.error('No se pudieron cargar los horarios');
+        notify.error('No se pudieron cargar los horarios');
       })
-      .finally(() => setLoadingSlots(false));
+      .finally(() => active && setLoadingSlots(false));
+    return () => {
+      active = false;
+    };
   }, [date, professionalId, patientId]);
 
   const allSlots = slots
@@ -98,7 +102,7 @@ const AdminBookingDialog = ({
         type,
         allowOverbook: selectedIsFull,
       });
-      toast.success(selectedIsFull ? 'Cita agendada como sobrecupo' : 'Cita agendada');
+      notify.success(selectedIsFull ? 'Cita agendada como sobrecupo' : 'Cita agendada');
       onBooked();
       onClose();
     } catch (err: unknown) {
@@ -113,16 +117,17 @@ const AdminBookingDialog = ({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Agendar cita</DialogTitle>
+          <DialogDescription>Elige el tipo de sesión, la fecha y el horario.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label>Tipo de sesión</Label>
+            <Label htmlFor="admin-booking-type">Tipo de sesión</Label>
             <Select value={type} onValueChange={(v) => setType(v as AppointmentType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="admin-booking-type"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {(Object.keys(TYPE_LABELS) as AppointmentType[]).map((t) => (
-                  <SelectItem key={t} value={t}>{TYPE_LABELS[t]}</SelectItem>
+                {(Object.keys(appointmentTypeLabels) as AppointmentType[]).map((t) => (
+                  <SelectItem key={t} value={t}>{appointmentTypeLabels[t]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -143,14 +148,12 @@ const AdminBookingDialog = ({
             <div className="space-y-2">
               <Label>Horario</Label>
               {loadingSlots ? (
-                <div className="flex justify-center py-6">
-                  <Loader2 className="h-5 w-5 animate-spin text-secondary" />
-                </div>
+                <LoadingState className="py-6" label="Cargando horarios…" />
               ) : allSlots.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No hay horarios configurados para este día.</p>
               ) : (
                 <>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2" role="group" aria-label="Horarios del día">
                     {allSlots.map((slot) => {
                       const isFull = slots!.bookedSlots.includes(slot);
                       const isBlocked = !!slots!.blockedSlots?.includes(slot);
@@ -160,13 +163,15 @@ const AdminBookingDialog = ({
                           key={slot}
                           type="button"
                           disabled={!selectable}
+                          aria-pressed={selectedSlot === slot}
+                          aria-label={`${slot}, ${isBlocked ? 'bloqueado' : isFull ? (canOverbook ? 'ocupado, se puede agendar como sobrecupo' : 'ocupado') : 'disponible'}`}
                           onClick={() => setSelectedSlot(slot)}
                           className={cn(
-                            'py-2 px-2 rounded-md text-sm font-medium text-center transition-all',
-                            !isFull && !isBlocked && 'bg-green-500/20 text-green-400 hover:bg-green-500/30',
-                            isFull && canOverbook && 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30',
-                            isFull && !canOverbook && 'bg-red-500/20 text-red-400 cursor-not-allowed',
-                            isBlocked && 'bg-gray-500/20 text-gray-400 cursor-not-allowed',
+                            'rounded-md px-2 py-2.5 text-center text-sm font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            !isFull && !isBlocked && 'bg-success/20 text-success hover:bg-success/30',
+                            isFull && canOverbook && 'bg-warning/20 text-warning hover:bg-warning/30',
+                            isFull && !canOverbook && 'bg-destructive/20 text-destructive cursor-not-allowed',
+                            isBlocked && 'bg-muted text-muted-foreground cursor-not-allowed',
                             selectedSlot === slot && 'ring-2 ring-secondary'
                           )}
                         >
@@ -187,18 +192,18 @@ const AdminBookingDialog = ({
           )}
 
           {selectedIsFull && (
-            <div className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-400">
-              <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>
+            <Alert variant="warning">
+              <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription>
                 El horario {selectedSlot} ya tiene el máximo de pacientes simultáneos. Esta cita quedará marcada como sobrecupo.
-              </span>
-            </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
 
         <DialogFooter>
           <Button onClick={handleBook} disabled={!selectedSlot || submitting} className="w-full">
-            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             {selectedIsFull ? 'Agendar como sobrecupo' : 'Agendar'}
           </Button>
         </DialogFooter>

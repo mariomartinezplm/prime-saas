@@ -1,28 +1,32 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import {
+  Activity,
+  ArrowLeft,
+  Calendar,
+  CalendarX,
+  Dumbbell,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Ruler,
+  Send,
+  TriangleAlert,
+  UserX,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { appointmentService } from '@/services/appointmentService';
 import { clientPlanService } from '@/services/clientPlanService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { ArrowLeft, Calendar, Ruler, Dumbbell, Activity, FileText, Send, Loader2, Pencil } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import EVAForm from '@/components/forms/EVAForm';
@@ -33,277 +37,292 @@ import { MeasurementHistory, ExerciseHistory } from '@/components/records/Patien
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import EditPatientDialog from '@/components/forms/EditPatientDialog';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
-import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress, formatPaymentDeadline } from '@/config/planCatalog';
-import type { User, PatientProfile, SessionBalance, Appointment } from '@/types';
 import FounderBadge from '@/components/plans/FounderBadge';
+import { DetailList, DetailRow } from '@/components/patients/DetailList';
+import PlanLine from '@/components/patients/PlanLine';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { ActiveStatusBadge, AppointmentStatusBadge, StatusBadge } from '@/components/shared/StatusBadge';
+import { appointmentTypeLabels } from '@/components/shared/statusMeta';
+import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress, formatPaymentDeadline } from '@/config/planCatalog';
+import { parseDay } from '@/lib/appointments';
+import { showApiError } from '@/lib/apiError';
+import { todayLocal } from '@/lib/evolutionDate';
+import { infoFromBalance } from '@/lib/patientPlan';
+import { notify } from '@/lib/notify';
+import { capitalizeFirst } from '@/lib/utils';
+import type { Appointment, PatientProfile, SessionBalance } from '@/types';
+
+const SECTIONS = [
+  { value: 'profile', label: 'Perfil' },
+  { value: 'appointments', label: 'Citas' },
+  { value: 'measurements', label: 'Mediciones' },
+  { value: 'exercises', label: 'Ejercicios' },
+  { value: 'eva', label: 'EVA (dolor)' },
+  { value: 'files', label: 'Archivos' },
+  { value: 'photos', label: 'Fotos' },
+  { value: 'wellness', label: 'Bienestar' },
+  { value: 'plan', label: 'Plan' },
+] as const;
+
+type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
 const PatientDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const [bookingOpen, setBookingOpen] = useState(false);
+  const [state, setState] = useState<LoadState>('loading');
   const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isResending, setIsResending] = useState(false);
+  const [tab, setTab] = useState('profile');
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [recordsKey, setRecordsKey] = useState(0);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!id) return;
-    try {
-      const [prof, bal, apts] = await Promise.all([
-        userService.getPatientProfile(id),
-        clientPlanService.getBalance(id),
-        appointmentService.getAll({ status: 'scheduled' }),
-      ]);
-      setProfile(prof);
-      setBalance(bal);
-      setAppointments(apts.filter((a) => {
-        const patientId = typeof a.patient === 'object' ? a.patient.id : a.patient;
-        return patientId === id;
-      }));
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  };
+    // El perfil es imprescindible; el saldo y las citas se muestran si llegan. Las citas se piden
+    // desde hoy y ya filtradas por este paciente en el servidor.
+    const [prof, bal, apts] = await Promise.allSettled([
+      userService.getPatientProfile(id),
+      clientPlanService.getBalance(id),
+      appointmentService.getAll({ status: 'scheduled', from: todayLocal(), patient: id }),
+    ]);
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (prof.status === 'rejected') {
+      const status = (prof.reason as { response?: { status?: number } })?.response?.status;
+      setState(status === 404 ? 'not-found' : 'error');
+      return;
+    }
+    setProfile(prof.value);
+    setBalance(bal.status === 'fulfilled' ? bal.value : null);
+    setAppointments(apts.status === 'fulfilled' ? apts.value : []);
+    setState('ready');
   }, [id]);
 
-  if (loading) {
+  useEffect(() => {
+    setState('loading');
+    fetchData();
+  }, [fetchData]);
+
+  if (state === 'loading') return <LoadingState label="Cargando ficha…" />;
+
+  if (state === 'not-found') {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-      </div>
+      <EmptyState
+        icon={UserX}
+        title="Paciente no encontrado"
+        description="Puede que no exista o que no esté asignado a ti."
+        action={
+          <Button asChild variant="outline" size="sm">
+            <Link to="/app/admin/pacientes">Volver a pacientes</Link>
+          </Button>
+        }
+      />
     );
   }
 
-  if (!profile) {
-    return <p className="text-muted-foreground">Paciente no encontrado</p>;
+  if (state === 'error' || !profile) {
+    return (
+      <Alert variant="warning">
+        <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+          <span>No se pudo cargar la ficha del paciente.</span>
+          <Button variant="outline" size="sm" onClick={() => { setState('loading'); fetchData(); }}>
+            Reintentar
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   const { patient, stats } = profile;
   const assignedProfessional = patient.assignedProfessionalId;
-  const bookingProfessionalId =
-    (typeof assignedProfessional === 'object' ? assignedProfessional?.id : assignedProfessional) || user?.id;
+  const bookingProfessionalId = (typeof assignedProfessional === 'object' ? assignedProfessional?.id : assignedProfessional) || user?.id;
   const bookingDefaultType = balance?.plan?.serviceType ?? 'kinesiologia';
 
-  const handleResendInvite = async () => {
-    setIsResending(true);
+  const resendInvite = async () => {
     try {
       await userService.resendInvite(id!);
-      toast.success('Invitación reenviada');
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'No se pudo reenviar la invitación');
-    } finally {
-      setIsResending(false);
+      notify.success('Invitación reenviada');
+    } catch (err) {
+      showApiError(err, 'No se pudo reenviar la invitación');
+      throw err;
     }
   };
 
+  const statCards = [
+    { label: 'Citas', value: stats.totalAppointments, icon: Calendar, tab: 'appointments' },
+    { label: 'Mediciones', value: stats.totalMeasurements, icon: Ruler, tab: 'measurements' },
+    { label: 'Ejercicios', value: stats.totalExercises, icon: Dumbbell, tab: 'exercises' },
+    { label: 'EVA', value: stats.totalEVARecords, icon: Activity, tab: 'eva' },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/app/admin/pacientes')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2 flex-wrap">
-              {patient.firstName} {patient.lastName}
-              {patient.isFounder && <FounderBadge />}
-              {patient.exemptFromCapacity && (
-                <Badge className="bg-amber-500/20 text-amber-400" title="Puede agendar aunque el horario esté lleno; no cuenta en los 4 simultáneos">Sobre cupo</Badge>
-              )}
-            </h1>
-            <p className="text-muted-foreground">{patient.email} {patient.rut && `| ${patient.rut}`}</p>
-          </div>
-        </div>
+      <Button asChild variant="ghost" size="sm" className="-ml-2">
+        <Link to="/app/admin/pacientes">
+          <ArrowLeft aria-hidden="true" />
+          Pacientes
+        </Link>
+      </Button>
 
-        <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-          <Pencil className="h-4 w-4 mr-2" />
-          Editar datos
-        </Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline" size="sm" disabled={isResending}>
-              {isResending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4 mr-2" />
-              )}
-              Reenviar invitación
+      <PageHeader
+        title={`${patient.firstName} ${patient.lastName}`}
+        badges={
+          <>
+            <ActiveStatusBadge isActive={patient.isActive} />
+            {patient.isFounder && <FounderBadge />}
+            {patient.exemptFromCapacity && (
+              <Badge variant="accent" title="Puede agendar aunque el horario esté lleno; no cuenta en los 4 simultáneos">
+                Sobre cupo
+              </Badge>
+            )}
+          </>
+        }
+        description={
+          <span className="flex flex-col gap-1">
+            <span className="break-all">{patient.email}</span>
+            <PlanLine info={infoFromBalance(balance)} />
+          </span>
+        }
+        actions={
+          <>
+            {bookingProfessionalId && (
+              <Button onClick={() => setBookingOpen(true)}>
+                <Calendar aria-hidden="true" />
+                Agendar cita
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil aria-hidden="true" />
+              Editar datos
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Reenviar invitación a {patient.firstName}?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Se generará un link nuevo y el anterior dejará de funcionar. Si el paciente ya
-                tenía acceso, esto también sirve para resetear su contraseña (por ejemplo, si la
-                perdió).
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleResendInvite}>Reenviar</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        </div>
-      </div>
-
-      <EditPatientDialog
-        patient={patient}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        canAssign={user?.role === 'admin'}
-        onSaved={fetchData}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Más acciones">
+                  <MoreHorizontal />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setInviteOpen(true)}>
+                  <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Reenviar invitación
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
       />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Calendar className="h-5 w-5 mx-auto mb-1 text-secondary" />
-            <p className="text-2xl font-bold">{stats.totalAppointments}</p>
-            <p className="text-xs text-muted-foreground">Citas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Ruler className="h-5 w-5 mx-auto mb-1 text-secondary" />
-            <p className="text-2xl font-bold">{stats.totalMeasurements}</p>
-            <p className="text-xs text-muted-foreground">Mediciones</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Dumbbell className="h-5 w-5 mx-auto mb-1 text-secondary" />
-            <p className="text-2xl font-bold">{stats.totalExercises}</p>
-            <p className="text-xs text-muted-foreground">Ejercicios</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Activity className="h-5 w-5 mx-auto mb-1 text-secondary" />
-            <p className="text-2xl font-bold">{stats.totalEVARecords}</p>
-            <p className="text-xs text-muted-foreground">EVA</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {statCards.map(({ label, value, icon: Icon, tab: target }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setTab(target)}
+            className="rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <Card className="h-full transition-colors hover:bg-accent/40">
+              <CardContent className="flex items-center gap-3 p-4">
+                <Icon className="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
+                <div>
+                  <p className="text-xl font-semibold leading-none">{value}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </button>
+        ))}
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="profile">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="profile">Perfil</TabsTrigger>
-          <TabsTrigger value="appointments">Citas</TabsTrigger>
-          <TabsTrigger value="measurements">Mediciones</TabsTrigger>
-          <TabsTrigger value="exercises">Ejercicios</TabsTrigger>
-          <TabsTrigger value="eva">EVA</TabsTrigger>
-          <TabsTrigger value="files">Archivos</TabsTrigger>
-          <TabsTrigger value="photos">Fotos</TabsTrigger>
-          <TabsTrigger value="wellness">Bienestar</TabsTrigger>
-          <TabsTrigger value="plan">Plan</TabsTrigger>
+      <Tabs value={tab} onValueChange={setTab}>
+        {/* En móvil 9 pestañas no caben: se elige la sección con un selector */}
+        <div className="md:hidden">
+          <Select value={tab} onValueChange={setTab}>
+            <SelectTrigger aria-label="Sección de la ficha">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SECTIONS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <TabsList className="hidden h-auto flex-wrap justify-start md:inline-flex">
+          {SECTIONS.map((s) => (
+            <TabsTrigger key={s.value} value={s.value}>
+              {s.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="profile" className="mt-4">
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle className="text-lg">Datos Personales</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Teléfono</span>
-                  <span>{patient.phone || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fecha nacimiento</span>
-                  <span>{patient.dateOfBirth ? format(parseISO(patient.dateOfBirth.slice(0, 10)), 'dd/MM/yyyy') : '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Dirección</span>
-                  <span>{patient.address || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Género</span>
-                  <span>{patient.gender || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Previsión</span>
-                  <span>{patient.healthInsurance || '-'}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground shrink-0">Cómo llegó</span>
-                  <span className="text-right">{patient.referralSource || '-'}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground shrink-0">Objetivos</span>
-                  <span className="text-right">{patient.objectives?.length ? patient.objectives.join(', ') : '-'}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground shrink-0">Profesional</span>
-                  <span className="text-right">
+              <CardHeader>
+                <CardTitle className="text-lg">Datos personales</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DetailList>
+                  <DetailRow label="RUT">{patient.rut}</DetailRow>
+                  <DetailRow label="Teléfono">{patient.phone}</DetailRow>
+                  <DetailRow label="Fecha de nacimiento">
+                    {patient.dateOfBirth ? format(parseISO(patient.dateOfBirth.slice(0, 10)), 'dd/MM/yyyy') : undefined}
+                  </DetailRow>
+                  <DetailRow label="Dirección">{patient.address}</DetailRow>
+                  <DetailRow label="Género">{patient.gender}</DetailRow>
+                  <DetailRow label="Previsión">{patient.healthInsurance}</DetailRow>
+                  <DetailRow label="Cómo llegó">{patient.referralSource}</DetailRow>
+                  <DetailRow label="Objetivos">{patient.objectives?.length ? patient.objectives.join(', ') : undefined}</DetailRow>
+                  <DetailRow label="Profesional">
                     {typeof assignedProfessional === 'object' && assignedProfessional
                       ? `${assignedProfessional.firstName} ${assignedProfessional.lastName}`
                       : patient.assignedProfessional || 'Sin asignar'}
-                  </span>
-                </div>
+                  </DetailRow>
+                </DetailList>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader><CardTitle className="text-lg">Contacto de Emergencia</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Nombre</span>
-                  <span>{patient.emergencyContact?.name || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Teléfono</span>
-                  <span>{patient.emergencyContact?.phone || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Relación</span>
-                  <span>{patient.emergencyContact?.relationship || '-'}</span>
-                </div>
+              <CardHeader>
+                <CardTitle className="text-lg">Contacto de emergencia</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DetailList>
+                  <DetailRow label="Nombre">{patient.emergencyContact?.name}</DetailRow>
+                  <DetailRow label="Teléfono">{patient.emergencyContact?.phone}</DetailRow>
+                  <DetailRow label="Relación">{patient.emergencyContact?.relationship}</DetailRow>
+                </DetailList>
               </CardContent>
             </Card>
 
             <Card className="md:col-span-2">
-              <CardHeader><CardTitle className="text-lg">Información Médica</CardTitle></CardHeader>
-              <CardContent className="space-y-4 text-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Información médica</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <ClinicalBaselineFields
                   medicalInfo={patient.medicalInfo}
                   dateOfBirth={patient.dateOfBirth}
                   onSave={async (medicalInfo) => {
                     const updated = await userService.update(patient.id, { medicalInfo });
-                    setProfile((prev) => prev ? { ...prev, patient: updated } : prev);
+                    setProfile((prev) => (prev ? { ...prev, patient: updated } : prev));
                   }}
                 />
-                <div className="border-t border-border pt-3 space-y-3">
-                <div>
-                  <span className="text-muted-foreground">Condiciones crónicas: </span>
-                  <span>{patient.medicalInfo?.chronicConditions?.join(', ') || 'Ninguna'}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Medicamentos: </span>
-                  <span>{patient.medicalInfo?.medications?.join(', ') || 'Ninguno'}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Alergias: </span>
-                  <span>{patient.medicalInfo?.allergies?.join(', ') || 'Ninguna'}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Lesiones: </span>
-                  <span>{patient.medicalInfo?.injuries?.join(', ') || 'Ninguna'}</span>
-                </div>
+                <div className="border-t border-border pt-3">
+                  <DetailList>
+                    <DetailRow label="Condiciones crónicas">{patient.medicalInfo?.chronicConditions?.join(', ') || 'Ninguna'}</DetailRow>
+                    <DetailRow label="Medicamentos">{patient.medicalInfo?.medications?.join(', ') || 'Ninguno'}</DetailRow>
+                    <DetailRow label="Alergias">{patient.medicalInfo?.allergies?.join(', ') || 'Ninguna'}</DetailRow>
+                    <DetailRow label="Lesiones">{patient.medicalInfo?.injuries?.join(', ') || 'Ninguna'}</DetailRow>
+                  </DetailList>
                 </div>
               </CardContent>
             </Card>
@@ -311,30 +330,40 @@ const PatientDetail = () => {
         </TabsContent>
 
         <TabsContent value="appointments" className="mt-4 space-y-3">
-          {bookingProfessionalId && (
-            <Button size="sm" onClick={() => setBookingOpen(true)}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Agendar cita
-            </Button>
-          )}
           {appointments.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Sin citas</p>
+            <EmptyState
+              icon={CalendarX}
+              title="No hay citas programadas"
+              action={
+                bookingProfessionalId && (
+                  <Button size="sm" onClick={() => setBookingOpen(true)}>
+                    <Calendar aria-hidden="true" />
+                    Agendar cita
+                  </Button>
+                )
+              }
+            />
           ) : (
-            appointments.map((apt) => (
-              <div key={apt._id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                <div>
-                  <p className="font-medium text-sm">
-                    {format(parseISO(apt.date), "d 'de' MMMM", { locale: es })}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{apt.startTime} - {apt.endTime} | {apt.type}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {apt.overbooked && <Badge className="bg-amber-500/20 text-amber-400">Sobrecupo</Badge>}
-                  {apt.outsideCapacity && <Badge className="bg-amber-500/20 text-amber-400">Fuera del cupo</Badge>}
-                  <Badge>{apt.status}</Badge>
-                </div>
-              </div>
-            ))
+            <ul className="space-y-2">
+              {appointments.map((apt) => (
+                <li key={apt._id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                  <div>
+                    <p className="text-sm font-medium">{capitalizeFirst(format(parseDay(apt.date), "EEEE d 'de' MMMM", { locale: es }))}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="tabular-nums">
+                        {apt.startTime} – {apt.endTime}
+                      </span>{' '}
+                      · {appointmentTypeLabels[apt.type]}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {apt.overbooked && <Badge variant="warning">Sobrecupo</Badge>}
+                    {apt.outsideCapacity && <Badge variant="accent">Sobre cupo</Badge>}
+                    <AppointmentStatusBadge status={apt.status} />
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </TabsContent>
 
@@ -369,70 +398,76 @@ const PatientDetail = () => {
         </TabsContent>
 
         <TabsContent value="plan" className="mt-4">
-          {balance?.hasActivePlan && balance.plan ? (
+          {balance === null ? (
+            <Alert variant="warning">
+              <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription>No se pudo cargar el plan de este paciente.</AlertDescription>
+            </Alert>
+          ) : balance.hasActivePlan && balance.plan ? (
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{balance.paymentPending ? 'Plan pendiente de pago' : 'Plan Activo'}</CardTitle>
-                  {balance.paymentPending
-                    ? <Badge className="bg-amber-500/20 text-amber-400">Pendiente de pago</Badge>
-                    : <Badge className="bg-green-500/20 text-green-400">Activo</Badge>}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-lg">{balance.paymentPending ? 'Plan pendiente de pago' : 'Plan activo'}</CardTitle>
+                  <StatusBadge tone={balance.paymentPending ? 'warning' : 'success'}>
+                    {balance.paymentPending ? 'Pendiente de pago' : 'Activo'}
+                  </StatusBadge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
+              <CardContent className="space-y-4">
                 {balance.paymentPending && balance.paymentDueBy && (
-                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-amber-400 space-y-2">
-                    <p>
-                      El paciente tiene hasta el {formatPaymentDeadline(balance.paymentDueBy)} para pagar y puede agendar hasta esa fecha.
-                      Si no paga, el plan vence solo.
-                    </p>
-                    <Button size="sm" variant="outline" onClick={() => navigate('/app/admin/planes')}>
-                      Ir a Planes para registrar el pago
-                    </Button>
-                  </div>
+                  <Alert variant="warning">
+                    <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+                    <AlertDescription className="space-y-2">
+                      <p>
+                        El paciente tiene hasta el {formatPaymentDeadline(balance.paymentDueBy)} para pagar y puede agendar hasta esa fecha. Si no
+                        paga, el plan vence solo.
+                      </p>
+                      <Button asChild size="sm" variant="outline">
+                        <Link to="/app/admin/planes">Ir a Planes para registrar el pago</Link>
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tipo</span>
-                  <span>{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</span>
-                </div>
-                {formatCycleProgress(balance.plan) && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Plan</span>
-                    <span>{formatCycleProgress(balance.plan)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sesiones</span>
-                  <span>{formatPlanUsage(balance.plan)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Inicio</span>
-                  <span>{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Vence</span>
-                  <span>{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</span>
-                </div>
-                {balance.extraSessionsAvailable > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sesiones extra</span>
-                    <span>{balance.extraSessionsAvailable}</span>
-                  </div>
-                )}
+                <DetailList>
+                  <DetailRow label="Tipo">{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</DetailRow>
+                  <DetailRow label="Plan">{formatCycleProgress(balance.plan) || undefined}</DetailRow>
+                  <DetailRow label="Sesiones">{formatPlanUsage(balance.plan)}</DetailRow>
+                  <DetailRow label="Inicio">{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</DetailRow>
+                  <DetailRow label="Vence">{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</DetailRow>
+                  {balance.extraSessionsAvailable > 0 && <DetailRow label="Sesiones extra">{balance.extraSessionsAvailable}</DetailRow>}
+                </DetailList>
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-                <p className="text-muted-foreground text-sm">Este paciente no tiene un plan activo.</p>
-                <Button size="sm" onClick={() => navigate('/app/admin/planes/clasificar')}>
-                  Asignar plan
+            <EmptyState
+              icon={FileText}
+              title="Este paciente no tiene un plan activo"
+              action={
+                <Button asChild size="sm">
+                  <Link to="/app/admin/planes/clasificar">Asignar plan</Link>
                 </Button>
-              </CardContent>
-            </Card>
+              }
+            />
           )}
         </TabsContent>
       </Tabs>
+
+      <EditPatientDialog
+        patient={patient}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        canAssign={user?.role === 'admin'}
+        onSaved={fetchData}
+      />
+
+      <ConfirmDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        title={`¿Reenviar invitación a ${patient.firstName}?`}
+        description="Se generará un link nuevo y el anterior dejará de funcionar. Si el paciente ya tenía acceso, esto también sirve para resetear su contraseña (por ejemplo, si la perdió)."
+        confirmLabel="Reenviar"
+        onConfirm={resendInvite}
+      />
 
       {bookingProfessionalId && (
         <AdminBookingDialog

@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { TriangleAlert } from 'lucide-react';
 import PainBodyDiagram from '@/components/body/PainBodyDiagram';
 import PainEvolutionChart from '@/components/charts/PainEvolutionChart';
 import { format, parseISO } from 'date-fns';
 import api from '@/lib/api';
+import DataTable from '@/components/shared/DataTable';
+import { cn } from '@/lib/utils';
 import type { EVARecord } from '@/types';
 
 const PainRecords = () => {
@@ -12,14 +19,23 @@ const PainRecords = () => {
   const [records, setRecords] = useState<EVARecord[]>([]);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!user) return;
+    setFailed(false);
     api.get(`/eva/patient/${user.id}`)
       .then((res) => setRecords(res.data.data.evaRecords || []))
-      .catch(() => {})
+      // Si falla la carga se avisa: antes se mostraba como si no hubiera registros
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, attempt]);
+
+  const retry = () => {
+    setLoading(true);
+    setAttempt((n) => n + 1);
+  };
 
   // Calculate latest pain levels by zone
   const painLevels: Record<string, number> = {};
@@ -32,21 +48,25 @@ const PainRecords = () => {
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-      </div>
-    );
+    return <LoadingState label="Cargando tus registros de dolor…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Registros de Dolor (EVA)</h1>
-        <p className="text-muted-foreground">
-          Toca una zona del cuerpo para ver la evolución del dolor
-        </p>
-      </div>
+      <PageHeader title="Registros de dolor (EVA)" description="Toca una zona del cuerpo para ver la evolución del dolor" />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar tus registros de dolor.</span>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Pain body diagram */}
@@ -90,8 +110,8 @@ const PainRecords = () => {
                       </p>
                       <div className="flex items-center justify-between mt-1">
                         <span className={`text-lg font-bold ${
-                          record.painLevel <= 3 ? 'text-green-400' :
-                          record.painLevel <= 6 ? 'text-yellow-400' : 'text-red-400'
+                          record.painLevel <= 3 ? 'text-success' :
+                          record.painLevel <= 6 ? 'text-warning' : 'text-destructive'
                         }`}>
                           {record.painLevel}/10
                         </span>
@@ -115,45 +135,28 @@ const PainRecords = () => {
             <CardTitle className="text-lg">Historial</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 text-muted-foreground">Fecha</th>
-                    <th className="text-left py-2 text-muted-foreground">Zona</th>
-                    <th className="text-center py-2 text-muted-foreground">Dolor</th>
-                    <th className="text-left py-2 text-muted-foreground">Tipo</th>
-                    <th className="text-left py-2 text-muted-foreground">Duración</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.map((r) => (
-                    <tr
-                      key={r._id}
-                      className="border-b border-border/50 hover:bg-muted/20 cursor-pointer"
-                      onClick={() => setSelectedZone(r.bodyArea)}
-                    >
-                      <td className="py-2">{format(parseISO(r.date), 'dd/MM/yyyy')}</td>
-                      <td className="py-2 capitalize">{r.bodyArea.replace(/-/g, ' ')}</td>
-                      <td className="py-2 text-center">
-                        <span className={`font-bold ${
-                          r.painLevel <= 3 ? 'text-green-400' :
-                          r.painLevel <= 6 ? 'text-yellow-400' : 'text-red-400'
-                        }`}>
-                          {r.painLevel}
-                        </span>
-                      </td>
-                      <td className="py-2 capitalize text-muted-foreground">
-                        {r.painType?.join(', ') || '-'}
-                      </td>
-                      <td className="py-2 capitalize text-muted-foreground">
-                        {r.duration || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              caption="Registros de dolor"
+              rows={records}
+              rowKey={(r) => r._id}
+              onRowClick={(r) => setSelectedZone(r.bodyArea)}
+              columns={[
+                { key: 'date', header: 'Fecha', cell: (r) => format(parseISO(r.date), 'dd/MM/yyyy') },
+                { key: 'zone', header: 'Zona', primary: true, cell: (r) => <span className="capitalize">{r.bodyArea.replace(/-/g, ' ')}</span> },
+                {
+                  key: 'pain',
+                  header: 'Dolor',
+                  align: 'center',
+                  cell: (r) => (
+                    <span className={cn('font-bold', r.painLevel <= 3 ? 'text-success' : r.painLevel <= 6 ? 'text-warning' : 'text-destructive')}>
+                      {r.painLevel}/10
+                    </span>
+                  ),
+                },
+                { key: 'type', header: 'Tipo', cell: (r) => <span className="capitalize text-muted-foreground">{r.painType?.join(', ') || '-'}</span> },
+                { key: 'duration', header: 'Duración', cell: (r) => <span className="capitalize text-muted-foreground">{r.duration || '-'}</span> },
+              ]}
+            />
           </CardContent>
         </Card>
       )}

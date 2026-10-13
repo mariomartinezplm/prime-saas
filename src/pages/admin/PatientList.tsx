@@ -1,318 +1,426 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, Download, Loader2, MoreHorizontal, Plus, RefreshCw, Search, TriangleAlert, UserPlus, Users, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { clientPlanService } from '@/services/clientPlanService';
 import { extraSessionService } from '@/services/extraSessionService';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, UserPlus, ChevronRight, RefreshCw, Plus, Loader2, Download } from 'lucide-react';
-import { toast } from 'sonner';
-import { format, parseISO, differenceInCalendarDays } from 'date-fns';
-import { SERVICE_TYPE_LABELS, formatPlanRemaining, formatPaymentDeadline, type ServiceType } from '@/config/planCatalog';
-import type { User, SessionBalance } from '@/types';
-import FounderBadge from '@/components/plans/FounderBadge';
+import { Textarea } from '@/components/ui/textarea';
 import AirtableImportDialog from '@/components/admin/AirtableImportDialog';
+import FounderBadge from '@/components/plans/FounderBadge';
+import PlanLine from '@/components/patients/PlanLine';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { ActiveStatusBadge } from '@/components/shared/StatusBadge';
+import type { ServiceType } from '@/config/planCatalog';
+import { planInfoByPatient, type PatientPlanInfo, type PlanState } from '@/lib/patientPlan';
+import { showApiError } from '@/lib/apiError';
+import { notify } from '@/lib/notify';
+import type { ClientPlan, User } from '@/types';
+
+type StatusFilter = 'all' | 'active' | 'inactive';
+type PlanFilter = 'all' | 'with' | 'pending' | 'soon' | 'none';
+type SortKey = 'name' | 'recent' | 'planEnd';
+
+// Sin tildes ni mayúsculas: "matias" encuentra a "Matías"
+const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const digits = (text: string) => text.replace(/[^0-9kK]/g, '').toLowerCase();
+
+const planFilterMatches = (filter: PlanFilter, state: PlanState) => {
+  switch (filter) {
+    case 'with':
+      return state === 'active' || state === 'soon' || state === 'pending';
+    case 'pending':
+      return state === 'pending';
+    case 'soon':
+      return state === 'soon';
+    case 'none':
+      return state === 'none' || state === 'expired';
+    default:
+      return true;
+  }
+};
 
 const PatientList = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const isProfessional = user?.role === 'professional';
   const isAdmin = user?.role === 'admin';
 
   const [patients, setPatients] = useState<User[]>([]);
-  const [balances, setBalances] = useState<Record<string, SessionBalance>>({});
-  const [search, setSearch] = useState('');
+  // null = no se pudieron cargar los planes (la lista igual funciona, sin esa información)
+  const [planInfo, setPlanInfo] = useState<Map<string, PatientPlanInfo> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<StatusFilter>('all');
+  const [planFilter, setPlanFilter] = useState<PlanFilter>('all');
+  const [sort, setSort] = useState<SortKey>('name');
+
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  // Dialog "Agregar sesión extra"
-  const [extraDialogOpen, setExtraDialogOpen] = useState(false);
+  // Sesión extra
+  const [extraOpen, setExtraOpen] = useState(false);
   const [extraPatientId, setExtraPatientId] = useState('');
   const [extraServiceType, setExtraServiceType] = useState<ServiceType>('entrenamiento');
   const [extraReason, setExtraReason] = useState('');
   const [submittingExtra, setSubmittingExtra] = useState(false);
 
-  const fetchPatients = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setFailed(false);
     try {
-      const data = await userService.getPatients(
-        isProfessional && user ? { assignedProfessionalId: user.id } : undefined
-      );
-      setPatients(data);
-
-      if (isProfessional && data.length > 0) {
-        const entries = await Promise.all(
-          data.map(async (p) => {
-            try {
-              return [p.id, await clientPlanService.getBalance(p.id)] as const;
-            } catch {
-              return [p.id, null] as const;
-            }
-          })
-        );
-        const map: Record<string, SessionBalance> = {};
-        entries.forEach(([id, balance]) => {
-          if (balance) map[id] = balance;
-        });
-        setBalances(map);
-      }
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast.error('Error al cargar la lista de pacientes');
+      // El servidor limita ambas listas al alcance de quien pregunta (profesional: sus pacientes)
+      const [list, plans] = await Promise.allSettled([userService.getAllPatients(), clientPlanService.getAll()]);
+      if (list.status === 'rejected') throw list.reason;
+      setPatients(list.value);
+      setPlanInfo(plans.status === 'fulfilled' ? planInfoByPatient(plans.value as ClientPlan[]) : null);
+    } catch {
+      setFailed(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchPatients();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isProfessional]);
+    load();
+  }, [load]);
 
   const handleExportCSV = async () => {
     setExporting(true);
     try {
       await userService.exportCSV();
-    } catch {
-      toast.error('Error al exportar el CSV');
+    } catch (err) {
+      showApiError(err, 'No se pudo exportar el CSV');
     } finally {
       setExporting(false);
     }
   };
 
-  const filtered = patients.filter((p) => {
-    const term = search.toLowerCase();
-    return (
-      p.firstName.toLowerCase().includes(term) ||
-      p.lastName.toLowerCase().includes(term) ||
-      p.email.toLowerCase().includes(term) ||
-      (p.rut && p.rut.includes(term))
-    );
-  });
+  const filtersActive = search !== '' || status !== 'all' || planFilter !== 'all';
+  const clearFilters = () => {
+    setSearch('');
+    setStatus('all');
+    setPlanFilter('all');
+  };
 
-  const resetExtraDialog = () => {
+  const visible = useMemo(() => {
+    const term = normalize(search.trim());
+    const termDigits = digits(search);
+    const infoOf = (p: User) => planInfo?.get(p.id);
+
+    const filtered = patients.filter((p) => {
+      if (status === 'active' && !p.isActive) return false;
+      if (status === 'inactive' && p.isActive) return false;
+      if (planInfo && planFilter !== 'all' && !planFilterMatches(planFilter, infoOf(p)?.state ?? 'none')) return false;
+      if (!term) return true;
+      return (
+        normalize(`${p.firstName} ${p.lastName}`).includes(term) ||
+        normalize(p.email).includes(term) ||
+        (termDigits.length >= 3 && !!p.rut && digits(p.rut).includes(termDigits))
+      );
+    });
+
+    const byName = (a: User, b: User) => a.lastName.localeCompare(b.lastName, 'es') || a.firstName.localeCompare(b.firstName, 'es');
+    return [...filtered].sort((a, b) => {
+      if (sort === 'recent') return (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || byName(a, b);
+      if (sort === 'planEnd') {
+        const endA = infoOf(a)?.plan?.endDate ?? '9999';
+        const endB = infoOf(b)?.plan?.endDate ?? '9999';
+        return endA.localeCompare(endB) || byName(a, b);
+      }
+      return byName(a, b);
+    });
+  }, [patients, planInfo, search, status, planFilter, sort]);
+
+  const resetExtra = () => {
     setExtraPatientId('');
     setExtraServiceType('entrenamiento');
     setExtraReason('');
   };
 
-  const handleCreateExtraSession = async (e: React.FormEvent) => {
+  const handleCreateExtra = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!extraPatientId) return;
+    if (!extraPatientId || submittingExtra) return;
     setSubmittingExtra(true);
     try {
-      await extraSessionService.create({
-        patientId: extraPatientId,
-        serviceType: extraServiceType,
-        reason: extraReason || undefined,
-      });
-      toast.success('Sesión extra otorgada exitosamente');
-      setExtraDialogOpen(false);
-      resetExtraDialog();
-      await fetchPatients();
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al otorgar la sesión extra');
+      await extraSessionService.create({ patientId: extraPatientId, serviceType: extraServiceType, reason: extraReason.trim() || undefined });
+      notify.success('Sesión extra otorgada');
+      setExtraOpen(false);
+      resetExtra();
+      load();
+    } catch (err) {
+      showApiError(err, 'No se pudo otorgar la sesión extra');
     } finally {
       setSubmittingExtra(false);
     }
   };
 
-  const planInfoFor = (patientId: string) => {
-    const balance = balances[patientId];
-    if (!balance) return null;
-
-    if (!balance.hasActivePlan) {
-      return <span className="text-xs text-red-400 font-medium">Sin plan activo / vencido</span>;
-    }
-
-    const plan = balance.plan!;
-
-    if (balance.paymentPending && balance.paymentDueBy) {
-      return (
-        <span className="text-xs text-amber-400 font-medium">
-          Pendiente de pago hasta el {formatPaymentDeadline(balance.paymentDueBy)} · {SERVICE_TYPE_LABELS[plan.serviceType]}
-        </span>
-      );
-    }
-
-    const daysLeft = differenceInCalendarDays(parseISO(plan.endDate), new Date());
-    // Un mes intermedio de un plan trimestral/anual no "vence pronto": el siguiente ya está pagado
-    const isSoon = daysLeft <= 5 && (plan.cycleNumber ?? 1) >= (plan.cyclesTotal ?? 1);
-
-    return (
-      <span className={`text-xs ${isSoon ? 'text-yellow-500' : 'text-muted-foreground'}`}>
-        {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanRemaining(plan)} · vence {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
-      </span>
-    );
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Pacientes</h1>
-          <p className="text-muted-foreground">
-            {patients.length} {isProfessional ? 'pacientes asignados' : 'pacientes registrados'}
-          </p>
+      <PageHeader
+        title="Pacientes"
+        description={loading ? undefined : `${patients.length} ${patients.length === 1 ? 'paciente' : 'pacientes'}`}
+        actions={
+          <>
+            <Button asChild>
+              <Link to="/app/admin/registro">
+                <UserPlus aria-hidden="true" />
+                Nuevo paciente
+              </Link>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Más acciones">
+                  <MoreHorizontal />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isProfessional && (
+                  <DropdownMenuItem onSelect={() => setExtraOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Agregar sesión extra
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && (
+                  <>
+                    <DropdownMenuItem onSelect={handleExportCSV} disabled={exporting}>
+                      {exporting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                      ) : (
+                        <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                      )}
+                      Exportar CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setImportOpen(true)}>
+                      <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Importar de Airtable
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
+
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            type="search"
+            aria-label="Buscar paciente"
+            placeholder="Buscar por nombre, correo o RUT"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
         </div>
-        <div className="flex flex-wrap gap-2">
-          {isProfessional && (
-            <Button variant="outline" onClick={() => setExtraDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar sesión extra
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
+            <SelectTrigger className="w-full sm:w-[140px]" aria-label="Filtrar por estado">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="active">Activos</SelectItem>
+              <SelectItem value="inactive">Inactivos</SelectItem>
+            </SelectContent>
+          </Select>
+          {planInfo && (
+            <Select value={planFilter} onValueChange={(v) => setPlanFilter(v as PlanFilter)}>
+              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por plan">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Cualquier plan</SelectItem>
+                <SelectItem value="with">Con plan activo</SelectItem>
+                <SelectItem value="pending">Pendiente de pago</SelectItem>
+                <SelectItem value="soon">Vence pronto</SelectItem>
+                <SelectItem value="none">Sin plan o vencido</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          <div className="col-span-2 sm:col-span-1">
+            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="w-full sm:w-[210px]" aria-label="Ordenar por">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Orden: apellido A–Z</SelectItem>
+              <SelectItem value="recent">Orden: registro reciente</SelectItem>
+              {planInfo && <SelectItem value="planEnd">Orden: plan que vence antes</SelectItem>}
+            </SelectContent>
+          </Select>
+          </div>
+          {filtersActive && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X aria-hidden="true" />
+              Limpiar filtros
             </Button>
           )}
-          {isAdmin && (
-            <Button variant="outline" onClick={handleExportCSV} disabled={exporting}>
-              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-              Exportar CSV
-            </Button>
-          )}
-          {isAdmin && (
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Importar de Airtable
-            </Button>
-          )}
-          <Button onClick={() => navigate('/app/admin/registro')}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Nuevo paciente
-          </Button>
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nombre, email o RUT..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((patient) => (
-            <Card
-              key={patient.id}
-              className="cursor-pointer hover:border-secondary transition-colors"
-              onClick={() => navigate(`/app/admin/pacientes/${patient.id}`)}
-            >
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
-                    <span className="text-secondary font-bold text-sm">
-                      {patient.firstName[0]}{patient.lastName[0]}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium flex items-center gap-2 flex-wrap">
-                      {patient.firstName} {patient.lastName}
-                      {patient.isFounder && <FounderBadge compact />}
-                      {patient.exemptFromCapacity && <Badge className="bg-amber-500/20 text-amber-400">Sobre cupo</Badge>}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{patient.email}</p>
-                    {isProfessional && <div className="mt-0.5">{planInfoFor(patient.id)}</div>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {patient.rut && (
-                    <span className="text-sm text-muted-foreground hidden sm:inline">{patient.rut}</span>
-                  )}
-                  <Badge className={patient.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}>
-                    {patient.isActive ? 'Activo' : 'Inactivo'}
-                  </Badge>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {filtered.length === 0 && (
-            <p className="text-muted-foreground text-sm text-center py-8">
-              {isProfessional ? 'No tienes pacientes asignados todavía' : 'No se encontraron pacientes'}
-            </p>
-          )}
-        </div>
+      {planInfo === null && !loading && !failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription>No se pudo cargar la información de planes; la lista se muestra sin ella.</AlertDescription>
+        </Alert>
       )}
 
-      {/* Dialog: Agregar sesión extra */}
+      {loading ? (
+        <LoadingState label="Cargando pacientes…" />
+      ) : failed ? (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudo cargar la lista de pacientes.</span>
+            <Button variant="outline" size="sm" onClick={load}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : visible.length === 0 ? (
+        filtersActive ? (
+          <EmptyState
+            icon={Search}
+            title="Ningún paciente coincide"
+            description="Prueba con otro nombre o quita algún filtro."
+            action={
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={Users}
+            title={isProfessional ? 'Todavía no tienes pacientes asignados' : 'Todavía no hay pacientes'}
+            action={
+              <Button asChild size="sm">
+                <Link to="/app/admin/registro">Registrar paciente</Link>
+              </Button>
+            }
+          />
+        )
+      ) : (
+        <>
+          {filtersActive && (
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {visible.length} de {patients.length}
+            </p>
+          )}
+          <ul className="space-y-2">
+            {visible.map((patient) => (
+              <li key={patient.id}>
+                <Link
+                  to={`/app/admin/pacientes/${patient.id}`}
+                  className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                >
+                  <Card className="flex items-center gap-3 p-4 transition-colors hover:border-secondary hover:bg-accent/30">
+                    <span
+                      aria-hidden="true"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/15 text-sm font-semibold text-secondary"
+                    >
+                      {patient.firstName[0]}
+                      {patient.lastName[0]}
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
+                        <span>
+                          {patient.firstName} {patient.lastName}
+                        </span>
+                        {patient.isFounder && <FounderBadge compact />}
+                        {patient.exemptFromCapacity && <Badge variant="accent">Sobre cupo</Badge>}
+                      </p>
+                      <p className="truncate text-sm text-muted-foreground">{patient.email}</p>
+                      {planInfo && <PlanLine info={planInfo.get(patient.id)} className="block" />}
+                    </div>
+                    <ActiveStatusBadge isActive={patient.isActive} className="shrink-0 self-start" />
+                    <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
+                  </Card>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       <Dialog
-        open={extraDialogOpen}
+        open={extraOpen}
         onOpenChange={(open) => {
-          setExtraDialogOpen(open);
-          if (!open) resetExtraDialog();
+          setExtraOpen(open);
+          if (!open) resetExtra();
         }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Agregar sesión extra</DialogTitle>
+            <DialogDescription>Otorga una sesión adicional a un paciente, fuera de su plan.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateExtraSession} className="space-y-4">
+          <form onSubmit={handleCreateExtra} className="space-y-4">
             <div className="space-y-2">
-              <Label>Paciente</Label>
+              <Label htmlFor="extra-patient">Paciente</Label>
               <Select value={extraPatientId} onValueChange={setExtraPatientId}>
-                <SelectTrigger><SelectValue placeholder="Selecciona un paciente" /></SelectTrigger>
+                <SelectTrigger id="extra-patient">
+                  <SelectValue placeholder="Selecciona un paciente" />
+                </SelectTrigger>
                 <SelectContent>
-                  {patients.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName}</SelectItem>
-                  ))}
+                  {[...patients]
+                    .sort((a, b) => a.lastName.localeCompare(b.lastName, 'es'))
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.firstName} {p.lastName}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
-              <Label>Tipo de servicio</Label>
-              <Select key={extraServiceType} value={extraServiceType} onValueChange={(v) => setExtraServiceType(v as ServiceType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label htmlFor="extra-type">Tipo de servicio</Label>
+              <Select value={extraServiceType} onValueChange={(v) => setExtraServiceType(v as ServiceType)}>
+                <SelectTrigger id="extra-type">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="entrenamiento">Entrenamiento</SelectItem>
                   <SelectItem value="kinesiologia">Kinesiología</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
-              <Label>Motivo (opcional)</Label>
+              <Label htmlFor="extra-reason">Motivo (opcional)</Label>
               <Textarea
+                id="extra-reason"
                 value={extraReason}
                 onChange={(e) => setExtraReason(e.target.value)}
+                maxLength={300}
                 placeholder="Ej: compensación por cancelación del centro"
               />
             </div>
-
             <DialogFooter>
               <Button type="submit" disabled={!extraPatientId || submittingExtra} className="w-full">
-                {submittingExtra && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Confirmar
+                {submittingExtra && <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+                Otorgar sesión
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {isAdmin && (
-        <AirtableImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={fetchPatients} />
-      )}
+      {isAdmin && <AirtableImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={load} />}
     </div>
   );
 };

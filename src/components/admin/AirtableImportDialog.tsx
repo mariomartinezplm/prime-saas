@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { getErrorMessage } from '@/lib/apiError';
 import type { AirtableImportResult } from '@/types';
 
@@ -47,18 +47,18 @@ const AirtableImportDialog = ({ open, onOpenChange, onImported }: AirtableImport
     setImporting(true);
     try {
       const result = await userService.syncAirtable(false);
-      toast.success(
+      notify.success(
         result.created > 0
           ? `Se importaron ${result.created} pacientes. Quedan sin acceso hasta que les envíes la invitación.`
           : 'No había pacientes nuevos para importar.'
       );
       if (result.failed > 0) {
-        toast.error(`${result.failed} registros no se pudieron importar. Revisa sus datos en Airtable.`);
+        notify.error(`${result.failed} registros no se pudieron importar. Revisa sus datos en Airtable.`);
       }
       onImported();
       onOpenChange(false);
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'No se pudo importar desde Airtable'));
+      notify.error(getErrorMessage(err, 'No se pudo importar desde Airtable'));
     } finally {
       setImporting(false);
     }
@@ -86,7 +86,7 @@ const AirtableImportDialog = ({ open, onOpenChange, onImported }: AirtableImport
         )}
 
         {error && (
-          <p className="flex gap-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">
+          <p className="flex gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             {error}
           </p>
@@ -110,7 +110,7 @@ const AirtableImportDialog = ({ open, onOpenChange, onImported }: AirtableImport
             </div>
 
             {noEmailColumn && (
-              <div className="space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-amber-400">
+              <div className="space-y-1 rounded-lg border border-warning/40 bg-warning/10 p-3 text-warning">
                 <p className="flex gap-2 font-medium">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   No encontré ninguna columna con correos válidos.
@@ -124,7 +124,7 @@ const AirtableImportDialog = ({ open, onOpenChange, onImported }: AirtableImport
 
             {preview.emailColumn && (
               <p className="flex gap-2 text-xs text-muted-foreground">
-                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                 El correo se toma de la columna “{preview.emailColumn}”.
               </p>
             )}
@@ -166,7 +166,7 @@ const AirtableImportDialog = ({ open, onOpenChange, onImported }: AirtableImport
 
             {noEmail.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-amber-400">
+                <p className="text-xs font-medium text-warning">
                   Sin correo válido en Airtable (no se pueden importar):
                 </p>
                 <p className="text-xs text-muted-foreground">

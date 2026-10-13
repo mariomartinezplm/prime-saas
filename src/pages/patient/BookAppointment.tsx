@@ -11,11 +11,16 @@ import BookingConfirmation from '@/components/booking/BookingConfirmation';
 import BulkBookingDialog from '@/components/booking/BulkBookingDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
-import { CalendarPlus, AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays, Repeat, Calendar as CalendarIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays, Repeat, Calendar as CalendarIcon } from 'lucide-react';
 import { format, addHours, isBefore, parseISO } from 'date-fns';
-import { formatPlanUsage } from '@/config/planCatalog';
+import { es } from 'date-fns/locale';
+import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
+import { MIN_BOOKING_AHEAD_HOURS, PATIENT_CANCEL_AHEAD_HOURS } from '@/config/bookingRules';
+import { capitalizeFirst } from '@/lib/utils';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
 import type { User, SessionBalance, AvailableSlots } from '@/types';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 
@@ -34,6 +39,8 @@ const BookAppointment = () => {
   const [showBulk, setShowBulk] = useState(false);
   const [booking, setBooking] = useState(false);
   const [bookingMode, setBookingMode] = useState<BookingMode>('single');
+  const [slotsStatus, setSlotsStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [slotsRetry, setSlotsRetry] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,7 +80,7 @@ const BookAppointment = () => {
           setBalance(bal);
         }
       } catch {
-        toast.error('Error al cargar datos');
+        notify.error('Error al cargar datos');
       } finally {
         setLoading(false);
       }
@@ -85,11 +92,28 @@ const BookAppointment = () => {
   useEffect(() => {
     if (!selectedDate || !selectedProfessional) {
       setSlots(null);
+      setSlotsStatus('idle');
       return;
     }
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    availabilityService.getSlots(selectedProfessional.id, dateStr).then(setSlots).catch(() => setSlots(null));
-  }, [selectedDate, selectedProfessional]);
+    // Si se cambia de día rápido, la respuesta del día anterior se descarta
+    let active = true;
+    setSlotsStatus('loading');
+    availabilityService
+      .getSlots(selectedProfessional.id, format(selectedDate, 'yyyy-MM-dd'))
+      .then((result) => {
+        if (!active) return;
+        setSlots(result);
+        setSlotsStatus('idle');
+      })
+      .catch(() => {
+        if (!active) return;
+        setSlots(null);
+        setSlotsStatus('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedDate, selectedProfessional, slotsRetry]);
 
   // Determine session type from plan
   const getSessionType = (): 'kinesiologia' | 'entrenamiento' | 'evaluacion' => {
@@ -116,7 +140,7 @@ const BookAppointment = () => {
         type: getSessionType(),
       });
 
-      toast.success('Cita reservada exitosamente', {
+      notify.success('Cita reservada exitosamente', {
         action: {
           label: 'Agregar a mi calendario',
           onClick: () => appointmentService.downloadICS(newAppointment._id),
@@ -161,7 +185,7 @@ const BookAppointment = () => {
     const [hours, minutes] = time.split(':').map(Number);
     const slotDateTime = new Date(date);
     slotDateTime.setHours(hours, minutes, 0, 0);
-    return isBefore(slotDateTime, addHours(new Date(), 4));
+    return isBefore(slotDateTime, addHours(new Date(), MIN_BOOKING_AHEAD_HOURS));
   };
 
   // ─── Plan status info ───────────────────────────────────────────────
@@ -179,7 +203,7 @@ const BookAppointment = () => {
     const extraNote = balance.extraSessionsAvailable > 0 ? ` + ${balance.extraSessionsAvailable} extra` : '';
 
     return {
-      label: plan.serviceType === 'kinesiologia' ? '🏥 Kinesiología' : '💪 Entrenamiento',
+      label: SERVICE_TYPE_LABELS[plan.serviceType],
       description: unlimited
         ? `Sesiones ilimitadas${extraNote}`
         : `${remaining} de ${plan.sessionsTotal} sesiones restantes${extraNote}`,
@@ -187,8 +211,8 @@ const BookAppointment = () => {
       canBook,
       blockMessage: !canBook ? 'Has completado todas tus sesiones. Contacta a Prime F&H para renovar tu plan.' : null,
       color: canBook
-        ? (plan.serviceType === 'kinesiologia' ? 'border-teal-500/40 bg-teal-500/10' : 'border-blue-500/40 bg-blue-500/10')
-        : 'border-red-500/40 bg-red-500/10',
+        ? (plan.serviceType === 'kinesiologia' ? 'border-primary/40 bg-primary/10' : 'border-info/40 bg-info/10')
+        : 'border-destructive/40 bg-destructive/10',
       progressPercent: unlimited ? 0 : (plan.sessionsUsed / plan.sessionsTotal) * 100
     };
   };
@@ -196,21 +220,12 @@ const BookAppointment = () => {
   const planInfo = getPlanStatusInfo();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-      </div>
-    );
+    return <LoadingState label="Cargando…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Portal del Paciente</h1>
-          <p className="text-muted-foreground mt-1">Reserva tus sesiones con tu kinesiólogo</p>
-        </div>
-      </div>
+      <PageHeader title="Reservar hora" description="Reserva tus sesiones con tu kinesiólogo" />
 
       {balance?.paymentPending && balance.paymentDueBy && (
         <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />
@@ -223,9 +238,9 @@ const BookAppointment = () => {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
                 {planInfo.canBook ? (
-                  <CheckCircle className="w-6 h-6 text-green-500" />
+                  <CheckCircle className="w-6 h-6 text-success" />
                 ) : (
-                  <Ban className="w-6 h-6 text-red-500" />
+                  <Ban className="w-6 h-6 text-destructive" />
                 )}
                 <div>
                   <p className="font-semibold text-sm">{planInfo.label}</p>
@@ -238,9 +253,16 @@ const BookAppointment = () => {
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     <p className="text-xs font-medium text-muted-foreground">{planInfo.sessionCounter}</p>
-                    <div className="w-32 h-2 bg-muted rounded-full mt-1 overflow-hidden">
+                    <div
+                      className="w-32 h-2 bg-muted rounded-full mt-1 overflow-hidden"
+                      role="progressbar"
+                      aria-label="Sesiones usadas del plan"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(Math.min(planInfo.progressPercent, 100))}
+                    >
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${planInfo.progressPercent >= 80 ? 'bg-red-500' : planInfo.progressPercent >= 50 ? 'bg-yellow-500' : 'bg-green-500'
+                        className={`h-full rounded-full transition-all duration-500 ${planInfo.progressPercent >= 80 ? 'bg-destructive' : planInfo.progressPercent >= 50 ? 'bg-warning' : 'bg-success'
                           }`}
                         style={{ width: `${Math.min(planInfo.progressPercent, 100)}%` }}
                       />
@@ -251,7 +273,7 @@ const BookAppointment = () => {
             </div>
 
             {planInfo.blockMessage && (
-              <div className="mt-3 flex items-center gap-2 p-3 bg-red-500/10 rounded-lg text-red-400 text-sm">
+              <div className="mt-3 flex items-center gap-2 p-3 bg-destructive/10 rounded-lg text-destructive text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 {planInfo.blockMessage}
               </div>
@@ -259,13 +281,13 @@ const BookAppointment = () => {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-2 border-yellow-500/40 bg-yellow-500/10">
+        <Card className="border-2 border-warning/40 bg-warning/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-yellow-500" />
+              <AlertCircle className="w-6 h-6 text-warning" />
               <div>
-                <p className="font-semibold text-sm text-yellow-400">No tienes un plan activo</p>
-                <p className="text-xs text-yellow-500">
+                <p className="font-semibold text-sm text-warning">No tienes un plan activo</p>
+                <p className="text-xs text-warning">
                   Contacta al equipo de Prime F&H para activar tu plan y poder agendar sesiones.
                 </p>
               </div>
@@ -282,13 +304,13 @@ const BookAppointment = () => {
           onSelect={setSelectedProfessional}
         />
       ) : (
-        <Card className="border-2 border-red-500/40 bg-red-500/10">
+        <Card className="border-2 border-destructive/40 bg-destructive/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-red-500" />
+              <AlertCircle className="w-6 h-6 text-destructive" />
               <div>
-                <p className="font-semibold text-sm text-red-400">No tienes un kinesiólogo asignado</p>
-                <p className="text-xs text-red-500">
+                <p className="font-semibold text-sm text-destructive">No tienes un kinesiólogo asignado</p>
+                <p className="text-xs text-destructive">
                   Debes tener un profesional asignado (desde tu ingreso en recepción) para poder agendar. Contacta al equipo de Prime F&H.
                 </p>
               </div>
@@ -303,17 +325,19 @@ const BookAppointment = () => {
           <Card>
             <CardContent className="p-4">
               <p className="text-sm font-semibold mb-3">¿Cómo quieres agendar?</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <button
+                  type="button"
+                  aria-pressed={bookingMode === 'single'}
                   onClick={() => setBookingMode('single')}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'single'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm'
+                    ? 'border-info bg-info/10 shadow-sm'
                     : 'border-border hover:border-muted-foreground/40'
                     }`}
                 >
-                  <CalendarIcon className={`w-5 h-5 ${bookingMode === 'single' ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                  <CalendarIcon className={`w-5 h-5 ${bookingMode === 'single' ? 'text-info' : 'text-muted-foreground'}`} />
                   <div className="text-left">
-                    <p className={`text-sm font-medium ${bookingMode === 'single' ? 'text-blue-400' : 'text-foreground'}`}>
+                    <p className={`text-sm font-medium ${bookingMode === 'single' ? 'text-info' : 'text-foreground'}`}>
                       Agendar una hora
                     </p>
                     <p className="text-xs text-muted-foreground">Elige día y hora específicos</p>
@@ -321,18 +345,20 @@ const BookAppointment = () => {
                 </button>
 
                 <button
+                  type="button"
+                  aria-pressed={bookingMode === 'recurring'}
                   onClick={() => {
                     setBookingMode('recurring');
                     if (balance?.hasActivePlan) setShowBulk(true);
                   }}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'recurring'
-                    ? 'border-purple-500 bg-purple-500/10 shadow-sm'
+                    ? 'border-coral bg-coral/10 shadow-sm'
                     : 'border-border hover:border-muted-foreground/40'
                     }`}
                 >
-                  <Repeat className={`w-5 h-5 ${bookingMode === 'recurring' ? 'text-purple-500' : 'text-muted-foreground'}`} />
+                  <Repeat className={`w-5 h-5 ${bookingMode === 'recurring' ? 'text-coral' : 'text-muted-foreground'}`} />
                   <div className="text-left">
-                    <p className={`text-sm font-medium ${bookingMode === 'recurring' ? 'text-purple-400' : 'text-foreground'}`}>
+                    <p className={`text-sm font-medium ${bookingMode === 'recurring' ? 'text-coral' : 'text-foreground'}`}>
                       Horario predeterminado
                     </p>
                     <p className="text-xs text-muted-foreground">Fija tu hora para siempre</p>
@@ -372,12 +398,21 @@ const BookAppointment = () => {
                 <CardHeader>
                   <CardTitle className="text-lg">
                     {selectedDate
-                      ? `Horarios - ${format(selectedDate, 'dd/MM/yyyy')}`
+                      ? `Horarios · ${capitalizeFirst(format(selectedDate, "EEEE d 'de' MMMM", { locale: es }))}`
                       : 'Selecciona una fecha'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {slots ? (
+                  {slotsStatus === 'loading' ? (
+                    <LoadingState className="py-8" label="Cargando horarios…" />
+                  ) : slotsStatus === 'error' ? (
+                    <div className="flex flex-col items-center gap-3 py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No se pudieron cargar los horarios.</p>
+                      <Button variant="outline" size="sm" onClick={() => setSlotsRetry((n) => n + 1)}>
+                        Reintentar
+                      </Button>
+                    </div>
+                  ) : slots ? (
                     <SlotGrid
                       slots={{
                         ...slots,
@@ -393,7 +428,7 @@ const BookAppointment = () => {
                       selectedSlot={selectedSlot}
                       onSelect={(slot) => {
                         if (planInfo && !planInfo.canBook) {
-                          toast.error(planInfo.blockMessage || 'No puedes agendar en este momento');
+                          notify.error(planInfo.blockMessage || 'No puedes agendar en este momento');
                           return;
                         }
                         setSelectedSlot(slot);
@@ -411,20 +446,20 @@ const BookAppointment = () => {
           )}
 
           {/* ─── Rules Info Card ─── */}
-          <Card className="border border-blue-500/30 bg-blue-500/10">
+          <Card className="border border-info/30 bg-info/10">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <Info className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
                 <div className="space-y-1.5">
-                  <p className="text-sm font-medium text-blue-300">Reglas de agendamiento</p>
-                  <div className="flex flex-col gap-1 text-xs text-blue-400">
+                  <p className="text-sm font-medium text-info">Reglas de agendamiento</p>
+                  <div className="flex flex-col gap-1 text-xs text-info">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Puedes agendar con un <strong>mínimo de 4 horas</strong> de anticipación</span>
+                      <span>Puedes agendar con un <strong>mínimo de {MIN_BOOKING_AHEAD_HOURS} horas</strong> de anticipación</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Ban className="w-3.5 h-3.5" />
-                      <span>Puedes cancelar hasta <strong>4 horas antes</strong> de tu sesión</span>
+                      <span>Cancela hasta <strong>{PATIENT_CANCEL_AHEAD_HOURS} horas antes</strong> y la sesión vuelve a tu plan</span>
                     </div>
                     {balance?.plan && !balance.plan.unlimited && (
                       <div className="flex items-center gap-2">

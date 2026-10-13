@@ -1,5 +1,6 @@
 import Appointment from '../models/Appointment.js';
 import User from '../models/User.js';
+import { canAccessAppointment, canAccessPatient } from '../middleware/auth.js';
 import { parseISO, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail, sendAppointmentConfirmationToPatientEmail } from '../services/emailService.js';
 import { getSessionBalanceByType, deductSession, refundSession } from '../services/clientPlanService.js';
@@ -15,6 +16,15 @@ import {
   countOverlappingAppointments,
   isExemptFromCapacity
 } from '../services/bookingRulesService.js';
+
+// Respuesta cuando no se puede acceder a una cita. El paciente conserva el 403 de siempre; para el
+// personal es 404: un 403 confirmaría que esa cita existe y es de otra persona.
+function denyAppointmentAccess(req, res, patientMessage) {
+  if (req.user.role === 'patient') {
+    return res.status(403).json({ success: false, message: patientMessage });
+  }
+  return res.status(404).json({ success: false, message: 'Cita no encontrada' });
+}
 
 // Tipos de cita que sí consumen una sesión del plan (Paso 15 de BLUEPRINT.md).
 // 'evaluacion' queda fuera a propósito: es un primer contacto, no una sesión
@@ -87,6 +97,15 @@ export const createAppointment = async (req, res) => {
   // Validar que el paciente existe
   const patient = await User.findById(patientId);
   if (!patient) {
+    return res.status(404).json({
+      success: false,
+      message: 'Paciente no encontrado'
+    });
+  }
+
+  // SEGURIDAD: un profesional solo agenda para pacientes que le pertenecen (asignados o del pool);
+  // el admin, para cualquiera. 404 para no confirmar que ese paciente existe.
+  if (isStaff(req.user) && !(await canAccessPatient(req.user, patient._id))) {
     return res.status(404).json({
       success: false,
       message: 'Paciente no encontrado'
@@ -253,7 +272,7 @@ export const createAppointment = async (req, res) => {
 // @access  Private
 export const getAppointments = async (req, res) => {
   try {
-    const { status, from, to, type } = req.query;
+    const { status, from, to, type, patient } = req.query;
 
     // Construir query
     let query = {};
@@ -271,6 +290,20 @@ export const getAppointments = async (req, res) => {
     // Filtrar por profesional (admin puede filtrar por cualquier profesional)
     if (req.query.professional && req.user.role === 'admin') {
       query.professional = req.query.professional;
+    }
+
+    // Filtrar por paciente (solo personal; el paciente siempre ve solo lo suyo). El profesional debe
+    // poder acceder a ese paciente (404 si no) y ve TODAS sus citas, también las agendadas con un
+    // colega: misma regla que `canAccessAppointment`.
+    if (typeof patient === 'string' && patient && req.user.role !== 'patient') {
+      if (!(await canAccessPatient(req.user, patient))) {
+        return res.status(404).json({
+          success: false,
+          message: 'Paciente no encontrado'
+        });
+      }
+      query.patient = patient;
+      if (req.user.role === 'professional') delete query.professional;
     }
 
     // Filtros
@@ -318,12 +351,9 @@ export const getAppointment = async (req, res) => {
       });
     }
 
-    // Verificar permisos: paciente solo puede ver sus propias citas
-    if (req.user.role === 'patient' && appointment.patient._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para ver esta cita'
-      });
+    // Verificar permisos: el paciente solo ve las suyas; el profesional, las de sus pacientes
+    if (!(await canAccessAppointment(req.user, appointment))) {
+      return denyAppointmentAccess(req, res, 'No tienes permisos para ver esta cita');
     }
 
     res.status(200).json({
@@ -354,11 +384,8 @@ export const getAppointmentICS = async (req, res) => {
       });
     }
 
-    if (req.user.role === 'patient' && appointment.patient.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para ver esta cita'
-      });
+    if (!(await canAccessAppointment(req.user, appointment))) {
+      return denyAppointmentAccess(req, res, 'No tienes permisos para ver esta cita');
     }
 
     const ics = generateAppointmentICS(appointment);
@@ -388,12 +415,9 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
-    // Verificar permisos
-    if (req.user.role === 'patient' && appointment.patient.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para cancelar esta cita'
-      });
+    // Verificar permisos: el paciente cancela las suyas; el profesional, las de sus pacientes
+    if (!(await canAccessAppointment(req.user, appointment))) {
+      return denyAppointmentAccess(req, res, 'No tienes permisos para cancelar esta cita');
     }
 
     // Verificar si ya está cancelada
@@ -484,6 +508,11 @@ export const updateAppointment = async (req, res) => {
       });
     }
 
+    // SEGURIDAD: un profesional solo modifica citas suyas o de sus pacientes
+    if (!(await canAccessAppointment(req.user, appointment))) {
+      return denyAppointmentAccess(req, res, 'No tienes permisos para modificar esta cita');
+    }
+
     // Paso 15 de BLUEPRINT.md: cancelar por esta vía genérica se saltaría el
     // reembolso de la sesión (cancelAppointment es el único lugar que llama a
     // refundSession). Marcar completed/no-show sigue funcionando igual — la
@@ -568,6 +597,13 @@ export const bulkCreateAppointments = async (req, res) => {
     const now = nowInSantiago();
     const created = [];
     const skipped = [];
+    // SEGURIDAD: el personal solo agenda en lote para pacientes que le pertenecen (404 si no).
+    if (isStaff(req.user) && !(await canAccessPatient(req.user, patientId))) {
+      return res.status(404).json({
+        success: false,
+        message: 'Paciente no encontrado'
+      });
+    }
     const exemptFromCapacity = await isExemptFromCapacity(patientId);
 
     // Cada cita del lote se valida y descuenta individualmente (saldo, 4h,

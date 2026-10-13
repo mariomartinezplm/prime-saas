@@ -88,7 +88,19 @@ export const userService = {
     return response.data.data;
   },
 
-  // Obtener solo pacientes
+  // TODOS los pacientes del alcance de quien pregunta. El servidor entrega de a 50 por página: sin
+  // recorrerlas todas, los pacientes sobrantes no salen en listas ni en buscadores.
+  getAllPatients: async (params?: { isActive?: boolean; assignedProfessionalId?: string }): Promise<User[]> => {
+    const PAGE_SIZE = 100;
+    const first = await userService.getAll({ ...params, role: 'patient', limit: PAGE_SIZE, page: 1 });
+    let users = first.users;
+    for (let page = 2; page <= first.pages; page++) {
+      users = users.concat((await userService.getAll({ ...params, role: 'patient', limit: PAGE_SIZE, page })).users);
+    }
+    return users;
+  },
+
+  // Obtener solo pacientes (una sola página: para todos, usar getAllPatients)
   getPatients: async (params?: {
     isActive?: boolean;
     search?: string;

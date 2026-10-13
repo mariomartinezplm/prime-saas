@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { MIN_BOOKING_AHEAD_HOURS } from '@/config/bookingRules';
 import type { AvailableSlots } from '@/types';
 
 interface SlotGridProps {
@@ -31,26 +32,26 @@ const SlotGrid = ({ slots, selectedSlot, onSelect, tooSoonSlots = [] }: SlotGrid
     <div>
       <div className="flex flex-wrap gap-3 mb-4 text-xs">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-green-500" />
+          <div className="w-3 h-3 rounded bg-success" />
           <span>Disponible</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-red-500" />
+          <div className="w-3 h-3 rounded bg-destructive" />
           <span>Ocupado</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-gray-500" />
+          <div className="w-3 h-3 rounded bg-muted-foreground" />
           <span>Bloqueado</span>
         </div>
         {tooSoonSlots.length > 0 && (
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-yellow-500" />
+            <div className="w-3 h-3 rounded bg-warning" />
             <span>Muy pronto</span>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2" role="group" aria-label="Horarios del día">
         {allSlots.map((slot) => {
           const isAvailable = slots.availableSlots.includes(slot);
           const isBooked = slots.bookedSlots.includes(slot);
@@ -62,15 +63,18 @@ const SlotGrid = ({ slots, selectedSlot, onSelect, tooSoonSlots = [] }: SlotGrid
             <button
               key={slot}
               disabled={!isAvailable}
-              title={isTooSoon ? 'Debes reservar con al menos 4 horas de anticipación' : undefined}
+              type="button"
+              aria-pressed={isSelected}
+              aria-label={`${slot}, ${isSelected ? 'seleccionado' : isAvailable ? 'disponible' : isBooked ? 'ocupado' : isBlocked ? 'bloqueado' : 'muy pronto'}`}
+              title={isTooSoon ? `Debes reservar con al menos ${MIN_BOOKING_AHEAD_HOURS} horas de anticipación` : undefined}
               onClick={() => isAvailable && onSelect(slot)}
               className={cn(
-                'py-3 px-2 rounded-md text-sm font-medium transition-all text-center',
-                isAvailable && !isSelected && 'bg-green-500/20 text-green-400 hover:bg-green-500/30 cursor-pointer',
-                isBooked && 'bg-red-500/20 text-red-400 cursor-not-allowed',
-                isBlocked && 'bg-gray-500/20 text-gray-400 cursor-not-allowed',
-                isTooSoon && 'bg-yellow-500/20 text-yellow-600 cursor-not-allowed',
-                isSelected && 'bg-secondary text-white ring-2 ring-secondary'
+                'rounded-md px-2 py-3 text-center text-sm font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                isAvailable && !isSelected && 'bg-success/20 text-success hover:bg-success/30 cursor-pointer',
+                isBooked && 'bg-destructive/20 text-destructive cursor-not-allowed',
+                isBlocked && 'bg-muted text-muted-foreground cursor-not-allowed',
+                isTooSoon && 'bg-warning/20 text-warning cursor-not-allowed',
+                isSelected && 'bg-secondary text-secondary-foreground ring-2 ring-secondary'
               )}
             >
               {slot}

@@ -5,7 +5,7 @@ import ExerciseProgress from '../models/Exercise.js';
 import EVA from '../models/EVA.js';
 import ClientPlan from '../models/ClientPlan.js';
 import { importNewPatients } from '../utils/airtableSync.js';
-import { canAccessPatient } from '../middleware/auth.js';
+import { canAccessPatient, ownedPatientsOr } from '../middleware/auth.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { generateUnusablePassword, createInvite } from '../services/inviteService.js';
 import { toCSV } from '../utils/csv.js';
@@ -47,11 +47,7 @@ export const getAllUsers = async (req, res) => {
         // Estos últimos quedan en un "pool" común para que nadie desaparezca del
         // sistema por un dato incompleto; al asignarles profesional salen del pool.
         query.role = 'patient';
-        ownershipOr = [
-          { assignedProfessionalId: req.user._id },
-          { assignedProfessionalId: { $exists: false } },
-          { assignedProfessionalId: null }
-        ];
+        ownershipOr = ownedPatientsOr(req.user._id);
       }
     } else {
       // Paciente: únicamente el directorio de staff, con datos mínimos.
@@ -509,13 +505,27 @@ export const getPatientProfile = async (req, res) => {
   }
 };
 
-// @desc    Obtener estadísticas del dashboard (admin)
+// @desc    Obtener estadísticas del dashboard (admin y profesional)
 // @route   GET /api/users/stats/dashboard
-// @access  Private/Admin
+// @access  Private/Admin, Professional
 export const getDashboardStats = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    // SEGURIDAD: el alcance lo decide el servidor según el rol, con la misma regla que
+    // getAllUsers (pacientes) y getAppointments (citas). Antes un profesional recibía las
+    // cifras de TODO el centro, y las próximas citas con nombre y teléfono de pacientes
+    // de otros profesionales y los últimos pacientes registrados con su correo.
+    const isProfessional = req.user.role === 'professional';
+    const patientQuery = { role: 'patient' };
+    const appointmentScope = {};
+    if (isProfessional) {
+      // Sus pacientes asignados + el "pool" sin profesional asignado
+      patientQuery.$or = ownedPatientsOr(req.user._id);
+      // Solo sus propias citas
+      appointmentScope.professional = req.user._id;
+    }
 
     const [
       totalPatients,
@@ -524,9 +534,10 @@ export const getDashboardStats = async (req, res) => {
       upcomingAppointments,
       recentPatients
     ] = await Promise.all([
-      User.countDocuments({ role: 'patient' }),
-      User.countDocuments({ role: 'patient', isActive: true }),
+      User.countDocuments(patientQuery),
+      User.countDocuments({ ...patientQuery, isActive: true }),
       Appointment.countDocuments({
+        ...appointmentScope,
         date: {
           $gte: today,
           $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
@@ -534,6 +545,7 @@ export const getDashboardStats = async (req, res) => {
         status: 'scheduled'
       }),
       Appointment.find({
+        ...appointmentScope,
         date: { $gte: today },
         status: 'scheduled'
       })
@@ -541,7 +553,7 @@ export const getDashboardStats = async (req, res) => {
         .limit(10)
         .populate('patient', 'firstName lastName phone')
         .populate('professional', 'firstName lastName'),
-      User.find({ role: 'patient' })
+      User.find(patientQuery)
         .sort({ createdAt: -1 })
         .limit(5)
         .select('firstName lastName email createdAt')

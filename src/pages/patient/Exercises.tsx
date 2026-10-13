@@ -4,16 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ExerciseProgressChart from '@/components/charts/ExerciseProgressChart';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { TriangleAlert } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Dumbbell, TrendingUp, BarChart3, Award } from 'lucide-react';
 import api from '@/lib/api';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import RecordRowActions from '@/components/records/RecordRowActions';
+import DataTable from '@/components/shared/DataTable';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import type { ExerciseProgress } from '@/types';
 
 const ExercisesEnhanced = () => {
@@ -22,31 +29,40 @@ const ExercisesEnhanced = () => {
   const [exerciseNames, setExerciseNames] = useState<string[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editing, setEditing] = useState<ExerciseProgress | null>(null);
   const hasActivePlan = useHasActivePlan(user?.id);
 
   useEffect(() => {
     if (!user) return;
+    setFailed(false);
     Promise.all([
       api.get(`/exercises/patient/${user.id}`),
       api.get(`/exercises/list/${user.id}`),
     ]).then(([exRes, listRes]) => {
       setExercises(exRes.data.data.exercises || []);
       setExerciseNames(listRes.data.data.exercises || []);
-    }).catch(() => { })
+    // Si falla la carga se avisa: antes se mostraba como si no hubiera ejercicios
+    }).catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, [user, refreshKey]);
+
+  const retry = () => {
+    setLoading(true);
+    setRefreshKey((k) => k + 1);
+  };
 
   const canEdit = hasActivePlan === true;
 
   const handleDelete = async (ex: ExerciseProgress) => {
     try {
       await api.delete(`/exercises/${ex._id}`);
-      toast.success('Ejercicio eliminado');
+      notify.success('Ejercicio eliminado');
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar el ejercicio');
+      throw err;
     }
   };
 
@@ -80,35 +96,43 @@ const ExercisesEnhanced = () => {
   }, 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingState label="Cargando tus ejercicios…" />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with Stats */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-1">Progreso de Ejercicios</h1>
-          <p className="text-muted-foreground">Monitorea tu evolución en cada ejercicio</p>
-        </div>
-        <PatientRecordDialog
-          label="Registrar ejercicio"
-          title="Registrar ejercicio"
-          description="Anota el ejercicio, el peso y las repeticiones que hiciste."
-        >
-          {(close) => (
-            <ExerciseForm
-              patientId={user!.id}
-              embedded
-              onSuccess={() => { close(); setRefreshKey((k) => k + 1); }}
-            />
-          )}
-        </PatientRecordDialog>
-      </div>
+      <PageHeader
+        title="Progreso de ejercicios"
+        description="Monitorea tu evolución en cada ejercicio"
+        actions={
+          <PatientRecordDialog
+            label="Registrar ejercicio"
+            title="Registrar ejercicio"
+            description="Anota el ejercicio, el peso y las repeticiones que hiciste."
+          >
+            {(close) => (
+              <ExerciseForm
+                patientId={user!.id}
+                embedded
+                onSuccess={() => { close(); setRefreshKey((k) => k + 1); }}
+              />
+            )}
+          </PatientRecordDialog>
+        }
+      />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar tus ejercicios.</span>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -228,48 +252,26 @@ const ExercisesEnhanced = () => {
           ) : (
             <Card className="shadow-card">
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-gradient-section">
-                        <th className="text-left p-3 text-muted-foreground font-semibold">Fecha</th>
-                        <th className="text-left p-3 text-muted-foreground font-semibold">Ejercicio</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">Categoría</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">Series</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">Reps</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">Peso</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">RPE</th>
-                        <th className="text-center p-3 text-muted-foreground font-semibold">1RM</th>
-                        {canEdit && <th className="p-3" />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((ex, idx) => (
-                        <tr key={ex._id} className={`border-b border-border/50 hover:bg-gradient-section transition-colors ${idx % 2 === 0 ? 'bg-background' : ''}`}>
-                          <td className="p-3 font-medium">{format(parseISO(ex.date), 'dd/MM/yyyy')}</td>
-                          <td className="p-3 font-semibold text-foreground">{ex.exerciseName}</td>
-                          <td className="p-3 text-center capitalize">
-                            <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
-                              {ex.category}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center font-medium">{ex.sets || '-'}</td>
-                          <td className="p-3 text-center font-medium">{ex.reps || '-'}</td>
-                          <td className="p-3 text-center font-bold text-primary">{ex.weight ? `${ex.weight} ${ex.weightUnit}` : '-'}</td>
-                          <td className="p-3 text-center">{ex.rpe ? `${ex.rpe}/10` : '-'}</td>
-                          <td className="p-3 text-center font-bold text-secondary">
-                            {ex.oneRepMax ? `${ex.oneRepMax.toFixed(1)} kg` : '-'}
-                          </td>
-                          {canEdit && (
-                            <td className="p-3">
-                              <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  caption="Ejercicios registrados"
+                  rows={filtered}
+                  rowKey={(ex) => ex._id}
+                  columns={[
+                    { key: 'date', header: 'Fecha', cell: (ex) => format(parseISO(ex.date), 'dd/MM/yyyy') },
+                    { key: 'name', header: 'Ejercicio', cell: (ex) => <span className="font-semibold">{ex.exerciseName}</span>, primary: true },
+                    { key: 'category', header: 'Categoría', align: 'center', cell: (ex) => <Badge variant="neutral" className="capitalize">{ex.category}</Badge> },
+                    { key: 'sets', header: 'Series', align: 'center', cell: (ex) => ex.sets || '-' },
+                    { key: 'reps', header: 'Reps', align: 'center', cell: (ex) => ex.reps || '-' },
+                    { key: 'weight', header: 'Peso', align: 'center', cell: (ex) => <span className="font-semibold text-primary">{ex.weight ? `${ex.weight} ${ex.weightUnit}` : '-'}</span> },
+                    { key: 'rpe', header: 'RPE', align: 'center', cell: (ex) => (ex.rpe ? `${ex.rpe}/10` : '-') },
+                    { key: 'rm', header: '1RM', align: 'center', cell: (ex) => <span className="font-semibold text-secondary">{ex.oneRepMax ? `${ex.oneRepMax.toFixed(1)} kg` : '-'}</span> },
+                  ]}
+                  actions={
+                    canEdit
+                      ? (ex) => <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />
+                      : undefined
+                  }
+                />
               </CardContent>
             </Card>
           )}

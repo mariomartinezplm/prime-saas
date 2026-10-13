@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import api from '@/lib/api';
 import { showApiError } from '@/lib/apiError';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import RecordRowActions from './RecordRowActions';
+import DataTable from '@/components/shared/DataTable';
 import MetricChartGrid from '@/components/charts/MetricChartGrid';
 import { GENERAL_METRICS, PERIMETER_METRICS, JUMP_METRICS } from '@/components/charts/measurementMetrics';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -50,10 +51,11 @@ export const MeasurementHistory = ({ patientId, refreshKey }: HistoryProps) => {
   const handleDelete = async (m: Measurement) => {
     try {
       await api.delete(`/measurements/${m._id}`);
-      toast.success('Medición eliminada');
+      notify.success('Medición eliminada');
       await load();
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar la medición');
+      throw err;
     }
   };
 
@@ -86,30 +88,17 @@ export const MeasurementHistory = ({ patientId, refreshKey }: HistoryProps) => {
     <Card>
       <CardHeader><CardTitle className="text-lg">Mediciones registradas</CardTitle></CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left py-2 px-2">Fecha</th>
-                <th className="text-right py-2 px-2">Peso</th>
-                <th className="text-right py-2 px-2">% Grasa</th>
-                <th className="py-2 px-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((m) => (
-                <tr key={m._id} className="border-b border-border/50">
-                  <td className="py-2 px-2">{format(parseISO(m.date), 'dd/MM/yyyy')}</td>
-                  <td className="py-2 px-2 text-right">{m.weight ? `${m.weight} kg` : '-'}</td>
-                  <td className="py-2 px-2 text-right">{m.bodyFatPercentage ? `${m.bodyFatPercentage}%` : '-'}</td>
-                  <td className="py-2 px-2">
-                    <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          caption="Mediciones registradas"
+          rows={records}
+          rowKey={(m) => m._id}
+          columns={[
+            { key: 'date', header: 'Fecha', cell: (m) => format(parseISO(m.date), 'dd/MM/yyyy'), primary: true },
+            { key: 'weight', header: 'Peso', align: 'right', cell: (m) => (m.weight ? `${m.weight} kg` : '-') },
+            { key: 'fat', header: '% Grasa', align: 'right', cell: (m) => (m.bodyFatPercentage ? `${m.bodyFatPercentage}%` : '-') },
+          ]}
+          actions={(m) => <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />}
+        />
       </CardContent>
 
       <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
@@ -141,10 +130,11 @@ export const ExerciseHistory = ({ patientId, refreshKey }: HistoryProps) => {
   const handleDelete = async (e: ExerciseProgress) => {
     try {
       await api.delete(`/exercises/${e._id}`);
-      toast.success('Ejercicio eliminado');
+      notify.success('Ejercicio eliminado');
       await load();
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar el ejercicio');
+      throw err;
     }
   };
 
@@ -154,32 +144,18 @@ export const ExerciseHistory = ({ patientId, refreshKey }: HistoryProps) => {
     <Card>
       <CardHeader><CardTitle className="text-lg">Ejercicios registrados</CardTitle></CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left py-2 px-2">Fecha</th>
-                <th className="text-left py-2 px-2">Ejercicio</th>
-                <th className="text-center py-2 px-2">Series × Reps</th>
-                <th className="text-right py-2 px-2">Peso</th>
-                <th className="py-2 px-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((e) => (
-                <tr key={e._id} className="border-b border-border/50">
-                  <td className="py-2 px-2">{format(parseISO(e.date), 'dd/MM/yyyy')}</td>
-                  <td className="py-2 px-2 font-medium">{e.exerciseName}</td>
-                  <td className="py-2 px-2 text-center">{e.sets || '-'} × {e.reps || '-'}</td>
-                  <td className="py-2 px-2 text-right">{e.weight ? `${e.weight} ${e.weightUnit}` : '-'}</td>
-                  <td className="py-2 px-2">
-                    <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(e)} onDelete={() => handleDelete(e)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          caption="Ejercicios registrados"
+          rows={records}
+          rowKey={(e) => e._id}
+          columns={[
+            { key: 'date', header: 'Fecha', cell: (e) => format(parseISO(e.date), 'dd/MM/yyyy') },
+            { key: 'name', header: 'Ejercicio', cell: (e) => <span className="font-medium">{e.exerciseName}</span>, primary: true },
+            { key: 'sets', header: 'Series × Reps', align: 'center', cell: (e) => `${e.sets || '-'} × ${e.reps || '-'}` },
+            { key: 'weight', header: 'Peso', align: 'right', cell: (e) => (e.weight ? `${e.weight} ${e.weightUnit}` : '-') },
+          ]}
+          actions={(e) => <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(e)} onDelete={() => handleDelete(e)} />}
+        />
       </CardContent>
 
       <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>

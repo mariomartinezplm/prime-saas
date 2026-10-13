@@ -18,7 +18,7 @@ import {
 import { FileText, Image as ImageIcon, Upload, Download, Trash2, Loader2, X, MessageCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 import { getWhatsAppUrl } from '@/config/contact';
 import { getErrorMessage, showApiError } from '@/lib/apiError';
@@ -84,11 +84,11 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
   const pickFile = (file: File | undefined) => {
     if (!file) return;
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error('Formato no permitido. Sube un PDF, JPG o PNG');
+      notify.error('Formato no permitido. Sube un PDF, JPG o PNG');
       return;
     }
     if (file.size > MAX_SIZE_BYTES) {
-      toast.error('El archivo supera el máximo de 10 MB');
+      notify.error('El archivo supera el máximo de 10 MB');
       return;
     }
     setSelected(file);
@@ -110,7 +110,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
         fileName: name.trim() || selected.name,
         description: description.trim() || undefined,
       });
-      toast.success('Archivo subido');
+      notify.success('Archivo subido');
       resetForm();
       await load();
     } catch (err: unknown) {
@@ -131,7 +131,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
       else window.location.href = link.url;
     } catch (err: unknown) {
       tab?.close();
-      toast.error(getErrorMessage(err, 'No se pudo abrir el archivo'));
+      notify.error(getErrorMessage(err, 'No se pudo abrir el archivo'));
     } finally {
       setOpeningId(null);
     }
@@ -142,11 +142,11 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
     setDeleting(true);
     try {
       await fileService.remove(toDelete._id);
-      toast.success('Archivo eliminado');
+      notify.success('Archivo eliminado');
       setToDelete(null);
       await load();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'No se pudo eliminar el archivo'));
+      notify.error(getErrorMessage(err, 'No se pudo eliminar el archivo'));
     } finally {
       setDeleting(false);
     }
@@ -160,8 +160,8 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
         <CardHeader><CardTitle className="text-lg">Subir archivo</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {!canUpload ? (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm space-y-3">
-              <p className="text-amber-400">
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm space-y-3">
+              <p className="text-warning">
                 Tu plan venció. Puedes ver y descargar tus archivos, pero para subir nuevos necesitas renovar.
               </p>
               <Button asChild variant="outline" size="sm" className="w-full sm:w-auto h-auto whitespace-normal py-2">
@@ -248,7 +248,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
             </div>
           ) : loadError ? (
             <div className="text-sm text-center space-y-2 py-4">
-              <p className="text-red-400">No se pudieron cargar los archivos.</p>
+              <p className="text-destructive">No se pudieron cargar los archivos.</p>
               <Button variant="outline" size="sm" onClick={load}>Reintentar</Button>
             </div>
           ) : files.length === 0 ? (
@@ -286,7 +286,7 @@ const PatientFilesTab = ({ patientId, canUpload = true }: PatientFilesTabProps) 
                       onClick={() => setToDelete(file)}
                       aria-label={`Eliminar ${file.fileName}`}
                     >
-                      <Trash2 className="h-4 w-4 text-red-400" />
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   )}
                 </div>

@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { getWhatsAppUrl } from '@/config/contact';
 
 interface ApiErrorResponse {
@@ -25,7 +25,7 @@ export function showApiError(err: unknown, fallback: string) {
   const message = error.response?.data?.message || fallback;
 
   if (error.response?.data?.code === PLAN_EXPIRED_CODE) {
-    toast.error(message, {
+    notify.error(message, {
       action: {
         label: 'Renovar por WhatsApp',
         onClick: () => window.open(getWhatsAppUrl('Hola, quiero renovar mi plan en Prime F&H'), '_blank'),
@@ -35,7 +35,7 @@ export function showApiError(err: unknown, fallback: string) {
   }
 
   if (error.response?.data?.code === PAYMENT_PENDING_CODE) {
-    toast.error(message, {
+    notify.error(message, {
       action: {
         label: 'Pagar por WhatsApp',
         onClick: () => window.open(getWhatsAppUrl('Hola, quiero pagar mi renovación en Prime F&H'), '_blank'),
@@ -44,5 +44,5 @@ export function showApiError(err: unknown, fallback: string) {
     return;
   }
 
-  toast.error(message);
+  notify.error(message);
 }

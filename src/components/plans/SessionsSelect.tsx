@@ -12,15 +12,18 @@ interface SessionsSelectProps {
   value: SessionsChoice;
   onChange: (value: SessionsChoice) => void;
   className?: string;
+  // Para enlazar con una <Label htmlFor>; si no hay etiqueta visible, se usa ariaLabel
+  id?: string;
+  ariaLabel?: string;
 }
 
-const SessionsSelect = ({ serviceType, value, onChange, className }: SessionsSelectProps) => (
+const SessionsSelect = ({ serviceType, value, onChange, className, id, ariaLabel = 'Sesiones por mes' }: SessionsSelectProps) => (
   <Select
     key={serviceType}
     value={String(value)}
     onValueChange={(v) => onChange(v === UNLIMITED ? UNLIMITED : Number(v))}
   >
-    <SelectTrigger className={className}><SelectValue /></SelectTrigger>
+    <SelectTrigger id={id} aria-label={id ? undefined : ariaLabel} className={className}><SelectValue /></SelectTrigger>
     <SelectContent>
       {sessionChoicesFor(serviceType).map((choice) => (
         <SelectItem key={choice} value={String(choice)}>{choiceLabel(choice)}</SelectItem>

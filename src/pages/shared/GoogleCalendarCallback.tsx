@@ -51,7 +51,7 @@ const GoogleCalendarCallback = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-4 text-center">
       {status === 'loading' && <Loader2 className="h-10 w-10 animate-spin text-secondary" />}
-      {status === 'success' && <CheckCircle2 className="h-10 w-10 text-green-500" />}
+      {status === 'success' && <CheckCircle2 className="h-10 w-10 text-success" />}
       {status === 'error' && <XCircle className="h-10 w-10 text-destructive" />}
       <p className="text-foreground">{message}</p>
     </div>

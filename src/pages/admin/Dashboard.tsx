@@ -1,161 +1,242 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { appointmentService } from '@/services/appointmentService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, Calendar, UserPlus, ClipboardList, Clock } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import WellnessTrendsSummary from '@/components/wellness/WellnessTrendsSummary';
-import type { DashboardStats, Appointment } from '@/types';
+import { dayKey, parseDay, personId, personName } from '@/lib/appointments';
+import { todayLocal } from '@/lib/evolutionDate';
+import { capitalizeFirst } from '@/lib/utils';
+import { CalendarDays, CalendarX, CalendarClock, TriangleAlert, UserPlus, Users } from 'lucide-react';
+import { addDays, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import type { Appointment } from '@/types';
+
+const dayOf = (apt: Appointment) => dayKey(apt.date);
+
+const timeRange = (apt: Appointment) => `${apt.startTime} – ${apt.endTime}`;
+
+const StatCard = ({
+  to,
+  title,
+  value,
+  hint,
+  icon: Icon,
+  className,
+}: {
+  to: string;
+  title: string;
+  value: string;
+  hint: string;
+  icon: typeof Users;
+  className?: string;
+}) => (
+  <Link
+    to={to}
+    className={`group block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${className ?? ''}`}
+  >
+    <Card className="h-full transition-colors group-hover:bg-accent/40">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2 sm:p-6 sm:pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      </CardHeader>
+      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+        <p className="text-2xl font-semibold tracking-tight sm:text-3xl">{value}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+      </CardContent>
+    </Card>
+  </Link>
+);
 
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
+  const isAdmin = user?.role === 'admin';
+  const [patients, setPatients] = useState<{ total: number; active: number } | null>(null);
+  // null = no se pudo cargar (se distingue de "0 citas")
+  const [appointments, setAppointments] = useState<Appointment[] | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [dashStats, today] = await Promise.all([
-          userService.getDashboardStats(),
-          appointmentService.getToday(),
-        ]);
-        setStats(dashStats);
-        setTodayAppointments(today);
-      } catch {
-        // Silently handle errors
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+  const load = useCallback(async () => {
+    setLoading(true);
+    const from = todayLocal();
+    const to = format(addDays(new Date(), 7), 'yyyy-MM-dd');
+    // El servidor limita cada respuesta al alcance de quien pregunta (profesional: sus pacientes y sus citas).
+    const [all, active, upcoming] = await Promise.allSettled([
+      userService.getAll({ role: 'patient', limit: 1 }),
+      userService.getAll({ role: 'patient', isActive: true, limit: 1 }),
+      appointmentService.getAll({ status: 'scheduled', from, to }),
+    ]);
+    setPatients(all.status === 'fulfilled' && active.status === 'fulfilled' ? { total: all.value.total, active: active.value.total } : null);
+    setAppointments(upcoming.status === 'fulfilled' ? upcoming.value : null);
+    setLoading(false);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) return <LoadingState label="Cargando tu panel…" />;
+
+  const today = todayLocal();
+  const todayList = appointments?.filter((a) => dayOf(a) === today) ?? [];
+  const nextDays = appointments?.filter((a) => dayOf(a) > today) ?? [];
+  const failed = patients === null || appointments === null;
+
+  const todayLabel = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">
-          Dashboard
-        </h1>
-        <p className="text-muted-foreground">
-          Bienvenido, {user?.firstName}. Resumen de tu centro.
-        </p>
+      <PageHeader
+        title={`Hola, ${user?.firstName ?? ''}`}
+        description={capitalizeFirst(todayLabel)}
+        actions={
+          <>
+            <Button asChild variant="outline">
+              <Link to="/app/admin/calendario">
+                <CalendarDays aria-hidden="true" />
+                Ver calendario
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to="/app/admin/registro">
+                <UserPlus aria-hidden="true" />
+                Registrar paciente
+              </Link>
+            </Button>
+          </>
+        }
+      />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar algunos datos del panel.</span>
+            <Button variant="outline" size="sm" onClick={load}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <StatCard
+          to="/app/admin/pacientes"
+          title={isAdmin ? 'Pacientes' : 'Mis pacientes'}
+          value={patients ? String(patients.total) : '—'}
+          hint={patients ? `${patients.active} activos` : 'Sin datos'}
+          icon={Users}
+          className="col-span-2 sm:col-span-1"
+        />
+        <StatCard
+          to="/app/admin/calendario"
+          title="Citas de hoy"
+          value={appointments ? String(todayList.length) : '—'}
+          hint={appointments ? 'programadas' : 'Sin datos'}
+          icon={CalendarDays}
+        />
+        <StatCard
+          to="/app/admin/calendario"
+          title="Próximos 7 días"
+          value={appointments ? String(nextDays.length) : '—'}
+          hint={appointments ? 'citas, sin contar hoy' : 'Sin datos'}
+          icon={CalendarClock}
+        />
       </div>
 
-      {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Pacientes</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-lg">Agenda de hoy</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats?.totalPatients || 0}</p>
-            <p className="text-xs text-muted-foreground">
-              {stats?.activePatients || 0} activos
-            </p>
+            {appointments === null ? (
+              <p className="text-sm text-muted-foreground">No se pudo cargar la agenda.</p>
+            ) : todayList.length === 0 ? (
+              <EmptyState
+                icon={CalendarX}
+                title="No hay citas programadas para hoy"
+                action={
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/app/admin/calendario">Ver calendario</Link>
+                  </Button>
+                }
+              />
+            ) : (
+              <ul className="space-y-2">
+                {todayList.map((apt) => {
+                  const id = personId(apt.patient);
+                  const name = personName(apt.patient, 'Paciente');
+                  return (
+                    <li key={apt._id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {id ? (
+                            <Link to={`/app/admin/pacientes/${id}`} className="hover:underline">
+                              {name}
+                            </Link>
+                          ) : (
+                            name
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {appointmentTypeLabels[apt.type]}
+                          {isAdmin && ` · con ${personName(apt.professional, 'profesional')}`}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <p className="text-sm font-semibold tabular-nums">{timeRange(apt)}</p>
+                        {apt.outsideCapacity && <Badge variant="accent">Sobre cupo</Badge>}
+                        {apt.overbooked && <Badge variant="warning">Sobrecupo</Badge>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Citas Hoy</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Próximos días</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{todayAppointments.length}</p>
-            <p className="text-xs text-muted-foreground">sesiones programadas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Próximas</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {stats?.upcomingAppointments?.length || 0}
-            </p>
-            <p className="text-xs text-muted-foreground">citas esta semana</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Acciones</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start text-xs"
-              onClick={() => navigate('/app/admin/registro')}
-            >
-              <UserPlus className="h-3 w-3 mr-1" />
-              Registrar paciente
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start text-xs"
-              onClick={() => navigate('/app/admin/calendario')}
-            >
-              <Calendar className="h-3 w-3 mr-1" />
-              Ver calendario
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Today's agenda */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Agenda del Día</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {todayAppointments.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No hay citas programadas para hoy</p>
-          ) : (
-            <div className="space-y-3">
-              {todayAppointments.map((apt) => {
-                const patient = typeof apt.patient === 'object' ? apt.patient : null;
-                return (
-                  <div
-                    key={apt._id}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">
-                        {patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente'}
+            {appointments === null ? (
+              <p className="text-sm text-muted-foreground">No se pudieron cargar las próximas citas.</p>
+            ) : nextDays.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay citas programadas en los próximos 7 días.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {nextDays.slice(0, 6).map((apt) => (
+                  <li key={apt._id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{personName(apt.patient, 'Paciente')}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {capitalizeFirst(format(parseDay(apt.date), "EEE d 'de' MMM", { locale: es }))}
                       </p>
-                      <p className="text-xs text-muted-foreground capitalize">{apt.type}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{apt.startTime} - {apt.endTime}</p>
-                      <p className="text-xs text-secondary capitalize">{apt.status}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    <p className="shrink-0 text-sm tabular-nums text-muted-foreground">{apt.startTime}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {nextDays.length > 6 && (
+              <Button asChild variant="link" size="sm" className="mt-2 h-auto p-0">
+                <Link to="/app/admin/calendario">Ver las {nextDays.length} citas en el calendario</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <WellnessTrendsSummary />
     </div>

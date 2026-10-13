@@ -1,4 +1,5 @@
 import type { Measurement } from '@/types';
+import { CHART } from '@/lib/chartColors';
 
 export const PERIMETER_LABELS: Record<string, string> = {
   shoulders: 'Hombros',
@@ -17,15 +18,15 @@ export const PERIMETER_LABELS: Record<string, string> = {
 };
 
 export const JUMP_TEST_LABELS: Record<string, { label: string; description: string; color: string }> = {
-  cmj: { label: 'CMJ', description: 'Counter Movement Jump', color: '#398CA2' },
-  sj: { label: 'SJ', description: 'Squat Jump', color: '#2F7A8F' },
-  cmjLeftLeg: { label: 'CMJ Unipodal Izq', description: 'CMJ Unipodal Pie Izquierdo', color: '#4BA5BC' },
-  cmjRightLeg: { label: 'CMJ Unipodal Der', description: 'CMJ Unipodal Pie Derecho', color: '#5BB5CC' },
-  sjLeftLeg: { label: 'SJ Unipodal Izq', description: 'SJ Unipodal Pie Izquierdo', color: '#6BC5DC' },
-  sjRightLeg: { label: 'SJ Unipodal Der', description: 'SJ Unipodal Pie Derecho', color: '#7BD5EC' },
-  dropJump: { label: 'Drop Jump', description: 'Salto desde altura', color: '#F59E0B' },
-  abalakov: { label: 'Abalakov', description: 'Salto con impulso de brazos', color: '#8B5CF6' },
-  horizontalJump: { label: 'Salto Horizontal', description: 'Salto longitudinal', color: '#D946EF' },
+  cmj: { label: 'CMJ', description: 'Counter Movement Jump', color: CHART.primary },
+  sj: { label: 'SJ', description: 'Squat Jump', color: CHART.secondary },
+  cmjLeftLeg: { label: 'CMJ Unipodal Izq', description: 'CMJ Unipodal Pie Izquierdo', color: CHART.info },
+  cmjRightLeg: { label: 'CMJ Unipodal Der', description: 'CMJ Unipodal Pie Derecho', color: CHART.success },
+  sjLeftLeg: { label: 'SJ Unipodal Izq', description: 'SJ Unipodal Pie Izquierdo', color: CHART.coral },
+  sjRightLeg: { label: 'SJ Unipodal Der', description: 'SJ Unipodal Pie Derecho', color: CHART.warning },
+  dropJump: { label: 'Drop Jump', description: 'Salto desde altura', color: CHART.coral },
+  abalakov: { label: 'Abalakov', description: 'Salto con impulso de brazos', color: CHART.info },
+  horizontalJump: { label: 'Salto Horizontal', description: 'Salto longitudinal', color: CHART.secondary },
 };
 
 export interface MetricPoint {
@@ -43,10 +44,10 @@ export interface MetricDefinition {
 }
 
 export const GENERAL_METRICS: MetricDefinition[] = [
-  { key: 'weight', label: 'Peso', unit: 'kg', decimals: 1, color: '#398CA2', read: (m) => m.weight },
-  { key: 'bodyFat', label: '% Grasa', unit: '%', decimals: 1, color: '#F59E0B', read: (m) => m.bodyFatPercentage },
-  { key: 'muscle', label: '% Músculo', unit: '%', decimals: 1, color: '#10B981', read: (m) => m.muscleMassPercentage },
-  { key: 'bmi', label: 'IMC', unit: '', decimals: 1, color: '#8B5CF6', read: (m) => m.bmi },
+  { key: 'weight', label: 'Peso', unit: 'kg', decimals: 1, color: CHART.primary, read: (m) => m.weight },
+  { key: 'bodyFat', label: '% Grasa', unit: '%', decimals: 1, color: CHART.warning, read: (m) => m.bodyFatPercentage },
+  { key: 'muscle', label: '% Músculo', unit: '%', decimals: 1, color: CHART.success, read: (m) => m.muscleMassPercentage },
+  { key: 'bmi', label: 'IMC', unit: '', decimals: 1, color: CHART.info, read: (m) => m.bmi },
 ];
 
 export const PERIMETER_METRICS: MetricDefinition[] = Object.entries(PERIMETER_LABELS).map(([key, label]) => ({
@@ -54,7 +55,7 @@ export const PERIMETER_METRICS: MetricDefinition[] = Object.entries(PERIMETER_LA
   label,
   unit: 'cm',
   decimals: 1,
-  color: '#398CA2',
+  color: CHART.primary,
   read: (m: Measurement) => m.perimeters?.[key as keyof NonNullable<Measurement['perimeters']>] as number | undefined,
 }));
 

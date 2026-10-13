@@ -1,157 +1,170 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { addHours, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { CalendarClock, CalendarPlus, CalendarX, History, TriangleAlert, X } from 'lucide-react';
 import { appointmentService } from '@/services/appointmentService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { format, parseISO, isBefore, addHours } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { X, Loader2, CalendarPlus } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { AppointmentStatusBadge } from '@/components/shared/StatusBadge';
+import { appointmentTypeLabels } from '@/components/shared/statusMeta';
+import { PATIENT_CANCEL_AHEAD_HOURS } from '@/config/bookingRules';
+import { appointmentEnd, appointmentStart, parseDay, personName } from '@/lib/appointments';
+import { showApiError } from '@/lib/apiError';
+import { notify } from '@/lib/notify';
+import { capitalizeFirst } from '@/lib/utils';
 import type { Appointment } from '@/types';
 
-const statusColors: Record<string, string> = {
-  scheduled: 'bg-blue-500/20 text-blue-400',
-  completed: 'bg-green-500/20 text-green-400',
-  cancelled: 'bg-red-500/20 text-red-400',
-  'no-show': 'bg-yellow-500/20 text-yellow-400',
-};
+const AppointmentCard = ({
+  apt,
+  onCancel,
+}: {
+  apt: Appointment;
+  onCancel: (apt: Appointment) => void;
+}) => {
+  // Se puede cancelar mientras la cita no haya empezado. Con menos de 4 horas la sesión se pierde
+  // (lo decide el servidor); aquí solo se avisa en la confirmación.
+  const canCancel = apt.status === 'scheduled' && appointmentStart(apt) > new Date();
+  const [downloading, setDownloading] = useState(false);
 
-const statusLabels: Record<string, string> = {
-  scheduled: 'Programada',
-  completed: 'Completada',
-  cancelled: 'Cancelada',
-  'no-show': 'No asistió',
+  const addToCalendar = async () => {
+    setDownloading(true);
+    try {
+      await appointmentService.downloadICS(apt._id);
+    } catch (err) {
+      showApiError(err, 'No se pudo descargar el archivo de calendario');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <li className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 space-y-1">
+        <p className="font-medium">{capitalizeFirst(format(parseDay(apt.date), "EEEE d 'de' MMMM", { locale: es }))}</p>
+        <p className="text-sm tabular-nums text-muted-foreground">
+          {apt.startTime} – {apt.endTime}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {appointmentTypeLabels[apt.type]}
+          {typeof apt.professional === 'object' && <span className="text-secondary"> · {personName(apt.professional, '')}</span>}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <AppointmentStatusBadge status={apt.status} />
+        {apt.status === 'scheduled' && (
+          <Button variant="outline" size="sm" onClick={addToCalendar} disabled={downloading}>
+            <CalendarPlus aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only">Agregar a mi calendario</span>
+            <span className="sr-only sm:hidden">calendario</span>
+          </Button>
+        )}
+        {canCancel && (
+          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => onCancel(apt)}>
+            <X aria-hidden="true" />
+            Cancelar
+          </Button>
+        )}
+      </div>
+    </li>
+  );
 };
 
 const MyAppointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [cancelling, setCancelling] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [reason, setReason] = useState('');
 
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
-
-  const fetchAppointments = async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setFailed(false);
     try {
-      const data = await appointmentService.getAll();
-      setAppointments(data);
+      setAppointments(await appointmentService.getAll());
     } catch {
-      toast.error('Error al cargar citas');
+      setFailed(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Se clasifica por la HORA de la cita, no por el día a medianoche: antes, en Chile, las citas
+  // de hoy caían en "Historial". Las "No asistió" no aparecían en ninguna pestaña.
   const now = new Date();
-  const upcoming = appointments.filter(
-    (a) => a.status === 'scheduled' && !isBefore(parseISO(a.date), now)
-  );
-  const past = appointments.filter(
-    (a) => a.status === 'completed' || (a.status === 'scheduled' && isBefore(parseISO(a.date), now))
-  );
-  const cancelled = appointments.filter((a) => a.status === 'cancelled');
+  const byStart = (a: Appointment, b: Appointment) => appointmentStart(a).getTime() - appointmentStart(b).getTime();
+  // Próximas: la más cercana primero. Historial y canceladas: la más reciente primero.
+  const upcoming = appointments.filter((a) => a.status === 'scheduled' && appointmentEnd(a) > now).sort(byStart);
+  const past = appointments
+    .filter((a) => a.status === 'completed' || a.status === 'no-show' || (a.status === 'scheduled' && appointmentEnd(a) <= now))
+    .sort((a, b) => byStart(b, a));
+  const cancelled = appointments.filter((a) => a.status === 'cancelled').sort((a, b) => byStart(b, a));
 
-  const canCancel = (apt: Appointment): boolean => {
-    if (apt.status !== 'scheduled') return false;
-    const aptDateTime = new Date(`${apt.date.split('T')[0]}T${apt.startTime}`);
-    return isBefore(addHours(now, 24), aptDateTime);
-  };
+  const refundsSession = cancelling ? appointmentStart(cancelling) > addHours(now, PATIENT_CANCEL_AHEAD_HOURS) : true;
 
-  const handleCancel = async () => {
-    if (!cancellingId) return;
-    setCancelling(true);
+  const confirmCancel = async () => {
+    if (!cancelling) return;
     try {
-      await appointmentService.cancel(cancellingId, cancelReason);
-      toast.success('Cita cancelada');
-      setCancelDialogOpen(false);
-      setCancelReason('');
-      setCancellingId(null);
-      fetchAppointments();
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Error al cancelar');
-    } finally {
-      setCancelling(false);
+      await appointmentService.cancel(cancelling._id, reason.trim());
+      notify.success('Cita cancelada');
+      setCancelling(null);
+      setReason('');
+      load();
+    } catch (err) {
+      showApiError(err, 'No se pudo cancelar la cita');
+      throw err;
     }
   };
 
-  const AppointmentCard = ({ apt }: { apt: Appointment }) => {
-    const professional = typeof apt.professional === 'object' ? apt.professional : null;
-    return (
-      <div className="flex items-center justify-between p-4 rounded-lg border border-border">
-        <div>
-          <p className="font-medium">
-            {format(parseISO(apt.date), "EEEE d 'de' MMMM", { locale: es })}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {apt.startTime} - {apt.endTime}
-          </p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-muted-foreground capitalize">{apt.type}</span>
-            {professional && (
-              <span className="text-xs text-secondary">
-                {professional.firstName} {professional.lastName}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge className={statusColors[apt.status]}>{statusLabels[apt.status]}</Badge>
-          {apt.status === 'scheduled' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              title="Agregar a mi calendario"
-              onClick={() => appointmentService.downloadICS(apt._id)}
-            >
-              <CalendarPlus className="h-4 w-4 text-secondary" />
-            </Button>
-          )}
-          {canCancel(apt) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setCancellingId(apt._id);
-                setCancelDialogOpen(true);
-              }}
-            >
-              <X className="h-4 w-4 text-destructive" />
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  };
+  if (loading) return <LoadingState label="Cargando tus citas…" />;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary" />
-      </div>
+  const renderList = (items: Appointment[], empty: React.ReactNode) =>
+    items.length === 0 ? (
+      empty
+    ) : (
+      <ul className="space-y-3">
+        {items.map((apt) => (
+          <AppointmentCard key={apt._id} apt={apt} onCancel={setCancelling} />
+        ))}
+      </ul>
     );
-  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Mis Citas</h1>
-        <p className="text-muted-foreground">Gestiona tus sesiones</p>
-      </div>
+      <PageHeader
+        title="Mis citas"
+        description="Gestiona tus sesiones"
+        actions={
+          <Button asChild>
+            <Link to="/app/reservar">
+              <CalendarPlus aria-hidden="true" />
+              Reservar hora
+            </Link>
+          </Button>
+        }
+      />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar tus citas.</span>
+            <Button variant="outline" size="sm" onClick={load}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="upcoming">
         <TabsList>
@@ -160,62 +173,57 @@ const MyAppointments = () => {
           <TabsTrigger value="cancelled">Canceladas ({cancelled.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upcoming" className="space-y-3 mt-4">
-          {upcoming.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tienes citas próximas</p>
-          ) : (
-            upcoming.map((apt) => <AppointmentCard key={apt._id} apt={apt} />)
+        <TabsContent value="upcoming" className="mt-4">
+          {renderList(
+            upcoming,
+            <EmptyState
+              icon={CalendarClock}
+              title="No tienes citas próximas"
+              description="Reserva tu próxima sesión cuando quieras."
+              action={
+                <Button asChild size="sm">
+                  <Link to="/app/reservar">Reservar hora</Link>
+                </Button>
+              }
+            />
           )}
         </TabsContent>
-
-        <TabsContent value="past" className="space-y-3 mt-4">
-          {past.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tienes citas anteriores</p>
-          ) : (
-            past.map((apt) => <AppointmentCard key={apt._id} apt={apt} />)
-          )}
+        <TabsContent value="past" className="mt-4">
+          {renderList(past, <EmptyState icon={History} title="Todavía no tienes citas anteriores" />)}
         </TabsContent>
-
-        <TabsContent value="cancelled" className="space-y-3 mt-4">
-          {cancelled.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tienes citas canceladas</p>
-          ) : (
-            cancelled.map((apt) => <AppointmentCard key={apt._id} apt={apt} />)
-          )}
+        <TabsContent value="cancelled" className="mt-4">
+          {renderList(cancelled, <EmptyState icon={CalendarX} title="No tienes citas canceladas" />)}
         </TabsContent>
       </Tabs>
 
-      {/* Cancel dialog */}
-      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancelar Cita</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              Si cancelas con al menos 4 horas de anticipación, la sesión se devuelve a tu plan.
-              Con menos de 4 horas, la sesión se pierde.
-            </p>
-            <div className="space-y-2">
-              <Label>Razón de cancelación (opcional)</Label>
-              <Input
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Motivo..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
-              Volver
-            </Button>
-            <Button variant="destructive" onClick={handleCancel} disabled={cancelling}>
-              {cancelling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirmar cancelación
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!cancelling}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelling(null);
+            setReason('');
+          }
+        }}
+        title="¿Cancelar esta cita?"
+        description={
+          refundsSession
+            ? `Faltan más de ${PATIENT_CANCEL_AHEAD_HOURS} horas: la sesión se devuelve a tu plan.`
+            : `Faltan menos de ${PATIENT_CANCEL_AHEAD_HOURS} horas: si cancelas ahora, la sesión se descuenta de tu plan.`
+        }
+        confirmLabel="Sí, cancelar cita"
+        cancelLabel="Volver"
+        destructive
+        onConfirm={confirmCancel}
+      >
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          maxLength={300}
+          rows={2}
+          placeholder="Motivo (opcional)"
+          aria-label="Motivo de la cancelación"
+        />
+      </ConfirmDialog>
     </div>
   );
 };

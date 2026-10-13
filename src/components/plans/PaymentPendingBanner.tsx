@@ -8,8 +8,8 @@ interface PaymentPendingBannerProps {
 }
 
 const PaymentPendingBanner = ({ paymentDueBy }: PaymentPendingBannerProps) => (
-  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm space-y-3">
-    <div className="flex gap-2 text-amber-400">
+  <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm space-y-3">
+    <div className="flex gap-2 text-warning">
       <Clock className="h-4 w-4 mt-0.5 shrink-0" />
       <p>
         <strong>Renovación pendiente de pago.</strong> Tienes hasta el {formatPaymentDeadline(paymentDueBy)} para pagar.

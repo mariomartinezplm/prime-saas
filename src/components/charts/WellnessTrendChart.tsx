@@ -1,3 +1,4 @@
+import { CHART } from '@/lib/chartColors';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import type { WellnessCheckin } from '@/types';
@@ -7,11 +8,11 @@ interface WellnessTrendChartProps {
 }
 
 const METRICS: Array<{ key: keyof WellnessCheckin; label: string; color: string }> = [
-  { key: 'sleep', label: 'Sueño', color: 'hsl(194 45% 44%)' },
-  { key: 'energy', label: 'Energía', color: 'hsl(38 92% 50%)' },
-  { key: 'stress', label: 'Calma', color: 'hsl(280 60% 55%)' },
-  { key: 'soreness', label: 'Cuerpo', color: 'hsl(340 75% 55%)' },
-  { key: 'mood', label: 'Ánimo', color: 'hsl(142 71% 40%)' },
+  { key: 'sleep', label: 'Sueño', color: CHART.primary },
+  { key: 'energy', label: 'Energía', color: CHART.warning },
+  { key: 'stress', label: 'Calma', color: CHART.info },
+  { key: 'soreness', label: 'Cuerpo', color: CHART.coral },
+  { key: 'mood', label: 'Ánimo', color: CHART.success },
 ];
 
 const WellnessTrendChart = ({ checkins }: WellnessTrendChartProps) => {

@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import LoadingState from '@/components/shared/LoadingState';
+import PageHeader from '@/components/shared/PageHeader';
+import { TriangleAlert } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BodyDiagram from '@/components/body/BodyDiagram';
 import MetricChart from '@/components/charts/MetricChart';
@@ -20,10 +24,11 @@ import api from '@/lib/api';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import RecordRowActions from '@/components/records/RecordRowActions';
+import DataTable from '@/components/shared/DataTable';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import type { Measurement } from '@/types';
 
 const MeasurementsEnhanced = () => {
@@ -31,6 +36,7 @@ const MeasurementsEnhanced = () => {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [activeTab, setActiveTab] = useState('perimeters');
   const [refreshKey, setRefreshKey] = useState(0);
   const [editing, setEditing] = useState<Measurement | null>(null);
@@ -38,21 +44,29 @@ const MeasurementsEnhanced = () => {
 
   useEffect(() => {
     if (!user) return;
+    setFailed(false);
     api.get(`/measurements/patient/${user.id}`)
       .then((res) => setMeasurements(res.data.data.measurements || []))
-      .catch(() => { })
+      // Si falla la carga se avisa: antes se mostraba como si no hubiera mediciones
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, [user, refreshKey]);
+
+  const retry = () => {
+    setLoading(true);
+    setRefreshKey((k) => k + 1);
+  };
 
   const canEdit = hasActivePlan === true;
 
   const handleDelete = async (m: Measurement) => {
     try {
       await api.delete(`/measurements/${m._id}`);
-      toast.success('Medición eliminada');
+      notify.success('Medición eliminada');
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       showApiError(err, 'No se pudo eliminar la medición');
+      throw err;
     }
   };
 
@@ -65,24 +79,16 @@ const MeasurementsEnhanced = () => {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingState label="Cargando tus mediciones…" />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Mediciones y Progreso</h1>
-          <p className="text-muted-foreground mt-1">
-            Monitorea tu evolución física y de rendimiento
-          </p>
-        </div>
-        <div className="flex flex-wrap items-start gap-3">
+      <PageHeader
+        title="Mediciones y progreso"
+        description="Monitorea tu evolución física y de rendimiento"
+        actions={
+          <>
           {latestMeasurement && (
             <div className="bg-gradient-section rounded-lg p-4 border border-border">
               <div className="text-xs text-muted-foreground mb-1">Última medición</div>
@@ -104,8 +110,21 @@ const MeasurementsEnhanced = () => {
               />
             )}
           </PatientRecordDialog>
-        </div>
-      </div>
+          </>
+        }
+      />
+
+      {failed && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>No se pudieron cargar tus mediciones.</span>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Tabs para diferentes vistas */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -280,34 +299,22 @@ const MeasurementsEnhanced = () => {
                 <CardTitle className="text-lg">Historial de Mediciones</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-2 text-muted-foreground font-semibold">Fecha</th>
-                        <th className="text-right py-3 px-2 text-muted-foreground font-semibold">Peso</th>
-                        <th className="text-right py-3 px-2 text-muted-foreground font-semibold">IMC</th>
-                        <th className="text-right py-3 px-2 text-muted-foreground font-semibold">% Grasa</th>
-                        {canEdit && <th className="py-3 px-2" />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {measurements.map((m, idx) => (
-                        <tr key={m._id} className={`border-b border-border/50 hover:bg-gradient-section transition-colors ${idx % 2 === 0 ? 'bg-background' : ''}`}>
-                          <td className="py-3 px-2 font-medium">{format(parseISO(m.date), 'dd/MM/yyyy')}</td>
-                          <td className="py-3 px-2 text-right">{m.weight ? `${m.weight} kg` : '-'}</td>
-                          <td className="py-3 px-2 text-right">{m.bmi ? m.bmi.toFixed(1) : '-'}</td>
-                          <td className="py-3 px-2 text-right">{m.bodyFatPercentage ? `${m.bodyFatPercentage}%` : '-'}</td>
-                          {canEdit && (
-                            <td className="py-3 px-2">
-                              <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  caption="Historial de mediciones"
+                  rows={measurements}
+                  rowKey={(m) => m._id}
+                  columns={[
+                    { key: 'date', header: 'Fecha', cell: (m) => format(parseISO(m.date), 'dd/MM/yyyy'), primary: true },
+                    { key: 'weight', header: 'Peso', align: 'right', cell: (m) => (m.weight ? `${m.weight} kg` : '-') },
+                    { key: 'bmi', header: 'IMC', align: 'right', cell: (m) => (m.bmi ? m.bmi.toFixed(1) : '-') },
+                    { key: 'fat', header: '% Grasa', align: 'right', cell: (m) => (m.bodyFatPercentage ? `${m.bodyFatPercentage}%` : '-') },
+                  ]}
+                  actions={
+                    canEdit
+                      ? (m) => <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />
+                      : undefined
+                  }
+                />
               </CardContent>
             </Card>
           )}

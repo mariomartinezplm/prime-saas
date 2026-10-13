@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -11,12 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { availabilityService } from '@/services/availabilityService';
 import { appointmentService } from '@/services/appointmentService';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
 import { format, addWeeks, addDays, parseISO, getDay, isBefore, addHours } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
+import { MIN_BOOKING_AHEAD_HOURS } from '@/config/bookingRules';
+import { capitalizeFirst } from '@/lib/utils';
 import type { User, ClientPlan } from '@/types';
 
 interface BulkBookingDialogProps {
@@ -41,8 +44,10 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
   const [booking, setBooking] = useState(false);
   const [preview, setPreview] = useState<string[]>([]);
 
-  const planEnd = parseISO(plan.endDate);
-  const planStart = parseISO(plan.startDate);
+  // Memorizados: si se recrearan en cada render, el efecto de abajo (que actualiza el estado)
+  // se volvería a ejecutar sin parar.
+  const planEnd = useMemo(() => parseISO(plan.endDate), [plan.endDate]);
+  const planStart = useMemo(() => parseISO(plan.startDate), [plan.startDate]);
 
   useEffect(() => {
     if (selectedDay && professional) {
@@ -81,7 +86,7 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
       const [firstHours, firstMinutes] = selectedTime.split(':').map(Number);
       const firstOccurrence = new Date(current);
       firstOccurrence.setHours(firstHours, firstMinutes, 0, 0);
-      if (isBefore(firstOccurrence, addHours(now, 4))) {
+      if (isBefore(firstOccurrence, addHours(now, MIN_BOOKING_AHEAD_HOURS))) {
         current = addDays(current, 7);
       }
 
@@ -114,9 +119,9 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
         })),
       });
 
-      toast.success(`${result.created.length} citas reservadas exitosamente`);
+      notify.success(`${result.created.length} citas reservadas exitosamente`);
       if (result.skipped.length > 0) {
-        toast.warning(`${result.skipped.length} horarios no se pudieron reservar`);
+        notify.warning(`${result.skipped.length} horarios no se pudieron reservar`);
       }
       onClose();
     } catch (err: unknown) {
@@ -127,22 +132,21 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(next) => !next && !booking && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Reserva Masiva</DialogTitle>
+          <DialogTitle>Horario predeterminado</DialogTitle>
+          <DialogDescription>
+            Reserva el mismo horario todas las semanas dentro de tu plan ({SERVICE_TYPE_LABELS[plan.serviceType]}).
+            Rango: {format(planStart, 'dd/MM/yyyy')} – {format(planEnd, 'dd/MM/yyyy')}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <p className="text-sm text-muted-foreground">
-            Reserva el mismo horario todas las semanas dentro de tu plan ({SERVICE_TYPE_LABELS[plan.serviceType]}).
-            Rango: {format(planStart, 'dd/MM/yyyy')} - {format(planEnd, 'dd/MM/yyyy')}
-          </p>
-
           <div className="space-y-2">
-            <Label>Día de la semana</Label>
+            <Label htmlFor="bulk-day">Día de la semana</Label>
             <Select value={selectedDay} onValueChange={setSelectedDay}>
-              <SelectTrigger>
+              <SelectTrigger id="bulk-day">
                 <SelectValue placeholder="Seleccionar día" />
               </SelectTrigger>
               <SelectContent>
@@ -157,9 +161,9 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
 
           {availableTimes.length > 0 && (
             <div className="space-y-2">
-              <Label>Horario</Label>
+              <Label htmlFor="bulk-time">Horario</Label>
               <Select value={selectedTime} onValueChange={setSelectedTime}>
-                <SelectTrigger>
+                <SelectTrigger id="bulk-time">
                   <SelectValue placeholder="Seleccionar hora" />
                 </SelectTrigger>
                 <SelectContent>
@@ -179,7 +183,7 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
               <div className="max-h-40 overflow-y-auto rounded border border-border p-2 space-y-1">
                 {preview.map((date) => (
                   <p key={date} className="text-sm text-muted-foreground">
-                    {format(parseISO(date), "EEEE d 'de' MMMM", { locale: es })}
+                    {capitalizeFirst(format(parseISO(date), "EEEE d 'de' MMMM", { locale: es }))}
                   </p>
                 ))}
               </div>
@@ -191,15 +195,11 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
           <Button variant="outline" onClick={onClose} disabled={booking}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleBulkBook}
-            disabled={booking || preview.length === 0}
-            className="bg-secondary hover:bg-secondary/90"
-          >
+          <Button onClick={handleBulkBook} disabled={booking || preview.length === 0}>
             {booking ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Reservando...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                Reservando…
               </>
             ) : (
               `Reservar ${preview.length} citas`

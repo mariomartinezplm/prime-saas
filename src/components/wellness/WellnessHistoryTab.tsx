@@ -65,7 +65,7 @@ const WellnessHistoryTab = ({ patientId }: WellnessHistoryTabProps) => {
                     {format(parseISO(checkin.date), "d 'de' MMMM", { locale: es })}
                   </p>
                   {flagged && (
-                    <p className="text-xs text-amber-400 mt-0.5">Respuesta muy baja en una pregunta</p>
+                    <p className="text-xs text-warning mt-0.5">Respuesta muy baja en una pregunta</p>
                   )}
                   {checkin.notes && (
                     <p className="text-xs text-muted-foreground mt-0.5 italic">"{checkin.notes}"</p>
