@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -156,6 +156,12 @@ const Sidebar = React.forwardRef<
         <SheetContent
           data-sidebar="sidebar"
           data-mobile="true"
+          // Radix enfoca el primer elemento que NO es un enlace (aquí 'Cerrar sesión', el último del menú);
+          // se enfoca el primer enlace para que Tab recorra el menú en orden.
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            (event.currentTarget as HTMLElement).querySelector<HTMLElement>("a[href], button")?.focus();
+          }}
           className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
           style={
             {
@@ -164,6 +170,9 @@ const Sidebar = React.forwardRef<
           }
           side={side}
         >
+          {/* Sin título el diálogo del menú no tiene nombre para un lector de pantalla */}
+          <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
+          <SheetDescription className="sr-only">Secciones de Prime F&H</SheetDescription>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
       </Sheet>
@@ -421,8 +430,8 @@ const sidebarMenuButtonVariants = cva(
           "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
       },
       size: {
-        default: "h-8 text-sm",
-        sm: "h-7 text-xs",
+        default: "h-8 text-sm [@media(pointer:coarse)]:h-11",
+        sm: "h-7 text-xs [@media(pointer:coarse)]:h-10",
         lg: "h-12 text-sm group-data-[collapsible=icon]:!p-0",
       },
     },
@@ -455,7 +464,9 @@ const SidebarMenuButton = React.forwardRef<
     />
   );
 
-  if (!tooltip) {
+  // El globo solo sirve con el menú colapsado en escritorio. Fuera de ahí NO se monta: aunque estuviera oculto,
+  // al enfocar el botón (p. ej. al abrir el menú en el celular) abría una capa que se tragaba el primer Esc.
+  if (!tooltip || isMobile || state !== "collapsed") {
     return button;
   }
 

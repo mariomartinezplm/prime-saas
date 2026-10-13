@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useRestoreFocus } from "@/hooks/useRestoreFocus";
 
 const Sheet = SheetPrimitive.Root;
 
@@ -52,10 +53,22 @@ interface SheetContentProps
     VariantProps<typeof sheetVariants> {}
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, children, ...props }, ref) => (
+  ({ side = "right", className, children, onCloseAutoFocus, ...props }, ref) => {
+    const { contentRef, onCloseAutoFocus: restoreFocus } = useRestoreFocus(onCloseAutoFocus);
+    // Estable entre renders: si cambiara, React lo llamaría con null y de nuevo en cada render y se anotaría
+    // como 'elemento previo' uno que ya está dentro del diálogo.
+    const setRefs = React.useCallback(
+      (node: HTMLDivElement | null) => {
+        contentRef(node);
+        if (typeof ref === "function") ref(node);
+        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      },
+      [contentRef, ref]
+    );
+    return (
     <SheetPortal>
       <SheetOverlay />
-      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+      <SheetPrimitive.Content ref={setRefs} onCloseAutoFocus={restoreFocus} className={cn(sheetVariants({ side }), className)} {...props}>
         {children}
         <SheetPrimitive.Close className="absolute right-4 top-4 -m-3 rounded-md p-3 opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-secondary hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
           <X className="h-4 w-4" />
@@ -63,7 +76,8 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
     </SheetPortal>
-  ),
+    );
+  },
 );
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 

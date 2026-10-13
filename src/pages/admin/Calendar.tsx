@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { TriangleAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +30,20 @@ const AdminCalendar = () => {
   const [professionals, setProfessionals] = useState<User[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState('all');
   const [selected, setSelected] = useState<Appointment | null>(null);
+
+  // El detalle se monta y desmonta con la cita elegida, así que el foco no vuelve solo: se anota la cita
+  // enfocada al abrirlo y se devuelve al cerrarlo (para quien navega con teclado).
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const openDetail = (appointment: Appointment) => {
+    returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setSelected(appointment);
+  };
+  const closeDetail = () => {
+    setSelected(null);
+    const target = returnFocus.current;
+    returnFocus.current = null;
+    requestAnimationFrame(() => target?.isConnected && target.focus());
+  };
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
@@ -103,7 +117,7 @@ const AdminCalendar = () => {
           <BlockSkeleton className="h-[520px]" />
         </SkeletonRegion>
       ) : isMobile ? (
-        <AgendaList appointments={appointments} date={date} onNavigate={setDate} onSelect={setSelected} />
+        <AgendaList appointments={appointments} date={date} onNavigate={setDate} onSelect={openDetail} />
       ) : (
         <Card>
           <CardContent className="p-4">
@@ -113,13 +127,13 @@ const AdminCalendar = () => {
               view={view}
               onNavigate={setDate}
               onView={setView}
-              onSelectEvent={(event) => setSelected(event.resource)}
+              onSelectEvent={(event) => openDetail(event.resource)}
             />
           </CardContent>
         </Card>
       )}
 
-      <AppointmentDetailDialog appointment={selected} onClose={() => setSelected(null)} onChanged={load} />
+      <AppointmentDetailDialog appointment={selected} onClose={closeDetail} onChanged={load} />
     </div>
   );
 };
