@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 import {
   LayoutDashboard,
   Calendar,
@@ -108,12 +109,30 @@ const AppSidebar = () => {
   const groups = isStaff ? staffNav : patientNav;
   const homePath = isStaff ? '/app/admin' : '/app/dashboard';
 
+  const { confirmLeave } = useUnsavedChangesApi();
+
   const closeMobileMenu = () => setOpenMobile(false);
 
+  // Ir a otra pantalla pregunta antes si hay un formulario a medias. Ctrl/Cmd/Shift + clic
+  // (abrir en otra pestaña) no pierde nada y sigue su curso normal.
+  const goTo = (to: string) => (event: React.MouseEvent) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+      closeMobileMenu();
+      return;
+    }
+    event.preventDefault();
+    confirmLeave(() => {
+      closeMobileMenu();
+      navigate(to);
+    });
+  };
+
   const handleLogout = () => {
-    closeMobileMenu();
-    logout();
-    navigate('/login');
+    confirmLeave(() => {
+      closeMobileMenu();
+      logout();
+      navigate('/login');
+    });
   };
 
   return (
@@ -121,7 +140,7 @@ const AppSidebar = () => {
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <Link
           to={homePath}
-          onClick={closeMobileMenu}
+          onClick={goTo(homePath)}
           aria-label="Prime F&H, ir al inicio"
           className="inline-flex w-fit rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
@@ -153,7 +172,7 @@ const AppSidebar = () => {
                   return (
                     <SidebarMenuItem key={item.path}>
                       <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                        <Link to={item.path} onClick={closeMobileMenu} aria-current={active ? 'page' : undefined}>
+                        <Link to={item.path} onClick={goTo(item.path)} aria-current={active ? 'page' : undefined}>
                           <item.icon className="h-4 w-4" aria-hidden="true" />
                           <span>{item.label}</span>
                         </Link>

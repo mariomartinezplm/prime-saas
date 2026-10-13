@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import EmptyState from '@/components/shared/EmptyState';
 import LoadingState from '@/components/shared/LoadingState';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import PageHeader from '@/components/shared/PageHeader';
 import { dayKey, parseDay } from '@/lib/appointments';
 import { showApiError } from '@/lib/apiError';
@@ -99,15 +100,23 @@ const AdminAvailability = () => {
 
   const dirty = useMemo(() => normalize(schedule) !== normalize(savedSchedule), [schedule, savedSchedule]);
 
-  useEffect(() => {
+  // Sin la lista de profesionales no hay horario que editar: si falla se avisa (antes quedaba un editor vacío)
+  const [professionalsError, setProfessionalsError] = useState(false);
+
+  const loadProfessionals = useCallback(() => {
+    setProfessionalsError(false);
     Promise.all([userService.getAll({ role: 'admin' }), userService.getAll({ role: 'professional' })])
       .then(([admins, profs]) => {
         const all = [...admins.users, ...profs.users];
         setProfessionals(all);
         if (all.length > 0 && user) setSelectedProfessional(user.id);
       })
-      .catch(() => {});
+      .catch(() => setProfessionalsError(true));
   }, [user]);
+
+  useEffect(() => {
+    loadProfessionals();
+  }, [loadProfessionals]);
 
   const loadAvailability = useCallback(async () => {
     if (!selectedProfessional) return;
@@ -233,7 +242,9 @@ const AdminAvailability = () => {
         }
       />
 
-      {loading ? (
+      {professionalsError ? (
+        <LoadErrorAlert message="No se pudo cargar la lista de profesionales, por eso no se muestra el horario." onRetry={loadProfessionals} />
+      ) : loading ? (
         <LoadingState label="Cargando horario…" />
       ) : loadError ? (
         <Alert variant="warning">

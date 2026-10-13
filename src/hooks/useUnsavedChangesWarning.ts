@@ -1,7 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useId } from 'react';
+import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 
-// Avisa antes de cerrar o recargar la pestaña si hay cambios sin guardar.
+// Marca un formulario como "con cambios sin guardar":
+// - avisa el navegador antes de cerrar o recargar la pestaña;
+// - avisa la app antes de salir por el menú, "Cerrar sesión" o cerrar el diálogo (ver UnsavedChangesContext).
 export function useUnsavedChangesWarning(dirty: boolean) {
+  const key = useId();
+  const { setDirty } = useUnsavedChangesApi();
+
+  useEffect(() => {
+    setDirty(key, dirty);
+    return () => setDirty(key, false);
+  }, [dirty, key, setDirty]);
+
   useEffect(() => {
     if (!dirty) return;
     const handler = (event: BeforeUnloadEvent) => {

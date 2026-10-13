@@ -15,6 +15,7 @@ import StatusLegend from '@/components/calendar/StatusLegend';
 import { toEvents } from '@/components/calendar/calendarUtils';
 import LoadingState from '@/components/shared/LoadingState';
 import PageHeader from '@/components/shared/PageHeader';
+import { notify } from '@/lib/notify';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Appointment, User } from '@/types';
 
@@ -37,7 +38,8 @@ const AdminCalendar = () => {
     if (!isAdmin) return;
     Promise.all([userService.getAll({ role: 'admin' }), userService.getAll({ role: 'professional' })])
       .then(([admins, profs]) => setProfessionals([...admins.users, ...profs.users]))
-      .catch(() => {});
+      // El calendario sigue funcionando; solo falta el filtro, y se dice
+      .catch(() => notify.error('No se pudo cargar la lista de profesionales: el filtro solo muestra "Todos". Recarga la página para intentarlo de nuevo.'));
   }, [isAdmin]);
 
   const load = useCallback(async () => {

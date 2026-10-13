@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { HeartPulse } from 'lucide-react';
+import EmptyState from '@/components/shared/EmptyState';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
+import LoadingState from '@/components/shared/LoadingState';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { wellnessService } from '@/services/wellnessService';
@@ -16,24 +19,34 @@ interface WellnessHistoryTabProps {
 const WellnessHistoryTab = ({ patientId }: WellnessHistoryTabProps) => {
   const [checkins, setCheckins] = useState<WellnessCheckin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setFailed(false);
     wellnessService.getPatientCheckins(patientId)
       .then(setCheckins)
-      .catch(() => {})
+      // Un fallo de carga no debe verse como "no hay check-ins"
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, [patientId]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) return <LoadingState label="Cargando bienestar…" className="py-8" />;
+
+  if (failed) return <LoadErrorAlert message="No se pudo cargar el historial de bienestar." onRetry={load} />;
 
   if (checkins.length === 0) {
-    return <p className="text-muted-foreground text-sm">Este paciente todavía no tiene check-ins de bienestar registrados</p>;
+    return (
+      <EmptyState
+        icon={HeartPulse}
+        title="Todavía no hay check-ins de bienestar"
+        description="Cuando el paciente complete su check-in diario, verás aquí su evolución."
+      />
+    );
   }
 
   return (

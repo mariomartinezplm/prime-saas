@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { HeartPulse, Loader2 } from 'lucide-react';
+import { HeartPulse } from 'lucide-react';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
+import LoadingState from '@/components/shared/LoadingState';
 import { wellnessService } from '@/services/wellnessService';
 import { STATUS_STYLES, formatScore } from './readinessConfig';
 import type { WellnessTrend } from '@/types';
@@ -11,13 +13,21 @@ const WellnessTrendsSummary = () => {
   const navigate = useNavigate();
   const [trends, setTrends] = useState<WellnessTrend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setFailed(false);
     wellnessService.getTrends()
       .then(setTrends)
-      .catch(() => {})
+      // Un fallo de carga no debe verse como "nadie ha registrado nada"
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <Card>
@@ -27,9 +37,9 @@ const WellnessTrendsSummary = () => {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
+          <LoadingState label="Cargando bienestar…" className="py-8" />
+        ) : failed ? (
+          <LoadErrorAlert message="No se pudo cargar el bienestar de los pacientes." onRetry={load} />
         ) : trends.length === 0 ? (
           <p className="text-muted-foreground text-sm">Nadie ha registrado un check-in esta semana todavía</p>
         ) : (

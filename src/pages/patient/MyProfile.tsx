@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { MessageCircle, Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,8 @@ import SubmitButton from '@/components/forms/SubmitButton';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
 import { DetailList, DetailRow } from '@/components/patients/DetailList';
 import PageHeader from '@/components/shared/PageHeader';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
+import LoadingState from '@/components/shared/LoadingState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -156,12 +158,25 @@ const PersonalDataCard = ({ user, onSaved }: { user: User; onSaved: (user: User)
 const MyProfile = () => {
   const { user, updateUser } = useAuth();
   const [balance, setBalance] = useState<SessionBalance | null>(null);
+  // Si no se pudo consultar el plan NO se dice "no tienes un plan activo": sería falso
+  const [balanceStatus, setBalanceStatus] = useState<'loading' | 'ok' | 'error'>('loading');
+  const userId = user?.id;
+
+  const loadBalance = useCallback(() => {
+    if (!userId) return;
+    setBalanceStatus('loading');
+    clientPlanService
+      .getBalance(userId)
+      .then((b) => {
+        setBalance(b);
+        setBalanceStatus('ok');
+      })
+      .catch(() => setBalanceStatus('error'));
+  }, [userId]);
 
   useEffect(() => {
-    if (user) {
-      clientPlanService.getBalance(user.id).then(setBalance).catch(() => {});
-    }
-  }, [user]);
+    loadBalance();
+  }, [loadBalance]);
 
   if (!user) return null;
 
@@ -233,7 +248,11 @@ const MyProfile = () => {
               <CardTitle className="text-lg">Mi plan</CardTitle>
             </CardHeader>
             <CardContent>
-              {balance?.hasActivePlan && balance.plan ? (
+              {balanceStatus === 'loading' ? (
+                <LoadingState label="Consultando tu plan…" className="py-6" />
+              ) : balanceStatus === 'error' ? (
+                <LoadErrorAlert message="No pudimos consultar tu plan." onRetry={loadBalance} />
+              ) : balance?.hasActivePlan && balance.plan ? (
                 <div className="space-y-4">
                   {balance.paymentPending && balance.paymentDueBy && <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />}
                   <DetailList>
