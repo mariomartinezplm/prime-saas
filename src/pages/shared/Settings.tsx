@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { googleCalendarService } from '@/services/googleCalendarService';
 import { wellnessService, type ReadinessReminder } from '@/services/wellnessService';
+import { disablePush, enablePush, getPushStatus, hasLocalSubscription, pushPermission, pushSupport } from '@/lib/push';
+import { Link } from 'react-router-dom';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -221,6 +223,131 @@ const ReadinessReminderCard = () => {
   );
 };
 
+// Notificaciones del DISPOSITIVO (push). Distintas de la campanita: llegan aunque la app esté cerrada, solo si
+// el servidor las tiene configuradas, el navegador las permite y la persona las activa en ESTE dispositivo.
+type PushState =
+  | { kind: 'loading' }
+  | { kind: 'unsupported' }
+  | { kind: 'needs-install' }
+  | { kind: 'not-configured' }
+  | { kind: 'blocked' }
+  | { kind: 'off'; publicKey: string }
+  | { kind: 'on' }
+  | { kind: 'error' };
+
+const PushNotificationsCard = () => {
+  const [state, setState] = useState<PushState>({ kind: 'loading' });
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setState({ kind: 'loading' });
+    const support = pushSupport();
+    if (support === 'unsupported') return setState({ kind: 'unsupported' });
+    if (support === 'needs-install') return setState({ kind: 'needs-install' });
+    try {
+      const status = await getPushStatus();
+      if (!status.configured || !status.publicKey) return setState({ kind: 'not-configured' });
+      if (pushPermission() === 'denied') return setState({ kind: 'blocked' });
+      if (await hasLocalSubscription()) return setState({ kind: 'on' });
+      setState({ kind: 'off', publicKey: status.publicKey });
+    } catch {
+      setState({ kind: 'error' });
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const turnOn = async (publicKey: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await enablePush(publicKey);
+      if (result === 'denied') setState({ kind: 'blocked' });
+      else {
+        setState({ kind: 'on' });
+        notify.success('Notificaciones activadas en este dispositivo');
+      }
+    } catch (err) {
+      notify.error(getErrorMessage(err, 'No se pudieron activar las notificaciones. Intenta de nuevo.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const turnOff = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await disablePush();
+      await load();
+      notify.success('Notificaciones desactivadas en este dispositivo');
+    } catch (err) {
+      notify.error(getErrorMessage(err, 'No se pudieron desactivar las notificaciones. Intenta de nuevo.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Notificaciones en este dispositivo</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Recibe en tu celular o computador el recordatorio del Readiness y el aviso de tus logros, aunque la app esté cerrada.
+          Los avisos llevan un texto general, sin datos de salud, porque pueden verse con la pantalla bloqueada.
+        </p>
+
+        {state.kind === 'loading' && <LoadingState label="Comprobando este dispositivo…" className="py-4" />}
+
+        {state.kind === 'error' && <LoadErrorAlert message="No pudimos comprobar las notificaciones." onRetry={load} />}
+
+        {state.kind === 'unsupported' && (
+          <p className="text-sm text-muted-foreground">Este navegador no permite notificaciones del dispositivo. La campanita de la app sigue funcionando.</p>
+        )}
+
+        {state.kind === 'needs-install' && (
+          <p className="text-sm text-muted-foreground">
+            En iPhone y iPad las notificaciones solo funcionan con la app instalada en la pantalla de inicio (iOS 16.4 o superior).{' '}
+            <Link to="/instalar" className="font-medium text-primary underline-offset-4 hover:underline">
+              Ver cómo instalarla
+            </Link>
+            .
+          </p>
+        )}
+
+        {state.kind === 'not-configured' && (
+          <p className="text-sm text-muted-foreground">Las notificaciones del dispositivo todavía no están disponibles. La campanita de la app sigue funcionando.</p>
+        )}
+
+        {state.kind === 'blocked' && (
+          <p className="text-sm text-muted-foreground">
+            Las notificaciones están bloqueadas en este navegador. Para activarlas, permítelas desde la configuración del sitio en tu navegador y vuelve aquí.
+          </p>
+        )}
+
+        {state.kind === 'off' && (
+          <Button size="sm" onClick={() => turnOn(state.publicKey)} disabled={busy} aria-busy={busy || undefined}>
+            {busy ? 'Activando…' : 'Activar en este dispositivo'}
+          </Button>
+        )}
+
+        {state.kind === 'on' && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-sm font-medium text-foreground">Activadas en este dispositivo</span>
+            <Button size="sm" variant="outline" onClick={turnOff} disabled={busy} aria-busy={busy || undefined}>
+              {busy ? 'Desactivando…' : 'Desactivar'}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const GoogleCalendarCard = () => {
   // null = todavía consultando; 'error' = no se pudo saber (no se muestra "Conectar" como si fuera cierto)
   const [status, setStatus] = useState<boolean | 'error' | null>(null);
@@ -342,6 +469,8 @@ const Settings = () => {
       <ChangePasswordCard />
 
       {user?.role === 'patient' && <ReadinessReminderCard />}
+
+      {user?.role === 'patient' && <PushNotificationsCard />}
 
       {isStaff && <GoogleCalendarCard />}
     </div>

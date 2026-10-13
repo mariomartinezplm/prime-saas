@@ -53,6 +53,8 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        // Notificaciones push (public/push-sw.js): se carga dentro del service worker generado
+        importScripts: ["push-sw.js"],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         // Sin runtimeCaching: la app nunca usó Supabase (config muerta, de un
         // scaffold anterior) y api.primefh.cl no debe cachearse — son datos
