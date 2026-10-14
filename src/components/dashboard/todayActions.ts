@@ -4,6 +4,7 @@ import { appointmentEnd, appointmentStart, dayKey } from '../../lib/appointments
 import { todayLocal } from '../../lib/evolutionDate';
 import { appointmentTypeLabels } from '../shared/statusMeta';
 import type { Appointment, SessionBalance } from '../../types';
+import type { ReadinessTodayStatus } from '../wellness/readinessStatus';
 
 /**
  * «Para hoy» del dashboard del paciente: qué conviene hacer ahora, calculado SOLO con datos que ya existen en la app
@@ -25,7 +26,10 @@ import type { Appointment, SessionBalance } from '../../types';
  * neutralidad («No tienes otras tareas para hoy»); nunca «todo en orden», porque no se puede saber.
  */
 
-export type ReadinessToday = 'loading' | 'pending' | 'done' | 'unknown';
+// El tipo vive junto a la tarjeta del Readiness (que es quien lo calcula); aquí solo se reutiliza
+export type ReadinessToday = ReadinessTodayStatus;
+// Qué se sabe del historial de planes de quien hoy no tiene plan vigente (solo se consulta en ese caso)
+export type PlanHistory = 'expired' | 'none' | 'upcoming' | 'unknown';
 export type TodayActionId = 'plan-expired' | 'session-live' | 'session-today' | 'readiness' | 'plan-used-up' | 'book-next';
 export type TodayTarget = 'readiness' | 'plan';
 
@@ -49,6 +53,8 @@ export interface TodayInput {
   upcoming: Appointment[] | null;
   balance: SessionBalance | null;
   readiness: ReadinessToday;
+  // Opcional: sin este dato se usa un texto neutral para el caso «sin plan vigente»
+  planHistory?: PlanHistory;
 }
 
 export interface TodayResult {
@@ -83,7 +89,7 @@ export const todayLabel = (now: Date): string => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
-export function computeTodayActions({ now, upcoming, balance, readiness }: TodayInput): TodayResult {
+export function computeTodayActions({ now, upcoming, balance, readiness, planHistory = 'unknown' }: TodayInput): TodayResult {
   const actions: TodayAction[] = [];
   const hasPlan = balance?.hasActivePlan === true;
   const today = todayLocal(now);
@@ -96,14 +102,21 @@ export function computeTodayActions({ now, upcoming, balance, readiness }: Today
   const later = todays.find((apt) => appointmentStart(apt) > now);
   const hasAnythingComing = (upcoming ?? []).some((apt) => apt.status === 'scheduled' && appointmentEnd(apt) > now);
 
-  // 1
+  // 1 (el texto distingue plan vencido, plan que aún no empieza y nunca haber tenido uno)
   if (balance && !balance.hasActivePlan) {
+    const wording: Record<PlanHistory, { title: string; detail: string; cta: string }> = {
+      expired: { title: 'Tu plan venció', detail: 'Contacta a Prime F&H para renovarlo y volver a agendar.', cta: 'Ver cómo renovar' },
+      none: { title: 'Aún no tienes un plan activo', detail: 'Contacta a Prime F&H para activar tu plan y agendar.', cta: 'Ver mi plan' },
+      upcoming: { title: 'Tu plan todavía no empieza', detail: 'Cuando comience podrás agendar tus sesiones.', cta: 'Ver mi plan' },
+      unknown: { title: 'No tienes un plan vigente', detail: 'Contacta a Prime F&H para activarlo o renovarlo.', cta: 'Ver mi plan' },
+    };
+    const text = wording[planHistory];
     actions.push({
       id: 'plan-expired',
-      title: 'Tu plan venció',
-      detail: 'Contacta a Prime F&H para renovarlo y volver a agendar.',
+      title: text.title,
+      detail: text.detail,
       urgent: true,
-      cta: { label: 'Ver cómo renovar', target: 'plan' },
+      cta: { label: text.cta, target: 'plan' },
     });
   }
 

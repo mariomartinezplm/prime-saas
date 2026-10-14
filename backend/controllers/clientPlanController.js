@@ -1,6 +1,6 @@
 import ClientPlan from '../models/ClientPlan.js';
 import User from '../models/User.js';
-import { getSessionBalance, getActivePlan } from '../services/clientPlanService.js';
+import { getSessionBalance, getActivePlan, toPatientPlanView } from '../services/clientPlanService.js';
 import {
   createTermPlans,
   settlePendingPlan,
@@ -130,9 +130,11 @@ export const getPatientPlans = async (req, res) => {
       });
     }
 
-    const clientPlans = await ClientPlan.find({ patient: patientId })
-      .populate('registeredBy', 'firstName lastName')
-      .sort({ createdAt: -1 });
+    // El personal ve el documento completo (con las notas y quién registró el plan); el paciente, solo los datos propios de su plan
+    let query = ClientPlan.find({ patient: patientId });
+    if (isStaff(req.user)) query = query.populate('registeredBy', 'firstName lastName');
+    const plans = await query.sort({ createdAt: -1 });
+    const clientPlans = isStaff(req.user) ? plans : plans.map(toPatientPlanView);
 
     res.status(200).json({
       success: true,
@@ -168,7 +170,9 @@ export const getBalance = async (req, res) => {
       });
     }
 
-    const balance = await getSessionBalance(patientId);
+    const full = await getSessionBalance(patientId);
+    // Mismo criterio que el historial: al paciente le llega su plan sin notas del personal ni campos internos
+    const balance = isStaff(req.user) ? full : { ...full, plan: toPatientPlanView(full.plan) };
 
     res.status(200).json({
       success: true,

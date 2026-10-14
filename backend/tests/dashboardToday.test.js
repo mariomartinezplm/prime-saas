@@ -126,11 +126,21 @@ describe('sesión hoy, futura y sin citas', () => {
 });
 
 describe('estado del plan', () => {
-  it('sin plan: «Tu plan venció», importante, y no ofrece reservar ni el Readiness', () => {
-    const r = calcular({ balance: sinPlan(), readiness: 'pending' });
+  it('plan vencido: «Tu plan venció», importante, y no ofrece reservar ni el Readiness', () => {
+    const r = calcular({ balance: sinPlan(), readiness: 'pending', planHistory: 'expired' });
     expect(ids(r)).toEqual(['plan-expired']);
+    expect(r.actions[0].title).toBe('Tu plan venció');
     expect(r.actions[0].urgent).toBe(true);
     expect(r.actions[0].cta).toEqual({ label: 'Ver cómo renovar', target: 'plan' });
+  });
+
+  it('sin plan vigente el texto distingue: nunca tuvo uno, todavía no empieza, o no se sabe (neutral)', () => {
+    expect(calcular({ balance: sinPlan(), planHistory: 'none' }).actions[0].title).toBe('Aún no tienes un plan activo');
+    expect(calcular({ balance: sinPlan(), planHistory: 'upcoming' }).actions[0].title).toBe('Tu plan todavía no empieza');
+    const neutral = calcular({ balance: sinPlan() });
+    expect(neutral.actions[0].title).toBe('No tienes un plan vigente');
+    expect(neutral.actions[0].title).not.toMatch(/venció/);
+    expect(neutral.actions[0].urgent).toBe(true);
   });
 
   it('plan vencido con una sesión hoy: primero el plan, después la sesión', () => {

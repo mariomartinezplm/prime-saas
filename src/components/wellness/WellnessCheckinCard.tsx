@@ -13,17 +13,20 @@ import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import SubmitButton from '@/components/forms/SubmitButton';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import ReadinessBars from './ReadinessBars';
+import { readinessStatusOf, type ReadinessTodayStatus } from './readinessStatus';
 import { READINESS_QUESTIONS, METRIC_LABELS, STATUS_STYLES, formatScore } from './readinessConfig';
 import type { WellnessCheckin, ReadinessKey } from '@/types';
 
 interface WellnessCheckinCardProps {
   hasActivePlan: boolean;
+  // Avisa si falta o ya se hizo el Readiness de hoy (el dashboard lo usa para «Para hoy»). Opcional: sin él, la tarjeta funciona igual.
+  onStatusChange?: (status: ReadinessTodayStatus) => void;
 }
 
 const TOTAL = READINESS_QUESTIONS.length;
 const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
+const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinCardProps) => {
   const { user } = useAuth();
   const [checkin, setCheckin] = useState<WellnessCheckin | null>(null);
   const [history, setHistory] = useState<WellnessCheckin[]>([]);
@@ -60,6 +63,11 @@ const WellnessCheckinCard = ({ hasActivePlan }: WellnessCheckinCardProps) => {
   useEffect(() => {
     loadToday();
   }, [loadToday]);
+
+  // Comunica el estado que la tarjeta ya conoce (sin pedirlo otra vez): al cargar, al fallar, al reintentar y al completar
+  useEffect(() => {
+    onStatusChange?.(readinessStatusOf({ loading, loadFailed, checkin }));
+  }, [loading, loadFailed, checkin, onStatusChange]);
 
   const handlePress = (value: number) => {
     if (step === null || step >= TOTAL) return;

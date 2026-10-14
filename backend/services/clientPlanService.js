@@ -9,6 +9,20 @@ async function selfHealExpiredPlan(patientId) {
   await advancePlans({ patientId });
 }
 
+// Lo que el PACIENTE puede ver de su plan: solo los datos propios del plan (lista cerrada). Quedan fuera las `notes` que escribe el
+// personal, quién lo registró (`registeredBy`) y los campos internos del sistema (ids de ciclo, avisos enviados). Si el modelo
+// agrega un campo nuevo, por defecto NO llega al paciente hasta que se agregue aquí.
+export const PATIENT_PLAN_FIELDS = [
+  '_id', 'patient', 'serviceType', 'sessionsTotal', 'unlimited', 'sessionsUsed', 'startDate', 'endDate', 'status',
+  'term', 'billingCycle', 'cycleNumber', 'cyclesTotal', 'renews', 'paymentPending', 'paymentDueBy', 'createdAt', 'updatedAt'
+];
+
+export function toPatientPlanView(plan) {
+  if (!plan) return plan;
+  const source = typeof plan.toObject === 'function' ? plan.toObject() : plan;
+  return Object.fromEntries(PATIENT_PLAN_FIELDS.filter((field) => source[field] !== undefined).map((field) => [field, source[field]]));
+}
+
 // Plan activo real (no vencido) del paciente, o null.
 export async function getActivePlan(patientId) {
   await selfHealExpiredPlan(patientId);
