@@ -166,6 +166,10 @@ const userSchema = new mongoose.Schema({
     default: undefined
   },
 
+  // Última vez que la persona abrió una sesión (ingreso, activación por invitación o cambio de contraseña). Sirve
+  // para que el personal vea si un paciente ya entró a la app; no se usa para nada más.
+  lastLoginAt: { type: Date },
+
   // Tokens de Google Calendar (Paso 28 de BLUEPRINT.md), cifrados en reposo con
   // AES-256-GCM (ver backend/utils/encryption.js) — nunca se guardan en texto
   // plano. select:false: mismo patrón que password, nunca salen por accidente

@@ -28,6 +28,13 @@ const emitirSesionNueva = async (res, user, req) => {
     ip: req.ip
   });
   setRefreshCookie(res, rawToken);
+
+  // Último ingreso (lo muestra el personal en la ficha). Un fallo aquí nunca debe impedir entrar.
+  try {
+    await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
+  } catch (error) {
+    console.error('No se pudo registrar el último ingreso:', error.message);
+  }
 };
 
 // Política de contraseñas (Paso 05 de BLUEPRINT.md). Debe coincidir con el

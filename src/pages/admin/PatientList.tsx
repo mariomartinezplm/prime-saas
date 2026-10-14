@@ -21,15 +21,17 @@ import PlanLine from '@/components/patients/PlanLine';
 import EmptyState from '@/components/shared/EmptyState';
 import { ListSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
-import { ActiveStatusBadge } from '@/components/shared/StatusBadge';
+import { ActiveStatusBadge, InviteStatusBadge } from '@/components/shared/StatusBadge';
+import { inviteStatusMeta } from '@/components/shared/statusMeta';
 import type { ServiceType } from '@/config/planCatalog';
 import { planInfoByPatient, type PatientPlanInfo, type PlanState } from '@/lib/patientPlan';
 import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
-import type { ClientPlan, User } from '@/types';
+import type { ClientPlan, InviteStatus, User } from '@/types';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 type PlanFilter = 'all' | 'with' | 'pending' | 'soon' | 'none';
+type InviteFilter = 'all' | InviteStatus;
 type SortKey = 'name' | 'recent' | 'planEnd';
 
 // Sin tildes ni mayúsculas: "matias" encuentra a "Matías"
@@ -65,6 +67,7 @@ const PatientList = () => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [planFilter, setPlanFilter] = useState<PlanFilter>('all');
+  const [inviteFilter, setInviteFilter] = useState<InviteFilter>('all');
   const [sort, setSort] = useState<SortKey>('name');
 
   const [importOpen, setImportOpen] = useState(false);
@@ -108,11 +111,12 @@ const PatientList = () => {
     }
   };
 
-  const filtersActive = search !== '' || status !== 'all' || planFilter !== 'all';
+  const filtersActive = search !== '' || status !== 'all' || planFilter !== 'all' || inviteFilter !== 'all';
   const clearFilters = () => {
     setSearch('');
     setStatus('all');
     setPlanFilter('all');
+    setInviteFilter('all');
   };
 
   const visible = useMemo(() => {
@@ -124,6 +128,7 @@ const PatientList = () => {
       if (status === 'active' && !p.isActive) return false;
       if (status === 'inactive' && p.isActive) return false;
       if (planInfo && planFilter !== 'all' && !planFilterMatches(planFilter, infoOf(p)?.state ?? 'none')) return false;
+      if (inviteFilter !== 'all' && p.inviteStatus !== inviteFilter) return false;
       if (!term) return true;
       return (
         normalize(`${p.firstName} ${p.lastName}`).includes(term) ||
@@ -142,7 +147,7 @@ const PatientList = () => {
       }
       return byName(a, b);
     });
-  }, [patients, planInfo, search, status, planFilter, sort]);
+  }, [patients, planInfo, search, status, planFilter, inviteFilter, sort]);
 
   const resetExtra = () => {
     setExtraPatientId('');
@@ -252,6 +257,21 @@ const PatientList = () => {
               </SelectContent>
             </Select>
           )}
+          {patients.some((p) => p.inviteStatus) && (
+            <Select value={inviteFilter} onValueChange={(v) => setInviteFilter(v as InviteFilter)}>
+              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filtrar por invitación">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Cualquier invitación</SelectItem>
+                {(Object.keys(inviteStatusMeta) as InviteStatus[]).map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {inviteStatusMeta[s].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="col-span-2 sm:col-span-1">
             <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
             <SelectTrigger className="w-full sm:w-[210px]" aria-label="Ordenar por">
@@ -346,6 +366,7 @@ const PatientList = () => {
                         </span>
                         {patient.isFounder && <FounderBadge compact />}
                         {patient.exemptFromCapacity && <Badge variant="accent">Sobre cupo</Badge>}
+                        {patient.inviteStatus && <InviteStatusBadge status={patient.inviteStatus} />}
                       </p>
                       <p className="truncate text-sm text-muted-foreground">{patient.email}</p>
                       {planInfo && <PlanLine info={planInfo.get(patient.id)} className="block" />}

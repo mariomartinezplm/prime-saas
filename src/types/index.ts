@@ -25,8 +25,13 @@ export interface User {
   isActive: boolean;
   assignedProfessional?: string;
   assignedProfessionalId?: User | string;
+  // Solo para el personal: en qué va la invitación del paciente, y la última vez que abrió una sesión
+  inviteStatus?: InviteStatus;
+  lastLoginAt?: string;
   createdAt: string;
 }
+
+export type InviteStatus = 'not_invited' | 'pending' | 'expired' | 'activated';
 
 export interface EmergencyContact {
   name: string;

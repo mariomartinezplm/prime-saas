@@ -17,6 +17,21 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
 // para las cuentas importadas.
 export const generateUnusablePassword = () => crypto.randomBytes(32).toString('hex');
 
+// Estado de la invitación de un PACIENTE, para que el personal sepa a quién falta seguirle la pista:
+//   not_invited  nunca se le envió invitación y no ha entrado
+//   pending      se le envió una invitación que todavía sirve (7 días)
+//   expired      la invitación venció sin usarse
+//   activated    ya activó su cuenta o ya entró alguna vez
+// Una invitación sin usar manda sobre lo demás (si el personal reenvía una a alguien que ya tenía cuenta, es
+// porque se está reiniciando su acceso, y eso es lo que importa ver). Los datos del token nunca salen de aquí.
+export const inviteStatusOf = (user, now = new Date()) => {
+  if (!user || user.role !== 'patient') return null;
+  const invite = user.invite;
+  if (invite?.tokenHash && !invite.usedAt) return new Date(invite.expiresAt) > now ? 'pending' : 'expired';
+  if (invite?.usedAt || user.lastLoginAt) return 'activated';
+  return 'not_invited';
+};
+
 export const createInvite = async (userId) => {
   const user = await User.findById(userId);
   if (!user) return;

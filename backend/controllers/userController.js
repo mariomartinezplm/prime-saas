@@ -7,7 +7,10 @@ import ClientPlan from '../models/ClientPlan.js';
 import { importNewPatients } from '../utils/airtableSync.js';
 import { canAccessPatient, ownedPatientsOr } from '../middleware/auth.js';
 import { escapeRegex } from '../middleware/sanitize.js';
-import { generateUnusablePassword, createInvite } from '../services/inviteService.js';
+import { generateUnusablePassword, createInvite, inviteStatusOf } from '../services/inviteService.js';
+
+// Documento de Mongoose → objeto plano (pasando por toJSON, que quita contraseñas y el token de invitación)
+const toPlain = (doc) => (typeof doc?.toJSON === 'function' ? doc.toJSON() : doc);
 import { toCSV } from '../utils/csv.js';
 import { SERVICE_TYPE_LABELS } from '../config/planCatalog.js';
 import { todayInSantiago } from '../utils/timezone.js';
@@ -94,13 +97,17 @@ export const getAllUsers = async (req, res) => {
 
     const total = await User.countDocuments(query);
 
+    // Para el personal, cada paciente lleva el estado de su invitación (nunca el token)
+    const listsPatientsForStaff = query.role === 'patient' && STAFF_ROLES.includes(req.user.role);
+    const payload = listsPatientsForStaff ? users.map((u) => ({ ...toPlain(u), inviteStatus: inviteStatusOf(u) })) : users;
+
     res.status(200).json({
       success: true,
       count: users.length,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / parseInt(limit)),
-      data: { users }
+      data: { users: payload }
     });
   } catch (error) {
     res.status(500).json({
@@ -482,10 +489,14 @@ export const getPatientProfile = async (req, res) => {
         .limit(5)
     ]);
 
+    // El estado de la invitación es solo para el personal; el propio paciente no lo necesita
+    const isStaffViewer = ['admin', 'professional'].includes(req.user.role);
+    const patientView = isStaffViewer ? { ...toPlain(patient), inviteStatus: inviteStatusOf(patient) } : patient;
+
     res.status(200).json({
       success: true,
       data: {
-        patient,
+        patient: patientView,
         stats: {
           totalAppointments: appointmentCount,
           totalMeasurements: measurements.length,

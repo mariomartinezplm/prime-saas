@@ -1,6 +1,6 @@
 import { Badge, type BadgeProps } from '@/components/ui/badge';
-import type { Appointment, ClientPlan } from '@/types';
-import { activeStatusMeta, appointmentStatusMeta, planStatusMeta, type StatusTone } from './statusMeta';
+import type { Appointment, ClientPlan, InviteStatus } from '@/types';
+import { activeStatusMeta, appointmentStatusMeta, inviteStatusMeta, planStatusMeta, type StatusTone } from './statusMeta';
 
 const toneVariant: Record<StatusTone, NonNullable<BadgeProps['variant']>> = {
   success: 'success',
@@ -27,6 +27,12 @@ export const AppointmentStatusBadge = ({ status, ...props }: { status: Appointme
 export const PlanStatusBadge = ({ status, ...props }: { status: ClientPlan['status'] } & Omit<BadgeProps, 'variant'>) => (
   <StatusBadge tone={planStatusMeta[status].tone} {...props}>
     {planStatusMeta[status].label}
+  </StatusBadge>
+);
+
+export const InviteStatusBadge = ({ status, ...props }: { status: InviteStatus } & Omit<BadgeProps, 'variant'>) => (
+  <StatusBadge tone={inviteStatusMeta[status].tone} title={inviteStatusMeta[status].hint} {...props}>
+    {inviteStatusMeta[status].label}
   </StatusBadge>
 );
 

@@ -46,7 +46,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import EmptyState from '@/components/shared/EmptyState';
 import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
-import { ActiveStatusBadge, AppointmentStatusBadge, StatusBadge } from '@/components/shared/StatusBadge';
+import { ActiveStatusBadge, AppointmentStatusBadge, InviteStatusBadge, StatusBadge } from '@/components/shared/StatusBadge';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress, formatPaymentDeadline } from '@/config/planCatalog';
 import { parseDay } from '@/lib/appointments';
@@ -163,6 +163,8 @@ const PatientDetail = () => {
     try {
       await userService.resendInvite(id!);
       notify.success('Invitación reenviada');
+      // El estado pasa a "Invitación enviada" sin tener que recargar la página
+      fetchData();
     } catch (err) {
       showApiError(err, 'No se pudo reenviar la invitación');
       throw err;
@@ -190,6 +192,7 @@ const PatientDetail = () => {
         badges={
           <>
             <ActiveStatusBadge isActive={patient.isActive} />
+            {patient.inviteStatus && <InviteStatusBadge status={patient.inviteStatus} />}
             {patient.isFounder && <FounderBadge />}
             {patient.exemptFromCapacity && (
               <Badge variant="accent" title="Puede agendar aunque el horario esté lleno; no cuenta en los 4 simultáneos">
@@ -288,6 +291,13 @@ const PatientDetail = () => {
                 <DetailList>
                   <DetailRow label="RUT">{patient.rut}</DetailRow>
                   <DetailRow label="Teléfono">{patient.phone}</DetailRow>
+                  <DetailRow label="Último ingreso a la app">
+                    {patient.lastLoginAt
+                      ? format(parseISO(patient.lastLoginAt), "dd/MM/yyyy 'a las' HH:mm")
+                      : patient.inviteStatus === 'activated'
+                        ? 'Sin registro (se anota desde su próximo ingreso)'
+                        : 'Todavía no ha entrado'}
+                  </DetailRow>
                   <DetailRow label="Fecha de nacimiento">
                     {patient.dateOfBirth ? format(parseISO(patient.dateOfBirth.slice(0, 10)), 'dd/MM/yyyy') : undefined}
                   </DetailRow>

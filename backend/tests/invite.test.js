@@ -155,9 +155,12 @@ describe('POST /auth/accept-invite/:token', () => {
     vi.spyOn(User, 'findOne').mockResolvedValue(userMock);
     const revokeSpy = vi.spyOn(RefreshToken, 'updateMany').mockResolvedValue({});
     vi.spyOn(RefreshToken, 'create').mockResolvedValue({});
+    const loginSpy = vi.spyOn(User, 'updateOne').mockResolvedValue({});
 
     await acceptInvite(req, res);
 
+    // Al activar la cuenta queda registrado el ingreso (lo ve el personal)
+    expect(loginSpy).toHaveBeenCalledWith({ _id: userId }, { $set: { lastLoginAt: expect.any(Date) } });
     expect(userMock.password).toBe('contrasenaValida1');
     expect(userMock.invite.usedAt).toBeInstanceOf(Date);
     expect(userMock.save).toHaveBeenCalled();
