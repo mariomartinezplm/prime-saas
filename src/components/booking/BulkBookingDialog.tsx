@@ -35,6 +35,8 @@ const DAYS_OF_WEEK = [
   { value: '3', label: 'Miércoles' },
   { value: '4', label: 'Jueves' },
   { value: '5', label: 'Viernes' },
+  // Cada profesional abre el sábado cuando le conviene; si no hay horario ese día, el servidor lo informa como no agendado
+  { value: '6', label: 'Sábado' },
 ];
 
 const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDialogProps) => {

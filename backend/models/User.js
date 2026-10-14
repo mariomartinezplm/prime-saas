@@ -132,9 +132,11 @@ const userSchema = new mongoose.Schema({
   preferences: {
     // Meta corporal para los hitos de evolución (peso). Solo la define la persona o su profesional y se puede
     // desactivar cuando quiera: sin meta activa NO se evalúa ningún hito de peso. `startedAt` fija desde cuándo
-    // se mide (la medición de referencia es la última hasta esa fecha). 'maintain' todavía no genera hitos.
+    // se mide (la medición de referencia es la última hasta esa fecha). `targetKg` = cuántos kg quiere cambiar la persona
+    // (lo escribe ella): sin dirección Y sin kg no hay meta y no se reconoce nada de peso.
     bodyGoal: {
-      direction: { type: String, enum: ['lose', 'gain', 'maintain'] },
+      direction: { type: String, enum: ['lose', 'gain'] },
+      targetKg: { type: Number, min: 0.5, max: 100 },
       enabled: { type: Boolean, default: true },
       startedAt: { type: Date }
     },

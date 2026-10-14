@@ -12,6 +12,7 @@ import AchievementAward from '../models/AchievementAward.js';
 import AchievementPause from '../models/AchievementPause.js';
 import User from '../models/User.js';
 import { santiagoToUtc } from '../utils/timezone.js';
+import { goalPeriodKey } from '../services/achievements/body.js';
 import { buildOverview } from '../services/achievements/overview.js';
 import * as achievementService from '../services/achievementService.js';
 import {
@@ -66,11 +67,13 @@ describe('Mis logros: qué categorías aparecen', () => {
     expect(categoria(conKine, 'constancia')).toBeUndefined();
   });
 
-  it('cuerpo solo con mediciones o una meta; fuerza solo con registros de ejercicios', () => {
+  it('peso solo si la persona lo eligió como objetivo (aunque tenga mediciones); fuerza solo con registros de ejercicios', () => {
     const base = { ...vacio(), plans: [plan()] };
     expect(categoria(buildOverview(base, { now: AHORA }), 'cuerpo')).toBeUndefined();
     expect(categoria(buildOverview(base, { now: AHORA }), 'fuerza')).toBeUndefined();
-    expect(categoria(buildOverview({ ...base, measurements: [{ _id: 1, date: AHORA, weight: 80 }] }, { now: AHORA }), 'cuerpo')).toBeDefined();
+    // Con mediciones pero sin meta: el peso NO existe para esa persona
+    expect(categoria(buildOverview({ ...base, measurements: [{ _id: 1, date: AHORA, weight: 80 }] }, { now: AHORA }), 'cuerpo')).toBeUndefined();
+    expect(categoria(buildOverview({ ...base, goal: { direction: 'lose', targetKg: 4, enabled: true, startedAt: AHORA } }, { now: AHORA }), 'cuerpo')).toBeDefined();
     expect(categoria(buildOverview({ ...base, exercises: [{ _id: 1, exerciseName: 'x', weight: 1, reps: 1, date: AHORA }] }, { now: AHORA }), 'fuerza')).toBeDefined();
   });
 
@@ -80,7 +83,7 @@ describe('Mis logros: qué categorías aparecen', () => {
   });
 
   it('las categorías salen en el orden definido', () => {
-    const datos = { ...vacio(), plans: [plan(), plan({ serviceType: 'kinesiologia', sessionsTotal: 5 })], measurements: [{ _id: 1, date: AHORA, weight: 80 }], exercises: [{ _id: 2, exerciseName: 'x', weight: 1, reps: 1, date: AHORA }] };
+    const datos = { ...vacio(), plans: [plan(), plan({ serviceType: 'kinesiologia', sessionsTotal: 5 })], goal: { direction: 'lose', targetKg: 4, enabled: true, startedAt: AHORA }, exercises: [{ _id: 2, exerciseName: 'x', weight: 1, reps: 1, date: AHORA }] };
     expect(buildOverview(datos, { now: AHORA }).categories.map((c) => c.key)).toEqual(CATEGORY_ORDER);
   });
 });
@@ -114,16 +117,38 @@ describe('Mis logros: estados y progreso', () => {
     expect(mes.status).toBe('available');
   });
 
-  it('cuerpo sin meta activa queda "locked" con la explicación; con meta y mediciones muestra el avance', () => {
+  it('peso: con la meta incompleta queda "locked" explicando que es opcional; con meta completa muestra el avance hacia SUS kg', () => {
     const mediciones = [{ _id: 'a', date: santiagoToUtc(2026, 10, 1, 12), weight: 80 }, { _id: 'b', date: santiagoToUtc(2026, 10, 10, 12), weight: 78.5 }];
-    const sinMeta = item(buildOverview({ ...vacio(), measurements: mediciones }, { now: AHORA }), 'cuerpo', 'body_1kg');
-    expect(sinMeta.status).toBe('locked');
-    expect(sinMeta.lockedNote).toMatch(/meta corporal/i);
+    const incompleta = { direction: 'lose', enabled: true }; // eligió bajar pero aún no escribió cuántos kg
+    const sinKg = item(buildOverview({ ...vacio(), measurements: mediciones, goal: incompleta }, { now: AHORA }), 'cuerpo', 'body_goal');
+    expect(sinKg.status).toBe('locked');
+    expect(sinKg.lockedNote).toMatch(/cuántos kg/i);
+    expect(sinKg.lockedNote).toMatch(/opcional/i);
 
-    const meta = { direction: 'lose', enabled: true, startedAt: santiagoToUtc(2026, 10, 1, 9) };
-    const conMeta = item(buildOverview({ ...vacio(), measurements: mediciones, goal: meta }, { now: AHORA }), 'cuerpo', 'body_3kg');
+    const meta = { direction: 'lose', targetKg: 4, enabled: true, startedAt: santiagoToUtc(2026, 10, 1, 9) };
+    const conMeta = item(buildOverview({ ...vacio(), measurements: mediciones, goal: meta }, { now: AHORA }), 'cuerpo', 'body_goal');
     expect(conMeta.status).toBe('in_progress');
-    expect(conMeta.progress).toMatchObject({ current: 1.5, target: 3, unit: 'kg' });
+    expect(conMeta.progress).toMatchObject({ current: 1.5, target: 4, unit: 'kg' });
+  });
+
+  it('peso: el trofeo de una meta anterior se conserva, pero la tarjeta muestra el estado de la meta de ahora', () => {
+    const vieja = { direction: 'lose', targetKg: 2, enabled: true, startedAt: santiagoToUtc(2026, 9, 1, 9) };
+    const nueva = { direction: 'gain', targetKg: 3, enabled: true, startedAt: santiagoToUtc(2026, 10, 5, 9) };
+    const trofeo = premio('body_goal', { periodKey: goalPeriodKey(vieja), evidence: { values: { direction: 'lose', targetKg: 2, referenceWeight: 80, referenceDate: '2026-09-01' } } });
+    const mediciones = [{ _id: 'a', date: santiagoToUtc(2026, 10, 5, 12), weight: 70 }, { _id: 'b', date: santiagoToUtc(2026, 10, 12, 12), weight: 71 }];
+
+    const conNueva = item(buildOverview({ ...vacio(), measurements: mediciones, goal: nueva, awards: [trofeo] }, { now: AHORA }), 'cuerpo', 'body_goal');
+    expect(conNueva.status).toBe('in_progress');
+    expect(conNueva.awards).toHaveLength(1);
+
+    // Sin meta de ahora, el trofeo ganado se sigue mostrando como conseguido
+    const sinMeta = item(buildOverview({ ...vacio(), awards: [trofeo] }, { now: AHORA }), 'cuerpo', 'body_goal');
+    expect(sinMeta.status).toBe('earned');
+    expect(sinMeta.awards[0].detail).toMatch(/bajar 2 kg/);
+
+    // Con la meta de ahora ya lograda: conseguido
+    const logrado = premio('body_goal', { periodKey: goalPeriodKey(nueva) });
+    expect(item(buildOverview({ ...vacio(), measurements: mediciones, goal: nueva, awards: [trofeo, logrado] }, { now: AHORA }), 'cuerpo', 'body_goal').status).toBe('earned');
   });
 
   it('descanso y equilibrio declaran que son autorreporte', () => {

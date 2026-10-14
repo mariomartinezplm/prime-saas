@@ -98,13 +98,17 @@ export const deletePause = async (req, res) => {
 };
 
 
-// ── Meta corporal (hitos de evolución de peso) ───────────────────────────────
-// La define la propia persona o su profesional. Sin meta activa no se evalúa ningún hito de peso.
-const DIRECTIONS = ['lose', 'gain', 'maintain'];
+// ── Meta de peso ─────────────────────────────────────────────────────────────
+// La define la propia persona (o su profesional con ella): bajar o subir Y cuántos kg. Si el peso no le interesa, no
+// hay meta y no se evalúa ni se muestra nada de peso.
+const DIRECTIONS = ['lose', 'gain'];
+export const MIN_TARGET_KG = 0.5;
+export const MAX_TARGET_KG = 100;
+const round1 = (n) => Math.round(n * 10) / 10;
 
 export const goalView = (user) => {
   const goal = user?.preferences?.bodyGoal ?? {};
-  return { direction: goal.direction ?? null, enabled: goal.enabled !== false, startedAt: goal.startedAt ?? null };
+  return { direction: goal.direction ?? null, targetKg: goal.targetKg ?? null, enabled: goal.enabled !== false, startedAt: goal.startedAt ?? null };
 };
 
 async function readGoal(patientId, res) {
@@ -118,12 +122,19 @@ async function readGoal(patientId, res) {
 
 async function saveGoal(patientId, body, res) {
   const { direction, enabled } = body;
+  let { targetKg } = body;
 
-  if (direction === undefined && enabled === undefined) {
-    return res.status(400).json({ success: false, message: 'Indica la meta y/o si está activada' });
+  if (direction === undefined && targetKg === undefined && enabled === undefined) {
+    return res.status(400).json({ success: false, message: 'Indica la meta, los kg y/o si está activada' });
   }
   if (direction !== undefined && direction !== null && !DIRECTIONS.includes(direction)) {
-    return res.status(400).json({ success: false, message: 'La meta debe ser bajar, subir o mantener' });
+    return res.status(400).json({ success: false, message: 'La meta debe ser bajar o subir de peso' });
+  }
+  if (targetKg !== undefined && targetKg !== null) {
+    if (typeof targetKg !== 'number' || !Number.isFinite(targetKg) || targetKg < MIN_TARGET_KG || targetKg > MAX_TARGET_KG) {
+      return res.status(400).json({ success: false, message: `Los kg de tu meta deben estar entre ${MIN_TARGET_KG} y ${MAX_TARGET_KG}` });
+    }
+    targetKg = round1(targetKg);
   }
   if (enabled !== undefined && typeof enabled !== 'boolean') {
     return res.status(400).json({ success: false, message: 'Indica si la meta está activada o no' });
@@ -133,20 +144,24 @@ async function saveGoal(patientId, body, res) {
   if (!user) return;
   const current = goalView(user);
 
+  // Quitar la meta (dirección null) borra también los kg: sin meta, el peso no es un objetivo
+  const nextDirection = direction === undefined ? current.direction : direction;
+  const nextTarget = direction === null ? null : targetKg === undefined ? current.targetKg : targetKg;
+  const nextEnabled = enabled === undefined ? current.enabled : enabled;
+  const complete = !!nextDirection && nextTarget !== null;
+
   const set = {};
   const unset = {};
-  const nextDirection = direction === undefined ? current.direction : direction;
-  const nextEnabled = enabled === undefined ? current.enabled : enabled;
-
-  if (direction !== undefined) {
-    if (direction === null) unset['preferences.bodyGoal.direction'] = '';
-    else set['preferences.bodyGoal.direction'] = direction;
-  }
+  if (nextDirection) set['preferences.bodyGoal.direction'] = nextDirection;
+  else unset['preferences.bodyGoal.direction'] = '';
+  if (nextTarget !== null) set['preferences.bodyGoal.targetKg'] = nextTarget;
+  else unset['preferences.bodyGoal.targetKg'] = '';
   if (enabled !== undefined) set['preferences.bodyGoal.enabled'] = enabled;
 
-  // Cambiar de meta o volver a activarla empieza una referencia nueva: se mide desde ahora
-  const restarts = (direction !== undefined && direction !== current.direction) || (enabled === true && !current.enabled);
-  if (nextDirection === null) unset['preferences.bodyGoal.startedAt'] = '';
+  // Cambiar la dirección o los kg, o volver a activarla, empieza una meta NUEVA: referencia nueva y trofeo propio.
+  // Sin meta completa (falta la dirección o los kg) no hay inicio todavía.
+  const restarts = nextDirection !== current.direction || nextTarget !== current.targetKg || (enabled === true && !current.enabled);
+  if (!complete) unset['preferences.bodyGoal.startedAt'] = '';
   else if (restarts || !current.startedAt) set['preferences.bodyGoal.startedAt'] = new Date();
 
   const update = {};
@@ -155,8 +170,8 @@ async function saveGoal(patientId, body, res) {
 
   const saved = await User.findByIdAndUpdate(patientId, update, { new: true }).select('preferences.bodyGoal');
 
-  // Con la meta lista se evalúa de nuevo (fire-and-forget)
-  if (nextEnabled && nextDirection) triggerAchievementEvaluation(patientId).catch(() => {});
+  // Con la meta completa y activa se evalúa de nuevo (fire-and-forget)
+  if (nextEnabled && complete) triggerAchievementEvaluation(patientId).catch(() => {});
 
   return res.status(200).json({ success: true, data: { goal: goalView(saved) } });
 }

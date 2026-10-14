@@ -7,9 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import BodyGoalForm from './BodyGoalForm';
 import { FormField } from '@/components/forms/FormField';
 import SubmitButton from '@/components/forms/SubmitButton';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
@@ -21,13 +19,6 @@ import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
 import { capitalizeFirst } from '@/lib/utils';
 import { formatDay, formatNumber } from './format';
-
-const GOAL_LABELS: Record<BodyGoalDirection, string> = {
-  lose: 'Bajar de peso',
-  gain: 'Subir de peso',
-  maintain: 'Mantener el peso',
-};
-const NO_GOAL = 'none';
 
 const STATUS_LABELS = {
   earned: 'Conseguido',
@@ -45,7 +36,7 @@ interface PatientAchievementsTabProps {
 }
 
 // Vista del personal: qué logros tiene la persona, con qué datos se respaldaron, y los dos ajustes que el
-// personal puede hacer (pausas autorizadas y meta corporal). Nada se borra: una corrección deja el logro "en revisión".
+// personal puede hacer (pausas autorizadas y meta de peso). Nada se borra: una corrección deja el logro "en revisión".
 const PatientAchievementsTab = ({ patientId }: PatientAchievementsTabProps) => {
   const [data, setData] = useState<PatientAchievements | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,7 +122,7 @@ const ProgressCard = ({ data }: { data: PatientAchievements }) => (
                       {formatNumber(item.progress.current)} de {formatNumber(item.progress.target)} {item.progress.label}
                     </>
                   )}
-                  {item.status === 'locked' && ' · sin meta corporal definida'}
+                  {item.status === 'locked' && ' · sin meta de peso (opcional)'}
                 </span>
               </li>
             ))}
@@ -349,74 +340,33 @@ interface GoalCardProps {
 }
 
 const GoalCard = ({ patientId, goal, onChanged }: GoalCardProps) => {
-  const [saving, setSaving] = useState(false);
-  const savingRef = useRef(false);
-
-  const change = async (changes: { direction?: BodyGoalDirection | null; enabled?: boolean }, message: string) => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
+  const change = async (changes: { direction?: BodyGoalDirection | null; targetKg?: number | null; enabled?: boolean }, message: string) => {
     try {
       onChanged(await achievementApi.updatePatientBodyGoal(patientId, changes));
       notify.success(message);
     } catch (err) {
       showApiError(err, 'No se pudo guardar la meta');
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
+      throw err;
     }
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Meta corporal</CardTitle>
+        <CardTitle className="text-lg">Meta de peso</CardTitle>
         <CardDescription>
-          Sin meta no se reconoce ningún hito de peso. Cada hito necesita dos mediciones con al menos 14 días de diferencia. La meta también la puede cambiar el
-          propio paciente en Configuración.
+          Solo si el peso es un objetivo del paciente: él o ella elige bajar o subir y cuántos kg (también puede hacerlo en su Configuración). Sin meta no
+          existe ningún trofeo de peso. Se concede al confirmarlo con dos mediciones separadas por al menos 14 días.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="patient-body-goal">Meta</Label>
-          <Select
-            value={goal.direction ?? NO_GOAL}
-            disabled={saving}
-            onValueChange={(value) =>
-              change({ direction: value === NO_GOAL ? null : (value as BodyGoalDirection) }, value === NO_GOAL ? 'Meta quitada' : 'Meta guardada')
-            }
-          >
-            <SelectTrigger id="patient-body-goal" className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_GOAL}>Sin meta</SelectItem>
-              {(Object.keys(GOAL_LABELS) as BodyGoalDirection[]).map((d) => (
-                <SelectItem key={d} value={d}>
-                  {GOAL_LABELS[d]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {goal.direction && (
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="patient-body-goal-enabled" className="cursor-pointer">
-              Reconocer su evolución
-            </Label>
-            <Switch
-              id="patient-body-goal-enabled"
-              checked={goal.enabled}
-              disabled={saving}
-              onCheckedChange={(enabled) => change({ enabled }, enabled ? 'Reconocimientos activados' : 'Reconocimientos desactivados')}
-            />
-          </div>
-        )}
-
-        {goal.direction === 'maintain' && (
-          <p className="text-xs text-muted-foreground">Para «mantener el peso» todavía no hay hitos definidos; la meta queda anotada.</p>
-        )}
+      <CardContent>
+        <BodyGoalForm
+          goal={goal}
+          audience="staff"
+          idPrefix="patient-body-goal"
+          onSave={({ direction, targetKg }) => change({ direction, targetKg }, direction === null ? 'Meta quitada' : 'Meta guardada')}
+          onToggleEnabled={(enabled) => change({ enabled }, enabled ? 'Reconocimientos activados' : 'Reconocimientos desactivados')}
+        />
       </CardContent>
     </Card>
   );

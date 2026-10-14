@@ -13,7 +13,7 @@ import { computeConsistencyCandidates, consistencyPeriodStillMet } from './consi
 import { computeStreakCandidates, streakMilestoneStillMet } from './streaks.js';
 import { computeReadinessCandidates } from './readiness.js';
 import { computeWellbeingCandidates } from './wellbeing.js';
-import { computeBodyCandidates, bodyMilestoneStillMet } from './body.js';
+import { computeBodyCandidates, bodyGoalStillMet } from './body.js';
 import { buildOverview } from './overview.js';
 import { computeStrengthCandidates, strengthRecordStillValid, PR_NOTIFY_CAP_PER_WEEK } from './strength.js';
 
@@ -97,7 +97,7 @@ export async function reconcilePatientAchievements(patientId, { now = new Date()
   const data = preloaded ?? (await loadData(patientId));
   const awards = await AchievementAward.find({
     patient: patientId,
-    key: { $in: ['kine_5', 'consistency_month', 'streak_3', 'streak_6', 'streak_12', 'body_1kg', 'body_3kg', 'body_5kg', 'body_10kg', 'strength_pr'] }
+    key: { $in: ['kine_5', 'consistency_month', 'streak_3', 'streak_6', 'streak_12', 'body_goal', 'strength_pr'] }
   });
 
   const flagged = [];
@@ -107,7 +107,7 @@ export async function reconcilePatientAchievements(patientId, { now = new Date()
     let stillMet;
     if (award.key === 'kine_5') stillMet = kinesiologyMilestoneStillMet(data.appointments, award.key);
     else if (award.key === 'consistency_month') stillMet = consistencyPeriodStillMet(data.plans, data.appointments, award.periodKey);
-    else if (award.key.startsWith('body_')) stillMet = bodyMilestoneStillMet(data.measurements, data.goal, award.key, award.evidence?.values?.direction);
+    else if (award.key === 'body_goal') stillMet = bodyGoalStillMet(data.measurements, data.goal, award.periodKey);
     else if (award.key === 'strength_pr') stillMet = strengthRecordStillValid(data.exercises, award.periodKey);
     else stillMet = streakMilestoneStillMet(data.plans, data.appointments, data.pauses, now, award.key);
 

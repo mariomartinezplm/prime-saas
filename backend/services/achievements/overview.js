@@ -4,7 +4,7 @@ import { groupTrainingPlansByPeriod, consistencyProgress } from './consistency.j
 import { streakProgress, STREAK_MILESTONES } from './streaks.js';
 import { readinessWeekProgress } from './readiness.js';
 import { wellbeingProgress } from './wellbeing.js';
-import { bodyProgress, BODY_MILESTONES, isActiveGoal } from './body.js';
+import { bodyProgress, goalPeriodKey, isActiveGoal } from './body.js';
 import { strengthSummary } from './strength.js';
 
 /**
@@ -34,7 +34,8 @@ function visibleCategories({ appointments, plans, checkins, measurements, exerci
     descanso: hasAnyPlan,
     estres: hasAnyPlan,
     trayectoria: hasTraining,
-    cuerpo: measurements.length > 0 || !!goal?.direction,
+    // El peso solo aparece si es un objetivo de la persona (eligió bajar o subir); si no le interesa, no existe para ella
+    cuerpo: !!goal?.direction,
     fuerza: exercises.length > 0
   };
   // (las categorías con logros ya concedidos se agregan abajo)
@@ -74,14 +75,13 @@ function progressFor(key, data, now) {
     return { current: p.best, target: p.target, unit: 'días', label: 'días favorables en tu mejor semana (autorreporte)', source: 'autorreporte' };
   }
 
-  const body = BODY_MILESTONES.find((m) => m.key === key);
-  if (body) {
+  if (key === 'body_goal') {
     const p = bodyProgress(measurements, goal);
     if (!p.active || !p.hasReference) return null;
-    // Un hito se confirma con una SEGUNDA medición 14 días después: mientras tanto la barra puede estar llena sin que
-    // el logro exista, y se dice (para que no parezca un error)
-    const label = p.progressKg >= body.kg ? 'de cambio hacia tu meta · falta confirmarlo con otra medición (14 días después)' : 'de cambio hacia tu meta';
-    return { current: Math.max(0, Math.min(p.progressKg, body.kg)), target: body.kg, unit: 'kg', label };
+    // La meta se confirma con una SEGUNDA medición 14 días después: mientras tanto la barra puede estar llena sin que
+    // el trofeo exista, y se dice (para que no parezca un error)
+    const label = p.progressKg >= p.targetKg && !p.confirmed ? 'de cambio hacia tu meta · falta confirmarlo con otra medición (14 días después)' : 'de cambio hacia tu meta';
+    return { current: Math.max(0, Math.min(p.progressKg, p.targetKg)), target: p.targetKg, unit: 'kg', label };
   }
 
   return null;
@@ -92,7 +92,7 @@ function detailOf(award) {
   const v = award.evidence?.values;
   if (!v) return null;
   if (award.key === 'strength_pr' && v.exercise) return `${v.exercise}: ${v.weight} ${v.unit} (marca anterior ${v.previousBest} ${v.unit})`;
-  if (award.key.startsWith('body_') && v.referenceWeight) return `Referencia ${v.referenceWeight} kg desde el ${v.referenceDate}`;
+  if (award.key === 'body_goal' && v.targetKg) return `Meta de ${v.direction === 'lose' ? 'bajar' : 'subir'} ${v.targetKg} kg · referencia ${v.referenceWeight} kg desde el ${v.referenceDate}`;
   if (award.key === 'consistency_month' && v.target) return `${v.completed} de ${v.target} sesiones`;
   if (award.key === 'kine_5' && v.completed) return `${v.completed} sesiones de kinesiología completadas`;
   return award.evidence?.summary ?? null;
@@ -140,7 +140,10 @@ export function buildOverview(data, { audience = 'patient', now = new Date() } =
         const earned = (byKey.get(def.key) ?? []).sort((a, b) => new Date(b.awardedAt) - new Date(a.awardedAt));
         const progress = progressFor(def.key, data, now);
         let status;
-        if (earned.length > 0) status = 'earned';
+        // La meta de peso es una por vez: el trofeo de una meta anterior se conserva en el historial, pero el estado
+        // de la tarjeta es el de la meta de ahora
+        const currentGoalEarned = def.key === 'body_goal' && isActiveGoal(data.goal) && earned.some((a) => a.periodKey === goalPeriodKey(data.goal));
+        if (def.key === 'body_goal' ? currentGoalEarned || (earned.length > 0 && !isActiveGoal(data.goal)) : earned.length > 0) status = 'earned';
         else if (categoryKey === 'cuerpo' && !isActiveGoal(data.goal)) status = 'locked';
         else if (progress && progress.current > 0) status = 'in_progress';
         else status = 'available';
@@ -152,7 +155,7 @@ export function buildOverview(data, { audience = 'patient', now = new Date() } =
           criteria: def.criteria,
           status,
           progress,
-          lockedNote: status === 'locked' ? 'Define tu meta corporal en Configuración para activar estos hitos.' : null,
+          lockedNote: status === 'locked' ? 'Escribe cuántos kg quieres bajar o subir en Configuración para activar esta meta (opcional).' : null,
           awards: earned.map((a) => awardView(a, audience))
         };
       });

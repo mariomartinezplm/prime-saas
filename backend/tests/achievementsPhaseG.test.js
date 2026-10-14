@@ -1,8 +1,8 @@
 /**
  * PRUEBAS — Fase G del plan de logros: evolución corporal (peso) y fuerza (récords de carga).
  *
- * Reglas aprobadas — peso: solo con una meta activa; referencia real y fechada; un hito exige DOS mediciones
- * separadas por 14 días o más; una vez por umbral. Fuerza: mismo ejercicio y unidad, ≥3 registros previos, +2,5 %,
+ * Reglas aprobadas — peso: solo si la persona define su meta (bajar/subir Y cuántos kg); referencia real y fechada; el
+ * trofeo exige DOS mediciones separadas por 14 días o más; cada meta tiene su propio trofeo. Fuerza: mismo ejercicio y unidad, ≥3 registros previos, +2,5 %,
  * un aviso por ejercicio y semana, datos completos.
  */
 
@@ -23,10 +23,11 @@ import { dayOf, isoWeekOf } from '../services/achievements/dates.js';
 import {
   computeBodyCandidates,
   referenceOf,
-  bodyMilestoneStillMet,
+  bodyGoalStillMet,
   bodyProgress,
   isActiveGoal,
-  BODY_MILESTONES
+  isCompleteGoal,
+  goalPeriodKey
 } from '../services/achievements/body.js';
 import {
   computeStrengthCandidates,
@@ -58,7 +59,7 @@ const claves = (c) => c.map((x) => x.key);
 
 // ── Datos de prueba ─────────────────────────────────────────────────────────
 const medicion = (dia, weight, mes = 10) => ({ _id: nuevoId(), date: santiagoToUtc(2026, mes, dia, 12), weight });
-const meta = (extra = {}) => ({ direction: 'lose', enabled: true, startedAt: santiagoToUtc(2026, 10, 1, 9), ...extra });
+const meta = (extra = {}) => ({ direction: 'lose', targetKg: 1, enabled: true, startedAt: santiagoToUtc(2026, 10, 1, 9), ...extra });
 
 describe('fechas (día de Chile y semana ISO)', () => {
   it('el día no se corre por la zona horaria del servidor', () => {
@@ -77,22 +78,32 @@ describe('fechas (día de Chile y semana ISO)', () => {
   });
 });
 
-describe('evolución corporal: reglas del hito', () => {
-  it('bajar: dos mediciones con 1 kg o más, separadas por 14 días, conceden "1 kg de evolución" (con evidencia real)', () => {
+describe('meta de peso: reglas del trofeo', () => {
+  it('bajar: dos mediciones que llegan al cambio que la persona se propuso, separadas por 14 días, conceden el trofeo (con evidencia real)', () => {
     const ref = medicion(1, 80);
     const a = medicion(10, 78.9);
     const b = medicion(25, 78.7);
     const result = computeBodyCandidates([ref, a, b], meta());
 
-    expect(claves(result)).toEqual(['body_1kg']);
+    expect(claves(result)).toEqual(['body_goal']);
+    expect(result[0].periodKey).toBe(goalPeriodKey(meta()));
+    expect(result[0].periodKey).toMatch(/^goal@\d{10}$/);
     expect(result[0].evidence.refs).toEqual([ref._id, a._id, b._id]);
     expect(result[0].evidence.values).toMatchObject({
       direction: 'lose',
-      milestoneKg: 1,
+      targetKg: 1,
       referenceWeight: 80,
       referenceDate: '2026-10-01',
       confirmedBy: [{ weight: 78.9, date: '2026-10-10' }, { weight: 78.7, date: '2026-10-25' }]
     });
+  });
+
+  it('la meta es LA DE LA PERSONA: con 4 kg, 3,9 kg de cambio no alcanzan y 4 kg sí', () => {
+    const con = (peso) => computeBodyCandidates([medicion(1, 90), medicion(5, peso), medicion(25, peso)], meta({ targetKg: 4 }));
+    expect(claves(con(86.1))).toEqual([]); // 3,9 kg
+    expect(claves(con(86))).toEqual(['body_goal']); // 4 kg exactos
+    expect(claves(con(80))).toEqual(['body_goal']); // pasar de la meta no da un segundo trofeo
+    expect(con(80)).toHaveLength(1);
   });
 
   it('una sola medición NO basta, aunque muestre el cambio', () => {
@@ -102,7 +113,7 @@ describe('evolución corporal: reglas del hito', () => {
   it('dos mediciones con menos de 14 días de diferencia NO bastan; con exactamente 14 días SÍ', () => {
     const ref = medicion(1, 80);
     expect(computeBodyCandidates([ref, medicion(10, 78), medicion(23, 78)], meta())).toEqual([]);
-    expect(claves(computeBodyCandidates([ref, medicion(10, 78), medicion(24, 78)], meta()))).toEqual(['body_1kg']);
+    expect(claves(computeBodyCandidates([ref, medicion(10, 78), medicion(24, 78)], meta()))).toEqual(['body_goal']);
   });
 
   it('una medición baja aislada entre mediciones sin cambio NO concede (no es una tendencia)', () => {
@@ -111,7 +122,7 @@ describe('evolución corporal: reglas del hito', () => {
 
   it('subir: respeta el objetivo individual', () => {
     const result = computeBodyCandidates([medicion(1, 60), medicion(8, 61.2), medicion(25, 61.5)], meta({ direction: 'gain' }));
-    expect(claves(result)).toEqual(['body_1kg']);
+    expect(claves(result)).toEqual(['body_goal']);
     expect(result[0].evidence.values.direction).toBe('gain');
   });
 
@@ -122,34 +133,34 @@ describe('evolución corporal: reglas del hito', () => {
     expect(computeBodyCandidates(subiendo, meta({ direction: 'lose' }))).toEqual([]);
   });
 
-  it('sin meta, con la meta desactivada, o con "mantener", no se evalúa nada (no se asume que bajar sea el objetivo)', () => {
+  it('si el peso no es su objetivo no hay meta: sin meta, desactivada, sin kg, sin dirección o "mantener", no se evalúa nada', () => {
     const datos = [medicion(1, 80), medicion(10, 70), medicion(28, 69)];
     expect(computeBodyCandidates(datos, null)).toEqual([]);
     expect(computeBodyCandidates(datos, meta({ enabled: false }))).toEqual([]);
-    expect(computeBodyCandidates(datos, meta({ direction: 'maintain' }))).toEqual([]);
+    expect(computeBodyCandidates(datos, meta({ targetKg: undefined }))).toEqual([]);
+    expect(computeBodyCandidates(datos, meta({ targetKg: 0 }))).toEqual([]);
     expect(computeBodyCandidates(datos, meta({ direction: undefined }))).toEqual([]);
+    expect(computeBodyCandidates(datos, meta({ direction: 'maintain' }))).toEqual([]);
+    expect(computeBodyCandidates(datos, meta({ startedAt: undefined }))).toEqual([]);
     expect(isActiveGoal(meta())).toBe(true);
     expect(isActiveGoal(meta({ enabled: false }))).toBe(false);
+    expect(isCompleteGoal(meta({ enabled: false }))).toBe(true);
+    expect(isCompleteGoal(meta({ targetKg: undefined }))).toBe(false);
   });
 
-  it('los umbrales 1, 3, 5 y 10 kg son acumulativos y cada uno exige su propia confirmación', () => {
-    const base = [medicion(1, 90)];
-    const con = (peso) => computeBodyCandidates([...base, medicion(5, peso), medicion(25, peso)], meta());
-    expect(claves(con(89.5))).toEqual([]);
-    expect(claves(con(88.9))).toEqual(['body_1kg']);
-    expect(claves(con(85.5))).toEqual(['body_1kg', 'body_3kg']); // 4,5 kg: aún no llega a 5
-    expect(claves(con(84.9))).toEqual(['body_1kg', 'body_3kg', 'body_5kg']);
-    expect(claves(con(79))).toEqual(['body_1kg', 'body_3kg', 'body_5kg', 'body_10kg']);
-    expect(BODY_MILESTONES.map((m) => m.kg)).toEqual([1, 3, 5, 10]);
-  });
-
-  it('el peso que sube y baja alrededor del umbral produce los MISMOS candidatos (el índice único evita repetirlos)', () => {
+  it('el peso que sube y baja alrededor del umbral produce el MISMO candidato (el índice único evita repetirlo)', () => {
     const datos = [medicion(1, 80), medicion(8, 78.9), medicion(15, 79.2), medicion(22, 78.8), medicion(29, 79.1), medicion(31, 78.5)];
     const una = computeBodyCandidates(datos, meta());
     const otra = computeBodyCandidates([...datos, medicion(20, 79.4, 11)], meta());
-    expect(claves(una)).toEqual(['body_1kg']);
-    expect(claves(otra)).toEqual(['body_1kg']);
-    expect(una[0].periodKey).toBe('once');
+    expect(claves(una)).toEqual(['body_goal']);
+    expect(otra[0].periodKey).toBe(una[0].periodKey);
+  });
+
+  it('cada meta tiene su propio trofeo: una meta nueva (otro inicio) tiene otra clave de periodo', () => {
+    const primera = meta({ startedAt: santiagoToUtc(2026, 10, 1, 9) });
+    const segunda = meta({ direction: 'gain', targetKg: 2, startedAt: santiagoToUtc(2026, 11, 20, 9) });
+    expect(goalPeriodKey(primera)).not.toBe(goalPeriodKey(segunda));
+    expect(isValidPeriodKeyForKind('goal', goalPeriodKey(primera))).toBe(true);
   });
 
   it('la referencia es la ÚLTIMA medición hasta el día en que empezó la meta; las anteriores no cuentan', () => {
@@ -172,34 +183,38 @@ describe('evolución corporal: reglas del hito', () => {
     expect(referenceOf([], meta())).toBeNull();
   });
 
-  it('tras corregir una medición, el hito deja de cumplirse; con otra meta o sin meta no se puede juzgar', () => {
+  it('tras corregir una medición, el trofeo deja de cumplirse; con otra meta o sin meta no se puede juzgar', () => {
     const datos = [medicion(1, 80), medicion(10, 78), medicion(28, 78)];
-    expect(bodyMilestoneStillMet(datos, meta(), 'body_1kg', 'lose')).toBe(true);
+    const clave = goalPeriodKey(meta());
+    expect(bodyGoalStillMet(datos, meta(), clave)).toBe(true);
     datos[2].weight = 80; // se corrigió
-    expect(bodyMilestoneStillMet(datos, meta(), 'body_1kg', 'lose')).toBe(false);
-    // la persona cambió su meta o la desactivó: no se marca "en revisión" por eso
-    expect(bodyMilestoneStillMet(datos, meta({ direction: 'gain' }), 'body_1kg', 'lose')).toBe(true);
-    expect(bodyMilestoneStillMet(datos, meta({ enabled: false }), 'body_1kg', 'lose')).toBe(true);
-    expect(bodyMilestoneStillMet(datos, null, 'body_1kg', 'lose')).toBe(true);
-    expect(bodyMilestoneStillMet(datos, meta(), 'inventado')).toBe(false);
+    expect(bodyGoalStillMet(datos, meta(), clave)).toBe(false);
+    // la persona empezó otra meta, o la desactivó, o ya no tiene: el trofeo de la anterior no se marca "en revisión" por eso
+    expect(bodyGoalStillMet(datos, meta({ startedAt: santiagoToUtc(2026, 11, 1, 9) }), clave)).toBe(true);
+    expect(bodyGoalStillMet(datos, meta({ enabled: false }), clave)).toBe(true);
+    expect(bodyGoalStillMet(datos, null, clave)).toBe(true);
   });
 
-  it('el progreso explica el cambio hacia la meta y el próximo hito', () => {
+  it('el progreso explica el cambio hacia SU meta y si falta la confirmación', () => {
     expect(bodyProgress([], null)).toEqual({ active: false });
-    expect(bodyProgress([], meta())).toMatchObject({ active: true, hasReference: false });
-    const p = bodyProgress([medicion(1, 80), medicion(10, 78.4)], meta());
-    expect(p).toMatchObject({ active: true, hasReference: true, referenceWeight: 80, progressKg: 1.6, nextKey: 'body_1kg', nextKg: 1 });
+    expect(bodyProgress([], meta({ targetKg: undefined }))).toEqual({ active: false });
+    expect(bodyProgress([], meta())).toMatchObject({ active: true, hasReference: false, targetKg: 1 });
+    const p = bodyProgress([medicion(1, 80), medicion(10, 78.4)], meta({ targetKg: 4 }));
+    expect(p).toMatchObject({ active: true, hasReference: true, referenceWeight: 80, progressKg: 1.6, targetKg: 4, confirmed: false });
+    // una sola medición ya muestra el cambio, pero no está confirmado
+    const una = bodyProgress([medicion(1, 80), medicion(10, 78)], meta());
+    expect(una).toMatchObject({ progressKg: 2, confirmed: false });
+    expect(bodyProgress([medicion(1, 80), medicion(10, 78), medicion(26, 78)], meta()).confirmed).toBe(true);
   });
 
-  it('el catálogo no celebra la rapidez ni sugiere que un peso menor sea siempre mejor', () => {
-    for (const m of BODY_MILESTONES) {
-      const def = ACHIEVEMENTS[m.key];
-      expect(def.category).toBe('cuerpo');
-      expect(def.periodic).toBe(false);
-      expect(def.criteria).toMatch(/meta corporal activa/i);
-      expect(def.criteria).toMatch(/14 días/);
-      expect(JSON.stringify(def)).not.toMatch(/r[aá]pid|cuanto antes|menos es mejor|delgad|perfecto|obes/i);
-    }
+  it('el catálogo no celebra la rapidez ni sugiere que un peso menor sea siempre mejor; ya no hay hitos fijos', () => {
+    const def = ACHIEVEMENTS.body_goal;
+    expect(def.category).toBe('cuerpo');
+    expect(periodKindOf(def)).toBe('goal');
+    expect(def.criteria).toMatch(/meta definida por ti/i);
+    expect(def.criteria).toMatch(/14 días/);
+    expect(JSON.stringify(def)).not.toMatch(/r[aá]pid|cuanto antes|menos es mejor|delgad|perfecto|obes/i);
+    expect(Object.keys(ACHIEVEMENTS).filter((k) => k.startsWith('body_'))).toEqual(['body_goal']);
   });
 });
 
@@ -325,7 +340,9 @@ describe('periodos por ejercicio y semana', () => {
     vi.spyOn(AchievementAward, 'findOneAndUpdate').mockResolvedValue({ value: {}, lastErrorObject: { updatedExisting: true } });
     await expect(grantAchievement({ patientId: nuevoId(), key: 'strength_pr', periodKey: 'sentadilla@2026-W42' })).resolves.toMatchObject({ created: false });
     await expect(grantAchievement({ patientId: nuevoId(), key: 'strength_pr', periodKey: 'once' })).rejects.toThrow(/ejercicio y semana/);
-    await expect(grantAchievement({ patientId: nuevoId(), key: 'body_1kg', periodKey: '2026-10' })).rejects.toThrow(/una sola vez/);
+    await expect(grantAchievement({ patientId: nuevoId(), key: 'kine_5', periodKey: '2026-10' })).rejects.toThrow(/una sola vez/);
+    await expect(grantAchievement({ patientId: nuevoId(), key: 'body_goal', periodKey: '2026-10' })).rejects.toThrow(/meta de peso/);
+    await expect(grantAchievement({ patientId: nuevoId(), key: 'body_goal', periodKey: 'goal@1760000000' })).resolves.toMatchObject({ created: false });
   });
 });
 
@@ -368,16 +385,34 @@ function montar({ medidas = [], ejercicios = [], goal = null }) {
 }
 
 describe('servicio: peso y fuerza', () => {
-  it('con meta activa concede el hito de peso UNA vez aunque se evalúe muchas veces; el aviso es genérico', async () => {
+  it('con la meta de la persona concede el trofeo de peso UNA vez aunque se evalúe muchas veces; el aviso es genérico', async () => {
     const { filas, avisos } = montar({ medidas: [medicion(1, 80), medicion(10, 78.5), medicion(26, 78.4)], goal: meta() });
     const patientId = nuevoId();
     await evaluatePatientAchievements(patientId, { now: AHORA });
     await evaluatePatientAchievements(patientId, { now: AHORA });
 
-    expect(filas.map((f) => f.key)).toEqual(['body_1kg']);
+    expect(filas.map((f) => f.key)).toEqual(['body_goal']);
     expect(filas[0].category).toBe('cuerpo');
+    expect(filas[0].periodKey).toBe(goalPeriodKey(meta()));
     expect(avisos).toHaveLength(1);
     expect(JSON.stringify({ t: avisos[0].title, b: avisos[0].body })).not.toMatch(/kg|peso|78|80/i);
+  });
+
+  it('una meta nueva puede ganar su propio trofeo; el de la meta anterior se conserva', async () => {
+    const patientId = nuevoId();
+    // Meta 1 (bajar 1 kg desde el 1/10): 80 → 78,4. Meta 2 (subir 2 kg desde el 27/10): referencia 78,4 → 80,5 y 80,6 en noviembre.
+    const medidas = [medicion(1, 80), medicion(10, 78.5), medicion(26, 78.4), medicion(2, 80.5, 11), medicion(20, 80.6, 11)];
+    const { filas } = montar({ medidas, goal: meta() });
+    await evaluatePatientAchievements(patientId, { now: AHORA });
+    expect(filas.map((f) => f.key)).toEqual(['body_goal']);
+
+    const segunda = meta({ direction: 'gain', targetKg: 2, startedAt: santiagoToUtc(2026, 10, 27, 9) });
+    User.findById.mockImplementation(() => query({ preferences: { bodyGoal: segunda } }));
+    await evaluatePatientAchievements(patientId, { now: AHORA });
+
+    expect(filas).toHaveLength(2);
+    expect(filas.map((f) => f.periodKey)).toEqual([goalPeriodKey(meta()), goalPeriodKey(segunda)]);
+    expect(filas.every((f) => f.status === 'active')).toBe(true);
   });
 
   it('sin meta definida no concede nada de peso, aunque haya cambios enormes', async () => {
@@ -440,76 +475,108 @@ const fakeRes = () => ({
   json: vi.fn(function (body) { this.body = body; return this; })
 });
 
-describe('meta corporal (API)', () => {
+describe('meta de peso (API)', () => {
   const PACIENTE = nuevoId();
   const usuario = (goal) => ({ _id: PACIENTE, role: 'patient', preferences: { bodyGoal: goal } });
   const mockUser = (goal, { role = 'patient' } = {}) => {
     vi.spyOn(User, 'findById').mockReturnValue({ select: () => Promise.resolve({ ...usuario(goal), role }) });
-    return vi.spyOn(User, 'findByIdAndUpdate').mockImplementation(() => ({ select: () => Promise.resolve(usuario({ direction: 'lose', enabled: true, startedAt: new Date() })) }));
+    return vi.spyOn(User, 'findByIdAndUpdate').mockImplementation(() => ({ select: () => Promise.resolve(usuario({ direction: 'lose', targetKg: 4, enabled: true, startedAt: new Date() })) }));
   };
   const req = (body, user = { _id: PACIENTE, role: 'patient' }) => ({ user, params: { patientId: PACIENTE.toString() }, body });
+  const EMPEZO = new Date('2026-09-01T12:00:00Z');
+  const vigente = (extra = {}) => ({ direction: 'lose', targetKg: 4, enabled: true, startedAt: EMPEZO, ...extra });
 
   beforeEach(() => { vi.restoreAllMocks(); triggerAchievementEvaluation.mockClear(); });
 
-  it('sin meta: valores por defecto (sin dirección, activada)', async () => {
+  it('sin meta: valores por defecto (sin dirección ni kg, activada)', async () => {
     mockUser(undefined);
     const res = fakeRes();
     await getMyBodyGoal(req(), res);
-    expect(res.body.data.goal).toEqual({ direction: null, enabled: true, startedAt: null });
-    expect(goalView(null)).toEqual({ direction: null, enabled: true, startedAt: null });
+    expect(res.body.data.goal).toEqual({ direction: null, targetKg: null, enabled: true, startedAt: null });
+    expect(goalView(null)).toEqual({ direction: null, targetKg: null, enabled: true, startedAt: null });
   });
 
-  it('define la meta: guarda la dirección, fija el inicio de la referencia y vuelve a evaluar', async () => {
+  it('define la meta con dirección Y kg: fija el inicio de la referencia y vuelve a evaluar', async () => {
     const update = mockUser(undefined);
     const res = fakeRes();
-    await updateMyBodyGoal(req({ direction: 'lose' }), res);
+    await updateMyBodyGoal(req({ direction: 'lose', targetKg: 4 }), res);
 
     expect(res.statusCode).toBe(200);
     const [id, cambios] = update.mock.calls[0];
     expect(id).toBe(PACIENTE);
     expect(cambios.$set['preferences.bodyGoal.direction']).toBe('lose');
+    expect(cambios.$set['preferences.bodyGoal.targetKg']).toBe(4);
     expect(cambios.$set['preferences.bodyGoal.startedAt']).toBeInstanceOf(Date);
     expect(triggerAchievementEvaluation).toHaveBeenCalledWith(PACIENTE);
   });
 
-  it('cambiar de meta REINICIA la referencia; repetir la misma no', async () => {
-    const empezo = new Date('2026-09-01T12:00:00Z');
-    const update = mockUser({ direction: 'lose', enabled: true, startedAt: empezo });
-
+  it('con solo la dirección (falta escribir los kg) la meta queda incompleta: sin inicio y sin evaluar', async () => {
+    const update = mockUser(undefined);
     await updateMyBodyGoal(req({ direction: 'gain' }), fakeRes());
+    const cambios = update.mock.calls[0][1];
+    expect(cambios.$set['preferences.bodyGoal.direction']).toBe('gain');
+    expect(cambios.$set['preferences.bodyGoal.startedAt']).toBeUndefined();
+    expect(cambios.$unset).toMatchObject({ 'preferences.bodyGoal.targetKg': '', 'preferences.bodyGoal.startedAt': '' });
+    expect(triggerAchievementEvaluation).not.toHaveBeenCalled();
+  });
+
+  it('cambiar la dirección o los kg EMPIEZA una meta nueva; repetir la misma no', async () => {
+    const update = mockUser(vigente());
+
+    await updateMyBodyGoal(req({ direction: 'gain', targetKg: 4 }), fakeRes());
     expect(update.mock.calls[0][1].$set['preferences.bodyGoal.startedAt']).toBeInstanceOf(Date);
 
     update.mockClear();
-    await updateMyBodyGoal(req({ direction: 'lose' }), fakeRes());
+    await updateMyBodyGoal(req({ targetKg: 6 }), fakeRes());
+    expect(update.mock.calls[0][1].$set['preferences.bodyGoal.startedAt']).toBeInstanceOf(Date);
+
+    update.mockClear();
+    await updateMyBodyGoal(req({ direction: 'lose', targetKg: 4 }), fakeRes());
     expect(update.mock.calls[0][1].$set['preferences.bodyGoal.startedAt']).toBeUndefined();
   });
 
+  it('los kg se guardan con un decimal', async () => {
+    const update = mockUser(undefined);
+    await updateMyBodyGoal(req({ direction: 'lose', targetKg: 4.26 }), fakeRes());
+    expect(update.mock.calls[0][1].$set['preferences.bodyGoal.targetKg']).toBe(4.3);
+  });
+
   it('desactivar la meta no evalúa nada; volver a activarla reinicia la referencia', async () => {
-    const update = mockUser({ direction: 'lose', enabled: true, startedAt: new Date('2026-09-01T12:00:00Z') });
+    const update = mockUser(vigente());
     await updateMyBodyGoal(req({ enabled: false }), fakeRes());
     expect(update.mock.calls[0][1].$set['preferences.bodyGoal.enabled']).toBe(false);
     expect(triggerAchievementEvaluation).not.toHaveBeenCalled();
 
     update.mockClear();
-    mockUser({ direction: 'lose', enabled: false, startedAt: new Date('2026-09-01T12:00:00Z') });
+    mockUser(vigente({ enabled: false }));
     const reactivar = vi.mocked(User.findByIdAndUpdate);
     await updateMyBodyGoal(req({ enabled: true }), fakeRes());
     expect(reactivar.mock.calls[0][1].$set['preferences.bodyGoal.startedAt']).toBeInstanceOf(Date);
     expect(triggerAchievementEvaluation).toHaveBeenCalled();
   });
 
-  it('quitar la meta (direction null) borra dirección e inicio', async () => {
-    const update = mockUser({ direction: 'lose', enabled: true, startedAt: new Date() });
+  it('quitar la meta (direction null) borra dirección, kg e inicio: el peso deja de ser un objetivo', async () => {
+    const update = mockUser(vigente({ startedAt: new Date() }));
     await updateMyBodyGoal(req({ direction: null }), fakeRes());
-    expect(update.mock.calls[0][1].$unset).toMatchObject({ 'preferences.bodyGoal.direction': '', 'preferences.bodyGoal.startedAt': '' });
+    expect(update.mock.calls[0][1].$unset).toMatchObject({
+      'preferences.bodyGoal.direction': '',
+      'preferences.bodyGoal.targetKg': '',
+      'preferences.bodyGoal.startedAt': ''
+    });
+    expect(triggerAchievementEvaluation).not.toHaveBeenCalled();
   });
 
-  it('rechaza valores inválidos sin guardar', async () => {
+  it('rechaza valores inválidos sin guardar (incluida la meta de "mantener")', async () => {
     const update = mockUser(undefined);
-    for (const body of [{}, { direction: 'adelgazar' }, { direction: 5 }, { enabled: 'si' }]) {
+    const invalidos = [
+      {}, { direction: 'adelgazar' }, { direction: 'maintain' }, { direction: 5 }, { enabled: 'si' },
+      { direction: 'lose', targetKg: 0 }, { direction: 'lose', targetKg: 0.4 }, { direction: 'lose', targetKg: 101 },
+      { direction: 'lose', targetKg: '4' }, { direction: 'lose', targetKg: NaN }, { direction: 'lose', targetKg: -3 }
+    ];
+    for (const body of invalidos) {
       const res = fakeRes();
       await updateMyBodyGoal(req(body), res);
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode, JSON.stringify(body)).toBe(400);
     }
     expect(update).not.toHaveBeenCalled();
   });
@@ -517,7 +584,7 @@ describe('meta corporal (API)', () => {
   it('el personal solo gestiona a un PACIENTE (otro rol responde 404)', async () => {
     const update = mockUser(undefined, { role: 'admin' });
     const res = fakeRes();
-    await updatePatientBodyGoal(req({ direction: 'gain' }, { _id: nuevoId(), role: 'professional' }), res);
+    await updatePatientBodyGoal(req({ direction: 'gain', targetKg: 3 }, { _id: nuevoId(), role: 'professional' }), res);
     expect(res.statusCode).toBe(404);
     expect(update).not.toHaveBeenCalled();
 

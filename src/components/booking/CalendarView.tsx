@@ -7,6 +7,9 @@ interface CalendarViewProps {
   onSelect: (date: Date | undefined) => void;
   disabledDate?: (date: Date) => boolean;
   numberOfMonths?: number;
+  // Días de la semana (0 = domingo … 6 = sábado) en que el profesional atiende. Cada profesional decide los suyos
+  // (por ejemplo, abre los sábados cuando le conviene). Sin este dato no se bloquea ningún día de la semana.
+  workingWeekdays?: number[] | null;
 }
 
 // Muestras de la leyenda: usan las mismas clases que los días reales para que nunca se desfasen
@@ -19,7 +22,7 @@ const Swatch = ({ className, children }: { className?: string; children?: React.
   </span>
 );
 
-const CalendarView = ({ selectedDate, onSelect, disabledDate, numberOfMonths = 1 }: CalendarViewProps) => {
+const CalendarView = ({ selectedDate, onSelect, disabledDate, numberOfMonths = 1, workingWeekdays = null }: CalendarViewProps) => {
   return (
     <div className="space-y-3">
       <Calendar
@@ -34,9 +37,8 @@ const CalendarView = ({ selectedDate, onSelect, disabledDate, numberOfMonths = 1
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           if (date < today) return true;
-          // Disable weekends
-          const day = date.getDay();
-          if (day === 0 || day === 6) return true;
+          // Solo se habilitan los días en que el profesional configuró horarios
+          if (workingWeekdays && workingWeekdays.length > 0 && !workingWeekdays.includes(date.getDay())) return true;
           // Custom disabled check
           if (disabledDate) return disabledDate(date);
           return false;

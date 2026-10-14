@@ -1,30 +1,32 @@
 import { dayOf, dayNumber } from './dates.js';
 
 /**
- * Hitos de evolución corporal (peso).
+ * Meta de peso de la persona.
  *
- * Solo existen si la persona (o su profesional) definió una META activa: bajar o subir de peso. Sin meta, o con la
- * meta desactivada, NO se evalúa nada (no se asume que perder peso sea el objetivo de nadie). La meta
- * 'maintain' (mantener) todavía no tiene hitos definidos.
+ * Solo existe si el peso es un objetivo de la persona: ella (o su profesional junto con ella) elige bajar o subir Y
+ * escribe cuántos kg. Sin meta completa, o con la meta desactivada, NO se evalúa nada (no se asume que perder peso
+ * sea el objetivo de nadie) y no se muestra nada de peso.
  *
  * Reglas aprobadas:
  *  - Referencia = la última medición de peso hasta el día en que empezó la meta (si no hay ninguna, la primera
  *    medición posterior). Siempre una medición real, con fecha, identificada en la evidencia.
  *  - Progreso = kilos de cambio HACIA la meta respecto de la referencia (bajar: referencia − peso; subir: peso − referencia).
- *  - Un hito se concede solo si DOS mediciones posteriores a la referencia, separadas por al menos 14 días, ambas
- *    con el progreso del umbral. Una fluctuación puntual nunca basta.
- *  - Una sola vez por umbral: el peso que sube y baja alrededor de un umbral no repite el logro.
+ *  - El trofeo se concede solo si DOS mediciones posteriores a la referencia, separadas por al menos 14 días, ambas
+ *    con el cambio que la persona se propuso. Una fluctuación puntual nunca basta.
+ *  - Cada meta tiene su propio trofeo (clave `goal@<segundos del inicio>`): cambiar la dirección o los kg empieza una
+ *    meta nueva, que puede ganar el suyo. Un trofeo ya ganado nunca se pierde por cambiar de meta.
  */
 
-export const BODY_MILESTONES = [
-  { key: 'body_1kg', kg: 1 },
-  { key: 'body_3kg', kg: 3 },
-  { key: 'body_5kg', kg: 5 },
-  { key: 'body_10kg', kg: 10 }
-];
 export const CONFIRM_DAYS = 14;
+export const BODY_GOAL_KEY = 'body_goal';
 
-export const isActiveGoal = (goal) => !!goal && goal.enabled !== false && (goal.direction === 'lose' || goal.direction === 'gain');
+export const isCompleteGoal = (goal) =>
+  !!goal && (goal.direction === 'lose' || goal.direction === 'gain') && Number.isFinite(goal.targetKg) && goal.targetKg > 0 && !!goal.startedAt;
+
+export const isActiveGoal = (goal) => isCompleteGoal(goal) && goal.enabled !== false;
+
+// Identifica a la meta: el momento (en segundos) en que empezó. Cambiar de meta fija un inicio nuevo.
+export const goalPeriodKey = (goal) => `goal@${Math.floor(new Date(goal.startedAt).getTime() / 1000)}`;
 
 // Mediciones válidas (peso > 0 y fecha), de la más antigua a la más reciente
 function weighings(measurements) {
@@ -46,10 +48,10 @@ export function referenceOf(measurements, goal) {
 const progressOf = (weight, reference, direction) => (direction === 'lose' ? reference - weight : weight - reference);
 const round1 = (n) => Math.round(n * 10) / 10;
 
-// Para un umbral: las dos mediciones que lo confirman, o null
-function confirmation(measurements, goal, reference, kg) {
+// Las dos mediciones que confirman que llegó a su cambio, o null
+function confirmation(measurements, goal, reference) {
   const eligible = weighings(measurements).filter(
-    (m) => dayNumber(m.day) > dayNumber(reference.day) && progressOf(m.weight, reference.weight, goal.direction) >= kg
+    (m) => dayNumber(m.day) > dayNumber(reference.day) && progressOf(m.weight, reference.weight, goal.direction) >= goal.targetKg
   );
   if (eligible.length < 2) return null;
   const first = eligible[0];
@@ -61,60 +63,55 @@ export function computeBodyCandidates(measurements, goal) {
   if (!isActiveGoal(goal)) return [];
   const reference = referenceOf(measurements, goal);
   if (!reference) return [];
+  const proof = confirmation(measurements, goal, reference);
+  if (!proof) return [];
 
-  return BODY_MILESTONES.flatMap((m) => {
-    const proof = confirmation(measurements, goal, reference, m.kg);
-    if (!proof) return [];
-    return [{
-      key: m.key,
-      periodKey: 'once',
-      evidence: {
-        refs: [reference._id, proof.first._id, proof.last._id],
-        refModel: 'Measurement',
-        values: {
-          direction: goal.direction,
-          milestoneKg: m.kg,
-          referenceWeight: reference.weight,
-          referenceDate: reference.day,
-          confirmedBy: [
-            { weight: proof.first.weight, date: proof.first.day },
-            { weight: proof.last.weight, date: proof.last.day }
-          ]
-        },
-        summary: `${m.kg} kg de evolución confirmados en dos mediciones`
-      }
-    }];
-  });
+  return [{
+    key: BODY_GOAL_KEY,
+    periodKey: goalPeriodKey(goal),
+    evidence: {
+      refs: [reference._id, proof.first._id, proof.last._id],
+      refModel: 'Measurement',
+      values: {
+        direction: goal.direction,
+        targetKg: goal.targetKg,
+        referenceWeight: reference.weight,
+        referenceDate: reference.day,
+        confirmedBy: [
+          { weight: proof.first.weight, date: proof.first.day },
+          { weight: proof.last.weight, date: proof.last.day }
+        ]
+      },
+      summary: `Meta de ${goal.targetKg} kg confirmada en dos mediciones`
+    }
+  }];
 }
 
-// ¿Sigue cumpliéndose el hito con los datos de hoy? Si no hay meta activa o la dirección cambió, NO se puede
-// juzgar (otra meta, otra referencia): se considera vigente para no marcarlo "en revisión" sin motivo.
-export function bodyMilestoneStillMet(measurements, goal, key, awardedDirection) {
-  const milestone = BODY_MILESTONES.find((m) => m.key === key);
-  if (!milestone) return false;
-  if (!isActiveGoal(goal) || (awardedDirection && awardedDirection !== goal.direction)) return true;
+// ¿Sigue cumpliéndose esa meta con los datos de hoy? Si la meta vigente ya es otra (o no hay una activa), NO se puede
+// juzgar el trofeo de la anterior: se considera vigente para no marcarlo "en revisión" sin motivo.
+export function bodyGoalStillMet(measurements, goal, periodKey) {
+  if (!isActiveGoal(goal) || goalPeriodKey(goal) !== periodKey) return true;
   const reference = referenceOf(measurements, goal);
-  return !!reference && confirmation(measurements, goal, reference, milestone.kg) !== null;
+  return !!reference && confirmation(measurements, goal, reference) !== null;
 }
 
-// Progreso para "Mis logros": cambio actual hacia la meta (solo se muestra a la propia persona y a su profesional)
+// Progreso para "Mis logros": cambio actual hacia SU meta (solo se muestra a la propia persona y a su profesional)
 export function bodyProgress(measurements, goal) {
   if (!isActiveGoal(goal)) return { active: false };
   const reference = referenceOf(measurements, goal);
   const all = weighings(measurements);
-  if (!reference || all.length === 0) return { active: true, direction: goal.direction, hasReference: false };
+  if (!reference || all.length === 0) return { active: true, direction: goal.direction, targetKg: goal.targetKg, hasReference: false };
 
   const latest = all.at(-1);
-  const progressKg = latest._id === reference._id ? 0 : round1(progressOf(latest.weight, reference.weight, goal.direction));
-  const next = BODY_MILESTONES.find((m) => !confirmation(measurements, goal, reference, m.kg)) ?? null;
+  const progressKg = String(latest._id) === String(reference._id) ? 0 : round1(progressOf(latest.weight, reference.weight, goal.direction));
   return {
     active: true,
     direction: goal.direction,
+    targetKg: goal.targetKg,
     hasReference: true,
     referenceWeight: reference.weight,
     referenceDate: reference.day,
     progressKg,
-    nextKey: next?.key ?? null,
-    nextKg: next?.kg ?? null
+    confirmed: confirmation(measurements, goal, reference) !== null
   };
 }

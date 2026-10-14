@@ -1,11 +1,12 @@
 import api from '../lib/api';
 import type { APIResponse } from '../types';
 
-// Meta corporal (hitos de evolución de peso). Sin meta, o con la meta desactivada, no se reconoce nada de peso.
-export type BodyGoalDirection = 'lose' | 'gain' | 'maintain';
+// Meta de peso: la define la persona (bajar o subir Y cuántos kg). Sin meta completa, o desactivada, no se reconoce nada de peso.
+export type BodyGoalDirection = 'lose' | 'gain';
 
 export interface BodyGoal {
   direction: BodyGoalDirection | null;
+  targetKg: number | null;
   enabled: boolean;
   startedAt: string | null;
 }
@@ -16,7 +17,7 @@ export const achievementService = {
     return response.data.data.goal;
   },
 
-  updateBodyGoal: async (changes: { direction?: BodyGoalDirection | null; enabled?: boolean }): Promise<BodyGoal> => {
+  updateBodyGoal: async (changes: { direction?: BodyGoalDirection | null; targetKg?: number | null; enabled?: boolean }): Promise<BodyGoal> => {
     const response = await api.put<APIResponse<{ goal: BodyGoal }>>('/achievements/body-goal', changes);
     return response.data.data.goal;
   },
@@ -147,7 +148,7 @@ export const achievementApi = {
     await api.delete(`/achievements/patients/${patientId}/pauses/${periodKey}`);
   },
 
-  updatePatientBodyGoal: async (patientId: string, changes: { direction?: BodyGoalDirection | null; enabled?: boolean }): Promise<BodyGoal> => {
+  updatePatientBodyGoal: async (patientId: string, changes: { direction?: BodyGoalDirection | null; targetKg?: number | null; enabled?: boolean }): Promise<BodyGoal> => {
     const response = await api.put<APIResponse<{ goal: BodyGoal }>>(`/achievements/patients/${patientId}/body-goal`, changes);
     return response.data.data.goal;
   },

@@ -42,6 +42,8 @@ const BookAppointment = () => {
   const [bookingMode, setBookingMode] = useState<BookingMode>('single');
   const [slotsStatus, setSlotsStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [slotsRetry, setSlotsRetry] = useState(0);
+  // Días de la semana en que atiende el profesional (los que tienen horarios configurados); null = aún no se sabe
+  const [workingWeekdays, setWorkingWeekdays] = useState<number[] | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,6 +90,33 @@ const BookAppointment = () => {
     };
     fetchData();
   }, [user]);
+
+  // Los días habilitados del calendario salen de los horarios que configuró el profesional
+  useEffect(() => {
+    setWorkingWeekdays(null);
+    if (!selectedProfessional) return;
+    let active = true;
+    availabilityService
+      .get(selectedProfessional.id)
+      .then((availability) => {
+        if (!active) return;
+        const days = (availability?.weeklySchedule ?? []).filter((d) => d.slots.length > 0).map((d) => d.dayOfWeek);
+        setWorkingWeekdays(days.length > 0 ? days : null);
+      })
+      // Si no se pueden leer, no se bloquea ningún día: los horarios de cada día igual lo dirán
+      .catch(() => active && setWorkingWeekdays(null));
+    return () => {
+      active = false;
+    };
+  }, [selectedProfessional]);
+
+  // Si el día elegido deja de estar habilitado (cambió el profesional), se limpia la selección
+  useEffect(() => {
+    if (selectedDate && workingWeekdays && !workingWeekdays.includes(selectedDate.getDay())) {
+      setSelectedDate(undefined);
+      setSelectedSlot(null);
+    }
+  }, [workingWeekdays, selectedDate]);
 
   // Fetch slots when date changes
   useEffect(() => {
@@ -390,6 +419,7 @@ const BookAppointment = () => {
                     selectedDate={selectedDate}
                     onSelect={setSelectedDate}
                     numberOfMonths={getCalendarMonths()}
+                    workingWeekdays={workingWeekdays}
                     disabledDate={(date) => {
                       if (balance?.plan && !isDateInPlanRange(date)) return true;
                       return false;
