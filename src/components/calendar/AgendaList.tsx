@@ -8,6 +8,7 @@ import { AppointmentStatusBadge } from '@/components/shared/StatusBadge';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { appointmentStart, parseDay, personName } from '@/lib/appointments';
 import { capitalizeFirst, cn } from '@/lib/utils';
+import { dayAvailabilityText, type Coverage } from './availabilityCoverage';
 import type { Appointment } from '@/types';
 
 const WEEK = { weekStartsOn: 1 as const };
@@ -24,11 +25,13 @@ interface AgendaListProps {
   date: Date;
   onNavigate: (date: Date) => void;
   onSelect: (appointment: Appointment) => void;
+  // Horario de atención del profesional: cada día muestra las horas en que atiende (o que está bloqueado)
+  coverage?: Coverage | null;
 }
 
 // Vista de calendario para móvil: la semana en 7 columnas no cabe en 375 px, así que se muestra
 // como lista por día. Mismos datos, mismos estados y el mismo detalle al tocar una cita.
-const AgendaList = ({ appointments, date, onNavigate, onSelect }: AgendaListProps) => {
+const AgendaList = ({ appointments, date, onNavigate, onSelect, coverage = null }: AgendaListProps) => {
   const weekStart = startOfWeek(date, WEEK);
   const weekEnd = endOfWeek(date, WEEK);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -40,7 +43,8 @@ const AgendaList = ({ appointments, date, onNavigate, onSelect }: AgendaListProp
         .filter((apt) => isSameDay(parseDay(apt.date), day))
         .sort((a, b) => appointmentStart(a).getTime() - appointmentStart(b).getTime()),
     }))
-    .filter((group) => group.items.length > 0);
+    // Con horario configurado también se muestran los días en que atiende aunque no tengan citas
+    .filter((group) => group.items.length > 0 || (!!coverage && dayAvailabilityText(coverage, group.day) !== null));
 
   const rangeLabel = `${format(weekStart, 'd MMM', { locale: es })} – ${format(weekEnd, 'd MMM yyyy', { locale: es })}`;
 
@@ -72,6 +76,12 @@ const AgendaList = ({ appointments, date, onNavigate, onSelect }: AgendaListProp
               {capitalizeFirst(format(day, "EEEE d 'de' MMMM", { locale: es }))}
               {isToday(day) && <Badge variant="info">Hoy</Badge>}
             </h2>
+            {coverage && dayAvailabilityText(coverage, day) && (
+              <p className="text-xs text-muted-foreground">
+                {dayAvailabilityText(coverage, day) === 'Día bloqueado' ? 'Día bloqueado' : `Atiendes: ${dayAvailabilityText(coverage, day)}`}
+              </p>
+            )}
+            {items.length === 0 && <p className="text-sm text-muted-foreground">Sin citas este día</p>}
             <ul className="space-y-2">
               {items.map((apt) => (
                 <li key={apt._id}>

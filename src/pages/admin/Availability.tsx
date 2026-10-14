@@ -46,6 +46,11 @@ const ALL_SLOTS: TimeSlot[] = Array.from({ length: 26 }, (_, i) => {
   return { startTime: toTime(start), endTime: toTime(start + 60) };
 });
 
+// Atajos: la mañana son las horas que empiezan antes de las 13:00; la tarde, desde las 13:00
+const MORNING_SLOTS = ALL_SLOTS.filter((s) => s.startTime < '13:00');
+const AFTERNOON_SLOTS = ALL_SLOTS.filter((s) => s.startTime >= '13:00');
+const WEEKDAYS = [1, 2, 3, 4, 5];
+
 const byStart = (a: TimeSlot, b: TimeSlot) => a.startTime.localeCompare(b.startTime);
 
 const slotsOf = (schedule: DaySchedule[], day: number): TimeSlot[] => schedule.find((d) => d.dayOfWeek === day)?.slots ?? [];
@@ -292,8 +297,25 @@ const AdminAvailability = () => {
                 <Button type="button" variant="outline" size="sm" onClick={() => setSchedule((prev) => withDay(prev, day, ALL_SLOTS))}>
                   Seleccionar todas
                 </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setSchedule((prev) => withDay(prev, day, MORNING_SLOTS))} title="Deja solo las horas de 07:00 a 12:30">
+                  Solo mañana
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setSchedule((prev) => withDay(prev, day, AFTERNOON_SLOTS))} title="Deja solo las horas de 13:00 a 19:30">
+                  Solo tarde
+                </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => setSchedule((prev) => withDay(prev, day, []))} disabled={dayCount(day) === 0}>
                   Limpiar día
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={dayCount(day) === 0}
+                  onClick={() => copyDayTo(WEEKDAYS.filter((d) => d !== day))}
+                  title={`Copia el horario de ${DAYS.find((d) => d.value === day)?.label} a los demás días de lunes a viernes`}
+                >
+                  <Copy aria-hidden="true" />
+                  Copiar a lunes–viernes
                 </Button>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -465,6 +487,14 @@ const CopyDayForm = ({ targets, onCopy }: { targets: typeof DAYS; onCopy: (days:
   const [chosen, setChosen] = useState<number[]>([]);
   return (
     <>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => setChosen(targets.filter((d) => WEEKDAYS.includes(d.value)).map((d) => d.value))}>
+          Lunes a viernes
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setChosen(targets.map((d) => d.value))}>
+          Todos los días
+        </Button>
+      </div>
       <div className="space-y-2">
         {targets.map((d) => (
           <div key={d.value} className="flex items-center gap-2">

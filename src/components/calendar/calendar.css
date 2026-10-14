@@ -41,6 +41,14 @@
   border-top-width: 1px;
 }
 
+/* Horario de atención del profesional (de fondo; las citas quedan encima) y fechas/horas bloqueadas */
+.apt-calendar .rbc-day-slot .rbc-time-slot.apt-slot-working {
+  background: hsl(var(--primary) / 0.15);
+}
+.apt-calendar .rbc-day-slot .rbc-time-slot.apt-slot-blocked {
+  background: repeating-linear-gradient(135deg, hsl(var(--muted-foreground) / 0.2) 0 5px, transparent 5px 10px);
+}
+
 /* Encabezados y horas */
 .apt-calendar .rbc-header {
   padding: 0.5rem 0.25rem;

@@ -4,6 +4,7 @@ import { TriangleAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { userService } from '@/services/userService';
+import { availabilityService } from '@/services/availabilityService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +13,8 @@ import AgendaList from '@/components/calendar/AgendaList';
 import AppointmentCalendar from '@/components/calendar/AppointmentCalendar';
 import AppointmentDetailDialog from '@/components/calendar/AppointmentDetailDialog';
 import StatusLegend from '@/components/calendar/StatusLegend';
+import AvailabilityLegend from '@/components/calendar/AvailabilityLegend';
+import { buildCoverage, type Coverage } from '@/components/calendar/availabilityCoverage';
 import { toEvents } from '@/components/calendar/calendarUtils';
 import { BlockSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
@@ -46,6 +49,23 @@ const AdminCalendar = () => {
   };
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  // Horario de atención que se dibuja de fondo: el del profesional elegido, o el propio si se ven "todos"
+  const [coverage, setCoverage] = useState<Coverage | null>(null);
+  const coverageOwnerId = isAdmin && selectedProfessional !== 'all' ? selectedProfessional : user?.id;
+
+  useEffect(() => {
+    setCoverage(null);
+    if (!coverageOwnerId) return;
+    let active = true;
+    availabilityService
+      .get(coverageOwnerId)
+      .then((availability) => active && setCoverage(buildCoverage(availability)))
+      // Es un extra visual: si no se puede leer, el calendario se ve como siempre
+      .catch(() => active && setCoverage(null));
+    return () => {
+      active = false;
+    };
+  }, [coverageOwnerId]);
 
   // El filtro por profesional solo lo respeta el servidor para el admin
   useEffect(() => {
@@ -99,6 +119,7 @@ const AdminCalendar = () => {
       />
 
       <StatusLegend />
+      {coverage && <AvailabilityLegend />}
 
       {failed && (
         <Alert variant="warning">
@@ -117,7 +138,7 @@ const AdminCalendar = () => {
           <BlockSkeleton className="h-[520px]" />
         </SkeletonRegion>
       ) : isMobile ? (
-        <AgendaList appointments={appointments} date={date} onNavigate={setDate} onSelect={openDetail} />
+        <AgendaList appointments={appointments} date={date} onNavigate={setDate} onSelect={openDetail} coverage={coverage} />
       ) : (
         <Card>
           <CardContent className="p-4">
@@ -128,6 +149,7 @@ const AdminCalendar = () => {
               onNavigate={setDate}
               onView={setView}
               onSelectEvent={(event) => openDetail(event.resource)}
+              coverage={coverage}
             />
           </CardContent>
         </Card>

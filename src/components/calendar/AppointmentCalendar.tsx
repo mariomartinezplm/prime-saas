@@ -8,6 +8,7 @@ import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { personName } from '@/lib/appointments';
 import { capitalizeFirst } from '@/lib/utils';
 import { statusClass, visibleHours, type CalendarEvent } from './calendarUtils';
+import { coverageHours, slotKind, type Coverage } from './availabilityCoverage';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './calendar.css';
 
@@ -86,10 +87,12 @@ interface AppointmentCalendarProps {
   onNavigate: (date: Date) => void;
   onView: (view: View) => void;
   onSelectEvent: (event: CalendarEvent) => void;
+  // Horario de atención del profesional: se pinta de fondo (las citas quedan encima). Sin esto, el calendario se ve como siempre.
+  coverage?: Coverage | null;
 }
 
-const AppointmentCalendar = ({ events, date, view, onNavigate, onView, onSelectEvent }: AppointmentCalendarProps) => {
-  const { minHour, maxHour } = visibleHours(events);
+const AppointmentCalendar = ({ events, date, view, onNavigate, onView, onSelectEvent, coverage = null }: AppointmentCalendarProps) => {
+  const { minHour, maxHour } = visibleHours(events, coverageHours(coverage));
 
   return (
     <div className="apt-calendar h-[calc(100vh-20rem)] min-h-[520px]">
@@ -117,6 +120,11 @@ const AppointmentCalendar = ({ events, date, view, onNavigate, onView, onSelectE
         dayLayoutAlgorithm="no-overlap"
         messages={messages}
         eventPropGetter={(event) => ({ className: statusClass(event.resource.status) })}
+        slotPropGetter={(slotDate) => {
+          if (!coverage) return {};
+          const kind = slotKind(coverage, slotDate);
+          return kind === 'off' ? {} : { className: kind === 'blocked' ? 'apt-slot-blocked' : 'apt-slot-working' };
+        }}
         components={{ toolbar: Toolbar, event: EventCell }}
         tooltipAccessor={(event) => event.title}
       />
