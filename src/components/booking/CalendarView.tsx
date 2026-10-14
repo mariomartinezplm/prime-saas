@@ -58,7 +58,7 @@ const CalendarView = ({ selectedDate, onSelect, disabledDate, numberOfMonths = 1
           Hoy
         </li>
         <li className="flex items-center gap-1.5">
-          <Swatch className="text-muted-foreground/50">12</Swatch>
+          <Swatch className="text-muted-foreground/75">12</Swatch>
           No disponible
         </li>
       </ul>

@@ -78,7 +78,10 @@ function progressFor(key, data, now) {
   if (body) {
     const p = bodyProgress(measurements, goal);
     if (!p.active || !p.hasReference) return null;
-    return { current: Math.max(0, Math.min(p.progressKg, body.kg)), target: body.kg, unit: 'kg', label: 'de cambio hacia tu meta' };
+    // Un hito se confirma con una SEGUNDA medición 14 días después: mientras tanto la barra puede estar llena sin que
+    // el logro exista, y se dice (para que no parezca un error)
+    const label = p.progressKg >= body.kg ? 'de cambio hacia tu meta · falta confirmarlo con otra medición (14 días después)' : 'de cambio hacia tu meta';
+    return { current: Math.max(0, Math.min(p.progressKg, body.kg)), target: body.kg, unit: 'kg', label };
   }
 
   return null;

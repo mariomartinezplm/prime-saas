@@ -47,8 +47,8 @@ async function tick() {
 
   try {
     const logros = await runAchievementSweep();
-    if (logros.granted || logros.flagged || logros.restored || logros.failed) {
-      console.log(`🏅 Logros: ${logros.granted} concedidos, ${logros.flagged} en revisión, ${logros.restored} restaurados, ${logros.failed} con error (${logros.patients} pacientes revisados)`);
+    if (logros.granted || logros.flagged || logros.restored || logros.failed || logros.skipped) {
+      console.log(`🏅 Logros: ${logros.granted} concedidos, ${logros.flagged} en revisión, ${logros.restored} restaurados, ${logros.failed} con error (${logros.patients} pacientes revisados${logros.skipped ? `, ${logros.skipped} fuera por el tope` : ''})`);
     }
   } catch (error) {
     console.error('Error en la pasada de logros:', error.message);

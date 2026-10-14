@@ -63,6 +63,21 @@ function fakeNotifications() {
 
 beforeEach(() => vi.restoreAllMocks());
 
+describe('grantAchievement: un aviso que falla no deshace el logro', () => {
+  it('el logro queda concedido aunque no se pueda crear la notificación, y no lanza error', async () => {
+    const rows = fakeStore();
+    vi.spyOn(Notification, 'create').mockRejectedValue(new Error('Mongo caído un instante'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const patientId = nuevoId();
+
+    const result = await grantAchievement({ patientId, key: 'demo_once' }, { definitions: DEFS });
+
+    expect(result.created).toBe(true);
+    expect(rows).toHaveLength(1);
+    expect(console.error).toHaveBeenCalled();
+  });
+});
+
 describe('grantAchievement: idempotencia', () => {
   it('concede el logro una vez y avisa una vez', async () => {
     const rows = fakeStore();

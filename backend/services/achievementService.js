@@ -65,10 +65,16 @@ export async function grantAchievement(
 
   // `notify: false` concede el logro (queda en el historial) sin avisar: para no saturar con muchos avisos seguidos
   if (created && notify) {
-    await notifyOnce(filter.patient, 'achievement_unlocked', {
-      ...GENERIC_NOTIFICATION,
-      dedupeKey: awardNotificationKey(String(filter.patient), key, periodKey)
-    });
+    // Un aviso que no se pudo crear NO deshace el logro ni detiene la evaluación de los demás: el logro ya quedó
+    // concedido y se ve en "Mis logros" y en la animación de desbloqueo (que no depende de la notificación).
+    try {
+      await notifyOnce(filter.patient, 'achievement_unlocked', {
+        ...GENERIC_NOTIFICATION,
+        dedupeKey: awardNotificationKey(String(filter.patient), key, periodKey)
+      });
+    } catch (error) {
+      console.error(`No se pudo crear el aviso del logro "${key}":`, error.message);
+    }
   }
 
   return { award, created };

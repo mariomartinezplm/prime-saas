@@ -433,5 +433,13 @@ describe('triggerAchievementEvaluation y programador', () => {
     expect(summary.patients).toBe(3);
     expect(summary.failed).toBe(1);
     expect(Appointment.distinct).toHaveBeenCalledWith('patient', { updatedAt: { $gte: new Date('2026-10-11T12:00:00Z') } });
+    expect(summary.skipped).toBe(0);
+
+    // Con un tope menor, los pacientes que quedan fuera se informan (no se pierden en silencio)
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const capped = await runAchievementSweep({ now: new Date('2026-10-14T12:00:00Z'), limit: 2 });
+    expect(capped.patients).toBe(2);
+    expect(capped.skipped).toBe(1);
+    expect(console.warn).toHaveBeenCalled();
   });
 });

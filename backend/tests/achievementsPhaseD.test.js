@@ -276,6 +276,26 @@ const req = (body = {}, params = {}) => ({ user: STAFF, params: { patientId: PAC
 describe('pausas autorizadas (API)', () => {
   beforeEach(() => {
     vi.spyOn(achievementsIndex, 'triggerAchievementEvaluation').mockResolvedValue(undefined);
+    vi.spyOn(UserModel, 'findById').mockReturnValue({ select: () => Promise.resolve({ role: 'patient' }) });
+  });
+
+  it('si el id no es de un paciente (otro rol o inexistente) responde 404 y no toca nada', async () => {
+    const create = vi.spyOn(AchievementPause, 'create').mockResolvedValue({});
+    const del = vi.spyOn(AchievementPause, 'findOneAndDelete').mockResolvedValue({});
+    const find = vi.spyOn(AchievementPause, 'find');
+    for (const found of [{ role: 'professional' }, { role: 'admin' }, null]) {
+      UserModel.findById.mockReturnValue({ select: () => Promise.resolve(found) });
+      const a = fakeRes();
+      await createPause(req({ periodKey: '2026-10', reason: 'x' }), a);
+      const b = fakeRes();
+      await deletePause(req({}, { periodKey: '2026-10' }), b);
+      const c = fakeRes();
+      await getPauses(req(), c);
+      expect([a.statusCode, b.statusCode, c.statusCode]).toEqual([404, 404, 404]);
+    }
+    expect(create).not.toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
+    expect(find).not.toHaveBeenCalled();
   });
 
   it('exige un mes válido (AAAA-MM) y un motivo', async () => {

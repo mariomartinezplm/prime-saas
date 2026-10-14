@@ -7,6 +7,16 @@ import { ACHIEVEMENTS, CATEGORIES } from '../config/achievements.js';
 import { markSeen } from '../services/achievementService.js';
 import { triggerAchievementEvaluation, getAchievementsOverview } from '../services/achievements/index.js';
 
+// Las pausas y los logros son de PACIENTES: un id de otro rol (o inexistente) responde 404 sin tocar nada
+async function ensurePatient(patientId, res) {
+  const user = await User.findById(patientId).select('role');
+  if (!user || user.role !== 'patient') {
+    res.status(404).json({ success: false, message: 'Paciente no encontrado' });
+    return false;
+  }
+  return true;
+}
+
 const isMonth = (periodKey) => typeof periodKey === 'string' && periodKey !== ONCE && isValidPeriodKey(periodKey);
 
 // @desc    Pausas autorizadas de un paciente (meses neutrales para las rachas)
@@ -14,6 +24,7 @@ const isMonth = (periodKey) => typeof periodKey === 'string' && periodKey !== ON
 // @access  Private/Staff con acceso al paciente
 export const getPauses = async (req, res) => {
   try {
+    if (!(await ensurePatient(req.params.patientId, res))) return;
     const pauses = await AchievementPause.find({ patient: req.params.patientId })
       .sort({ periodKey: -1 })
       .populate('createdBy', 'firstName lastName');
@@ -36,6 +47,7 @@ export const createPause = async (req, res) => {
     if (typeof reason !== 'string' || !reason.trim()) {
       return res.status(400).json({ success: false, message: 'Indica el motivo de la pausa' });
     }
+    if (!(await ensurePatient(req.params.patientId, res))) return;
 
     let pause;
     try {
@@ -69,6 +81,7 @@ export const deletePause = async (req, res) => {
     if (!isMonth(req.params.periodKey)) {
       return res.status(400).json({ success: false, message: 'Mes inválido' });
     }
+    if (!(await ensurePatient(req.params.patientId, res))) return;
 
     const removed = await AchievementPause.findOneAndDelete({ patient: req.params.patientId, periodKey: req.params.periodKey });
     if (!removed) {

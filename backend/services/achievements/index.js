@@ -52,8 +52,9 @@ export function computeCandidates({ appointments, plans, pauses = [], checkins =
 }
 
 // Concede lo que corresponda. Con dryRun solo informa qué concedería (para revisar antes de un backfill).
-export async function evaluatePatientAchievements(patientId, { dryRun = false, now = new Date() } = {}) {
-  const data = await loadData(patientId);
+// `data` permite reutilizar la carga ya hecha (evaluar y revisar un paciente no necesitan leerla dos veces)
+export async function evaluatePatientAchievements(patientId, { dryRun = false, now = new Date(), data: preloaded } = {}) {
+  const data = preloaded ?? (await loadData(patientId));
   const candidates = computeCandidates(data, now);
   const granted = [];
   let recentRecords = null;
@@ -92,8 +93,8 @@ const reviewNote = (text) => `${REVIEW_MARK}${text}`;
 // Tras una corrección (una cita que dejó de estar completada, una cita borrada…): revisa los logros YA
 // concedidos. Si ya no se cumplen con los datos de hoy, NO se retiran: quedan "en revisión" con una nota.
 // Si una corrección posterior los vuelve a respaldar, vuelven a "activo" (solo los marcados por el sistema).
-export async function reconcilePatientAchievements(patientId, { now = new Date() } = {}) {
-  const data = await loadData(patientId);
+export async function reconcilePatientAchievements(patientId, { now = new Date(), data: preloaded } = {}) {
+  const data = preloaded ?? (await loadData(patientId));
   const awards = await AchievementAward.find({
     patient: patientId,
     key: { $in: ['kine_5', 'consistency_month', 'streak_3', 'streak_6', 'streak_12', 'body_1kg', 'body_3kg', 'body_5kg', 'body_10kg', 'strength_pr'] }
@@ -131,8 +132,9 @@ export async function reconcilePatientAchievements(patientId, { now = new Date()
 // cita, por ejemplo). El error se registra y la pasada periódica del programador lo recupera.
 export async function triggerAchievementEvaluation(patientId) {
   try {
-    await evaluatePatientAchievements(patientId);
-    await reconcilePatientAchievements(patientId);
+    const data = await loadData(patientId);
+    await evaluatePatientAchievements(patientId, { data });
+    await reconcilePatientAchievements(patientId, { data });
   } catch (error) {
     console.error('Error evaluando logros:', error.message);
   }
@@ -151,12 +153,14 @@ export async function runAchievementSweep({ now = new Date(), windowDays = 3, li
   ]);
   const patientIds = [...new Map([...fromAppointments, ...fromCheckins, ...fromMeasurements, ...fromExercises].map((id) => [String(id), id])).values()];
 
-  const summary = { patients: 0, granted: 0, flagged: 0, restored: 0, failed: 0 };
+  const summary = { patients: 0, granted: 0, flagged: 0, restored: 0, failed: 0, skipped: Math.max(0, patientIds.length - limit) };
+  if (summary.skipped > 0) console.warn(`Pasada de logros: ${summary.skipped} pacientes quedaron fuera por el tope de ${limit}`);
   for (const patientId of patientIds.slice(0, limit)) {
     summary.patients += 1;
     try {
-      const evaluated = await evaluatePatientAchievements(patientId);
-      const reconciled = await reconcilePatientAchievements(patientId);
+      const data = await loadData(patientId);
+      const evaluated = await evaluatePatientAchievements(patientId, { data });
+      const reconciled = await reconcilePatientAchievements(patientId, { data });
       summary.granted += evaluated.granted.length;
       summary.flagged += reconciled.flagged.length;
       summary.restored += reconciled.restored.length;

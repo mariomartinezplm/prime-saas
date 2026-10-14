@@ -67,10 +67,13 @@ const PatientAchievementsTab = ({ patientId }: PatientAchievementsTabProps) => {
   }, [load]);
 
   if (loading && !data) return <LoadingState label="Cargando logros…" className="py-8" />;
-  if (failed || !data) return <LoadErrorAlert message="No se pudieron cargar los logros del paciente." onRetry={load} />;
+  // Sin datos que mostrar: el error ocupa la pestaña. Con datos (p. ej. falló solo el refresco tras guardar), se
+  // conservan a la vista para no esconder lo recién guardado.
+  if (!data) return <LoadErrorAlert message="No se pudieron cargar los logros del paciente." onRetry={load} />;
 
   return (
     <div className="space-y-4">
+      {failed && <LoadErrorAlert message="No se pudo actualizar la información; lo que ves puede estar desactualizado." onRetry={load} />}
       <SummaryCard data={data} />
       <ProgressCard data={data} />
       <HistoryCard history={data.history} />

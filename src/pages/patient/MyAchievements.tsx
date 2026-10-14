@@ -10,7 +10,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import PageHeader from '@/components/shared/PageHeader';
 import { CardsSkeleton, ListSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 const MyAchievements = () => {
   const [overview, setOverview] = useState<AchievementsOverview | null>(null);
@@ -71,7 +71,7 @@ const MyAchievements = () => {
           <section aria-label="Resumen" className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Logros conseguidos</CardTitle>
+                <h2 className="text-sm font-medium leading-none tracking-tight text-muted-foreground">Logros conseguidos</h2>
               </CardHeader>
               <CardContent>
                 <p className="text-4xl font-semibold tabular-nums text-foreground">{overview.summary.earned}</p>
@@ -80,7 +80,7 @@ const MyAchievements = () => {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Próximo hito</CardTitle>
+                <h2 className="text-sm font-medium leading-none tracking-tight text-muted-foreground">Próximo hito</h2>
               </CardHeader>
               <CardContent>
                 {overview.next ? (

@@ -78,6 +78,29 @@ export async function enablePush(publicKey: string): Promise<'enabled' | 'denied
   return 'enabled';
 }
 
+// Al cerrar sesión: este dispositivo deja de recibir los avisos de ESA persona (en un teléfono compartido, el
+// siguiente usuario no debe ver los avisos del anterior). Mejor esfuerzo: nunca bloquea ni rompe el cierre de sesión.
+// Recibe el token porque, cuando se llama, la sesión local ya se limpió.
+export async function releasePushOnLogout(token: string): Promise<void> {
+  try {
+    if (pushSupport() !== 'supported') return;
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return;
+    // fetch directo (no `api`): sus interceptores intentarían renovar la sesión ante un 401 y podrían revivirla
+    const response = await fetch(`${api.defaults.baseURL}/push/unsubscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+      signal: AbortSignal.timeout(3000),
+    });
+    // Solo si el servidor ya lo dio de baja se quita también del navegador (si falló, queda como estaba)
+    if (response.ok) await subscription.unsubscribe();
+  } catch {
+    // Sin red o sin suscripción: no importa, el cierre de sesión sigue
+  }
+}
+
 export async function disablePush(): Promise<void> {
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.getSubscription();

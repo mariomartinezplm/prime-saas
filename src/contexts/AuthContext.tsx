@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../services/authService';
-import { refreshAccessToken, setAccessToken } from '../lib/api';
+import { getAccessToken, refreshAccessToken, setAccessToken } from '../lib/api';
+import { releasePushOnLogout } from '../lib/push';
 import { resetWelcome } from '../lib/welcomeSplash';
 import type { User, LoginCredentials } from '../types';
 
@@ -57,6 +58,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // backend fuera antes, ese navigate ocurriría con `user` todavía seteado
     // y las pantallas de login (que redirigen solas si ya hay sesión)
     // rebotarían de vuelta.
+    // El dispositivo deja de recibir los avisos push de esta persona (usa el token que aún existe)
+    const token = getAccessToken();
+    const pushRelease = token ? releasePushOnLogout(token) : Promise.resolve();
     setAccessToken(null);
     setUser(null);
     resetWelcome();
@@ -65,6 +69,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       // Sin red o backend caído: no importa, el cliente ya quedó deslogueado
     }
+    await pushRelease;
   };
 
   const updateUser = (updatedUser: User) => {
