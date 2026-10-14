@@ -14,9 +14,13 @@ import PageHeader from '@/components/shared/PageHeader';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
 import { appointmentStart, dayKey } from '@/lib/appointments';
-import { capitalizeFirst } from '@/lib/utils';
+import { capitalizeFirst, cn } from '@/lib/utils';
 import { getWhatsAppUrl } from '@/config/contact';
 import WellnessCheckinCard from '@/components/wellness/WellnessCheckinCard';
+import TodayCard from '@/components/dashboard/TodayCard';
+import { computeTodayActions, greetingFor, todayLabel, type TodayTarget } from '@/components/dashboard/todayActions';
+import { useNow } from '@/components/dashboard/useNow';
+import { useReadinessToday } from '@/components/dashboard/useReadinessToday';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 import {
@@ -48,15 +52,28 @@ const PatientDashboard = () => {
   const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
-  const readinessRef = useRef<HTMLDivElement>(null);
+  const readinessRef = useRef<HTMLDivElement | null>(null);
+  const planRef = useRef<HTMLDivElement | null>(null);
+  // El elemento del Readiness también se guarda en estado: «Para hoy» observa sus cambios para saber cuándo se completó
+  const [readinessEl, setReadinessEl] = useState<HTMLDivElement | null>(null);
+  const setReadinessRef = useCallback((el: HTMLDivElement | null) => {
+    readinessRef.current = el;
+    setReadinessEl(el);
+  }, []);
+  const now = useNow();
+
+  // Baja hasta una sección y la enfoca (teclado/lector); con «menos movimiento» no se anima
+  const focusSection = useCallback((el: HTMLElement | null) => {
+    el?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    el?.focus({ preventScroll: true });
+  }, []);
 
   // Desde el recordatorio ('?readiness=1') se baja directo al Readiness y se enfoca para teclado/lector
   const wantsReadiness = searchParams.get('readiness') === '1';
   useEffect(() => {
     if (loading || !wantsReadiness) return;
-    readinessRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-    readinessRef.current?.focus({ preventScroll: true });
-  }, [loading, wantsReadiness]);
+    focusSection(readinessRef.current);
+  }, [loading, wantsReadiness, focusSection]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -74,6 +91,9 @@ const PatientDashboard = () => {
     load();
   }, [load]);
 
+  // ¿Falta el Readiness de hoy? (solo se consulta si tiene plan vigente: sin plan no puede registrarlo)
+  const readiness = useReadinessToday(readinessEl, balance?.hasActivePlan === true);
+
   if (loading) {
     return (
       <PageSkeleton label="Cargando tu espacio…">
@@ -83,8 +103,10 @@ const PatientDashboard = () => {
     );
   }
 
+  const todayResult = computeTodayActions({ now, upcoming, balance, readiness });
+  const goToSection = (target: TodayTarget) => focusSection(target === 'readiness' ? readinessRef.current : planRef.current);
+
   // "Próxima sesión" no debe ser una de hoy que ya empezó
-  const now = new Date();
   const nextAppointment = upcoming?.find((apt) => appointmentStart(apt) > now) ?? null;
   const plan = balance?.plan;
   const daysLeft = plan ? differenceInCalendarDays(parseISO(plan.endDate), now) : null;
@@ -97,9 +119,9 @@ const PatientDashboard = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Hola, ${user?.firstName ?? ''}`}
+        title={`${greetingFor(now)}, ${user?.firstName ?? ''}`}
         badges={user?.isFounder ? <FounderBadge /> : undefined}
-        description="Bienvenido a tu espacio Prime F&H"
+        description={todayLabel(now)}
       />
 
       {failed && (
@@ -116,8 +138,11 @@ const PatientDashboard = () => {
 
       {balance?.paymentPending && balance.paymentDueBy && <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />}
 
+      {/* Qué conviene hacer hoy: máximo 3 acciones con datos reales (reglas en dashboard/todayActions.ts) */}
+      <TodayCard result={todayResult} onGoTo={goToSection} />
+
       {/* Check-in de bienestar: lo primero que se hace cada día */}
-      <div id="readiness" ref={readinessRef} tabIndex={-1} className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
+      <div id="readiness" ref={setReadinessRef} tabIndex={-1} className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
         <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} />
       </div>
 
@@ -159,7 +184,13 @@ const PatientDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className={balance && !balance.hasActivePlan ? 'border-destructive/50' : undefined}>
+        <Card
+          ref={planRef}
+          role="region"
+          aria-label="Mi plan"
+          tabIndex={-1}
+          className={cn('scroll-mt-20 focus:outline-none', balance && !balance.hasActivePlan && 'border-destructive/50')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Mi plan</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />

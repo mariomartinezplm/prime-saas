@@ -1,4 +1,5 @@
 import api from '../lib/api';
+import { todayLocal } from '../lib/evolutionDate';
 import type { Appointment, CreateAppointmentData, BulkBookingData, APIResponse } from '../types';
 
 export const appointmentService = {
@@ -87,7 +88,7 @@ export const appointmentService = {
 
   // Obtener citas próximas
   getUpcoming: async (): Promise<Appointment[]> => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
     return await appointmentService.getAll({
       status: 'scheduled',
       from: today,
@@ -96,7 +97,7 @@ export const appointmentService = {
 
   // Obtener citas del día
   getToday: async (): Promise<Appointment[]> => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
     return await appointmentService.getAll({
       status: 'scheduled',
       from: today,
