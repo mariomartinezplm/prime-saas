@@ -9,6 +9,16 @@ function resolvePatientId(req) {
   return req.params.patientId;
 }
 
+// Lo que el PACIENTE puede ver de una sesión extra suya: solo los datos propios (lista cerrada). Quedan fuera el motivo que escribe
+// el personal (`reason`), quién la otorgó (`grantedBy`) y la cita interna en que se usó. Un campo nuevo del modelo NO llega al
+// paciente hasta agregarlo aquí.
+export const PATIENT_EXTRA_SESSION_FIELDS = ['_id', 'patient', 'serviceType', 'date', 'used', 'usedAt', 'createdAt', 'updatedAt'];
+
+export function toPatientExtraSessionView(extraSession) {
+  const source = typeof extraSession.toObject === 'function' ? extraSession.toObject() : extraSession;
+  return Object.fromEntries(PATIENT_EXTRA_SESSION_FIELDS.filter((field) => source[field] !== undefined).map((field) => [field, source[field]]));
+}
+
 // @desc    Otorgar una sesión extra a un paciente
 // @route   POST /api/extra-sessions
 // @access  Private/Staff (admin o professional)
@@ -79,9 +89,12 @@ export const getPatientExtraSessions = async (req, res) => {
       });
     }
 
-    const extraSessions = await ExtraSession.find({ patient: patientId })
-      .populate('grantedBy', 'firstName lastName')
-      .sort({ createdAt: -1 });
+    // El personal ve el documento completo (con el motivo y quién la otorgó); el paciente, solo los datos propios de la sesión
+    const staff = ['admin', 'professional'].includes(req.user.role);
+    let query = ExtraSession.find({ patient: patientId });
+    if (staff) query = query.populate('grantedBy', 'firstName lastName');
+    const found = await query.sort({ createdAt: -1 });
+    const extraSessions = staff ? found : found.map(toPatientExtraSessionView);
 
     res.status(200).json({
       success: true,
