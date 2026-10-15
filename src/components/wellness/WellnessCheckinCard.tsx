@@ -3,17 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2, Sparkles, MessageCircle } from 'lucide-react';
-import { notify } from '@/lib/notify';
+import { ArrowLeft, CircleCheck, Sparkles, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { wellnessService } from '@/services/wellnessService';
-import { showApiError } from '@/lib/apiError';
+import { getErrorMessage, showApiError } from '@/lib/apiError';
+import { notify } from '@/lib/notify';
 import { getWhatsAppUrl } from '@/config/contact';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import SubmitButton from '@/components/forms/SubmitButton';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import ReadinessBars from './ReadinessBars';
 import { readinessStatusOf, type ReadinessTodayStatus } from './readinessStatus';
+import { RESERVED, SkeletonBones } from '@/components/dashboard/CardSkeleton';
+import { withTimeout } from '@/lib/withTimeout';
 import { READINESS_QUESTIONS, METRIC_LABELS, STATUS_STYLES, formatScore } from './readinessConfig';
 import type { WellnessCheckin, ReadinessKey } from '@/types';
 
@@ -21,12 +23,16 @@ interface WellnessCheckinCardProps {
   hasActivePlan: boolean;
   // Avisa si falta o ya se hizo el Readiness de hoy (el dashboard lo usa para «Para hoy»). Opcional: sin él, la tarjeta funciona igual.
   onStatusChange?: (status: ReadinessTodayStatus) => void;
+  // Si el plan todavía se está consultando no se decide qué mostrar (se conserva el espacio); si la consulta falló NO se afirma que el plan
+  // venció: se dice que no se pudo comprobar. Por defecto, el plan se da por conocido.
+  planStatus?: 'loading' | 'ready' | 'error';
+  onRetryPlan?: () => void;
 }
 
 const TOTAL = READINESS_QUESTIONS.length;
 const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinCardProps) => {
+const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'ready', onRetryPlan }: WellnessCheckinCardProps) => {
   const { user } = useAuth();
   const [checkin, setCheckin] = useState<WellnessCheckin | null>(null);
   const [history, setHistory] = useState<WellnessCheckin[]>([]);
@@ -41,6 +47,14 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinC
   // Lo que la persona tocó en el teclado, sin invertir
   const [pressed, setPressed] = useState<Partial<Record<ReadinessKey, number>>>({});
   const [notes, setNotes] = useState('');
+  // Verdadero solo si ESTA persona acaba de guardar y el servidor lo confirmó (no al abrir la app con el check-in ya hecho)
+  const [justSaved, setJustSaved] = useState(false);
+  const confirmRef = useRef<HTMLParagraphElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  // Si el guardado falla, el foco vuelve al botón (al quedar bloqueado «Guardando…» el navegador lo suelta)
+  const refocusSubmit = useRef(false);
+  // Aviso de error del último intento: al reintentar se retira (así no queda un «error» viejo en pantalla junto al resultado nuevo)
+  const errorToastId = useRef<string | null>(null);
 
   const loadHistory = useCallback(() => {
     if (!user) return;
@@ -51,7 +65,8 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinC
   const loadToday = useCallback(() => {
     setLoading(true);
     setLoadFailed(false);
-    wellnessService.getToday()
+    // Si el servidor no responde nunca, la tarjeta pasa a «no pudimos comprobar» con su «Reintentar» en vez de esperar sin fin
+    withTimeout(wellnessService.getToday())
       .then((today) => {
         setCheckin(today);
         if (today) loadHistory();
@@ -83,6 +98,7 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinC
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
+    if (errorToastId.current) notify.dismiss(errorToastId.current);
     try {
       // Fatiga, dolor y estrés se guardan invertidos: en la base 9 siempre es "bien"
       const answers = Object.fromEntries(
@@ -92,9 +108,12 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinC
       const created = await wellnessService.create({ ...answers, notes: notes.trim() || undefined });
       setCheckin(created);
       setStep(null);
+      setJustSaved(true);
       loadHistory();
-      notify.success('¡Listo! Gracias por contarnos cómo estás.');
     } catch (err: unknown) {
+      // Las respuestas y las notas se conservan: la persona puede reintentar sin volver a empezar
+      refocusSubmit.current = true;
+      errorToastId.current = `error:${getErrorMessage(err, 'Error al registrar el check-in')}`;
       showApiError(err, 'Error al registrar el check-in');
     } finally {
       submittingRef.current = false;
@@ -102,11 +121,25 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinC
     }
   };
 
-  if (loading) {
+  // Guardado confirmado: el botón de envío desaparece, así que el foco pasa a la confirmación (una sola vez, sin región «en vivo»
+  // aparte: al recibir el foco, el lector de pantalla lee esa confirmación y no la repite)
+  useEffect(() => {
+    if (justSaved) confirmRef.current?.focus();
+  }, [justSaved]);
+
+  useEffect(() => {
+    if (!submitting && refocusSubmit.current) {
+      refocusSubmit.current = false;
+      formRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
+    }
+  }, [submitting]);
+
+  if (loading || planStatus === 'loading') {
+    // Mismo espacio que la tarjeta ya cargada: al llegar el dato nada se desplaza
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <Card className={RESERVED.readiness}>
+        <CardContent className="pt-6">
+          <SkeletonBones label="Cargando tu Readiness" lines={[40, 100, 60]} />
         </CardContent>
       </Card>
     );
@@ -137,9 +170,27 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinC
     const flagged = readiness.flags.map((k) => METRIC_LABELS[k]);
 
     return (
-      <Card className="border-2 border-secondary/30 bg-secondary/5">
+      <Card
+        className={`border-2 border-secondary/30 bg-secondary/5 ${
+          justSaved ? 'animate-in fade-in-0 slide-in-from-bottom-1 [animation-duration:220ms] motion-reduce:animate-none' : ''
+        }`}
+      >
         {header}
         <CardContent className="space-y-4">
+          {justSaved && (
+            <p
+              ref={confirmRef}
+              tabIndex={-1}
+              className="flex w-fit max-w-full items-center gap-2 rounded-md text-sm font-medium text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <CircleCheck className="h-4 w-4" aria-hidden="true" />
+              Guardado. Tu Readiness de hoy quedó registrado.
+              <span className="sr-only">
+                {' '}
+                Resultado: {formatScore(readiness.score)} de 9, {style.headline}.
+              </span>
+            </p>
+          )}
           <div className="flex items-center gap-4">
             <p className={`text-5xl font-bold leading-none ${style.text}`}>{formatScore(readiness.score)}</p>
             <div className="space-y-1">
@@ -178,6 +229,18 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinC
               <ReadinessBars checkins={history} />
             </div>
           )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // --- No se pudo comprobar el plan (no se afirma que venció) ---
+  if (planStatus === 'error') {
+    return (
+      <Card>
+        {header}
+        <CardContent>
+          <LoadErrorAlert message="No pudimos comprobar tu plan para tu Readiness." onRetry={() => onRetryPlan?.()} />
         </CardContent>
       </Card>
     );
@@ -229,7 +292,7 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange }: WellnessCheckinC
       <Card className="border-2 border-secondary/30 bg-secondary/5">
         {header}
         <CardContent>
-         <form onSubmit={handleSubmit} className="space-y-4">
+         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           <Button type="button" variant="ghost" size="sm" className="-ml-2" onClick={() => setStep(TOTAL - 1)} disabled={submitting}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Atrás

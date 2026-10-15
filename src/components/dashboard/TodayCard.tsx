@@ -1,8 +1,10 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarClock, CalendarPlus, CircleAlert, HeartPulse, Hourglass, Play, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { RESERVED } from './CardSkeleton';
 import type { TodayAction, TodayActionId, TodayResult, TodayTarget } from './todayActions';
 
 // Identidad de PRIME: negro #181619, turquesa #398ca2 y crema #fff8e4 (con transparencias). Los valores van exactos,
@@ -72,12 +74,37 @@ const ActionRow = ({ action, first, onGoTo }: { action: TodayAction; first: bool
 
 // «Para hoy»: como máximo 3 acciones, en orden de prioridad fija (ver todayActions.ts).
 const TodayCard = ({ result, onGoTo }: TodayCardProps) => {
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  // Último elemento de las acciones que tuvo el foco. Si esa fila desaparece (p. ej. se completó el Readiness, o una sesión
+  // «de hoy» pasó a «en curso») el navegador deja el foco en la nada: se lleva al título del bloque, que es un punto predecible.
+  const focused = useRef<HTMLElement | null>(null);
+  const rowIds = result.actions.map((a) => a.id).join('|');
+
+  useLayoutEffect(() => {
+    const el = focused.current;
+    if (el && !el.isConnected) {
+      focused.current = null;
+      headingRef.current?.focus({ preventScroll: true });
+    }
+  }, [rowIds]);
+
   // Sin datos suficientes no se afirma nada: el bloque no aparece
   if (result.status === 'unknown') return null;
 
   return (
-    <section aria-labelledby="para-hoy" className="space-y-3 rounded-xl border border-[#398ca2]/40 bg-[#398ca2]/5 p-4">
-      <h2 id="para-hoy" className="text-lg font-semibold tracking-tight text-[#fff8e4]">
+    <section
+      aria-labelledby="para-hoy"
+      className={cn('space-y-3 rounded-xl border border-[#398ca2]/40 bg-[#398ca2]/5 p-4', result.status === 'loading' && RESERVED.today)}
+      onFocusCapture={(e) => {
+        focused.current = e.target instanceof HTMLElement && e.target !== headingRef.current ? e.target : null;
+      }}
+      onBlurCapture={(e) => {
+        const target = e.target;
+        // Si el elemento sigue en pantalla, el foco simplemente se movió a otro lado; si ya no está, lo quitó una actualización
+        if (target instanceof HTMLElement) requestAnimationFrame(() => target.isConnected && focused.current === target && (focused.current = null));
+      }}
+    >
+      <h2 id="para-hoy" ref={headingRef} tabIndex={-1} className="text-lg font-semibold tracking-tight text-[#fff8e4] focus:outline-none">
         Para hoy
       </h2>
 
@@ -96,7 +123,8 @@ const TodayCard = ({ result, onGoTo }: TodayCardProps) => {
           ))}
           {result.loadingMore && (
             <li aria-hidden="true">
-              <Skeleton className="h-16 w-full rounded-lg" />
+              {/* Del alto de una fila real (móvil / escritorio): al llegar el Readiness la lista casi no se mueve */}
+              <Skeleton className="h-[9.25rem] w-full rounded-lg sm:h-[4.75rem]" />
             </li>
           )}
         </ul>

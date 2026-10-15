@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { BTN_OUTLINE, EYEBROW, Meter, PILL, SURFACE, TEXT, TEXT_SOFT } from './brand';
 import { sessionsWord } from './nextSession';
 import type { PlanView } from './planView';
+import { RESERVED, SkeletonBones } from './CardSkeleton';
 
 // El estado va en la etiqueta (texto + icono) y la línea de abajo agrega un dato distinto (la fecha), sin repetir el mensaje de «Para hoy»
 const INACTIVE_LABEL: Record<NonNullable<PlanView['inactiveReason']>, string> = {
@@ -28,23 +29,27 @@ const WhatsAppButton = ({ label, message }: { label: string; message: string }) 
 
 interface PlanCardProps {
   view: PlanView;
+  // El saldo (o el historial de planes) todavía se está cargando: se conserva el espacio del bloque
+  loading?: boolean;
 }
 
 // «Mi plan». Se puede enfocar desde «Para hoy» (por eso lleva ref, tabIndex -1 y es una región con nombre).
-const PlanCard = forwardRef<HTMLElement, PlanCardProps>(({ view }, ref) => {
+const PlanCard = forwardRef<HTMLElement, PlanCardProps>(({ view, loading = false }, ref) => {
   const isInactive = view.kind === 'inactive';
   const usedUp = view.kind === 'used-up';
 
   return (
-    <section ref={ref} aria-labelledby="mi-plan" tabIndex={-1} className={cn(SURFACE, 'flex scroll-mt-20 flex-col gap-4 focus:outline-none')}>
+    <section ref={ref} aria-labelledby="mi-plan" tabIndex={-1} className={cn(SURFACE, RESERVED.card, 'flex scroll-mt-20 flex-col gap-4 focus:outline-none')}>
       <h2 id="mi-plan" className={EYEBROW}>
         Mi plan
         <FileText className="h-4 w-4" aria-hidden="true" />
       </h2>
 
-      {view.kind === 'error' && <p className={cn('text-sm', TEXT_SOFT)}>No se pudo cargar tu plan.</p>}
+      {loading && <SkeletonBones label="Cargando tu plan" />}
 
-      {isInactive && (
+      {!loading && view.kind === 'error' && <p className={cn('text-sm', TEXT_SOFT)}>No se pudo cargar tu plan.</p>}
+
+      {!loading && isInactive && (
         <>
           <div className="space-y-2">
             <span className={PILL}>
@@ -63,7 +68,7 @@ const PlanCard = forwardRef<HTMLElement, PlanCardProps>(({ view }, ref) => {
         </>
       )}
 
-      {(view.kind === 'active' || usedUp || view.kind === 'unlimited') && view.serviceType && (
+      {!loading && (view.kind === 'active' || usedUp || view.kind === 'unlimited') && view.serviceType && (
         <>
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">

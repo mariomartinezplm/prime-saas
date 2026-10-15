@@ -6,9 +6,9 @@ import { clientPlanService } from '@/services/clientPlanService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { appointmentStart } from '@/lib/appointments';
+import { withTimeout } from '@/lib/withTimeout';
 import WellnessCheckinCard from '@/components/wellness/WellnessCheckinCard';
 import type { ReadinessTodayStatus } from '@/components/wellness/readinessStatus';
 import TodayCard from '@/components/dashboard/TodayCard';
@@ -16,7 +16,8 @@ import NextSessionCard from '@/components/dashboard/NextSessionCard';
 import PlanCard from '@/components/dashboard/PlanCard';
 import ProgressCard from '@/components/dashboard/ProgressCard';
 import { computePlanView } from '@/components/dashboard/planView';
-import { computeTodayActions, greetingFor, todayLabel, type TodayTarget } from '@/components/dashboard/todayActions';
+import { computeTodayActions, greetingFor, todayLabel, type TodayResult, type TodayTarget } from '@/components/dashboard/todayActions';
+import { hasLoadError, planIsWaiting, queriesToRetry, todayIsWaiting, type DashboardQuery, type LoadState } from '@/components/dashboard/dashboardLoad';
 import { useAchievementsSummary } from '@/components/dashboard/useAchievementsSummary';
 import { useNow } from '@/components/dashboard/useNow';
 import { usePlanHistory } from '@/components/dashboard/usePlanHistory';
@@ -25,19 +26,29 @@ import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 import { Activity, CalendarCheck, CalendarPlus, Ruler, TriangleAlert } from 'lucide-react';
 import type { Appointment, SessionBalance } from '@/types';
 
+// Mientras «Para hoy» espera sus datos: el bloque conserva su espacio con un esqueleto
+const TODAY_LOADING: TodayResult = { status: 'loading', actions: [], loadingMore: true };
+
 const PatientDashboard = () => {
   const { user } = useAuth();
-  const [upcoming, setUpcoming] = useState<Appointment[] | null>(null);
-  const [balance, setBalance] = useState<SessionBalance | null>(null);
-  const [loading, setLoading] = useState(true);
+  const userId = user?.id;
   const [searchParams] = useSearchParams();
   const readinessRef = useRef<HTMLDivElement | null>(null);
   const planRef = useRef<HTMLElement | null>(null);
+
+  // Citas y saldo del plan: dos consultas INDEPENDIENTES. Cada bloque aparece apenas tiene lo suyo; si una falla, lo que ya se
+  // cargó bien se conserva y «Reintentar» repite solo lo que falló.
+  const [upcoming, setUpcoming] = useState<Appointment[] | null>(null);
+  const [balance, setBalance] = useState<SessionBalance | null>(null);
+  const [states, setStates] = useState<{ upcoming: LoadState; balance: LoadState }>({ upcoming: 'loading', balance: 'loading' });
+  const [retrying, setRetrying] = useState(false);
   // Estado del Readiness de hoy: lo comunica la propia tarjeta del cuestionario (no se vuelve a consultar)
   const [readiness, setReadiness] = useState<ReadinessTodayStatus>('loading');
   const now = useNow();
-  // Constancia y siguiente logro: una consulta aparte, para que si tarda o falla no afecte al resto de la pantalla
+  // Constancia y siguiente logro: consulta aparte; si tarda o falla no retiene ni afecta al resto de la pantalla
   const summary = useAchievementsSummary();
+  // Un resultado tardío de una consulta anterior nunca pisa al de la más reciente
+  const latest = useRef<Record<DashboardQuery, number>>({ upcoming: 0, balance: 0 });
 
   // Baja hasta una sección y la enfoca (teclado/lector); con «menos movimiento» no se anima
   const focusSection = useCallback((el: HTMLElement | null) => {
@@ -45,48 +56,59 @@ const PatientDashboard = () => {
     el?.focus({ preventScroll: true });
   }, []);
 
-  // Desde el recordatorio ('?readiness=1') se baja directo al Readiness y se enfoca para teclado/lector
-  const wantsReadiness = searchParams.get('readiness') === '1';
-  useEffect(() => {
-    if (loading || !wantsReadiness) return;
-    focusSection(readinessRef.current);
-  }, [loading, wantsReadiness, focusSection]);
+  const run = useCallback(
+    async (query: DashboardQuery) => {
+      if (!userId) return;
+      const id = ++latest.current[query];
+      try {
+        // Si el servidor no responde nunca, el bloque pasa a «error» con su «Reintentar» en vez de esperar sin fin
+        if (query === 'upcoming') {
+          const value = await withTimeout(appointmentService.getUpcoming());
+          if (id !== latest.current.upcoming) return;
+          setUpcoming(value);
+        } else {
+          const value = await withTimeout(clientPlanService.getBalance(userId));
+          if (id !== latest.current.balance) return;
+          setBalance(value);
+        }
+        setStates((prev) => ({ ...prev, [query]: 'ready' }));
+      } catch {
+        if (id !== latest.current[query]) return;
+        setStates((prev) => ({ ...prev, [query]: 'error' }));
+      }
+    },
+    [userId]
+  );
 
-  const load = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    const [apts, bal] = await Promise.allSettled([
-      appointmentService.getUpcoming(),
-      clientPlanService.getBalance(user.id),
-    ]);
-    setUpcoming(apts.status === 'fulfilled' ? apts.value : null);
-    setBalance(bal.status === 'fulfilled' ? bal.value : null);
-    setLoading(false);
-  }, [user]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    run('upcoming');
+    run('balance');
+  }, [run]);
+
+  const retry = async () => {
+    setRetrying(true);
+    await Promise.all(queriesToRetry(states).map(run));
+    setRetrying(false);
+  };
 
   // Sin plan vigente se consultan sus planes (una sola vez) para decir si «venció», «todavía no empieza» o «nunca tuvo»
-  const planHistory = usePlanHistory(user?.id, !loading && balance !== null && !balance.hasActivePlan);
+  const planHistory = usePlanHistory(userId, states.balance === 'ready' && balance !== null && !balance.hasActivePlan);
 
-  if (loading) {
-    return (
-      <PageSkeleton label="Cargando tu espacio…">
-        <StatsSkeleton count={3} />
-        <CardsSkeleton count={2} />
-      </PageSkeleton>
-    );
-  }
+  // Desde el recordatorio ('?readiness=1') se baja directo al Readiness y se enfoca para teclado/lector, cuando ya tiene su forma final
+  const wantsReadiness = searchParams.get('readiness') === '1';
+  const readinessSettled = readiness !== 'loading' && states.balance !== 'loading';
+  useEffect(() => {
+    if (!readinessSettled || !wantsReadiness) return;
+    focusSection(readinessRef.current);
+  }, [readinessSettled, wantsReadiness, focusSection]);
 
-  const todayResult = computeTodayActions({ now, upcoming, balance, readiness, planHistory: planHistory.kind });
+  const todayWaiting = todayIsWaiting(states, planHistory.pending);
+  const todayResult = todayWaiting ? TODAY_LOADING : computeTodayActions({ now, upcoming, balance, readiness, planHistory: planHistory.kind });
   const planView = computePlanView({ balance, history: planHistory, now });
   const goToSection = (target: TodayTarget) => focusSection(target === 'readiness' ? readinessRef.current : planRef.current);
 
   // "Próxima sesión" no debe ser una de hoy que ya terminó ni una que ya empezó
   const nextAppointment = upcoming?.find((apt) => appointmentStart(apt) > now) ?? null;
-  const failed = upcoming === null || balance === null;
 
   return (
     <div className="space-y-6">
@@ -96,12 +118,12 @@ const PatientDashboard = () => {
         description={todayLabel(now)}
       />
 
-      {failed && (
+      {hasLoadError(states) && (
         <Alert variant="warning">
           <TriangleAlert className="h-4 w-4" aria-hidden="true" />
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
             <span>No se pudieron cargar algunos datos.</span>
-            <Button variant="outline" size="sm" onClick={load}>
+            <Button variant="outline" size="sm" onClick={retry} disabled={retrying}>
               Reintentar
             </Button>
           </AlertDescription>
@@ -115,15 +137,15 @@ const PatientDashboard = () => {
 
       {/* Check-in de bienestar: lo primero que se hace cada día. La tarjeta avisa su estado (pendiente/hecho) a «Para hoy». */}
       <div id="readiness" ref={readinessRef} tabIndex={-1} className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
-        <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} onStatusChange={setReadiness} />
+        <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} planStatus={states.balance} onRetryPlan={retry} onStatusChange={setReadiness} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <NextSessionCard appointment={nextAppointment} failed={upcoming === null} now={now} />
-        <PlanCard ref={planRef} view={planView} />
+        <NextSessionCard appointment={nextAppointment} loading={states.upcoming === 'loading'} failed={states.upcoming === 'error'} now={now} />
+        <PlanCard ref={planRef} view={planView} loading={planIsWaiting(states, planHistory.pending)} />
       </div>
 
-      <ProgressCard status={summary.status} view={summary.view} />
+      <ProgressCard status={summary.status} view={summary.view} onRetry={summary.retry} />
 
       <Card>
         <CardHeader className="pb-3">

@@ -1,28 +1,40 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Trophy } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { EYEBROW, Meter, SURFACE, TEXT, TEXT_SOFT } from './brand';
 import { sessionsWord } from './nextSession';
+import { RESERVED, SkeletonBones } from './CardSkeleton';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import type { SummaryStatus } from './useAchievementsSummary';
 import type { ProgressView } from './progressView';
 
 interface ProgressCardProps {
   status: SummaryStatus;
   view: ProgressView | null;
+  // Reintenta solo esta consulta
+  onRetry?: () => void;
 }
 
 // «Tu constancia»: sesiones del mes y siguiente logro, con los datos que ya calcula el servidor.
-// Sin datos aplicables, con error o sin objetivo, el bloque no se muestra (no hay una tarjeta vacía que distraiga).
-const ProgressCard = ({ status, view }: ProgressCardProps) => {
-  if (status === 'error') return null;
+// Sin datos aplicables (sin objetivo) el bloque no se muestra. Si la consulta falla se dice con un «Reintentar» propio: un fallo nunca
+// debe verse como «no hay datos».
+const ProgressCard = ({ status, view, onRetry }: ProgressCardProps) => {
+  if (status === 'error') {
+    return (
+      <section aria-labelledby="tu-constancia" className={cn(SURFACE, 'space-y-3')}>
+        <h2 id="tu-constancia" className={EYEBROW}>
+          Tu constancia
+          <Trophy className="h-4 w-4" aria-hidden="true" />
+        </h2>
+        <LoadErrorAlert message="No pudimos cargar tu constancia." onRetry={() => onRetry?.()} />
+      </section>
+    );
+  }
 
   if (status === 'loading') {
     return (
-      <div role="status" aria-label="Cargando tu constancia" className={cn(SURFACE, 'space-y-3')}>
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-2 w-full" />
+      <div className={cn(SURFACE, RESERVED.progress)}>
+        <SkeletonBones label="Cargando tu constancia" lines={[40, 100, 70]} />
       </div>
     );
   }

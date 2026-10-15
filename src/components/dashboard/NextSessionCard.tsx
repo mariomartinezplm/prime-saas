@@ -8,26 +8,31 @@ import { cn } from '@/lib/utils';
 import type { Appointment } from '@/types';
 import { BTN_OUTLINE, EYEBROW, PILL, PILL_SOLID, SURFACE, TEXT, TEXT_SOFT } from './brand';
 import { nextSessionLabel } from './nextSession';
+import { RESERVED, SkeletonBones } from './CardSkeleton';
 
 interface NextSessionCardProps {
   appointment: Appointment | null;
+  // Las citas todavía se están cargando (se conserva el espacio del bloque)
+  loading?: boolean;
   // No se pudo cargar la lista de citas (distinto de «no hay citas»)
   failed: boolean;
   now: Date;
 }
 
-const NextSessionCard = ({ appointment, failed, now }: NextSessionCardProps) => {
+const NextSessionCard = ({ appointment, loading = false, failed, now }: NextSessionCardProps) => {
   const label = appointment ? nextSessionLabel(appointment, now) : null;
   const professional = appointment && typeof appointment.professional === 'object' ? personName(appointment.professional, '') : '';
 
   return (
-    <section aria-labelledby="proxima-sesion" className={cn(SURFACE, 'flex flex-col')}>
+    <section aria-labelledby="proxima-sesion" className={cn(SURFACE, RESERVED.card, 'flex flex-col')}>
       <h2 id="proxima-sesion" className={EYEBROW}>
         Próxima sesión
         <CalendarClock className="h-4 w-4" aria-hidden="true" />
       </h2>
 
-      {failed ? (
+      {loading ? (
+        <SkeletonBones label="Cargando tu próxima sesión" className="mt-4" />
+      ) : failed ? (
         <p className={cn('mt-4 text-sm', TEXT_SOFT)}>No se pudo cargar tu próxima sesión.</p>
       ) : appointment && label ? (
         <div className="mt-4 flex flex-1 flex-col justify-between gap-5">
