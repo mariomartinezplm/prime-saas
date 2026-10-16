@@ -11,6 +11,7 @@ import {
   FileText,
   MoreHorizontal,
   Pencil,
+  Repeat,
   Ruler,
   Send,
   Trash2,
@@ -41,6 +42,7 @@ import { MeasurementHistory, ExerciseHistory } from '@/components/records/Patien
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import EditPatientDialog from '@/components/forms/EditPatientDialog';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
+import FixedScheduleDialog from '@/components/booking/FixedScheduleDialog';
 import FounderBadge from '@/components/plans/FounderBadge';
 import { DetailList, DetailRow } from '@/components/patients/DetailList';
 import PlanLine from '@/components/patients/PlanLine';
@@ -89,6 +91,7 @@ const PatientDetail = () => {
     if (next !== tab) confirmLeave(() => setTab(next));
   };
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [fixedOpen, setFixedOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -163,6 +166,9 @@ const PatientDetail = () => {
   const assignedProfessional = patient.assignedProfessionalId;
   const bookingProfessionalId = (typeof assignedProfessional === 'object' ? assignedProfessional?.id : assignedProfessional) || user?.id;
   const bookingDefaultType = balance?.plan?.serviceType ?? 'kinesiologia';
+  // El horario fijo se arma con el profesional ASIGNADO al paciente (el servidor lo exige)
+  const fixedProfessionalId = typeof assignedProfessional === 'object' ? assignedProfessional?.id : assignedProfessional;
+  const fixedTypes: Array<'kinesiologia' | 'entrenamiento'> = bookingDefaultType === 'entrenamiento' ? ['entrenamiento', 'kinesiologia'] : ['kinesiologia', 'entrenamiento'];
 
   const resendInvite = async () => {
     try {
@@ -226,6 +232,12 @@ const PatientDetail = () => {
                 Renovar plan
               </Link>
             </Button>
+            {fixedProfessionalId && (
+              <Button variant="outline" onClick={() => setFixedOpen(true)}>
+                <Repeat aria-hidden="true" />
+                Horario fijo
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil aria-hidden="true" />
               Editar datos
@@ -402,6 +414,7 @@ const PatientDetail = () => {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
+                    {apt.recurringSlot && <Badge variant="outline">Horario fijo</Badge>}
                     {apt.overbooked && <Badge variant="warning">Sobrecupo</Badge>}
                     {apt.outsideCapacity && <Badge variant="accent">Sobre cupo</Badge>}
                     <AppointmentStatusBadge status={apt.status} />
@@ -548,6 +561,17 @@ const PatientDetail = () => {
           defaultType={bookingDefaultType}
           canOverbook={user?.role === 'admin' || (user?.role === 'professional' && bookingProfessionalId === user.id)}
           onBooked={fetchData}
+        />
+      )}
+
+      {fixedProfessionalId && (
+        <FixedScheduleDialog
+          open={fixedOpen}
+          onClose={() => setFixedOpen(false)}
+          professionalId={fixedProfessionalId}
+          allowedTypes={fixedTypes}
+          patientId={id!}
+          onChanged={fetchData}
         />
       )}
     </div>

@@ -8,7 +8,8 @@ import ProfessionalSelector from '@/components/booking/ProfessionalSelector';
 import CalendarView from '@/components/booking/CalendarView';
 import SlotGrid from '@/components/booking/SlotGrid';
 import BookingConfirmation from '@/components/booking/BookingConfirmation';
-import BulkBookingDialog from '@/components/booking/BulkBookingDialog';
+import { saveWeeklyAfterBooking, type RepeatMode } from '@/components/booking/RepeatChoice';
+import FixedScheduleDialog from '@/components/booking/FixedScheduleDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { notify } from '@/lib/notify';
@@ -159,7 +160,7 @@ const BookAppointment = () => {
   // un mes calendario, sin importar el tipo de servicio.
   const getCalendarMonths = (): number => 2;
 
-  const handleBook = async () => {
+  const handleBook = async (repeat: RepeatMode = 'once') => {
     if (!selectedProfessional || !selectedDate || !selectedSlot) return;
 
     setBooking(true);
@@ -183,6 +184,13 @@ const BookAppointment = () => {
       });
       setShowConfirmation(false);
       setSelectedSlot(null);
+
+      if (repeat === 'weekly') {
+        const type = getSessionType();
+        if (type === 'kinesiologia' || type === 'entrenamiento') {
+          await saveWeeklyAfterBooking({ dayOfWeek: selectedDate.getDay(), startTime: selectedSlot, type });
+        }
+      }
 
       // Refrescar saldo de sesiones
       if (user) {
@@ -399,9 +407,9 @@ const BookAppointment = () => {
                   <Repeat className={`w-5 h-5 ${bookingMode === 'recurring' ? 'text-secondary' : 'text-muted-foreground'}`} aria-hidden="true" />
                   <div className="text-left">
                     <p className="text-sm font-medium text-foreground">
-                      Horario predeterminado
+                      Horario fijo
                     </p>
-                    <p className="text-xs text-muted-foreground">Fija tu hora para siempre</p>
+                    <p className="text-xs text-muted-foreground">Mismo día y hora cada semana, agendado solo</p>
                   </div>
                 </button>
               </div>
@@ -522,6 +530,7 @@ const BookAppointment = () => {
           open={showConfirmation}
           onClose={() => setShowConfirmation(false)}
           onConfirm={handleBook}
+          sessionType={getSessionType()}
           professional={selectedProfessional}
           date={selectedDate}
           time={selectedSlot}
@@ -529,16 +538,16 @@ const BookAppointment = () => {
         />
       )}
 
-      {/* Bulk booking dialog */}
+      {/* Horario fijo semanal */}
       {showBulk && selectedProfessional && balance?.plan && (
-        <BulkBookingDialog
+        <FixedScheduleDialog
           open={showBulk}
           onClose={() => {
             setShowBulk(false);
             setBookingMode('single');
           }}
-          professional={selectedProfessional}
-          plan={balance.plan}
+          professionalId={selectedProfessional.id}
+          allowedTypes={[balance.plan.serviceType === 'kinesiologia' ? 'kinesiologia' : 'entrenamiento']}
         />
       )}
     </div>

@@ -2,6 +2,7 @@ import { sendDueReminders } from './appointmentReminderService.js';
 import { runPlanLifecycleJob } from './planLifecycleService.js';
 import { runAchievementSweep } from './achievements/index.js';
 import { sendReadinessReminders } from './readinessReminderService.js';
+import { syncAllRecurringSlots } from './recurringSlotService.js';
 import { importNewPatients, isAirtableConfigured, AUTO_IMPORT_FROM } from '../utils/airtableSync.js';
 
 const TICK_MS = 10 * 60 * 1000;
@@ -52,6 +53,16 @@ async function tick() {
     }
   } catch (error) {
     console.error('Error en la pasada de logros:', error.message);
+  }
+
+  // Horarios fijos: agenda las citas que falten dentro de los días del plan (cada pasada pone el plan al día antes de mirar)
+  try {
+    const fixed = await syncAllRecurringSlots();
+    if (fixed.created || fixed.skipped || fixed.failed) {
+      console.log(`🔁 Horarios fijos: ${fixed.created} citas agendadas, ${fixed.skipped} fechas saltadas, ${fixed.failed} con error (${fixed.slots} horarios)`);
+    }
+  } catch (error) {
+    console.error('Error en la pasada de horarios fijos:', error.message);
   }
 
   try {

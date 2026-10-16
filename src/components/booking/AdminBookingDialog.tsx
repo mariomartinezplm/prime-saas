@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { availabilityService } from '@/services/availabilityService';
 import { appointmentService } from '@/services/appointmentService';
+import RepeatChoice, { canRepeatWeekly, saveWeeklyAfterBooking, type RepeatMode } from '@/components/booking/RepeatChoice';
 import LoadingState from '@/components/shared/LoadingState';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import SubmitButton from '@/components/forms/SubmitButton';
@@ -52,6 +53,7 @@ const AdminBookingDialog = ({
   const [slots, setSlots] = useState<AvailableSlots | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState<RepeatMode>('once');
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [slotsError, setSlotsError] = useState(false);
@@ -63,6 +65,7 @@ const AdminBookingDialog = ({
     setDate('');
     setSlots(null);
     setSelectedSlot(null);
+    setRepeat('once');
   }, [open, defaultType]);
 
   useEffect(() => {
@@ -94,6 +97,9 @@ const AdminBookingDialog = ({
     : [];
   const selectedIsFull = !!selectedSlot && !!slots?.bookedSlots.includes(selectedSlot);
 
+  const dayOfWeek = date ? new Date(`${date}T00:00:00Z`).getUTCDay() : 0;
+  const weeklyAllowed = !!date && canRepeatWeekly(type, dayOfWeek);
+
   const handleBook = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!selectedSlot || !date || submittingRef.current) return;
@@ -121,6 +127,9 @@ const AdminBookingDialog = ({
         notify.success(`${base}. Se descontó 1 sesión de su plan.`);
       } else {
         notify.success(base);
+      }
+      if (repeat === 'weekly' && weeklyAllowed && !selectedIsFull) {
+        await saveWeeklyAfterBooking({ dayOfWeek, startTime: selectedSlot, type: type as 'kinesiologia' | 'entrenamiento', patient: patientId });
       }
       onBooked();
       onClose();
@@ -214,6 +223,17 @@ const AdminBookingDialog = ({
                 </>
               )}
             </div>
+          )}
+
+          {selectedSlot && weeklyAllowed && (
+            <RepeatChoice
+              value={repeat}
+              onChange={setRepeat}
+              dayOfWeek={dayOfWeek}
+              time={selectedSlot}
+              disabled={selectedIsFull}
+              disabledReason="No disponible en un sobrecupo."
+            />
           )}
 
           {selectedIsFull && (

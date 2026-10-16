@@ -16,7 +16,9 @@ const notificationSchema = new mongoose.Schema({
       'appointment_cancelled',
       'wellness_alert',
       'achievement_unlocked',
-      'readiness_reminder'
+      'readiness_reminder',
+      'recurring_booked',
+      'recurring_skipped'
     ],
     required: [true, 'El tipo de notificación es requerido']
   },

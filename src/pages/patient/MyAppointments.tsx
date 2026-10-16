@@ -66,6 +66,7 @@ const AppointmentCard = ({
         </p>
         <p className="text-xs text-muted-foreground">
           {appointmentTypeLabels[apt.type]}
+          {apt.recurringSlot && <span> · Horario fijo</span>}
           {typeof apt.professional === 'object' && <span className="text-secondary"> · {personName(apt.professional, '')}</span>}
         </p>
         </div>

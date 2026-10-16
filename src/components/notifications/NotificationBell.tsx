@@ -12,6 +12,7 @@ import {
   Clock,
   HeartPulse,
   Loader2,
+  Repeat,
   Sparkles,
   Trophy,
   type LucideIcon,
@@ -39,6 +40,8 @@ const TYPE_META: Record<string, { icon: LucideIcon; tone: string }> = {
   evolution_updated: { icon: Activity, tone: 'bg-info/15 text-info' },
   achievement_unlocked: { icon: Trophy, tone: 'bg-primary/15 text-primary' },
   readiness_reminder: { icon: Sparkles, tone: 'bg-primary/15 text-primary' },
+  recurring_booked: { icon: Repeat, tone: 'bg-info/15 text-info' },
+  recurring_skipped: { icon: CalendarX, tone: 'bg-warning/15 text-warning' },
 };
 const FALLBACK_META = { icon: Bell, tone: 'bg-muted text-muted-foreground' };
 

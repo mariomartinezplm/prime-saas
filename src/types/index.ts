@@ -94,6 +94,8 @@ export interface Appointment {
   sessionDeducted?: boolean;
   // Cita de un paciente "sobre cupo": no cuenta en el máximo de 4 simultáneos
   outsideCapacity?: boolean;
+  // Si la generó un horario fijo del paciente
+  recurringSlot?: string;
   cancellationReason?: string;
   cancelledBy?: User | string;
   cancelledAt?: string;
@@ -553,4 +555,28 @@ export interface AirtableImportResult {
     professional: string | null;
     professionalText: string | null;
   }>;
+}
+
+// Horario fijo semanal («todos los lunes a las 18:00»): el sistema agenda las citas que falten dentro de los días del plan
+export interface RecurringSlot {
+  _id: string;
+  patient: string;
+  professional: User | string;
+  // 1 = lunes … 6 = sábado
+  dayOfWeek: number;
+  startTime: string;
+  type: 'kinesiologia' | 'entrenamiento';
+  // false = en pausa (no agenda citas nuevas; las ya agendadas se mantienen)
+  active: boolean;
+  skipped: Array<{ date: string; code: 'FULL' | 'NOT_AVAILABLE'; label: string }>;
+  createdAt: string;
+}
+
+export interface RecurringSlotResult {
+  slot: RecurringSlot;
+  // Fechas ('YYYY-MM-DD') que se agendaron ahora
+  created: string[];
+  skipped: Array<{ date: string; code: string; label: string }>;
+  // Fechas que esperan a que se registre el pago de la renovación
+  pendingPayment: number;
 }
