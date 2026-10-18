@@ -310,6 +310,11 @@ const PatientDetail = () => {
                     {typeof assignedProfessional === 'object' && assignedProfessional
                       ? `${assignedProfessional.firstName} ${assignedProfessional.lastName}`
                       : patient.assignedProfessional || 'Sin asignar'}
+                    {user?.role === 'admin' && !(typeof assignedProfessional === 'object' && assignedProfessional) && !patient.assignedProfessional && (
+                      <Button variant="link" size="sm" className="ml-2 h-auto p-0" onClick={() => setEditOpen(true)}>
+                        Asignar
+                      </Button>
+                    )}
                   </DetailRow>
                 </DetailList>
               </CardContent>

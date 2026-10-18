@@ -40,6 +40,16 @@ export const userService = {
     return response.data.data.user;
   },
 
+  // Pacientes sin profesional asignado: cuántos son y asignarles uno de una vez (solo admin)
+  countUnassigned: async (): Promise<number> => {
+    const response = await api.get<APIResponse<{ count: number }>>('/users/unassigned/count');
+    return response.data.data.count;
+  },
+  assignUnassigned: async (professionalId: string): Promise<number> => {
+    const response = await api.post<APIResponse<{ modified: number }>>('/users/unassigned/assign', { professionalId });
+    return response.data.data.modified;
+  },
+
   // Reenviar (o regenerar) la invitación de un paciente (Paso 12/13)
   resendInvite: async (id: string): Promise<void> => {
     await api.post(`/users/${id}/resend-invite`);

@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AirtableImportDialog from '@/components/admin/AirtableImportDialog';
+import AssignUnassignedDialog from '@/components/admin/AssignUnassignedDialog';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PlanLine from '@/components/patients/PlanLine';
 import EmptyState from '@/components/shared/EmptyState';
@@ -57,6 +58,15 @@ const PatientList = () => {
   const { user } = useAuth();
   const isProfessional = user?.role === 'professional';
   const isAdmin = user?.role === 'admin';
+  // Pacientes sin profesional asignado (solo lo ve y lo resuelve el admin)
+  const [unassigned, setUnassigned] = useState(0);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const loadUnassigned = useCallback(() => {
+    if (isAdmin) userService.countUnassigned().then(setUnassigned).catch(() => setUnassigned(0));
+  }, [isAdmin]);
+  useEffect(() => {
+    loadUnassigned();
+  }, [loadUnassigned]);
 
   const [patients, setPatients] = useState<User[]>([]);
   // null = no se pudieron cargar los planes (la lista igual funciona, sin esa información)
@@ -219,6 +229,20 @@ const PatientList = () => {
           </>
         }
       />
+
+      {isAdmin && unassigned > 0 && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              {unassigned === 1 ? '1 paciente no tiene' : `${unassigned} pacientes no tienen`} profesional asignado. Ellos no ven con quién agendar.
+            </span>
+            <Button size="sm" onClick={() => setAssignOpen(true)}>
+              Asignar profesional
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="space-y-3">
         <div className="relative">
@@ -443,6 +467,18 @@ const PatientList = () => {
         </DialogContent>
       </Dialog>
 
+      {isAdmin && (
+        <AssignUnassignedDialog
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          count={unassigned}
+          defaultProfessionalId={user?.id}
+          onAssigned={() => {
+            loadUnassigned();
+            load();
+          }}
+        />
+      )}
       {isAdmin && <AirtableImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={load} />}
     </div>
   );

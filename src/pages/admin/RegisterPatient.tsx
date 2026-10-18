@@ -2,6 +2,9 @@ import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, Dumbbell, Stethoscope, TriangleAlert } from 'lucide-react';
 import { userService } from '@/services/userService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useActiveStaff } from '@/hooks/useActiveStaff';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { clientPlanService } from '@/services/clientPlanService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -74,8 +77,16 @@ function validate(form: FormState): Errors {
   return errors;
 }
 
+const NONE = 'none';
+
 const RegisterPatient = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  // Quién atiende al paciente: el administrador elige (por defecto, él mismo); un profesional queda siempre como su profesional
+  const { staff } = useActiveStaff(isAdmin);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
+  const chosenProfessional = professionalId ?? user?.id ?? '';
   const formRef = useRef<HTMLFormElement>(null);
   const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
@@ -127,6 +138,7 @@ const RegisterPatient = () => {
         dateOfBirth: form.dateOfBirth || undefined,
         address: form.address.trim() || undefined,
         role: 'patient',
+        ...(isAdmin ? { assignedProfessionalId: chosenProfessional === NONE ? '' : chosenProfessional } : {}),
         emergencyContact: hasEmergency
           ? { name: form.emergencyName.trim(), phone: form.emergencyPhone.trim(), relationship: form.emergencyRelationship.trim() }
           : undefined,
@@ -255,6 +267,29 @@ const RegisterPatient = () => {
             {(c) => <Textarea {...c} rows={2} value={form.injuries} onChange={(e) => set('injuries', e.target.value)} />}
           </FormField>
         </FormSection>
+
+        {isAdmin && (
+          <FormSection title="Profesional que lo atiende" description="Es quien lo ve en su agenda y con quien el paciente reserva. Puedes cambiarlo después desde su ficha." className="md:grid-cols-1">
+            <FormField label="Profesional">
+              {(c) => (
+                <Select value={chosenProfessional} onValueChange={setProfessionalId}>
+                  <SelectTrigger id={c.id}>
+                    <SelectValue placeholder="Elige un profesional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staff.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.firstName} {s.lastName}
+                        {s.id === user?.id ? ' (yo)' : ''}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={NONE}>Sin asignar (lo ve todo el personal)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </FormField>
+          </FormSection>
+        )}
 
         <Card>
           <CardHeader>

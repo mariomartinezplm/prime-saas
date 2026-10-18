@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Appointment from '../models/Appointment.js';
 import Measurement from '../models/Measurement.js';
@@ -144,6 +145,41 @@ export const getUserById = async (req, res) => {
   }
 };
 
+// Un profesional o administrador activo (a quien se le puede asignar un paciente). Un id mal formado cuenta como «no existe».
+const findActiveStaff = async (id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) return null;
+  return User.findOne({ _id: id, role: { $in: ['admin', 'professional'] }, isActive: { $ne: false } }).select('_id');
+};
+
+// Pacientes que todavía no tienen profesional asignado
+const UNASSIGNED_PATIENTS = { role: 'patient', $or: [{ assignedProfessionalId: { $exists: false } }, { assignedProfessionalId: null }] };
+
+// @desc    Cuántos pacientes no tienen profesional asignado (solo admin)
+// @route   GET /api/users/unassigned/count
+export const countUnassignedPatients = async (req, res) => {
+  try {
+    const count = await User.countDocuments(UNASSIGNED_PATIENTS);
+    res.status(200).json({ success: true, data: { count } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'No se pudo contar a los pacientes sin profesional' });
+  }
+};
+
+// @desc    Asigna un profesional a TODOS los pacientes que no tienen uno (solo admin). No toca a quien ya tiene profesional.
+// @route   POST /api/users/unassigned/assign   { professionalId }
+export const assignUnassignedPatients = async (req, res) => {
+  try {
+    const staffMember = await findActiveStaff(req.body?.professionalId);
+    if (!staffMember) {
+      return res.status(400).json({ success: false, message: 'Elige un profesional válido' });
+    }
+    const result = await User.updateMany(UNASSIGNED_PATIENTS, { $set: { assignedProfessionalId: staffMember._id } });
+    res.status(200).json({ success: true, data: { modified: result.modifiedCount ?? 0 } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'No se pudo asignar el profesional' });
+  }
+};
+
 // @desc    Crear nuevo usuario (solo admin)
 // @route   POST /api/users
 // @access  Private/Admin
@@ -194,9 +230,22 @@ export const createUser = async (req, res) => {
       if (['admin', 'professional', 'patient'].includes(req.body.role)) {
         role = req.body.role;
       }
-      // El admin puede asignar el paciente a un profesional al crearlo
-      if (role === 'patient' && req.body.assignedProfessionalId) {
-        assignedProfessionalId = req.body.assignedProfessionalId;
+      // Un paciente siempre queda con un profesional que lo atiende: el que elija el admin al registrarlo o, si no elige ninguno,
+      // el propio admin que lo registra (antes quedaba «sin profesional» y el paciente no veía con quién agendar).
+      // Dejarlo sin asignar es una decisión explícita: `assignedProfessionalId: ''`.
+      if (role === 'patient') {
+        const requested = req.body.assignedProfessionalId;
+        if (requested === '') {
+          assignedProfessionalId = undefined;
+        } else if (requested) {
+          const staffMember = await findActiveStaff(requested);
+          if (!staffMember) {
+            return res.status(400).json({ success: false, message: 'El profesional elegido no existe o está inactivo' });
+          }
+          assignedProfessionalId = staffMember._id;
+        } else {
+          assignedProfessionalId = req.user._id;
+        }
       }
     } else {
       // Un profesional solo crea PACIENTES, y quedan asignados a él

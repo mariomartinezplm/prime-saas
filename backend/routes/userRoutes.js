@@ -9,7 +9,9 @@ import {
   getPatientProfile,
   getDashboardStats,
   syncAirtableUsers,
-  exportUsers
+  exportUsers,
+  countUnassignedPatients,
+  assignUnassignedPatients
 } from '../controllers/userController.js';
 import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
 
@@ -27,6 +29,10 @@ router.route('/')
 router.post('/sync-airtable', authorize('admin'), syncAirtableUsers);
 
 router.get('/stats/dashboard', authorize('admin', 'professional'), getDashboardStats);
+
+// Solo admin: pacientes sin profesional asignado (contar y asignar de una vez)
+router.get('/unassigned/count', authorize('admin'), countUnassignedPatients);
+router.post('/unassigned/assign', authorize('admin'), assignUnassignedPatients);
 
 // Antes de '/:id' — si no, Express confundiría "export" con un id.
 router.get('/export', authorize('admin'), exportUsers);
