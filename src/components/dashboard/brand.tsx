@@ -35,16 +35,19 @@ const shown = new Set<string>();
 // y no hace falta ningún estado ni render extra. El valor accesible (aria-valuenow) es el real desde el primer instante, y el texto
 // numérico de al lado nunca se anima. Con «reducir movimiento» no hay animación. Si el valor no es válido se dibuja vacía y sin
 // valor accesible (no se inventa un número). Los cambios posteriores del valor siguen la transición de ancho de siempre.
-export const Meter = ({ ratio, label, className, animateKey }: MeterProps) => {
+// Decide UNA vez, al montar, si una barra o un anillo debe animar su entrada, y si debe esperar a que termine el logo de bienvenida
+export function useMeterAnimation(ratio: number, animateKey: string | undefined) {
   const { valid, pct } = meterPercent(ratio);
-  // Se decide UNA vez, al montar: una barra que ya se mostró, vacía o inválida no se anima
   const [animate] = useState(() => shouldAnimateMeter(ratio, animateKey, shown));
   useEffect(() => {
     if (animateKey && valid) shown.add(animateKey);
   }, [animateKey, valid]);
-  // Si el logo de bienvenida aún tapa la pantalla, la barra espera en 0 y crece cuando el logo termina (así se alcanza a ver)
   const covered = useSyncExternalStore(subscribeWelcomeCovering, isWelcomeCovering, () => false);
+  return { valid, pct, animate, covered };
+}
 
+export const Meter = ({ ratio, label, className, animateKey }: MeterProps) => {
+  const { valid, pct, animate, covered } = useMeterAnimation(ratio, animateKey);
   return (
     <div
       role="progressbar"

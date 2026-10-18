@@ -1,40 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { clientPlanService } from '@/services/clientPlanService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import PageHeader from '@/components/shared/PageHeader';
-import { appointmentStart } from '@/lib/appointments';
+import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import { withTimeout } from '@/lib/withTimeout';
 import WellnessCheckinCard from '@/components/wellness/WellnessCheckinCard';
 import type { ReadinessTodayStatus } from '@/components/wellness/readinessStatus';
-import TodayCard from '@/components/dashboard/TodayCard';
-import NextSessionCard from '@/components/dashboard/NextSessionCard';
-import PlanCard from '@/components/dashboard/PlanCard';
-import ProgressCard from '@/components/dashboard/ProgressCard';
+import HeroSessionCard from '@/components/dashboard/HeroSessionCard';
+import PlanRingCard from '@/components/dashboard/PlanRingCard';
+import ConstancyRingCard from '@/components/dashboard/ConstancyRingCard';
+import NextAchievementCard from '@/components/dashboard/NextAchievementCard';
+import QuickActions from '@/components/dashboard/QuickActions';
+import { computeHeroView } from '@/components/dashboard/heroView';
 import { computePlanView } from '@/components/dashboard/planView';
-import { computeTodayActions, greetingFor, todayLabel, type TodayResult, type TodayTarget } from '@/components/dashboard/todayActions';
-import { hasLoadError, planIsWaiting, queriesToRetry, todayIsWaiting, type DashboardQuery, type LoadState } from '@/components/dashboard/dashboardLoad';
+import { greetingFor, todayLabel } from '@/components/dashboard/todayActions';
+import { hasLoadError, planIsWaiting, queriesToRetry, type DashboardQuery, type LoadState } from '@/components/dashboard/dashboardLoad';
 import { useAchievementsSummary } from '@/components/dashboard/useAchievementsSummary';
 import { useNow } from '@/components/dashboard/useNow';
 import { usePlanHistory } from '@/components/dashboard/usePlanHistory';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
-import { Activity, CalendarCheck, CalendarPlus, Ruler, TriangleAlert } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import type { Appointment, SessionBalance } from '@/types';
-
-// Mientras «Para hoy» espera sus datos: el bloque conserva su espacio con un esqueleto
-const TODAY_LOADING: TodayResult = { status: 'loading', actions: [], loadingMore: true };
 
 const PatientDashboard = () => {
   const { user } = useAuth();
   const userId = user?.id;
   const [searchParams] = useSearchParams();
   const readinessRef = useRef<HTMLDivElement | null>(null);
-  const planRef = useRef<HTMLElement | null>(null);
 
   // Citas y saldo del plan: dos consultas INDEPENDIENTES. Cada bloque aparece apenas tiene lo suyo; si una falla, lo que ya se
   // cargó bien se conserva y «Reintentar» repite solo lo que falló.
@@ -102,23 +98,37 @@ const PatientDashboard = () => {
     focusSection(readinessRef.current);
   }, [readinessSettled, wantsReadiness, focusSection]);
 
-  const todayWaiting = todayIsWaiting(states, planHistory.pending);
-  const todayResult = todayWaiting ? TODAY_LOADING : computeTodayActions({ now, upcoming, balance, readiness, planHistory: planHistory.kind });
   const planView = computePlanView({ balance, history: planHistory, now });
-  const goToSection = (target: TodayTarget) => focusSection(target === 'readiness' ? readinessRef.current : planRef.current);
+  const hero = computeHeroView({
+    now,
+    upcoming,
+    upcomingState: states.upcoming,
+    balance,
+    balanceState: states.balance,
+    planView,
+    planPending: planHistory.pending,
+  });
 
-  // "Próxima sesión" no debe ser una de hoy que ya terminó ni una que ya empezó
-  const nextAppointment = upcoming?.find((apt) => appointmentStart(apt) > now) ?? null;
+  // Constancia: solo existe con un plan mensual de entrenamiento con meta. Mientras carga se reserva su lugar; sin meta, «Mi plan» ocupa todo el ancho.
+  const consistency = summary.status === 'ready' ? summary.view?.consistency ?? null : null;
+  const hasPlan = !!balance?.hasActivePlan;
+  const showConstancy = hasPlan && (summary.status === 'loading' || !!consistency);
+  // Sin plan vigente la tarjeta protagonista ya lo explica: «Mi plan» no repite el mensaje
+  const showPlanCard = planView.kind !== 'inactive' || planIsWaiting(states, planHistory.pending);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={`${greetingFor(now)}, ${user?.firstName ?? ''}`}
-        badges={user?.isFounder ? <FounderBadge tone="brand" /> : undefined}
-        description={todayLabel(now)}
-      />
+    <div className="space-y-3">
+      <header className="space-y-0.5 pb-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <p className="text-sm text-[#fff8e4]/70">{todayLabel(now)}</p>
+          {user?.isFounder && <FounderBadge tone="brand" />}
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-[#fff8e4]">
+          {greetingFor(now)}, {user?.firstName ?? ''}
+        </h1>
+      </header>
 
-      {hasLoadError(states) && (
+      {hasLoadError(states) && hero.kind !== 'error' && (
         <Alert variant="warning">
           <TriangleAlert className="h-4 w-4" aria-hidden="true" />
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
@@ -132,52 +142,28 @@ const PatientDashboard = () => {
 
       {balance?.paymentPending && balance.paymentDueBy && <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />}
 
-      {/* Qué conviene hacer hoy: máximo 3 acciones con datos reales (reglas en dashboard/todayActions.ts) */}
-      <TodayCard result={todayResult} onGoTo={goToSection} />
+      <div className="space-y-3 lg:grid lg:grid-cols-[1.25fr_1fr] lg:items-start lg:gap-4 lg:space-y-0">
+        <div className="space-y-3">
+          {/* La pieza principal: una sola cosa importante según el estado real (reglas en dashboard/heroView.ts) */}
+          <HeroSessionCard view={hero} planView={planView} onRetry={retry} retrying={retrying} />
 
-      {/* Check-in de bienestar: lo primero que se hace cada día. La tarjeta avisa su estado (pendiente/hecho) a «Para hoy». */}
-      <div id="readiness" ref={readinessRef} tabIndex={-1} className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
-        <WellnessCheckinCard hasActivePlan={!!balance?.hasActivePlan} planStatus={states.balance} onRetryPlan={retry} onStatusChange={setReadiness} />
+          {/* Check-in de hoy: una fila compacta si está pendiente; el resultado completo si ya lo hizo */}
+          <div id="readiness" ref={readinessRef} tabIndex={-1} className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
+            <WellnessCheckinCard compact hasActivePlan={!!balance?.hasActivePlan} planStatus={states.balance} onRetryPlan={retry} onStatusChange={setReadiness} />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className={showPlanCard ? 'grid grid-cols-2 gap-3' : 'hidden'}>
+            <PlanRingCard view={planView} loading={planIsWaiting(states, planHistory.pending)} wide={!showConstancy} />
+            {showConstancy && <ConstancyRingCard consistency={consistency} loading={summary.status === 'loading'} />}
+          </div>
+          {summary.status === 'error' && <LoadErrorAlert message="No pudimos cargar tu constancia y tus logros." onRetry={summary.retry} />}
+          {summary.status === 'ready' && summary.view && <NextAchievementCard view={summary.view} />}
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <NextSessionCard appointment={nextAppointment} loading={states.upcoming === 'loading'} failed={states.upcoming === 'error'} now={now} />
-        <PlanCard ref={planRef} view={planView} loading={planIsWaiting(states, planHistory.pending)} />
-      </div>
-
-      <ProgressCard status={summary.status} view={summary.view} onRetry={summary.retry} />
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Accesos rápidos</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          <Button asChild>
-            <Link to="/app/reservar">
-              <CalendarPlus aria-hidden="true" />
-              Reservar hora
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/app/mis-citas">
-              <CalendarCheck aria-hidden="true" />
-              Mis citas
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/app/mediciones">
-              <Ruler aria-hidden="true" />
-              Mediciones
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/app/dolor">
-              <Activity aria-hidden="true" />
-              Dolor (EVA)
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <QuickActions hide={hero.kind === 'session' ? ['/app/mis-citas'] : hero.kind === 'book' ? ['/app/reservar'] : []} />
     </div>
   );
 };

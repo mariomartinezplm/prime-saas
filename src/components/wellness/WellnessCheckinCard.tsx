@@ -27,12 +27,14 @@ interface WellnessCheckinCardProps {
   // venció: se dice que no se pudo comprobar. Por defecto, el plan se da por conocido.
   planStatus?: 'loading' | 'ready' | 'error';
   onRetryPlan?: () => void;
+  // Dashboard B: la pantalla de inicio es una fila compacta (no una tarjeta grande) y, sin plan vigente, no se muestra (la tarjeta protagonista ya lo dice)
+  compact?: boolean;
 }
 
 const TOTAL = READINESS_QUESTIONS.length;
 const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'ready', onRetryPlan }: WellnessCheckinCardProps) => {
+const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'ready', onRetryPlan, compact = false }: WellnessCheckinCardProps) => {
   const { user } = useAuth();
   const [checkin, setCheckin] = useState<WellnessCheckin | null>(null);
   const [history, setHistory] = useState<WellnessCheckin[]>([]);
@@ -135,6 +137,13 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
   }, [submitting]);
 
   if (loading || planStatus === 'loading') {
+    if (compact) {
+      return (
+        <div className="min-h-[4.75rem] rounded-2xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] p-4">
+          <SkeletonBones label="Cargando tu Readiness" lines={[45, 30]} />
+        </div>
+      );
+    }
     // Mismo espacio que la tarjeta ya cargada: al llegar el dato nada se desplaza
     return (
       <Card className={RESERVED.readiness}>
@@ -247,6 +256,7 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
   }
 
   // --- Plan vencido ---
+  if (!hasActivePlan && compact) return null;
   if (!hasActivePlan) {
     return (
       <Card className="border-2 border-secondary/30 bg-secondary/5">
@@ -269,6 +279,26 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
   }
 
   // --- Pantalla de inicio ---
+  if (step === null && compact) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] p-3 pl-4">
+        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#398ca2]/45 bg-[#398ca2]/15 text-[#fff8e4]">
+          <Sparkles className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold leading-tight text-[#fff8e4]">Readiness de hoy</p>
+          <p className="hidden text-xs text-[#fff8e4]/70 min-[360px]:block">{TOTAL} preguntas · 1 min</p>
+        </div>
+        <Button
+          variant="outline"
+          className="min-h-11 shrink-0 border-[#398ca2] bg-transparent px-3 min-[360px]:px-4 text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]"
+          onClick={() => { setPressed({}); setNotes(''); setStep(0); }}
+        >
+          Empezar
+        </Button>
+      </div>
+    );
+  }
   if (step === null) {
     return (
       <Card className="border-2 border-secondary/30 bg-secondary/5">

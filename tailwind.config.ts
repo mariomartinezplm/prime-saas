@@ -132,6 +132,10 @@ export default {
           from: { clipPath: "inset(0 100% 0 0 round 9999px)" },
           to: { clipPath: "inset(0 0 0 0 round 9999px)" },
         },
+        // Anillo de progreso: el trazo crece desde vacío hasta su valor real (solo stroke-dashoffset, sin layout)
+        "ring-fill": {
+          from: { strokeDashoffset: "var(--ring-c)" },
+        },
         // El contenido real reemplaza a su esqueleto: fundido corto, sin desplazamiento
         "content-in": {
           from: { opacity: "0" },
@@ -153,6 +157,7 @@ export default {
         "fade-in-up": "fade-in-up 0.8s ease-out",
         "slide-left": "slide-left 20s linear infinite",
         "meter-fill": "meter-fill var(--motion-slow) var(--motion-ease-out) backwards",
+        "ring-fill": "ring-fill var(--motion-slow) var(--motion-ease-out) backwards",
         "content-in": "content-in var(--motion-fast) var(--motion-ease-out) backwards",
         "row-in": "row-in var(--motion-base) var(--motion-ease-standard) backwards",
         "row-out": "row-out var(--motion-base) var(--motion-ease-standard) forwards",
