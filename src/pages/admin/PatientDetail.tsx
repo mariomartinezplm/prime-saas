@@ -480,7 +480,9 @@ const PatientDetail = () => {
                   <DetailRow label="Plan">{formatCycleProgress(balance.plan) || undefined}</DetailRow>
                   <DetailRow label="Sesiones">{formatPlanUsage(balance.plan)}</DetailRow>
                   <DetailRow label="Inicio">{format(parseISO(balance.plan.startDate), 'dd/MM/yyyy')}</DetailRow>
-                  <DetailRow label="Vence">{format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}</DetailRow>
+                  <DetailRow label={balance.plan.openEnded ? 'Duración' : 'Vence'}>
+                    {balance.plan.openEnded ? 'Hasta completar las sesiones' : format(parseISO(balance.plan.endDate), 'dd/MM/yyyy')}
+                  </DetailRow>
                   {balance.extraSessionsAvailable > 0 && <DetailRow label="Sesiones extra">{balance.extraSessionsAvailable}</DetailRow>}
                 </DetailList>
               </CardContent>

@@ -14,7 +14,7 @@ async function selfHealExpiredPlan(patientId) {
 // agrega un campo nuevo, por defecto NO llega al paciente hasta que se agregue aquí.
 export const PATIENT_PLAN_FIELDS = [
   '_id', 'patient', 'serviceType', 'sessionsTotal', 'unlimited', 'sessionsUsed', 'startDate', 'endDate', 'status',
-  'term', 'billingCycle', 'cycleNumber', 'cyclesTotal', 'renews', 'paymentPending', 'paymentDueBy', 'createdAt', 'updatedAt'
+  'term', 'billingCycle', 'cycleNumber', 'cyclesTotal', 'renews', 'openEnded', 'paymentPending', 'paymentDueBy', 'createdAt', 'updatedAt'
 ];
 
 export function toPatientPlanView(plan) {

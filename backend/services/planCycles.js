@@ -21,6 +21,8 @@ export const GRACE_DAYS = 5;
 export const TERMS = ['mensual', 'trimestral', 'anual'];
 export const TERM_CYCLES = { mensual: 1, trimestral: 3, anual: 12 };
 export const BILLING_CYCLES = ['calendar', 'rolling'];
+// Fin de un plan «hasta completar las sesiones» (kinesiología): una fecha lejana, nunca alcanzable en la práctica
+export const OPEN_END_DATE = new Date('2099-12-31T23:59:59.000Z');
 
 const lastMs = (date) => new Date(date.getTime() - 1);
 

@@ -54,6 +54,28 @@ export async function createTermPlans({
   registeredBy,
   notes
 }) {
+  // Kinesiología: un solo plan por sesiones, sin ciclos, sin fecha de término y sin renovación automática
+  if (serviceType === 'kinesiologia') {
+    const plan = await ClientPlan.create({
+      patient: patientId,
+      serviceType,
+      sessionsTotal,
+      unlimited: false,
+      startDate,
+      term: 'mensual',
+      billingCycle: 'calendar',
+      cycleNumber: 1,
+      cyclesTotal: 1,
+      termId: new mongoose.Types.ObjectId(),
+      renews: false,
+      openEnded: true,
+      registeredBy,
+      notes,
+      status: 'active'
+    });
+    return plan;
+  }
+
   const cyclesTotal = TERM_CYCLES[term];
   const termId = new mongoose.Types.ObjectId();
   const cycles = buildCycles(startDate, billingCycle, cyclesTotal);
@@ -86,6 +108,23 @@ export async function createTermPlans({
 // días de plazo no recibe un cupo nuevo por pagar), y si pagó un plan de
 // varios meses se crean los ciclos que faltan.
 export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false, term = 'mensual', renews = true, registeredBy, notes }) {
+  // Una renovación pendiente de pago de kinesiología pasa a plan por sesiones: queda pagada, sin ciclos ni fecha, conservando lo ya usado
+  if (plan.serviceType === 'kinesiologia') {
+    plan.sessionsTotal = sessionsTotal;
+    plan.unlimited = false;
+    plan.term = 'mensual';
+    plan.cyclesTotal = 1;
+    plan.cycleNumber = 1;
+    plan.renews = false;
+    plan.openEnded = true;
+    plan.paymentPending = false;
+    plan.paymentDueBy = undefined;
+    plan.registeredBy = registeredBy;
+    if (notes) plan.notes = notes;
+    await plan.save();
+    return plan;
+  }
+
   const cyclesTotal = TERM_CYCLES[term];
   const termId = new mongoose.Types.ObjectId();
 

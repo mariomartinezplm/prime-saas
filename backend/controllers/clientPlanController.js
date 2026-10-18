@@ -75,7 +75,12 @@ export const createClientPlan = async (req, res) => {
       });
     } else {
       if (existingActive) {
-        if (!replaceExisting) {
+        // Un plan de kinesiología «hasta completar» al que ya no le quedan sesiones está terminado: se cierra y el nuevo entra sin pedir confirmación
+        const finishedOpenEnded = existingActive.openEnded && existingActive.sessionsAvailable() === 0;
+        if (finishedOpenEnded) {
+          existingActive.status = 'expired';
+          await existingActive.save();
+        } else if (!replaceExisting) {
           await existingActive.populate('patient', 'firstName lastName email');
           return res.status(409).json({
             success: false,
@@ -83,7 +88,7 @@ export const createClientPlan = async (req, res) => {
             data: { existingPlan: existingActive }
           });
         }
-        await cancelPlanAndFutureCycles(existingActive);
+        else await cancelPlanAndFutureCycles(existingActive);
       }
 
       clientPlan = await createTermPlans({

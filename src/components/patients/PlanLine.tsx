@@ -21,7 +21,8 @@ const PlanLine = ({ info, className }: { info?: PatientPlanInfo; className?: str
 
   return (
     <span className={cn('text-xs', state === 'soon' ? 'font-medium text-warning' : 'text-muted-foreground', className)}>
-      {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanRemaining(plan)} · {state === 'soon' ? 'vence pronto' : 'vence'} {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
+      {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanRemaining(plan)} ·{' '}
+      {plan.openEnded ? 'hasta completar las sesiones' : `${state === 'soon' ? 'vence pronto' : 'vence'} ${format(parseISO(plan.endDate), 'dd/MM/yyyy')}`}
     </span>
   );
 };

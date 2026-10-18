@@ -37,6 +37,11 @@ export function planInfoByPatient(plans: ClientPlan[]): Map<string, PatientPlanI
       result.set(patientId, { state: 'pending', plan: current });
       continue;
     }
+    // Un plan «hasta completar las sesiones» no vence por fecha
+    if (current.openEnded) {
+      result.set(patientId, { state: 'active', plan: current });
+      continue;
+    }
     const daysLeft = differenceInCalendarDays(parseISO(current.endDate), new Date());
     const isLastCycle = (current.cycleNumber ?? 1) >= (current.cyclesTotal ?? 1);
     result.set(patientId, { state: daysLeft <= 5 && isLastCycle ? 'soon' : 'active', plan: current });
@@ -51,6 +56,7 @@ export function infoFromBalance(balance: SessionBalance | null): PatientPlanInfo
   const plan = balance.plan;
   if (!balance.hasActivePlan || !plan) return { state: 'none' };
   if (balance.paymentPending) return { state: 'pending', plan };
+  if (plan.openEnded) return { state: 'active', plan };
   const daysLeft = differenceInCalendarDays(parseISO(plan.endDate), new Date());
   const isLastCycle = (plan.cycleNumber ?? 1) >= (plan.cyclesTotal ?? 1);
   return { state: daysLeft <= 5 && isLastCycle ? 'soon' : 'active', plan };

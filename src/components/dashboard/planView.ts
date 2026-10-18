@@ -23,7 +23,8 @@ export interface PlanView {
   upcomingStart?: string; // 'dd/MM/yyyy', solo si el plan todavía no empieza
   endedOn?: string; // 'dd/MM/yyyy', solo si el último plan venció
   serviceType?: ClientPlan['serviceType'];
-  validUntil?: string; // 'dd/MM/yyyy'
+  validUntil?: string; // 'dd/MM/yyyy' (no existe en un plan «hasta completar las sesiones»)
+  openEnded?: boolean; // kinesiología: dura hasta completar las sesiones, sin fecha de término
   daysLeftText?: string; // 'vence hoy' | '1 día restante' | '12 días restantes'
   cycleText?: string; // 'Anual · mes 3 de 12'
   used?: number;
@@ -73,8 +74,9 @@ export function computePlanView({ balance, history, now }: { balance: SessionBal
   const base: PlanView = {
     kind: 'active',
     serviceType: plan.serviceType,
-    validUntil: format(parseISO(plan.endDate), 'dd/MM/yyyy'),
-    daysLeftText: daysLeftTextOf(differenceInCalendarDays(parseISO(plan.endDate), now)),
+    openEnded: plan.openEnded === true,
+    validUntil: plan.openEnded ? undefined : format(parseISO(plan.endDate), 'dd/MM/yyyy'),
+    daysLeftText: plan.openEnded ? undefined : daysLeftTextOf(differenceInCalendarDays(parseISO(plan.endDate), now)),
     cycleText: cycleTextOf(plan),
     used: plan.sessionsUsed,
     paymentPending: balance.paymentPending === true,

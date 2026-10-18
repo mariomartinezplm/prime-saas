@@ -120,7 +120,7 @@ const PlanCard = forwardRef<HTMLElement, PlanCardProps>(({ view, loading = false
               {usedUp && <WhatsAppButton label="Renovar por WhatsApp" message="Hola, quiero renovar mi plan en Prime F&H" />}
 
               <p className={cn('mt-auto border-t border-[#fff8e4]/10 pt-3 text-xs', TEXT_SOFT)}>
-                Vigente hasta {view.validUntil} · {view.daysLeftText}
+                {view.openEnded ? 'Vigente hasta completar tus sesiones' : <>Vigente hasta {view.validUntil} · {view.daysLeftText}</>}
               </p>
             </>
           )}

@@ -15,7 +15,7 @@ import { appointmentService } from '@/services/appointmentService';
 import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import { Loader2 } from 'lucide-react';
-import { format, addWeeks, addDays, parseISO, getDay, isBefore, addHours } from 'date-fns';
+import { format, addWeeks, addDays, addMonths, parseISO, getDay, isBefore, addHours } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SERVICE_TYPE_LABELS } from '@/config/planCatalog';
 import { MIN_BOOKING_AHEAD_HOURS } from '@/config/bookingRules';
@@ -48,7 +48,7 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
 
   // Memorizados: si se recrearan en cada render, el efecto de abajo (que actualiza el estado)
   // se volvería a ejecutar sin parar.
-  const planEnd = useMemo(() => parseISO(plan.endDate), [plan.endDate]);
+  const planEnd = useMemo(() => (plan.openEnded ? addMonths(new Date(), 6) : parseISO(plan.endDate)), [plan.endDate, plan.openEnded]);
   const planStart = useMemo(() => parseISO(plan.startDate), [plan.startDate]);
 
   useEffect(() => {

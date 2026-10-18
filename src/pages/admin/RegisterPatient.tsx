@@ -318,11 +318,19 @@ const RegisterPatient = () => {
             {planInicial !== 'despues' && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Sesiones por mes</Label>
+                  <Label>{planInicial === 'kinesiologia' ? 'Sesiones del plan' : 'Sesiones por mes'}</Label>
                   <SessionsSelect serviceType={planInicial} value={choice} onChange={setChoice} />
                 </div>
-                <PlanTermFields term={term} billingCycle={billingCycle} onTermChange={setTerm} onBillingCycleChange={setBillingCycle} />
-                <RenewsCheckbox id="register-renews" checked={renews} onChange={setRenews} />
+                {planInicial === 'kinesiologia' ? (
+                  <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    Kinesiología se paga por sesiones: el plan dura hasta que se completen, sin fecha de término ni renovación mensual.
+                  </p>
+                ) : (
+                  <>
+                    <PlanTermFields term={term} billingCycle={billingCycle} onTermChange={setTerm} onBillingCycleChange={setBillingCycle} />
+                    <RenewsCheckbox id="register-renews" checked={renews} onChange={setRenews} />
+                  </>
+                )}
               </div>
             )}
           </CardContent>

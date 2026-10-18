@@ -95,7 +95,7 @@ const PlanRingCard = ({ view, loading = false, wide = false }: PlanRingCardProps
                 </p>
               )
             )}
-            <p className="text-xs">Hasta {view.validUntil}</p>
+            <p className="text-xs">{view.openEnded ? 'Hasta completar tus sesiones' : `Hasta ${view.validUntil}`}</p>
             {/* Los días restantes solo importan cerca del vencimiento */}
             {view.daysLeftText && (view.daysLeftText.startsWith('vence') || parseInt(view.daysLeftText, 10) <= 7) && <p className="text-xs">{view.daysLeftText}</p>}
           </div>

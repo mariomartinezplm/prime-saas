@@ -252,19 +252,25 @@ const ClassifyPlans = () => {
                     </Button>
                   </div>
 
-                  <PlanTermFields
-                    compact
-                    term={row.term}
-                    billingCycle={row.billingCycle}
-                    onTermChange={(t) => handleTermChange(patient.id, t)}
-                    onBillingCycleChange={(c) => handleBillingCycleChange(patient.id, c)}
-                  />
-                  <RenewsCheckbox
-                    compact
-                    id={`renews-${patient.id}`}
-                    checked={row.renews}
-                    onChange={(value) => handleRenewsChange(patient.id, value)}
-                  />
+                  {row.serviceType === 'kinesiologia' ? (
+                    <p className="text-xs text-muted-foreground">Kinesiología: dura hasta completar las sesiones (sin fecha de término ni renovación mensual).</p>
+                  ) : (
+                    <>
+                      <PlanTermFields
+                        compact
+                        term={row.term}
+                        billingCycle={row.billingCycle}
+                        onTermChange={(t) => handleTermChange(patient.id, t)}
+                        onBillingCycleChange={(c) => handleBillingCycleChange(patient.id, c)}
+                      />
+                      <RenewsCheckbox
+                        compact
+                        id={`renews-${patient.id}`}
+                        checked={row.renews}
+                        onChange={(value) => handleRenewsChange(patient.id, value)}
+                      />
+                    </>
+                  )}
                 </CardContent>
               </Card>
             );

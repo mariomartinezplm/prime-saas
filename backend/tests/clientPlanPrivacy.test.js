@@ -77,7 +77,7 @@ const profesional = { _id: PERSONAL, role: 'professional' };
 // Campos propios del plan que el paciente SÍ necesita (los usan el dashboard, la reserva y su perfil)
 const CAMPOS_DEL_PACIENTE = [
   '_id', 'billingCycle', 'createdAt', 'cycleNumber', 'cyclesTotal', 'endDate', 'patient', 'paymentDueBy',
-  'paymentPending', 'renews', 'serviceType', 'sessionsTotal', 'sessionsUsed', 'startDate', 'status', 'term', 'unlimited', 'updatedAt'
+  'openEnded', 'paymentPending', 'renews', 'serviceType', 'sessionsTotal', 'sessionsUsed', 'startDate', 'status', 'term', 'unlimited', 'updatedAt'
 ];
 const CAMPOS_INTERNOS = ['notes', 'registeredBy', 'termId', 'renewedFrom', 'renewalNotifiedAt', 'expiringTomorrowNotifiedAt', 'expiringNotifiedAt', 'expiredNotifiedAt'];
 

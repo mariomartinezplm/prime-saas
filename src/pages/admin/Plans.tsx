@@ -67,7 +67,12 @@ function daysRemaining(endDate: string): number {
 // Un mes intermedio de un plan trimestral/anual no "vence pronto": el siguiente ya está pagado
 const isLastCycle = (plan: ClientPlan) => (plan.cycleNumber ?? 1) >= (plan.cyclesTotal ?? 1);
 
+// Kinesiología «hasta completar»: sin fecha de término; está terminado cuando ya no quedan sesiones
+const isCompletedOpenEnded = (plan: ClientPlan) => !!plan.openEnded && plan.status === 'active' && plan.sessionsUsed >= plan.sessionsTotal;
+
 function rowHighlightClass(plan: ClientPlan): string {
+  if (isCompletedOpenEnded(plan)) return 'border-l-4 border-l-warning bg-warning/10';
+  if (plan.openEnded) return '';
   if (plan.status === 'expired') return 'border-l-4 border-l-destructive bg-destructive/10';
   if (plan.paymentPending) return 'border-l-4 border-l-warning bg-warning/10';
   const remaining = daysRemaining(plan.endDate);
@@ -77,12 +82,17 @@ function rowHighlightClass(plan: ClientPlan): string {
 
 // ¿Conviene ofrecer «Renovar»? Plan vencido o en su último ciclo y a pocos días de vencer (el pendiente de pago tiene su propio botón)
 function canRenew(plan: ClientPlan): boolean {
+  if (isCompletedOpenEnded(plan)) return true;
+  if (plan.openEnded) return false;
   if (plan.paymentPending) return false;
   if (plan.status === 'expired') return true;
   return plan.status === 'active' && isLastCycle(plan) && daysRemaining(plan.endDate) <= 5;
 }
 
 function statusBadge(plan: ClientPlan) {
+  if (isCompletedOpenEnded(plan)) return <StatusBadge tone="warning">Sesiones completadas</StatusBadge>;
+  if (plan.openEnded && plan.status === 'active') return <StatusBadge tone="success">Activo</StatusBadge>;
+  if (plan.openEnded && plan.status === 'expired') return <StatusBadge tone="neutral">Completado</StatusBadge>;
   if (plan.status === 'expired') return <StatusBadge tone="danger">Vencido</StatusBadge>;
   if (plan.paymentPending) return <StatusBadge tone="warning">Pendiente de pago</StatusBadge>;
   const remaining = daysRemaining(plan.endDate);
@@ -262,11 +272,13 @@ const Plans = () => {
               {cycleProgress && <> · {cycleProgress}</>}
             </p>
             <p className="text-xs text-muted-foreground">
-              {format(parseISO(plan.startDate), 'dd/MM/yyyy')} → {format(parseISO(plan.endDate), 'dd/MM/yyyy')}
+              {plan.openEnded
+                ? <>Desde el {format(parseISO(plan.startDate), 'dd/MM/yyyy')} · hasta completar las sesiones</>
+                : <>{format(parseISO(plan.startDate), 'dd/MM/yyyy')} → {format(parseISO(plan.endDate), 'dd/MM/yyyy')}</>}
               {plan.paymentPending && plan.paymentDueBy && (
                 <> · paga hasta el {formatPaymentDeadline(plan.paymentDueBy)}</>
               )}
-              {plan.status === 'active' && !plan.paymentPending && (
+              {plan.status === 'active' && !plan.paymentPending && !plan.openEnded && (
                 <> · {remaining >= 0 ? `${remaining} día(s) restante(s)` : 'vencido'}</>
               )}
             </p>
@@ -480,12 +492,16 @@ const Plans = () => {
 
             {/* Paso 3: Sesiones */}
             <div className="space-y-2">
-              <Label htmlFor="plan-sessions">Sesiones por mes</Label>
+              <Label htmlFor="plan-sessions">{serviceType === 'kinesiologia' ? 'Sesiones del plan' : 'Sesiones por mes'}</Label>
               <SessionsSelect id="plan-sessions" serviceType={serviceType} value={choice} onChange={setChoice} />
             </div>
 
-            {/* Paso 4: Duración, ciclo y renovación */}
-            {pendingOfSelected ? (
+            {/* Paso 4: Duración, ciclo y renovación (kinesiología no los tiene: dura hasta completar las sesiones) */}
+            {serviceType === 'kinesiologia' ? (
+              <p className="text-xs rounded-md border border-border bg-muted/40 p-3 text-muted-foreground">
+                Kinesiología se paga por sesiones: el plan dura hasta que se completen, sin fecha de término ni renovación mensual.
+              </p>
+            ) : pendingOfSelected ? (
               <p className="text-xs rounded-md border border-warning/40 bg-warning/10 p-3 text-warning">
                 Este paciente tiene la renovación pendiente de pago. Al confirmar se marca como pagada
                 (mismo ciclo) y conserva las sesiones que ya usó.
@@ -498,7 +514,7 @@ const Plans = () => {
                 onBillingCycleChange={setBillingCycle}
               />
             )}
-            <RenewsCheckbox id="plan-renews" checked={renews} onChange={setRenews} />
+            {serviceType !== 'kinesiologia' && <RenewsCheckbox id="plan-renews" checked={renews} onChange={setRenews} />}
 
             <DialogFooter>
               <SubmitButton disabled={!selectedPatient} loading={submitting} loadingLabel="Registrando…" className="w-full">

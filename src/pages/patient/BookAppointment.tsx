@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import { AlertCircle, CheckCircle, Info, Ban, Clock, CalendarDays, Repeat, Calendar as CalendarIcon } from 'lucide-react';
-import { format, addHours, isBefore, parseISO } from 'date-fns';
+import { format, addHours, addMonths, isBefore, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SERVICE_TYPE_LABELS, formatPlanUsage } from '@/config/planCatalog';
 import { MIN_BOOKING_AHEAD_HOURS, PATIENT_CANCEL_AHEAD_HOURS } from '@/config/bookingRules';
@@ -199,7 +199,8 @@ const BookAppointment = () => {
   const isDateInPlanRange = (date: Date): boolean => {
     if (!balance?.plan) return true;
     const start = parseISO(balance.plan.startDate);
-    const end = parseISO(balance.plan.endDate);
+    // Un plan «hasta completar las sesiones» no tiene fecha de término: se puede agendar con la anticipación habitual (hasta 6 meses)
+    const end = balance.plan.openEnded ? addMonths(new Date(), 6) : parseISO(balance.plan.endDate);
     // Con la renovación pendiente de pago, solo se agenda dentro del plazo de pago
     if (balance.plan.paymentPending && balance.plan.paymentDueBy && date >= parseISO(balance.plan.paymentDueBy)) return false;
     return date >= start && date <= end;

@@ -174,6 +174,8 @@ export interface ClientPlan {
   sessionsUsed: number;
   startDate: string;
   endDate: string;
+  // Kinesiología: dura hasta completar las sesiones (sin fecha de término ni ciclos); endDate es solo una fecha lejana interna
+  openEnded?: boolean;
   status: 'active' | 'expired' | 'cancelled' | 'upcoming';
   term?: 'mensual' | 'trimestral' | 'anual';
   billingCycle?: 'calendar' | 'rolling';

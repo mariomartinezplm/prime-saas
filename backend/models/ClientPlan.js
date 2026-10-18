@@ -5,7 +5,7 @@ import {
   isValidSessionsForServiceType,
   supportsUnlimited
 } from '../config/planCatalog.js';
-import { TERMS, BILLING_CYCLES, cycleBounds } from '../services/planCycles.js';
+import { TERMS, BILLING_CYCLES, cycleBounds, OPEN_END_DATE } from '../services/planCycles.js';
 
 const clientPlanSchema = new mongoose.Schema({
   patient: {
@@ -43,6 +43,13 @@ const clientPlanSchema = new mongoose.Schema({
   // fin del mes calendario, o de fecha a fecha.
   endDate: {
     type: Date
+  },
+  // Plan «hasta completar las sesiones» (kinesiología): no tiene ciclos ni vence por fecha; dura lo que tarden en usarse sus sesiones.
+  // Por dentro endDate queda en una fecha lejana fija (OPEN_END_DATE) para que todas las consultas por fecha sigan funcionando,
+  // y las pantallas muestran «hasta completar las sesiones» en vez de esa fecha.
+  openEnded: {
+    type: Boolean,
+    default: false
   },
   // 'upcoming' = ciclo ya pagado que todavía no empieza (planes trimestral/anual)
   status: {
@@ -142,7 +149,9 @@ clientPlanSchema.pre('validate', function (next) {
 
 // endDate = fin del ciclo que parte en startDate (mes calendario o fecha a fecha)
 clientPlanSchema.pre('save', function (next) {
-  if (this.isModified('startDate') || this.isModified('billingCycle') || !this.endDate) {
+  if (this.openEnded) {
+    this.endDate = OPEN_END_DATE;
+  } else if (this.isModified('startDate') || this.isModified('billingCycle') || !this.endDate) {
     this.endDate = cycleBounds(this.startDate, this.billingCycle, 0).end;
   }
   next();
