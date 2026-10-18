@@ -9,6 +9,7 @@ import type { Appointment } from '@/types';
 import { BTN_OUTLINE, EYEBROW, PILL, PILL_SOLID, SURFACE, TEXT, TEXT_SOFT } from './brand';
 import { nextSessionLabel } from './nextSession';
 import { RESERVED, SkeletonBones } from './CardSkeleton';
+import { useContentFade } from './useContentFade';
 
 interface NextSessionCardProps {
   appointment: Appointment | null;
@@ -20,6 +21,7 @@ interface NextSessionCardProps {
 }
 
 const NextSessionCard = ({ appointment, loading = false, failed, now }: NextSessionCardProps) => {
+  const fade = useContentFade(loading);
   const label = appointment ? nextSessionLabel(appointment, now) : null;
   const professional = appointment && typeof appointment.professional === 'object' ? personName(appointment.professional, '') : '';
 
@@ -33,9 +35,9 @@ const NextSessionCard = ({ appointment, loading = false, failed, now }: NextSess
       {loading ? (
         <SkeletonBones label="Cargando tu próxima sesión" className="mt-4" />
       ) : failed ? (
-        <p className={cn('mt-4 text-sm', TEXT_SOFT)}>No se pudo cargar tu próxima sesión.</p>
+        <p className={cn('mt-4 text-sm', TEXT_SOFT, fade)}>No se pudo cargar tu próxima sesión.</p>
       ) : appointment && label ? (
-        <div className="mt-4 flex flex-1 flex-col justify-between gap-5">
+        <div className={cn('mt-4 flex flex-1 flex-col justify-between gap-5', fade)}>
           <div className="flex items-center gap-4">
             <DateBadge date={parseDay(appointment.date)} className="h-[4.5rem] w-16 border-[#398ca2]/60 bg-[#398ca2]/10 text-[#fff8e4]" />
             <div className="min-w-0 space-y-1">
@@ -60,7 +62,7 @@ const NextSessionCard = ({ appointment, loading = false, failed, now }: NextSess
           </Button>
         </div>
       ) : (
-        <div className="mt-4 flex items-center gap-4">
+        <div className={cn('mt-4 flex items-center gap-4', fade)}>
           <span
             aria-hidden="true"
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-dashed border-[#398ca2]/60 text-[#fff8e4]/80"

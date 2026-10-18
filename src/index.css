@@ -14,6 +14,16 @@
     color-scheme: light only;
 
     /* ====================
+       MOVIMIENTO (Fase 2A.2): duraciones y curva compartidas por las animaciones del dashboard.
+       Rápido y discreto: la curva frena al final (sin rebotes). Con «reducir movimiento» no se anima nada.
+       ==================== */
+    --motion-fast: 140ms; /* contenido que reemplaza a su esqueleto */
+    --motion-base: 200ms; /* filas que entran o salen */
+    --motion-slow: 600ms; /* barras de progreso al aparecer */
+    --motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1); /* aparecer: arranca rápido y frena */
+    --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* plegar/desplegar: arranque suave, sin tirón */
+
+    /* ====================
        COLORES FIJOS (HEX CONVERTIDOS A HSL)
        ==================== */
 

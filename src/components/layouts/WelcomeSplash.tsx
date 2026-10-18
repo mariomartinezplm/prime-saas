@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import logoImage from '@/assets/prime-fh-logo.png';
-import { hasShownWelcome, markWelcomeShown } from '@/lib/welcomeSplash';
+import { hasShownWelcome, markWelcomeShown, setWelcomeCovering } from '@/lib/welcomeSplash';
 
 const DURATION = 1.5;
 const REDUCED_DURATION = 0.6;
@@ -20,6 +20,12 @@ const WelcomeSplash = () => {
     markWelcomeShown();
     const timer = setTimeout(() => setVisible(false), FAILSAFE_MS);
     return () => clearTimeout(timer);
+  }, [visible]);
+
+  // Avisa a las animaciones de entrada mientras el logo tapa la pantalla (no cambia nada de lo que se ve)
+  useEffect(() => {
+    setWelcomeCovering(visible);
+    return () => setWelcomeCovering(false);
   }, [visible]);
 
   if (!visible) return null;

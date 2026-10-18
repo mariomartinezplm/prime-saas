@@ -126,12 +126,36 @@ export default {
             transform: "translateX(-100%)",
           },
         },
+        // Fase 2A.2 — movimiento del dashboard (ver tokens --motion-* en index.css)
+        // Barra de progreso: se descubre de izquierda a derecha hasta su valor real (solo recorte, sin layout)
+        "meter-fill": {
+          from: { clipPath: "inset(0 100% 0 0 round 9999px)" },
+          to: { clipPath: "inset(0 0 0 0 round 9999px)" },
+        },
+        // El contenido real reemplaza a su esqueleto: fundido corto, sin desplazamiento
+        "content-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        // Una fila de «Para hoy» entra o sale: se despliega/pliega su alto y se desvanece
+        "row-in": {
+          from: { gridTemplateRows: "0fr", opacity: "0" },
+          to: { gridTemplateRows: "1fr", opacity: "1" },
+        },
+        "row-out": {
+          from: { gridTemplateRows: "1fr", opacity: "1" },
+          to: { gridTemplateRows: "0fr", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in-up": "fade-in-up 0.8s ease-out",
         "slide-left": "slide-left 20s linear infinite",
+        "meter-fill": "meter-fill var(--motion-slow) var(--motion-ease-out) backwards",
+        "content-in": "content-in var(--motion-fast) var(--motion-ease-out) backwards",
+        "row-in": "row-in var(--motion-base) var(--motion-ease-standard) backwards",
+        "row-out": "row-out var(--motion-base) var(--motion-ease-standard) forwards",
       },
     },
   },

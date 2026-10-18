@@ -1,4 +1,7 @@
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
+import { isWelcomeCovering, subscribeWelcomeCovering } from '@/lib/welcomeSplash';
+import { meterPercent, shouldAnimateMeter } from './meterMath';
 
 // Identidad de PRIME: negro #181619, turquesa #398ca2 y crema #fff8e4 (con transparencias). Los valores van exactos, no los
 // aproximados del tema. Los estados nunca se distinguen solo por color: llevan texto, icono o forma.
@@ -17,22 +20,48 @@ interface MeterProps {
   ratio: number; // 0..1
   label: string; // para lectores de pantalla: «6 de 8 sesiones»
   className?: string;
+  // Identifica ESTA barra para animarla solo la primera vez que aparece en la sesión de la página (ver más abajo)
+  animateKey?: string;
 }
 
+// Barras que ya aparecieron en esta carga de la página. Vive solo en memoria: no se guarda nada en el dispositivo, y al
+// recargar la página (o abrirla de nuevo) vuelven a animarse una vez. Volver a Inicio desde otra pantalla NO las repite.
+const shown = new Set<string>();
+
 // Barra de progreso de la marca. El valor siempre está también en texto al lado: la barra refuerza, no es la única fuente.
-export const Meter = ({ ratio, label, className }: MeterProps) => {
-  const pct = Math.round(Math.min(1, Math.max(0, ratio)) * 100);
+//
+// ANIMACIÓN DE ENTRADA (Fase 2A.2): al montarse con contenido válido, la barra se «descubre» de izquierda a derecha hasta su valor
+// real en ~600 ms. Es una animación CSS de recorte (clip-path): no cambia el ancho ni la altura, así que no mueve nada alrededor,
+// y no hace falta ningún estado ni render extra. El valor accesible (aria-valuenow) es el real desde el primer instante, y el texto
+// numérico de al lado nunca se anima. Con «reducir movimiento» no hay animación. Si el valor no es válido se dibuja vacía y sin
+// valor accesible (no se inventa un número). Los cambios posteriores del valor siguen la transición de ancho de siempre.
+export const Meter = ({ ratio, label, className, animateKey }: MeterProps) => {
+  const { valid, pct } = meterPercent(ratio);
+  // Se decide UNA vez, al montar: una barra que ya se mostró, vacía o inválida no se anima
+  const [animate] = useState(() => shouldAnimateMeter(ratio, animateKey, shown));
+  useEffect(() => {
+    if (animateKey && valid) shown.add(animateKey);
+  }, [animateKey, valid]);
+  // Si el logo de bienvenida aún tapa la pantalla, la barra espera en 0 y crece cuando el logo termina (así se alcanza a ver)
+  const covered = useSyncExternalStore(subscribeWelcomeCovering, isWelcomeCovering, () => false);
+
   return (
     <div
       role="progressbar"
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-valuenow={pct}
+      aria-valuenow={valid ? pct : undefined}
       className={cn('h-2 w-full overflow-hidden rounded-full bg-[#fff8e4]/[0.06] ring-1 ring-inset ring-[#fff8e4]/25', className)}
     >
-      <div className="h-full rounded-full bg-[#398ca2] transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${pct}%` }} />
+      <div
+        className={cn(
+          'h-full rounded-full bg-[#398ca2] transition-[width] duration-500 motion-reduce:transition-none',
+          animate && 'animate-meter-fill motion-reduce:animate-none',
+          animate && covered && '[animation-play-state:paused]'
+        )}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 };
-

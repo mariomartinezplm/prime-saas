@@ -8,6 +8,7 @@ import { BTN_OUTLINE, EYEBROW, Meter, PILL, SURFACE, TEXT, TEXT_SOFT } from './b
 import { sessionsWord } from './nextSession';
 import type { PlanView } from './planView';
 import { RESERVED, SkeletonBones } from './CardSkeleton';
+import { useContentFade } from './useContentFade';
 
 // El estado va en la etiqueta (texto + icono) y la línea de abajo agrega un dato distinto (la fecha), sin repetir el mensaje de «Para hoy»
 const INACTIVE_LABEL: Record<NonNullable<PlanView['inactiveReason']>, string> = {
@@ -37,6 +38,7 @@ interface PlanCardProps {
 const PlanCard = forwardRef<HTMLElement, PlanCardProps>(({ view, loading = false }, ref) => {
   const isInactive = view.kind === 'inactive';
   const usedUp = view.kind === 'used-up';
+  const fade = useContentFade(loading);
 
   return (
     <section ref={ref} aria-labelledby="mi-plan" tabIndex={-1} className={cn(SURFACE, RESERVED.card, 'flex scroll-mt-20 flex-col gap-4 focus:outline-none')}>
@@ -47,78 +49,82 @@ const PlanCard = forwardRef<HTMLElement, PlanCardProps>(({ view, loading = false
 
       {loading && <SkeletonBones label="Cargando tu plan" />}
 
-      {!loading && view.kind === 'error' && <p className={cn('text-sm', TEXT_SOFT)}>No se pudo cargar tu plan.</p>}
+      {!loading && (
+        <div className={cn('flex flex-1 flex-col gap-4', fade)}>
+          {view.kind === 'error' && <p className={cn('text-sm', TEXT_SOFT)}>No se pudo cargar tu plan.</p>}
 
-      {!loading && isInactive && (
-        <>
-          <div className="space-y-2">
-            <span className={PILL}>
-              <CircleAlert className="h-3 w-3" aria-hidden="true" />
-              {INACTIVE_LABEL[view.inactiveReason ?? 'unknown']}
-            </span>
-            {view.inactiveReason === 'upcoming' && view.upcomingStart && <p className={cn('text-lg font-medium', TEXT)}>Empieza el {view.upcomingStart}</p>}
-            {view.inactiveReason === 'expired' && view.endedOn && <p className={cn('text-lg font-medium', TEXT)}>Venció el {view.endedOn}</p>}
-          </div>
-          {view.inactiveReason !== 'upcoming' && (
-            <WhatsAppButton
-              label={view.inactiveReason === 'expired' ? 'Renovar por WhatsApp' : 'Consultar por WhatsApp'}
-              message={view.inactiveReason === 'expired' ? 'Hola, quiero renovar mi plan en Prime F&H' : 'Hola, quiero consultar por mi plan en Prime F&H'}
-            />
-          )}
-        </>
-      )}
-
-      {!loading && (view.kind === 'active' || usedUp || view.kind === 'unlimited') && view.serviceType && (
-        <>
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className={cn('text-xl font-semibold tracking-tight', TEXT)}>{SERVICE_TYPE_LABELS[view.serviceType]}</p>
-              {view.kind === 'unlimited' && <span className={PILL}>Ilimitado</span>}
-              {usedUp && (
+          {isInactive && (
+            <>
+              <div className="space-y-2">
                 <span className={PILL}>
-                  <Hourglass className="h-3 w-3" aria-hidden="true" />
-                  Sin sesiones disponibles
+                  <CircleAlert className="h-3 w-3" aria-hidden="true" />
+                  {INACTIVE_LABEL[view.inactiveReason ?? 'unknown']}
                 </span>
+                {view.inactiveReason === 'upcoming' && view.upcomingStart && <p className={cn('text-lg font-medium', TEXT)}>Empieza el {view.upcomingStart}</p>}
+                {view.inactiveReason === 'expired' && view.endedOn && <p className={cn('text-lg font-medium', TEXT)}>Venció el {view.endedOn}</p>}
+              </div>
+              {view.inactiveReason !== 'upcoming' && (
+                <WhatsAppButton
+                  label={view.inactiveReason === 'expired' ? 'Renovar por WhatsApp' : 'Consultar por WhatsApp'}
+                  message={view.inactiveReason === 'expired' ? 'Hola, quiero renovar mi plan en Prime F&H' : 'Hola, quiero consultar por mi plan en Prime F&H'}
+                />
               )}
-              {view.paymentPending && <span className={PILL}>Pago pendiente</span>}
-            </div>
-            {view.cycleText && <p className={cn('text-xs', TEXT_SOFT)}>{view.cycleText}</p>}
-          </div>
+            </>
+          )}
 
-          <div className="space-y-2">
-            {view.kind === 'unlimited' ? (
-              <p className={TEXT}>
-                <span className="text-4xl font-semibold tabular-nums">{view.used}</span>{' '}
-                <span className={cn('text-sm', TEXT_SOFT)}>{view.used === 1 ? 'sesión usada' : 'sesiones usadas'} · sin límite</span>
-              </p>
-            ) : view.total !== undefined ? (
-              <>
-                <p className={TEXT}>
-                  <span className="text-4xl font-semibold tabular-nums">{view.used}</span>{' '}
-                  <span className={cn('text-sm', TEXT_SOFT)}>de {view.total} sesiones usadas</span>
-                </p>
-                {view.ratio !== undefined && <Meter ratio={view.ratio} label={`${view.used} de ${view.total} sesiones usadas`} />}
-              </>
-            ) : (
-              <p className={TEXT}>
-                <span className="text-4xl font-semibold tabular-nums">{view.used}</span>{' '}
-                <span className={cn('text-sm', TEXT_SOFT)}>{view.used === 1 ? 'sesión usada' : 'sesiones usadas'}</span>
-              </p>
-            )}
-            {view.kind === 'active' && view.available !== undefined && (
-              <p className={cn('text-sm', TEXT_SOFT)}>
-                Te quedan {sessionsWord(view.available)}
-                {view.extra ? ` (incluye ${view.extra} extra)` : ''}
-              </p>
-            )}
-          </div>
+          {(view.kind === 'active' || usedUp || view.kind === 'unlimited') && view.serviceType && (
+            <>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className={cn('text-xl font-semibold tracking-tight', TEXT)}>{SERVICE_TYPE_LABELS[view.serviceType]}</p>
+                  {view.kind === 'unlimited' && <span className={PILL}>Ilimitado</span>}
+                  {usedUp && (
+                    <span className={PILL}>
+                      <Hourglass className="h-3 w-3" aria-hidden="true" />
+                      Sin sesiones disponibles
+                    </span>
+                  )}
+                  {view.paymentPending && <span className={PILL}>Pago pendiente</span>}
+                </div>
+                {view.cycleText && <p className={cn('text-xs', TEXT_SOFT)}>{view.cycleText}</p>}
+              </div>
 
-          {usedUp && <WhatsAppButton label="Renovar por WhatsApp" message="Hola, quiero renovar mi plan en Prime F&H" />}
+              <div className="space-y-2">
+                {view.kind === 'unlimited' ? (
+                  <p className={TEXT}>
+                    <span className="text-4xl font-semibold tabular-nums">{view.used}</span>{' '}
+                    <span className={cn('text-sm', TEXT_SOFT)}>{view.used === 1 ? 'sesión usada' : 'sesiones usadas'} · sin límite</span>
+                  </p>
+                ) : view.total !== undefined ? (
+                  <>
+                    <p className={TEXT}>
+                      <span className="text-4xl font-semibold tabular-nums">{view.used}</span>{' '}
+                      <span className={cn('text-sm', TEXT_SOFT)}>de {view.total} sesiones usadas</span>
+                    </p>
+                    {view.ratio !== undefined && <Meter ratio={view.ratio} animateKey="plan" label={`${view.used} de ${view.total} sesiones usadas`} />}
+                  </>
+                ) : (
+                  <p className={TEXT}>
+                    <span className="text-4xl font-semibold tabular-nums">{view.used}</span>{' '}
+                    <span className={cn('text-sm', TEXT_SOFT)}>{view.used === 1 ? 'sesión usada' : 'sesiones usadas'}</span>
+                  </p>
+                )}
+                {view.kind === 'active' && view.available !== undefined && (
+                  <p className={cn('text-sm', TEXT_SOFT)}>
+                    Te quedan {sessionsWord(view.available)}
+                    {view.extra ? ` (incluye ${view.extra} extra)` : ''}
+                  </p>
+                )}
+              </div>
 
-          <p className={cn('mt-auto border-t border-[#fff8e4]/10 pt-3 text-xs', TEXT_SOFT)}>
-            Vigente hasta {view.validUntil} · {view.daysLeftText}
-          </p>
-        </>
+              {usedUp && <WhatsAppButton label="Renovar por WhatsApp" message="Hola, quiero renovar mi plan en Prime F&H" />}
+
+              <p className={cn('mt-auto border-t border-[#fff8e4]/10 pt-3 text-xs', TEXT_SOFT)}>
+                Vigente hasta {view.validUntil} · {view.daysLeftText}
+              </p>
+            </>
+          )}
+        </div>
       )}
     </section>
   );

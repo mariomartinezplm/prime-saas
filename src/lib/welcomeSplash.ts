@@ -19,6 +19,26 @@ export const markWelcomeShown = (): void => {
   }
 };
 
+// Aviso en memoria de «el logo de bienvenida está tapando la pantalla ahora mismo». Lo usan las animaciones de entrada (p. ej. las
+// barras de progreso) para empezar cuando la persona ya puede verlas, no por detrás del logo. No guarda nada.
+let covering = false;
+const listeners = new Set<() => void>();
+
+export const setWelcomeCovering = (value: boolean): void => {
+  if (covering === value) return;
+  covering = value;
+  listeners.forEach((listener) => listener());
+};
+
+export const isWelcomeCovering = (): boolean => covering;
+
+export const subscribeWelcomeCovering = (listener: () => void): (() => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+
 export const resetWelcome = (): void => {
   try {
     sessionStorage.removeItem(KEY);
