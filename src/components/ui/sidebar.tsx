@@ -162,7 +162,8 @@ const Sidebar = React.forwardRef<
             event.preventDefault();
             (event.currentTarget as HTMLElement).querySelector<HTMLElement>("a[href], button")?.focus();
           }}
-          className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          // Apertura de 300 ms y cierre de 200 ms (la base de las hojas es 500/300: se sentía lenta para un menú)
+          className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground data-[state=closed]:duration-200 data-[state=open]:duration-300 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
