@@ -120,7 +120,9 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
     expect(res.statusCode).toBe(201);
     expect(res.body.data.created).toHaveLength(2);
     expect(res.body.data.skipped).toHaveLength(1);
-    expect(res.body.data.created[0].sessionDeducted).toBe(true);
+    // se guardan con el descuento; la respuesta al paciente ya no trae campos internos (ver appointmentPrivacy.test.js)
+    expect(vi.mocked(Appointment.create).mock.calls[0][0].sessionDeducted).toBe(true);
+    expect(res.body.data.created[0]).not.toHaveProperty('sessionDeducted');
     expect(res.body.data.skipped[0]).toHaveProperty('fecha');
     expect(res.body.data.skipped[0]).toHaveProperty('motivo');
   });

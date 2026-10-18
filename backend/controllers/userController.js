@@ -8,6 +8,7 @@ import { importNewPatients } from '../utils/airtableSync.js';
 import { canAccessPatient, ownedPatientsOr } from '../middleware/auth.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { generateUnusablePassword, createInvite, inviteStatusOf } from '../services/inviteService.js';
+import { appointmentForViewer, userForViewer } from '../services/patientViews.js';
 
 // Documento de Mongoose → objeto plano (pasando por toJSON, que quita contraseñas y el token de invitación)
 const toPlain = (doc) => (typeof doc?.toJSON === 'function' ? doc.toJSON() : doc);
@@ -133,7 +134,7 @@ export const getUserById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { user }
+      data: { user: userForViewer(req.user, user) }
     });
   } catch (error) {
     res.status(500).json({
@@ -491,7 +492,7 @@ export const getPatientProfile = async (req, res) => {
 
     // El estado de la invitación es solo para el personal; el propio paciente no lo necesita
     const isStaffViewer = ['admin', 'professional'].includes(req.user.role);
-    const patientView = isStaffViewer ? { ...toPlain(patient), inviteStatus: inviteStatusOf(patient) } : patient;
+    const patientView = isStaffViewer ? { ...toPlain(patient), inviteStatus: inviteStatusOf(patient) } : userForViewer(req.user, patient);
 
     res.status(200).json({
       success: true,
@@ -503,7 +504,7 @@ export const getPatientProfile = async (req, res) => {
           totalExercises: exercises.length,
           totalEVARecords: evaRecords.length
         },
-        upcomingAppointments,
+        upcomingAppointments: upcomingAppointments.map((apt) => appointmentForViewer(req.user, apt)),
         recentMeasurements: measurements,
         recentEVARecords: evaRecords
       }

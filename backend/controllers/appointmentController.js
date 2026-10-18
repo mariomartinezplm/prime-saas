@@ -8,6 +8,7 @@ import { notify } from '../services/notificationService.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 import { generateAppointmentICS } from '../services/icsService.js';
 import { santiagoToUtc, formatDayMonthSantiago } from '../utils/timezone.js';
+import { appointmentForViewer, isStaffViewer } from '../services/patientViews.js';
 import {
   MAX_PATIENTS_PER_SLOT,
   PATIENT_BOOK_AHEAD_HOURS,
@@ -258,7 +259,7 @@ export const createAppointment = async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Cita creada exitosamente',
-    data: { appointment }
+    data: { appointment: appointmentForViewer(req.user, appointment) }
   });
 } catch (error) {
   res.status(500).json({
@@ -317,15 +318,18 @@ export const getAppointments = async (req, res) => {
       if (to) query.date.$lte = parseISO(to);
     }
 
-    const appointments = await Appointment.find(query)
-      .populate('patient', 'firstName lastName email phone rut')
+    // El paciente ya sabe quién es: para él no se consulta ni se envía la ficha del paciente (correo, teléfono, RUT)
+    let listQuery = Appointment.find(query);
+    if (isStaffViewer(req.user)) listQuery = listQuery.populate('patient', 'firstName lastName email phone rut');
+    const appointments = await listQuery
       .populate('professional', 'firstName lastName')
       .sort({ date: 1, startTime: 1 });
 
     res.status(200).json({
       success: true,
       count: appointments.length,
-      data: { appointments }
+      // Personal: la cita completa. Paciente: solo la lista cerrada de services/patientViews.js
+      data: { appointments: appointments.map((apt) => appointmentForViewer(req.user, apt)) }
     });
   } catch (error) {
     res.status(500).json({
@@ -340,10 +344,14 @@ export const getAppointments = async (req, res) => {
 // @access  Private
 export const getAppointment = async (req, res) => {
   try {
-    const appointment = await Appointment.findById(req.params.id)
-      .populate('patient', 'firstName lastName email phone rut dateOfBirth medicalInfo')
-      .populate('professional', 'firstName lastName')
-      .populate('cancelledBy', 'firstName lastName');
+    // Los datos clínicos del paciente y quién canceló solo se consultan para el personal
+    let detailQuery = Appointment.findById(req.params.id);
+    if (isStaffViewer(req.user)) {
+      detailQuery = detailQuery.populate('patient', 'firstName lastName email phone rut dateOfBirth medicalInfo');
+    }
+    detailQuery = detailQuery.populate('professional', 'firstName lastName');
+    if (isStaffViewer(req.user)) detailQuery = detailQuery.populate('cancelledBy', 'firstName lastName');
+    const appointment = await detailQuery;
 
     if (!appointment) {
       return res.status(404).json({
@@ -359,7 +367,7 @@ export const getAppointment = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { appointment }
+      data: { appointment: appointmentForViewer(req.user, appointment) }
     });
   } catch (error) {
     res.status(500).json({
@@ -483,7 +491,7 @@ export const cancelAppointment = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Cita cancelada exitosamente',
-      data: { appointment }
+      data: { appointment: appointmentForViewer(req.user, appointment) }
     });
   } catch (error) {
     res.status(500).json({
@@ -717,7 +725,7 @@ export const bulkCreateAppointments = async (req, res) => {
     res.status(201).json({
       success: true,
       message: `${created.length} citas creadas${skipped.length > 0 ? `, ${skipped.length} no se pudieron reservar` : ''}`,
-      data: { created, skipped }
+      data: { created: created.map((apt) => appointmentForViewer(req.user, apt)), skipped }
     });
   } catch (error) {
     res.status(500).json({

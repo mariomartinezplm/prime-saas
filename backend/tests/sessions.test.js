@@ -186,8 +186,11 @@ describe('POST /appointments — motor de descuento cableado', () => {
     await createAppointment(baseReq(), res);
 
     expect(res.statusCode).toBe(201);
-    expect(res.body.data.appointment.sessionDeducted).toBe(true);
-    expect(res.body.data.appointment.deduction).toEqual({ source: 'clientPlan', refId: planId });
+    // La cita se GUARDA con el descuento; la respuesta al paciente ya no incluye campos internos (ver appointmentPrivacy.test.js)
+    const guardada = vi.mocked(Appointment.create).mock.calls.at(-1)[0];
+    expect(guardada.sessionDeducted).toBe(true);
+    expect(guardada.deduction).toEqual({ source: 'clientPlan', refId: planId });
+    expect(res.body.data.appointment).not.toHaveProperty('deduction');
   });
 
   it('sin saldo de ese tipo: 403 NO_ACTIVE_PLAN_SESSIONS, nunca llega a intentar el descuento', async () => {
@@ -213,7 +216,7 @@ describe('POST /appointments — motor de descuento cableado', () => {
     await createAppointment(req, res);
 
     expect(res.statusCode).toBe(201);
-    expect(res.body.data.appointment.sessionDeducted).toBe(false);
+    expect(vi.mocked(Appointment.create).mock.calls.at(-1)[0].sessionDeducted).toBe(false);
     expect(balanceSpy).not.toHaveBeenCalled(); // ni siquiera se consulta el balance
     expect(deductSpy).not.toHaveBeenCalled();
   });
