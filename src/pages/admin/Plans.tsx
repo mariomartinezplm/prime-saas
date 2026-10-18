@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +75,13 @@ function rowHighlightClass(plan: ClientPlan): string {
   return '';
 }
 
+// ¿Conviene ofrecer «Renovar»? Plan vencido o en su último ciclo y a pocos días de vencer (el pendiente de pago tiene su propio botón)
+function canRenew(plan: ClientPlan): boolean {
+  if (plan.paymentPending) return false;
+  if (plan.status === 'expired') return true;
+  return plan.status === 'active' && isLastCycle(plan) && daysRemaining(plan.endDate) <= 5;
+}
+
 function statusBadge(plan: ClientPlan) {
   if (plan.status === 'expired') return <StatusBadge tone="danger">Vencido</StatusBadge>;
   if (plan.paymentPending) return <StatusBadge tone="warning">Pendiente de pago</StatusBadge>;
@@ -85,6 +92,7 @@ function statusBadge(plan: ClientPlan) {
 
 const Plans = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [clientPlans, setClientPlans] = useState<ClientPlan[]>([]);
   const [patients, setPatients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,6 +179,27 @@ const Plans = () => {
     setDialogOpen(true);
   };
 
+  // Desde la ficha del paciente («Renovar plan»): abre el diálogo con ese paciente y, si ya tuvo un plan, con el mismo plan ya completado
+  const renewPatientId = searchParams.get('paciente');
+  const renewHandled = useRef(false);
+  useEffect(() => {
+    if (!renewPatientId || loading || loadFailed || renewHandled.current) return;
+    renewHandled.current = true;
+    const patient = patients.find((p) => p.id === renewPatientId);
+    if (patient) {
+      const idOf = (plan: ClientPlan) => (typeof plan.patient === 'object' ? plan.patient.id : plan.patient);
+      const last = clientPlans.filter((plan) => idOf(plan) === patient.id).sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
+      if (last) {
+        openPaymentFor(last);
+      } else {
+        setSelectedPatient(patient);
+        setDialogOpen(true);
+      }
+    }
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renewPatientId, loading, loadFailed, patients, clientPlans]);
+
   const handleServiceTypeChange = (type: ServiceType) => {
     setServiceType(type);
     setChoice(DEFAULT_CHOICE[type]);
@@ -249,6 +278,11 @@ const Plans = () => {
                 Registrar pago
               </Button>
             )}
+            {canRenew(plan) && (
+              <Button size="sm" variant="outline" onClick={() => openPaymentFor(plan)}>
+                Renovar
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -268,7 +302,7 @@ const Plans = () => {
             </Button>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus aria-hidden="true" />
-              Registrar pago
+              Renovar plan / registrar pago
             </Button>
           </>
         }
@@ -357,8 +391,8 @@ const Plans = () => {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Registrar pago</DialogTitle>
-            <DialogDescription>Elige al paciente y el plan que pagó. Quedará registrado como pagado.</DialogDescription>
+            <DialogTitle>Renovar plan o registrar pago</DialogTitle>
+            <DialogDescription>Elige al paciente y el plan que pagó (una renovación es registrar el pago del plan que viene). Quedará registrado como pagado.</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">

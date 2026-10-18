@@ -15,6 +15,7 @@ import {
   Send,
   TriangleAlert,
   UserX,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
@@ -215,6 +216,12 @@ const PatientDetail = () => {
                 Agendar cita
               </Button>
             )}
+            <Button asChild variant="outline">
+              <Link to={`/app/admin/planes?paciente=${id}`}>
+                <RefreshCw aria-hidden="true" />
+                Renovar plan
+              </Link>
+            </Button>
             <Button variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil aria-hidden="true" />
               Editar datos
@@ -462,6 +469,12 @@ const PatientDetail = () => {
                     </AlertDescription>
                   </Alert>
                 )}
+                <Button asChild size="sm" variant="outline" className="w-fit">
+                  <Link to={`/app/admin/planes?paciente=${id}`}>
+                    <RefreshCw aria-hidden="true" />
+                    Renovar plan
+                  </Link>
+                </Button>
                 <DetailList>
                   <DetailRow label="Tipo">{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</DetailRow>
                   <DetailRow label="Plan">{formatCycleProgress(balance.plan) || undefined}</DetailRow>
@@ -477,9 +490,14 @@ const PatientDetail = () => {
               icon={FileText}
               title="Este paciente no tiene un plan activo"
               action={
-                <Button asChild size="sm">
-                  <Link to="/app/admin/planes/clasificar">Asignar plan</Link>
-                </Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button asChild size="sm">
+                    <Link to={`/app/admin/planes?paciente=${id}`}>Renovar plan</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/app/admin/planes/clasificar">Asignar plan</Link>
+                  </Button>
+                </div>
               }
             />
           )}
