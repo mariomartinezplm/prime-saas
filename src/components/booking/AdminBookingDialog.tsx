@@ -103,7 +103,7 @@ const AdminBookingDialog = ({
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      await appointmentService.create({
+      const created = await appointmentService.create({
         patient: patientId,
         professional: professionalId,
         date,
@@ -112,7 +112,16 @@ const AdminBookingDialog = ({
         type,
         allowOverbook: selectedIsFull,
       });
-      notify.success(selectedIsFull ? 'Cita agendada como sobrecupo' : 'Cita agendada');
+      // Kinesiología y entrenamiento descuentan 1 sesión del plan; si el paciente no tiene plan vigente o sesiones, se agenda igual pero sin descontar
+      const descuenta = type === 'kinesiologia' || type === 'entrenamiento';
+      const base = selectedIsFull ? 'Cita agendada como sobrecupo' : 'Cita agendada';
+      if (descuenta && created?.sessionDeducted === false) {
+        notify.warning(`${base}, pero no se descontó ninguna sesión: el paciente no tiene un plan vigente con sesiones de ${type === 'kinesiologia' ? 'kinesiología' : 'entrenamiento'}.`, { duration: 9000 });
+      } else if (descuenta) {
+        notify.success(`${base}. Se descontó 1 sesión de su plan.`);
+      } else {
+        notify.success(base);
+      }
       onBooked();
       onClose();
     } catch (err: unknown) {

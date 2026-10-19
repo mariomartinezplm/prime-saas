@@ -196,11 +196,14 @@ export const createAppointment = async (req, res) => {
   // más se llevó el último cupo entre el chequeo de arriba y este instante),
   // no debe quedar ninguna cita creada — 409, no 500 ni una cita fantasma.
   let deduction = null;
-  const mustDeduct = !isStaff(req.user) && DEDUCTIBLE_TYPES.includes(sessionType);
+  // La sesión se descuenta SIEMPRE que se agenda una sesión de kinesiología o entrenamiento, la agende el paciente o el personal.
+  // Al personal no se le bloquea si el paciente no tiene plan vigente o sesiones (puede agendar igual): en ese caso la cita
+  // queda sin descuento (`sessionDeducted: false`) y la pantalla se lo avisa.
+  const mustDeduct = DEDUCTIBLE_TYPES.includes(sessionType);
 
   if (mustDeduct) {
     deduction = await deductSession(patientId, sessionType, null);
-    if (!deduction) {
+    if (!deduction && !isStaff(req.user)) {
       return res.status(409).json({
         success: false,
         code: 'SESSION_CONFLICT',
@@ -700,10 +703,10 @@ export const bulkCreateAppointments = async (req, res) => {
         const endTime = `${(hours + 1).toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
         let deduction = null;
-        const mustDeduct = !isStaff(req.user) && DEDUCTIBLE_TYPES.includes(sessionType);
+        const mustDeduct = DEDUCTIBLE_TYPES.includes(sessionType);
         if (mustDeduct) {
           deduction = await deductSession(patientId, sessionType, null);
-          if (!deduction) {
+          if (!deduction && !isStaff(req.user)) {
             skipped.push({ fecha: date, motivo: 'Alguien más tomó tu último cupo disponible' });
             continue;
           }
@@ -779,6 +782,8 @@ export const deleteAppointment = async (req, res) => {
     }
 
     const wasCompleted = appointment.status === 'completed';
+    // Borrar una cita que sigue programada y ya había descontado una sesión devuelve esa sesión (si no, se perdería por un error de agenda)
+    if (appointment.status === 'scheduled' && appointment.sessionDeducted) await refundSession(appointment);
     await appointment.deleteOne();
 
     // Borrar una cita completada puede dejar un logro sin respaldo: se revisa (nunca se retira en silencio)

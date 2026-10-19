@@ -164,10 +164,10 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
     expect(res.body.data.skipped[0].motivo).toMatch(/4 horas/);
   });
 
-  it('staff agendando para un paciente: no se le exige saldo ni ventana de 4h', async () => {
+  it('el personal agendando en lote: no se le exige saldo ni ventana de 4h, y SÍ se descuenta la sesión de cada cita', async () => {
     baseSetup();
     const balanceSpy = vi.spyOn(ClientPlan, 'findOne');
-    const deductSpy = vi.spyOn(ClientPlan, 'findOneAndUpdate');
+    const deductSpy = vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });
 
     const req = {
       user: { _id: nuevoId(), role: 'admin' },
@@ -179,9 +179,23 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
 
     expect(res.statusCode).toBe(201);
     expect(res.body.data.created).toHaveLength(1);
+    expect(res.body.data.created[0].sessionDeducted).toBe(true);
+    expect(balanceSpy).not.toHaveBeenCalled(); // no se bloquea por saldo: se descuenta si hay, y si no, se agenda igual
+    expect(deductSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('el personal agendando en lote a un paciente sin plan ni sesiones: la cita se crea sin descontar', async () => {
+    baseSetup();
+    vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue(null);
+    vi.spyOn(ExtraSession, 'findOneAndUpdate').mockResolvedValue(null);
+
+    const req = { user: { _id: nuevoId(), role: 'admin' }, body: { patient: PATIENT_ID.toString(), appointments: [item(3)] } };
+    const res = fakeRes();
+    await bulkCreateAppointments(req, res);
+
+    expect(res.body.data.created).toHaveLength(1);
     expect(res.body.data.created[0].sessionDeducted).toBe(false);
-    expect(balanceSpy).not.toHaveBeenCalled();
-    expect(deductSpy).not.toHaveBeenCalled();
+    expect(res.body.data.skipped).toHaveLength(0);
   });
 });
 

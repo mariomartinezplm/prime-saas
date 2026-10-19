@@ -231,6 +231,7 @@ describe('agendar a nombre de un paciente', () => {
       query(pacientes[id.toString()] ?? (id.toString() === MI_ID.toString() ? { _id: MI_ID, role: 'professional' } : null))
     );
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
+    vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() }); // el personal también descuenta la sesión
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});

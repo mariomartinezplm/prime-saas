@@ -90,6 +90,8 @@ export interface Appointment {
   type: 'kinesiologia' | 'entrenamiento' | 'evaluacion';
   notes?: string;
   overbooked?: boolean;
+  // La cita descontó 1 sesión del plan del paciente (kinesiología y entrenamiento)
+  sessionDeducted?: boolean;
   // Cita de un paciente "sobre cupo": no cuenta en el máximo de 4 simultáneos
   outsideCapacity?: boolean;
   cancellationReason?: string;

@@ -221,20 +221,43 @@ describe('POST /appointments — motor de descuento cableado', () => {
     expect(deductSpy).not.toHaveBeenCalled();
   });
 
-  it('staff agendando para un paciente: no descuenta nada', async () => {
+  it('el personal agendando para un paciente SÍ descuenta la sesión (igual que si la agenda el paciente)', async () => {
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
-    const deductSpy = vi.spyOn(ClientPlan, 'findOneAndUpdate');
+    const deductSpy = vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });
 
-    const req = {
-      user: { _id: nuevoId(), role: 'admin' },
-      body: { ...baseReq().body, patient: PATIENT_ID.toString() }
-    };
+    for (const role of ['admin', 'professional']) {
+      deductSpy.mockClear();
+      const req = {
+        user: { _id: role === 'professional' ? PROFESSIONAL_ID : nuevoId(), role },
+        body: { ...baseReq().body, patient: PATIENT_ID.toString(), professional: PROFESSIONAL_ID.toString() }
+      };
+      const res = fakeRes();
+      await createAppointment(req, res);
+      expect(res.statusCode).toBe(201);
+      expect(deductSpy).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(Appointment.create).mock.calls.at(-1)[0].sessionDeducted).toBe(true);
+    }
+  });
+
+  it('el personal puede agendar aunque el paciente no tenga plan ni sesiones: se crea la cita SIN descontar (no se bloquea)', async () => {
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue(null);
+    vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue(null);
+    vi.spyOn(ExtraSession, 'findOneAndUpdate').mockResolvedValue(null);
+
+    const req = { user: { _id: nuevoId(), role: 'admin' }, body: { ...baseReq().body, patient: PATIENT_ID.toString() } };
     const res = fakeRes();
     await createAppointment(req, res);
 
     expect(res.statusCode).toBe(201);
-    expect(res.body.data.appointment.sessionDeducted).toBe(false);
-    expect(deductSpy).not.toHaveBeenCalled();
+    expect(vi.mocked(Appointment.create).mock.calls.at(-1)[0].sessionDeducted).toBe(false);
+  });
+
+  it('el paciente sin sesiones sigue sin poder agendar (409 o 403): el cambio solo flexibiliza al personal', async () => {
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue(null);
+    vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
+    const res = fakeRes();
+    await createAppointment(baseReq(), res);
+    expect([403, 409]).toContain(res.statusCode);
   });
 
   it('carrera real: dos requests con saldo para 1, Promise.all → un 201 y un 409 SESSION_CONFLICT', async () => {
@@ -377,6 +400,7 @@ describe('POST /appointments — sobrecupo (solo admin)', () => {
       return query(null);
     });
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
+    vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() }); // el personal también descuenta la sesión
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(overlapping);
     vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
