@@ -48,9 +48,12 @@ const BookAppointment = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const allUsers = await userService.getAll({ role: 'admin' });
-        const allProf = await userService.getAll({ role: 'professional' });
-        const combined = [...allUsers.users, ...allProf.users];
+        // Cada lista se pide por separado: si una falla, la otra sirve igual (antes un solo fallo dejaba a TODOS sin profesional)
+        const [allUsers, allProf] = await Promise.allSettled([userService.getAll({ role: 'admin' }), userService.getAll({ role: 'professional' })]);
+        const combined = [
+          ...(allUsers.status === 'fulfilled' ? allUsers.value.users : []),
+          ...(allProf.status === 'fulfilled' ? allProf.value.users : []),
+        ];
 
         const allowedNames = ['mario', 'felipe', 'rafael', 'tomás', 'tomas'];
         const validProfessionals = combined.filter(p => allowedNames.includes(p.firstName.toLowerCase()));
@@ -66,7 +69,9 @@ const BookAppointment = () => {
             typeof user.assignedProfessionalId === 'object'
               ? user.assignedProfessionalId?.id
               : user.assignedProfessionalId;
-          const found = assignedId ? combined.find(p => p.id === assignedId) : undefined;
+          // Si el directorio no lo trae, se usa el profesional que ya viene en la sesión del paciente (nombre incluido)
+          const fromSession = typeof user.assignedProfessionalId === 'object' && user.assignedProfessionalId?.id ? (user.assignedProfessionalId as unknown as User) : undefined;
+          const found = assignedId ? combined.find(p => p.id === assignedId) ?? fromSession : undefined;
 
           if (found) {
             setProfessionals([found]);
