@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { santiagoParts, santiagoToUtc, addMonthsSantiago } from '../utils/timezone.js';
-import { cycleBounds, buildCycles, paymentDueBy, TERM_CYCLES } from '../services/planCycles.js';
+import { cycleBounds, buildCycles, paymentDueBy, isValidGraceDays, TERM_CYCLES } from '../services/planCycles.js';
 
 // "YYYY-MM-DD HH:MM" en hora de Santiago, para leer los resultados como una persona
 const wall = (date) => {
@@ -119,5 +119,23 @@ describe('plazo de pago (5 días)', () => {
 
   it('ciclo de fecha a fecha que parte el 10: plazo hasta el 14 inclusive', () => {
     expect(wall(new Date(paymentDueBy(at(2026, 11, 10)).getTime() - 1))).toBe('2026-11-14 23:59:59');
+  });
+});
+
+describe('plazo de pago elegido por el personal', () => {
+  it('ciclo que parte el 17 con plazo de 3 días: se puede pagar hasta el 19 inclusive', () => {
+    expect(wall(new Date(paymentDueBy(at(2026, 11, 17), 3).getTime() - 1))).toBe('2026-11-19 23:59:59');
+  });
+
+  it('sin indicar plazo se mantiene el de 5 días; el plazo 0 vence al empezar el ciclo', () => {
+    expect(wall(paymentDueBy(at(2026, 11, 1)))).toBe('2026-11-06 00:00:00');
+    expect(wall(paymentDueBy(at(2026, 11, 1), 0))).toBe('2026-11-01 00:00:00');
+  });
+
+  it('solo se aceptan días enteros entre 0 y 30', () => {
+    const ok = [0, 5, 30].every(isValidGraceDays);
+    const bad = [-1, 31, 2.5, '5', null, undefined, Number.NaN].some(isValidGraceDays);
+    expect(ok).toBe(true);
+    expect(bad).toBe(false);
   });
 });

@@ -16,6 +16,7 @@ import SubmitButton from '@/components/forms/SubmitButton';
 import SessionsSelect from '@/components/plans/SessionsSelect';
 import PlanTermFields from '@/components/plans/PlanTermFields';
 import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
+import GraceDaysField, { DEFAULT_GRACE_DAYS } from '@/components/plans/GraceDaysField';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -96,6 +97,7 @@ const RegisterPatient = () => {
   const [term, setTerm] = useState<PlanTerm>('mensual');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [renews, setRenews] = useState(true);
+  const [graceDays, setGraceDays] = useState(DEFAULT_GRACE_DAYS);
   const [form, setForm] = useState<FormState>(emptyForm);
 
   const dirty = useMemo(() => Object.keys(emptyForm).some((k) => form[k as keyof FormState] !== ''), [form]);
@@ -160,6 +162,7 @@ const RegisterPatient = () => {
             term,
             billingCycle,
             renews,
+            graceDays: Number.isInteger(graceDays) ? graceDays : undefined,
           });
           notify.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
         } catch {
@@ -329,6 +332,7 @@ const RegisterPatient = () => {
                   <>
                     <PlanTermFields term={term} billingCycle={billingCycle} onTermChange={setTerm} onBillingCycleChange={setBillingCycle} />
                     <RenewsCheckbox id="register-renews" checked={renews} onChange={setRenews} />
+                    {renews && <GraceDaysField id="register-grace-days" value={graceDays} onChange={setGraceDays} billingCycle={billingCycle} />}
                   </>
                 )}
               </div>

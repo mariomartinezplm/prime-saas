@@ -191,6 +191,8 @@ export interface ClientPlan {
   // Renovación abierta sin pago registrado: se puede agendar hasta paymentDueBy
   paymentPending?: boolean;
   paymentDueBy?: string;
+  // Días de plazo para pagar la renovación (por defecto 5)
+  graceDays?: number;
   registeredBy: User | string;
   notes?: string;
   createdAt: string;
@@ -205,6 +207,7 @@ export interface CreateClientPlanData {
   term?: 'mensual' | 'trimestral' | 'anual';
   billingCycle?: 'calendar' | 'rolling';
   renews?: boolean;
+  graceDays?: number;
   startDate?: string;
   notes?: string;
   replaceExisting?: boolean;

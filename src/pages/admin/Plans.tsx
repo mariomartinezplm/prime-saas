@@ -54,6 +54,8 @@ import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { ClientPlan, User } from '@/types';
 import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
+import GraceDaysField, { DEFAULT_GRACE_DAYS, MAX_GRACE_DAYS } from '@/components/plans/GraceDaysField';
+import EditGraceDaysDialog from '@/components/plans/EditGraceDaysDialog';
 
 const SERVICE_ICON: Record<ServiceType, typeof Dumbbell> = {
   entrenamiento: Dumbbell,
@@ -118,6 +120,8 @@ const Plans = () => {
   const [term, setTerm] = useState<PlanTerm>('mensual');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [renews, setRenews] = useState(true);
+  const [graceDays, setGraceDays] = useState(DEFAULT_GRACE_DAYS);
+  const [graceEditPlan, setGraceEditPlan] = useState<ClientPlan | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Confirmación de reemplazo de plan activo
@@ -166,6 +170,7 @@ const Plans = () => {
     setTerm('mensual');
     setBillingCycle('calendar');
     setRenews(true);
+    setGraceDays(DEFAULT_GRACE_DAYS);
     setConflictPlan(null);
   };
 
@@ -186,6 +191,7 @@ const Plans = () => {
     setChoice(plan.unlimited ? 'ilimitado' : plan.sessionsTotal);
     setTerm(plan.term ?? 'mensual');
     setBillingCycle(plan.billingCycle ?? 'calendar');
+    setGraceDays(plan.graceDays ?? DEFAULT_GRACE_DAYS);
     setDialogOpen(true);
   };
 
@@ -227,6 +233,7 @@ const Plans = () => {
         term,
         billingCycle,
         renews,
+        graceDays: Number.isInteger(graceDays) ? graceDays : undefined,
         replaceExisting,
       });
       notify.success('Plan registrado exitosamente');
@@ -288,6 +295,11 @@ const Plans = () => {
             {plan.paymentPending && (
               <Button size="sm" variant="outline" onClick={() => openPaymentFor(plan)}>
                 Registrar pago
+              </Button>
+            )}
+            {!plan.openEnded && plan.renews !== false && (plan.status === 'active' || plan.status === 'upcoming') && (
+              <Button size="sm" variant="ghost" onClick={() => setGraceEditPlan(plan)}>
+                Plazo de pago
               </Button>
             )}
             {canRenew(plan) && (
@@ -515,15 +527,25 @@ const Plans = () => {
               />
             )}
             {serviceType !== 'kinesiologia' && <RenewsCheckbox id="plan-renews" checked={renews} onChange={setRenews} />}
+            {serviceType !== 'kinesiologia' && renews && (
+              <GraceDaysField id="plan-grace-days" value={graceDays} onChange={setGraceDays} billingCycle={billingCycle} />
+            )}
 
             <DialogFooter>
-              <SubmitButton disabled={!selectedPatient} loading={submitting} loadingLabel="Registrando…" className="w-full">
+              <SubmitButton disabled={!selectedPatient || !(Number.isInteger(graceDays) && graceDays >= 0 && graceDays <= MAX_GRACE_DAYS)} loading={submitting} loadingLabel="Registrando…" className="w-full">
                 Confirmar pago
               </SubmitButton>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <EditGraceDaysDialog
+        plan={graceEditPlan}
+        patientName={graceEditPlan && typeof graceEditPlan.patient === 'object' ? `${graceEditPlan.patient.firstName} ${graceEditPlan.patient.lastName}` : 'el paciente'}
+        onClose={() => setGraceEditPlan(null)}
+        onSaved={fetchClientPlans}
+      />
 
       {/* Confirmación de reemplazo de plan activo */}
       <AlertDialog open={!!conflictPlan} onOpenChange={(open) => !open && setConflictPlan(null)}>

@@ -18,6 +18,8 @@ import {
 } from '../utils/timezone.js';
 
 export const GRACE_DAYS = 5;
+export const MAX_GRACE_DAYS = 30;
+export const isValidGraceDays = (n) => Number.isInteger(n) && n >= 0 && n <= MAX_GRACE_DAYS;
 export const TERMS = ['mensual', 'trimestral', 'anual'];
 export const TERM_CYCLES = { mensual: 1, trimestral: 3, anual: 12 };
 export const BILLING_CYCLES = ['calendar', 'rolling'];
@@ -48,6 +50,7 @@ export function buildCycles(startDate, billingCycle, cyclesTotal) {
 
 // Hasta cuándo se puede pagar el ciclo que empieza en cycleStart (primer
 // instante en que ya NO se puede: medianoche, 5 días después del inicio).
-export function paymentDueBy(cycleStart) {
-  return addDaysSantiago(cycleStart, GRACE_DAYS);
+// `graceDays` es el plazo de ese paciente (por defecto 5; el personal lo puede elegir).
+export function paymentDueBy(cycleStart, graceDays = GRACE_DAYS) {
+  return addDaysSantiago(cycleStart, graceDays);
 }

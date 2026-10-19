@@ -90,6 +90,13 @@ const clientPlanSchema = new mongoose.Schema({
   paymentDueBy: {
     type: Date
   },
+  // Días de plazo para pagar la renovación, contados desde que empieza el ciclo nuevo (se elige al registrar el plan y se puede editar)
+  graceDays: {
+    type: Number,
+    default: 5,
+    min: 0,
+    max: 30
+  },
   // Plan del que nació este ciclo pendiente. El índice único evita abrir dos
   // renovaciones del mismo plan si dos procesos corren a la vez.
   renewedFrom: {

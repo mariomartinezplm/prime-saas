@@ -30,4 +30,9 @@ export const clientPlanService = {
     const response = await api.put<APIResponse<{ clientPlan: ClientPlan }>>(`/client-plans/${id}/cancel`);
     return response.data.data.clientPlan;
   },
+
+  // Cambiar el plazo de pago (días desde que empieza el ciclo nuevo)
+  updateGraceDays: async (id: string, graceDays: number): Promise<void> => {
+    await api.put(`/client-plans/${id}/grace-days`, { graceDays });
+  },
 };

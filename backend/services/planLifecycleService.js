@@ -51,6 +51,7 @@ export async function createTermPlans({
   billingCycle = 'calendar',
   startDate = new Date(),
   renews = true,
+  graceDays,
   registeredBy,
   notes
 }) {
@@ -94,6 +95,7 @@ export async function createTermPlans({
       cyclesTotal,
       termId,
       renews,
+      ...(graceDays !== undefined ? { graceDays } : {}),
       registeredBy,
       notes,
       status: cycle.cycleNumber === 1 ? 'active' : 'upcoming'
@@ -107,7 +109,7 @@ export async function createTermPlans({
 // queda pagado CONSERVANDO las sesiones ya usadas (así quien agendó en los
 // días de plazo no recibe un cupo nuevo por pagar), y si pagó un plan de
 // varios meses se crean los ciclos que faltan.
-export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false, term = 'mensual', renews = true, registeredBy, notes }) {
+export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false, term = 'mensual', renews = true, graceDays, registeredBy, notes }) {
   // Una renovación pendiente de pago de kinesiología pasa a plan por sesiones: queda pagada, sin ciclos ni fecha, conservando lo ya usado
   if (plan.serviceType === 'kinesiologia') {
     plan.sessionsTotal = sessionsTotal;
@@ -135,6 +137,7 @@ export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false
   plan.cycleNumber = 1;
   plan.termId = termId;
   plan.renews = renews;
+  if (graceDays !== undefined) plan.graceDays = graceDays;
   plan.paymentPending = false;
   plan.paymentDueBy = undefined;
   plan.registeredBy = registeredBy;
@@ -155,6 +158,7 @@ export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false
       cyclesTotal,
       termId,
       renews,
+      graceDays: plan.graceDays,
       registeredBy,
       notes,
       status: 'upcoming'
@@ -178,7 +182,8 @@ export async function cancelPlanAndFutureCycles(plan) {
 
 async function openPendingRenewal(plan, now) {
   const start = new Date(plan.endDate.getTime() + 1);
-  const due = paymentDueBy(start);
+  const graceDays = plan.graceDays ?? 5;
+  const due = paymentDueBy(start, graceDays);
 
   // Si el plazo de pago del ciclo siguiente ya pasó, no tiene sentido abrirlo
   if (now.getTime() >= due.getTime()) return false;
@@ -197,6 +202,7 @@ async function openPendingRenewal(plan, now) {
       renews: true,
       paymentPending: true,
       paymentDueBy: due,
+      graceDays,
       renewedFrom: plan._id,
       registeredBy: plan.registeredBy,
       status: 'active'
@@ -272,7 +278,7 @@ export function buildExpiringMessage(plan, now) {
   const endsOn = formatDayMonthSantiago(plan.endDate);
 
   const paymentLine = plan.renews
-    ? ` Para seguir sin interrupciones tienes plazo hasta el ${dayBeforeEnd(paymentDueBy(new Date(plan.endDate.getTime() + 1)))} para pagar tu renovación; puedes seguir agendando hasta esa fecha.`
+    ? ` Para seguir sin interrupciones tienes plazo hasta el ${dayBeforeEnd(paymentDueBy(new Date(plan.endDate.getTime() + 1), plan.graceDays ?? 5))} para pagar tu renovación; puedes seguir agendando hasta esa fecha.`
     : '';
 
   return {

@@ -8,8 +8,8 @@ import {
   advancePlans,
   runPlanLifecycleJob
 } from '../services/planLifecycleService.js';
-import { TERMS, BILLING_CYCLES } from '../services/planCycles.js';
-import { ownedPatientsOr } from '../middleware/auth.js';
+import { TERMS, BILLING_CYCLES, isValidGraceDays, MAX_GRACE_DAYS, paymentDueBy } from '../services/planCycles.js';
+import { ownedPatientsOr, canAccessPatient } from '../middleware/auth.js';
 
 function isStaff(user) {
   return ['admin', 'professional'].includes(user.role);
@@ -33,6 +33,10 @@ export const createClientPlan = async (req, res) => {
     const billingCycle = req.body.billingCycle || 'calendar';
     const renews = req.body.renews !== false;
     const isUnlimited = unlimited === true;
+    const graceDays = req.body.graceDays;
+    if (graceDays !== undefined && !isValidGraceDays(graceDays)) {
+      return res.status(400).json({ success: false, message: `El plazo de pago debe ser un número de días entre 0 y ${MAX_GRACE_DAYS}` });
+    }
 
     if (!patientId || !serviceType || (!isUnlimited && !sessionsTotal)) {
       return res.status(400).json({
@@ -70,6 +74,7 @@ export const createClientPlan = async (req, res) => {
         unlimited: isUnlimited,
         term,
         renews,
+        graceDays,
         registeredBy: req.user._id,
         notes
       });
@@ -100,6 +105,7 @@ export const createClientPlan = async (req, res) => {
         billingCycle,
         startDate: startDate ? new Date(startDate) : new Date(),
         renews,
+        graceDays,
         registeredBy: req.user._id,
         notes
       });
@@ -272,5 +278,52 @@ export const runExpireCheck = async (req, res) => {
       success: false,
       message: error.message || 'Error al verificar vencimientos'
     });
+  }
+};
+
+// @desc    Cambiar el plazo de pago (días desde que empieza el ciclo nuevo) de los planes vigentes de un paciente y servicio
+// @route   PUT /api/client-plans/:id/grace-days   { graceDays }
+// @access  Private/Admin, Private/Professional (sus pacientes)
+export const updateGraceDays = async (req, res) => {
+  try {
+    const { graceDays } = req.body;
+    if (!isValidGraceDays(graceDays)) {
+      return res.status(400).json({ success: false, message: `El plazo de pago debe ser un número de días entre 0 y ${MAX_GRACE_DAYS}` });
+    }
+
+    const plan = await ClientPlan.findById(req.params.id);
+    if (!plan || !(await canAccessPatient(req.user, plan.patient))) {
+      return res.status(404).json({ success: false, message: 'Plan no encontrado' });
+    }
+
+    // Todos los ciclos vigentes del mismo paciente y servicio quedan con el mismo plazo
+    const plans = await ClientPlan.find({
+      patient: plan.patient,
+      serviceType: plan.serviceType,
+      status: { $in: ['active', 'upcoming'] }
+    });
+
+    const now = new Date();
+    for (const p of plans) {
+      if (p.paymentPending && paymentDueBy(p.startDate, graceDays).getTime() <= now.getTime()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Con ese plazo la fecha de pago ya habría pasado. Elige un plazo mayor.'
+        });
+      }
+    }
+    for (const p of plans) {
+      p.graceDays = graceDays;
+      if (p.paymentPending) p.paymentDueBy = paymentDueBy(p.startDate, graceDays);
+      await p.save();
+    }
+    if (!plans.some((p) => String(p._id) === String(plan._id))) {
+      plan.graceDays = graceDays;
+      await plan.save();
+    }
+
+    res.json({ success: true, message: 'Plazo de pago actualizado', data: { graceDays } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'No se pudo actualizar el plazo de pago' });
   }
 };
