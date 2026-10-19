@@ -80,7 +80,7 @@ const BulkBookingDialog = ({ open, onClose, professional, plan }: BulkBookingDia
         current = addDays(current, 1);
       }
 
-      // Debe ser al menos 4h desde ahora (mismo mínimo que exige el backend).
+      // Debe ser al menos MIN_BOOKING_AHEAD_HOURS desde ahora (mismo mínimo que exige el backend).
       // Comparar el horario real de la primera ocurrencia, no "ahora" a secas
       // — antes esto comparaba el propio "now" contra "now + 4h" (siempre
       // true), así que la primera ocurrencia de hoy nunca entraba en el lote,

@@ -116,13 +116,14 @@ describe('agendar en un horario LLENO', () => {
     expect(createSpy.mock.calls[0][0].outsideCapacity).toBe(false);
   });
 
-  it('las demás reglas siguen: sobre cupo no salta la anticipación de 4 horas', async () => {
+  it('las demás reglas siguen: sobre cupo no salta la anticipación de 2 horas', async () => {
     setup({ overlapping: 0, exempt: true });
     const soon = new Date(nowInSantiago().getTime() + 60 * 60 * 1000);
+    const p2 = (n) => String(n).padStart(2, '0');
     const res = fakeRes();
     await createAppointment(reqOf('patient', {
-      date: soon.toISOString().split('T')[0],
-      startTime: `${String(soon.getUTCHours()).padStart(2, '0')}:${String(soon.getUTCMinutes()).padStart(2, '0')}`
+      date: `${soon.getFullYear()}-${p2(soon.getMonth() + 1)}-${p2(soon.getDate())}`,
+      startTime: `${p2(soon.getHours())}:${p2(soon.getMinutes())}`
     }), res);
     expect(res.statusCode).toBe(400);
     expect(res.body.code).toBe('BOOKING_WINDOW');

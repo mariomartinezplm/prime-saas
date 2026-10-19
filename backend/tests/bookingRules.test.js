@@ -55,9 +55,11 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
   // qué hora sea cuando corre la prueba.
   const futureDateTime = (hoursAhead) => {
     const target = new Date(nowInSantiago().getTime() + hoursAhead * 60 * 60 * 1000);
+    // Con los getters locales: el controller lee `${date}T${startTime}` en la zona del proceso, igual que nowInSantiago()
+    const p2 = (n) => String(n).padStart(2, '0');
     return {
-      date: target.toISOString().split('T')[0],
-      startTime: `${String(target.getUTCHours()).padStart(2, '0')}:${String(target.getUTCMinutes()).padStart(2, '0')}`
+      date: `${target.getFullYear()}-${p2(target.getMonth() + 1)}-${p2(target.getDate())}`,
+      startTime: `${p2(target.getHours())}:${p2(target.getMinutes())}`
     };
   };
 
@@ -147,21 +149,44 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
     expect(res.body.data.skipped[0].motivo).toMatch(/pasó/);
   });
 
-  it('menos de 4 horas de anticipación: se salta con el motivo correcto', async () => {
+  it('menos de 2 horas de anticipación: se salta con el motivo correcto', async () => {
     baseSetup();
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
 
     const req = {
       user: { _id: PATIENT_ID, role: 'patient' },
-      body: { appointments: [item(1)] }
+      body: { appointments: [item(1.9)] }
     };
     const res = fakeRes();
 
     await bulkCreateAppointments(req, res);
 
     expect(res.body.data.created).toHaveLength(0);
-    expect(res.body.data.skipped[0].motivo).toMatch(/4 horas/);
+    expect(res.body.data.skipped[0].motivo).toMatch(/2 horas/);
+  });
+
+  it('el paciente puede agendar con 2 horas y un poco más de anticipación (el borde de las 2 horas)', async () => {
+    baseSetup();
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 5 });
+    vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });
+    vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
+
+    const res = fakeRes();
+    await bulkCreateAppointments({ user: { _id: PATIENT_ID, role: 'patient' }, body: { appointments: [item(2.1)] } }, res);
+
+    expect(res.body.data.created).toHaveLength(1);
+    expect(res.body.data.skipped).toHaveLength(0);
+  });
+
+  it('el personal puede agendar en cualquier momento (con solo minutos de anticipación), pero nunca en el pasado', async () => {
+    baseSetup();
+    vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });
+    const res = fakeRes();
+    await bulkCreateAppointments({ user: { _id: nuevoId(), role: 'admin' }, body: { patient: PATIENT_ID.toString(), appointments: [item(0.2), item(-1)] } }, res);
+    expect(res.body.data.created).toHaveLength(1);
+    expect(res.body.data.skipped).toHaveLength(1);
+    expect(res.body.data.skipped[0].motivo).toMatch(/pasó/);
   });
 
   it('el personal agendando en lote: no se le exige saldo ni ventana de 4h, y SÍ se descuenta la sesión de cada cita', async () => {
