@@ -20,6 +20,7 @@ import {
   BULK_BOOKING_MAX_ITEMS,
   nowInSantiago,
   countOverlappingAppointments,
+  hasIdenticalAppointment,
   isExemptFromCapacity
 } from '../services/bookingRulesService.js';
 
@@ -124,6 +125,16 @@ export const createAppointment = async (req, res) => {
     if (balanceCheck) {
       return res.status(balanceCheck.status).json(balanceCheck.body);
     }
+  }
+
+  // ──── REGLA 4b: no repetir exactamente la misma cita (doble clic, reintento tras un corte, personal) ────
+  const sameAppointment = await hasIdenticalAppointment(patientId, professional, date, startTime);
+  if (sameAppointment) {
+    return res.status(409).json({
+      success: false,
+      code: 'DUPLICATE_APPOINTMENT',
+      message: 'Ya existe una cita agendada para ese paciente en ese día y horario.'
+    });
   }
 
   // ──── REGLA 5: Máximo 4 pacientes por hora por kinesiólogo ────
@@ -639,6 +650,11 @@ export const bulkCreateAppointments = async (req, res) => {
 
         if (req.user.role === 'professional' && String(professional) !== String(req.user._id)) {
           skipped.push({ fecha: date, motivo: 'Solo el administrador puede agendar en la agenda de otro profesional' });
+          continue;
+        }
+
+        if (await hasIdenticalAppointment(patientId, professional, date, startTime)) {
+          skipped.push({ fecha: date, motivo: 'Ya existe una cita agendada en ese día y horario' });
           continue;
         }
 

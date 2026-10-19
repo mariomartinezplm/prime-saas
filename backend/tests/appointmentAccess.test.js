@@ -234,6 +234,7 @@ describe('agendar a nombre de un paciente', () => {
     vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() }); // el personal también descuenta la sesión
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
     vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
     vi.spyOn(Appointment, 'create').mockImplementation(async (data) => ({ ...data, _id: nuevoId(), populate: vi.fn().mockResolvedValue(undefined) }));
   });

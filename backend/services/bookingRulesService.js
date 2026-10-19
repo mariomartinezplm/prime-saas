@@ -57,3 +57,10 @@ export async function isExemptFromCapacity(patientId) {
   const patient = await User.findById(patientId, 'exemptFromCapacity role');
   return !!patient && patient.role === 'patient' && patient.exemptFromCapacity === true;
 }
+
+// ¿Ya hay una cita agendada idéntica (mismo paciente, profesional, día y hora)? Evita el doble clic, el reintento tras un corte y la
+// cita repetida del personal. No cubre dos envíos exactamente simultáneos (eso se resolverá con la protección completa).
+export async function hasIdenticalAppointment(patientId, professionalId, date, startTime) {
+  const found = await Appointment.exists({ patient: patientId, professional: professionalId, date: new Date(date), startTime, status: 'scheduled' });
+  return !!found;
+}

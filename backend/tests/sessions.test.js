@@ -157,6 +157,8 @@ describe('POST /appointments — motor de descuento cableado', () => {
     });
 
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0); // cupo de horario nunca lleno
+
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
     vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
 
     vi.spyOn(Appointment, 'create').mockImplementation(async (data) => ({
@@ -403,6 +405,7 @@ describe('POST /appointments — sobrecupo (solo admin)', () => {
     vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() }); // el personal también descuenta la sesión
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(overlapping);
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
     vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
     vi.spyOn(Appointment, 'create').mockImplementation(async (data) => ({
       ...data,
@@ -514,6 +517,7 @@ describe('POST /appointments — renovación pendiente de pago (plazo del 5)', (
     vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 4, ...planOverrides });
     vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
     vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });
     vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
     vi.spyOn(Appointment, 'create').mockImplementation(async (data) => ({

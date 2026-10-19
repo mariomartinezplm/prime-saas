@@ -74,6 +74,7 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
     vi.restoreAllMocks();
     vi.spyOn(User, 'findById').mockResolvedValue({ _id: PROFESSIONAL_ID, role: 'professional' });
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0); // cupo de horario nunca lleno
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
     vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
     vi.spyOn(Appointment, 'create').mockImplementation(async (data) => ({
       ...data,
@@ -236,6 +237,7 @@ describe('GET /availability/:id/slots/:date — slots respetan el máximo de 4 p
     });
     // countOverlappingAppointments usa Appointment.countDocuments por dentro
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(2);
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
 
     const req = { params: { professionalId: PROFESSIONAL_ID.toString(), date: '2026-09-14' } };
     const res = fakeRes();
@@ -253,6 +255,7 @@ describe('GET /availability/:id/slots/:date — slots respetan el máximo de 4 p
       blockedDates: []
     });
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(4);
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
 
     const req = { params: { professionalId: PROFESSIONAL_ID.toString(), date: '2026-09-14' } };
     const res = fakeRes();

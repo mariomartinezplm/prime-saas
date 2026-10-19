@@ -100,6 +100,7 @@ beforeEach(() => {
   vi.spyOn(notificationService, 'notify').mockResolvedValue({});
   vi.spyOn(User, 'findById').mockImplementation((uid) => consulta(String(uid) === String(PROFESIONAL) ? { _id: PROFESIONAL, role: 'professional', firstName: 'Andrea' } : { _id: PACIENTE, role: 'patient', isActive: true, assignedProfessionalId: PROFESIONAL }));
   vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0);
+  vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
 });
 
 const comprobarVistaDelPaciente = (apt) => {
@@ -242,6 +243,16 @@ describe('POST /api/appointments (crear) y /bulk (lote)', () => {
     expect(JSON.stringify(apt)).not.toMatch(/andrea@ejemplo|ana@ejemplo|penicilina|\+56 9/);
   });
 
+  it('una cita idéntica (mismo paciente, profesional, día y hora) se rechaza con 409 y no se crea otra', async () => {
+    const crear = vi.spyOn(Appointment, 'create').mockImplementation(creada());
+    vi.spyOn(Appointment, 'exists').mockResolvedValue({ _id: id() });
+    const res = fakeRes();
+    await createAppointment({ user: admin, body: cuerpo({ patient: String(PACIENTE) }) }, res);
+    expect(res.statusCode).toBe(409);
+    expect(wire(res).code).toBe('DUPLICATE_APPOINTMENT');
+    expect(crear).not.toHaveBeenCalled();
+  });
+
   it('al reservar, el PERSONAL recibe la cita completa, como antes', async () => {
     vi.spyOn(Appointment, 'create').mockImplementation(creada());
     const res = fakeRes();
@@ -275,6 +286,7 @@ describe('GET /api/users/:id/profile y GET /api/users/:id — lo que recibe el p
     ficha.lastActivityDate = new Date();
     vi.spyOn(User, 'findById').mockReturnValue(consulta(ficha));
     vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(3);
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
     vi.spyOn(Appointment, 'find').mockReturnValue(consulta([citaReal()]));
     vi.spyOn(Measurement, 'find').mockReturnValue(consulta([]));
     vi.spyOn(ExerciseProgress, 'distinct').mockResolvedValue([]);

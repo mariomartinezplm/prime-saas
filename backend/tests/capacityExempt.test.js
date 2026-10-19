@@ -53,6 +53,7 @@ function setup({ overlapping, exempt }) {
   vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: nuevoId() });
   vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
   const countSpy = vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(overlapping);
+  vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
   vi.spyOn(emailService, 'sendAppointmentCreatedEmail').mockImplementation(() => {});
   const createSpy = vi.spyOn(Appointment, 'create').mockImplementation(async (data) => ({
     ...data,
@@ -175,6 +176,7 @@ describe('reserva masiva', () => {
 describe('el conteo del máximo de 4', () => {
   it('la consulta excluye las citas "sobre cupo": no ocupan lugar para los demás', async () => {
     const countSpy = vi.spyOn(Appointment, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Appointment, 'exists').mockResolvedValue(null);
     await countOverlappingAppointments(PROFESSIONAL_ID, futureDate(), '10:00');
     expect(countSpy.mock.calls[0][0]).toMatchObject({ outsideCapacity: { $ne: true }, status: { $ne: 'cancelled' } });
   });
