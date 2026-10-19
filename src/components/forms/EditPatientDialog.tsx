@@ -25,6 +25,7 @@ interface EditPatientDialogProps {
   onOpenChange: (open: boolean) => void;
   // Solo el admin puede reasignar al paciente a otro profesional
   canAssign: boolean;
+  canChangeProfessional?: boolean;
   onSaved: (patient: User) => void;
 }
 
@@ -58,7 +59,7 @@ const buildForm = (patient: User) => ({
 type FormState = ReturnType<typeof buildForm>;
 type Errors = Partial<Record<keyof FormState, string>>;
 
-const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: EditPatientDialogProps) => {
+const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, canChangeProfessional = false, onSaved }: EditPatientDialogProps) => {
   const bodyRef = useRef<HTMLDivElement>(null);
   const savingRef = useRef(false);
   const [form, setForm] = useState(() => buildForm(patient));
@@ -77,12 +78,14 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
     }
   }, [open, patient]);
 
+  const showProfessional = canAssign || canChangeProfessional;
+
   useEffect(() => {
-    if (!open || !canAssign || staff.length > 0) return;
+    if (!open || !showProfessional || staff.length > 0) return;
     Promise.all([userService.getAll({ role: 'admin' }), userService.getAll({ role: 'professional' })])
       .then(([admins, professionals]) => setStaff([...admins.users, ...professionals.users].filter((s) => s.isActive)))
       .catch(() => notify.error('No se pudo cargar la lista de profesionales'));
-  }, [open, canAssign, staff.length]);
+  }, [open, showProfessional, staff.length]);
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -161,7 +164,9 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
               assignedProfessionalId: form.assignedProfessionalId === NO_PROFESSIONAL ? '' : form.assignedProfessionalId,
               exemptFromCapacity: form.exemptFromCapacity,
             }
-          : {}),
+          : canChangeProfessional && form.assignedProfessionalId !== NO_PROFESSIONAL
+            ? { assignedProfessionalId: form.assignedProfessionalId }
+            : {}),
       });
       notify.success('Datos del paciente actualizados');
       onSaved(updated);
@@ -257,7 +262,7 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
                   <FormField label="Objetivos" hint="Uno por línea." className="sm:col-span-2">
                     {(c) => <Textarea {...c} rows={3} value={form.objectives} onChange={(e) => set('objectives', e.target.value)} />}
                   </FormField>
-                  {canAssign && (
+                  {showProfessional && (
                     <FormField label="Profesional asignado" className="sm:col-span-2">
                       {(c) => (
                         <Select value={form.assignedProfessionalId} onValueChange={(v) => set('assignedProfessionalId', v)}>
@@ -265,7 +270,10 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, onSaved }: 
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={NO_PROFESSIONAL}>Sin asignar (lo ve todo el personal)</SelectItem>
+                            {canAssign && <SelectItem value={NO_PROFESSIONAL}>Sin asignar (lo ve todo el personal)</SelectItem>}
+                            {!canAssign && form.assignedProfessionalId === NO_PROFESSIONAL && (
+                              <SelectItem value={NO_PROFESSIONAL}>Sin asignar: elige un profesional</SelectItem>
+                            )}
                             {staff.map((s) => (
                               <SelectItem key={s.id} value={s.id}>
                                 {s.firstName} {s.lastName}

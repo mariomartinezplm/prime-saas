@@ -397,6 +397,14 @@ export const updateUser = async (req, res) => {
         if (user.role === 'patient') user.exemptFromCapacity = req.body.exemptFromCapacity;
       }
     }
+    // Un profesional puede cambiar quién atiende a SU paciente (solo a personal activo; no puede dejarlo sin asignar).
+    if (req.user.role === 'professional' && req.body.assignedProfessionalId) {
+      const staffMember = await findActiveStaff(req.body.assignedProfessionalId);
+      if (!staffMember) {
+        return res.status(400).json({ success: false, message: 'El profesional elegido no existe o está inactivo' });
+      }
+      user.assignedProfessionalId = staffMember._id;
+    }
 
     await user.save();
 

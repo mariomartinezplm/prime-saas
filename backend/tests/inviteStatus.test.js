@@ -23,7 +23,7 @@ import { acceptInvite } from '../controllers/authController.js';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'clave-de-prueba-solo-para-tests';
 
 const nuevoId = () => new mongoose.Types.ObjectId();
-const AHORA = new Date('2026-10-14T12:00:00Z');
+const AHORA = new Date();
 const enDias = (n) => new Date(AHORA.getTime() + n * 24 * 60 * 60 * 1000);
 
 const paciente = (extra = {}) => ({ role: 'patient', ...extra });

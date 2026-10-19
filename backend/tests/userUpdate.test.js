@@ -114,13 +114,30 @@ describe('updateUser — edición por el personal', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/E11000|test\.local/);
   });
 
-  it('el profesional no puede reasignar al paciente ni cambiar su estado (se ignora); el admin sí', async () => {
+  it('el profesional no cambia el estado de la cuenta (se ignora); sí puede pasar su paciente a otro profesional activo', async () => {
     const otroProf = nuevoId();
+    vi.spyOn(User, 'findOne').mockReturnValue(query({ _id: otroProf }));
 
     await updateUser(pedido({ _id: PROF_A, role: 'professional' }, { assignedProfessionalId: otroProf.toString(), isActive: false }), fakeRes());
-    expect(paciente.assignedProfessionalId).toBe(PROF_A);
+    expect(paciente.assignedProfessionalId).toBe(otroProf);
     expect(paciente.isActive).toBeUndefined();
+  });
 
+  it('el profesional no puede asignar a alguien inexistente o inactivo ni dejar al paciente sin asignar', async () => {
+    vi.spyOn(User, 'findOne').mockReturnValue(query(null));
+    const res = fakeRes();
+
+    await updateUser(pedido({ _id: PROF_A, role: 'professional' }, { assignedProfessionalId: nuevoId().toString() }), res);
+    expect(res.statusCode).toBe(400);
+    expect(paciente.assignedProfessionalId).toBe(PROF_A);
+
+    const res2 = fakeRes();
+    await updateUser(pedido({ _id: PROF_A, role: 'professional' }, { assignedProfessionalId: '' }), res2);
+    expect(paciente.assignedProfessionalId).toBe(PROF_A);
+  });
+
+  it('el admin sí puede reasignar y dejar sin asignar', async () => {
+    const otroProf = nuevoId();
     await updateUser(pedido({ _id: nuevoId(), role: 'admin' }, { assignedProfessionalId: otroProf.toString() }), fakeRes());
     expect(paciente.assignedProfessionalId).toBe(otroProf.toString());
   });

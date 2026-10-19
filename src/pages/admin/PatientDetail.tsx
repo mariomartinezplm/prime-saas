@@ -519,6 +519,7 @@ const PatientDetail = () => {
         open={editOpen}
         onOpenChange={setEditOpen}
         canAssign={user?.role === 'admin'}
+        canChangeProfessional={user?.role === 'professional'}
         onSaved={fetchData}
       />
 
