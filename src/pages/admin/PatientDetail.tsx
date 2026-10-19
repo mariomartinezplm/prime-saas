@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -13,6 +13,7 @@ import {
   Pencil,
   Ruler,
   Send,
+  Trash2,
   TriangleAlert,
   UserX,
   RefreshCw,
@@ -43,6 +44,7 @@ import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
 import FounderBadge from '@/components/plans/FounderBadge';
 import { DetailList, DetailRow } from '@/components/patients/DetailList';
 import PlanLine from '@/components/patients/PlanLine';
+import DeletePatientDialog from '@/components/admin/DeletePatientDialog';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import EmptyState from '@/components/shared/EmptyState';
 import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
@@ -89,6 +91,8 @@ const PatientDetail = () => {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const navigate = useNavigate();
   const [recordsKey, setRecordsKey] = useState(0);
 
   const fetchData = useCallback(async () => {
@@ -236,6 +240,10 @@ const PatientDetail = () => {
                 <DropdownMenuItem onSelect={() => setInviteOpen(true)}>
                   <Send className="mr-2 h-4 w-4" aria-hidden="true" />
                   Reenviar invitación
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}>
+                  <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Eliminar paciente
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -514,6 +522,13 @@ const PatientDetail = () => {
         onSaved={fetchData}
       />
 
+      <DeletePatientDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        patientId={id!}
+        patientName={`${patient.firstName} ${patient.lastName}`}
+        onDeleted={() => navigate('/app/admin/pacientes')}
+      />
       <ConfirmDialog
         open={inviteOpen}
         onOpenChange={setInviteOpen}

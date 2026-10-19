@@ -13,6 +13,16 @@ import { appointmentForViewer, userForViewer } from '../services/patientViews.js
 
 // Documento de Mongoose → objeto plano (pasando por toJSON, que quita contraseñas y el token de invitación)
 const toPlain = (doc) => (typeof doc?.toJSON === 'function' ? doc.toJSON() : doc);
+import AchievementAward from '../models/AchievementAward.js';
+import AchievementPause from '../models/AchievementPause.js';
+import ClientFile from '../models/ClientFile.js';
+import ExtraSession from '../models/ExtraSession.js';
+import ProgressPhoto from '../models/ProgressPhoto.js';
+import PushSubscription from '../models/PushSubscription.js';
+import WellnessCheckin from '../models/WellnessCheckin.js';
+import Notification from '../models/Notification.js';
+import RefreshToken from '../models/RefreshToken.js';
+import { deleteObject, isStorageConfigured } from '../services/storageService.js';
 import { toCSV } from '../utils/csv.js';
 import { SERVICE_TYPE_LABELS } from '../config/planCatalog.js';
 import { todayInSantiago } from '../utils/timezone.js';
@@ -455,6 +465,75 @@ export const deleteUser = async (req, res) => {
       success: false,
       message: error.message || 'Error al eliminar usuario'
     });
+  }
+};
+
+// @desc    Eliminar DEFINITIVAMENTE a un paciente y todo lo suyo (pensado para pacientes de prueba)
+// @route   POST /api/users/:id/permanent-delete
+// @access  Private/Admin, Private/Professional (solo sus pacientes)
+// Exige escribir el nombre completo del paciente. No se puede deshacer.
+export const permanentlyDeletePatient = async (req, res) => {
+  try {
+    const patient = await User.findById(req.params.id);
+    if (!patient || patient.role !== 'patient') {
+      return res.status(404).json({ success: false, message: 'Paciente no encontrado' });
+    }
+    if (!(await canAccessPatient(req.user, patient._id))) {
+      return res.status(404).json({ success: false, message: 'Paciente no encontrado' });
+    }
+
+    const expected = `${patient.firstName} ${patient.lastName}`.trim().toLowerCase();
+    const typed = String(req.body?.confirmName || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    if (!typed || typed !== expected.replace(/\s+/g, ' ')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Para eliminar, escribe el nombre completo del paciente tal como aparece'
+      });
+    }
+
+    const id = patient._id;
+    // Archivos privados: se borran del almacenamiento antes de perder sus claves.
+    const [files, photos] = await Promise.all([
+      ClientFile.find({ patient: id }).select('storageKey'),
+      ProgressPhoto.find({ patient: id }).select('storageKey')
+    ]);
+    let storageFailures = 0;
+    if (isStorageConfigured()) {
+      for (const f of [...files, ...photos]) {
+        if (!f.storageKey) continue;
+        try { await deleteObject(f.storageKey); } catch { storageFailures += 1; }
+      }
+    }
+
+    await Promise.all([
+      Appointment.deleteMany({ patient: id }),
+      ClientPlan.deleteMany({ patient: id }),
+      ExtraSession.deleteMany({ patient: id }),
+      Measurement.deleteMany({ patient: id }),
+      ExerciseProgress.deleteMany({ patient: id }),
+      EVA.deleteMany({ patient: id }),
+      WellnessCheckin.deleteMany({ patient: id }),
+      AchievementAward.deleteMany({ patient: id }),
+      AchievementPause.deleteMany({ patient: id }),
+      ClientFile.deleteMany({ patient: id }),
+      ProgressPhoto.deleteMany({ patient: id }),
+      Notification.deleteMany({ user: id }),
+      PushSubscription.deleteMany({ user: id }),
+      RefreshToken.deleteMany({ user: id })
+    ]);
+    await User.deleteOne({ _id: id });
+
+    // Sin datos clínicos en el registro: solo quién y qué.
+    console.warn(`[audit] paciente eliminado definitivamente id=${id} por=${req.user._id}`);
+
+    res.status(200).json({
+      success: true,
+      message: storageFailures
+        ? 'Paciente eliminado. Algunos archivos no se pudieron borrar del almacenamiento.'
+        : 'Paciente eliminado definitivamente'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error al eliminar al paciente' });
   }
 };
 

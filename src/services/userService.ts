@@ -66,6 +66,11 @@ export const userService = {
     await api.delete(`/users/${id}`);
   },
 
+  // Eliminar un paciente y todo lo suyo, definitivamente (exige escribir su nombre)
+  permanentDelete: async (id: string, confirmName: string): Promise<void> => {
+    await api.post(`/users/${id}/permanent-delete`, { confirmName });
+  },
+
   // Sincronizar pacientes con Airtable
   // dryRun: solo muestra qué se importaría, sin crear nada
   syncAirtable: async (dryRun = false): Promise<AirtableImportResult> => {

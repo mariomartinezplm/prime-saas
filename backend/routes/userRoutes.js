@@ -6,6 +6,7 @@ import {
   updateUser,
   deleteUser,
   resendInvite,
+  permanentlyDeletePatient,
   getPatientProfile,
   getDashboardStats,
   syncAirtableUsers,
@@ -45,6 +46,8 @@ router.route('/:id')
   .put(authorize('admin', 'professional'), updateUser)
   // Solo admin: desactiva la cuenta (no borra el historial clínico)
   .delete(authorize('admin'), deleteUser);
+
+router.post('/:id/permanent-delete', authorize('admin', 'professional'), permanentlyDeletePatient);
 
 router.get('/:id/profile', authorizePatientAccess('id'), getPatientProfile);
 
