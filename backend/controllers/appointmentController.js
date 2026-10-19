@@ -11,6 +11,9 @@ import { santiagoToUtc, formatDayMonthSantiago } from '../utils/timezone.js';
 import { appointmentForViewer, isStaffViewer } from '../services/patientViews.js';
 import {
   MAX_PATIENTS_PER_SLOT,
+  MAX_PATIENTS_WITH_OVERBOOK,
+  canOverbookFor,
+  capacityVerdict,
   PATIENT_BOOK_AHEAD_HOURS,
   PATIENT_CANCEL_AHEAD_HOURS,
   BULK_BOOKING_MAX_ITEMS,
@@ -86,7 +89,7 @@ export const createAppointment = async (req, res) => {
   try {
     let { professional, date, startTime, type, notes } = req.body;
     // Sobrecupo: solo el admin puede agendar por encima del máximo simultáneo.
-    const allowOverbook = req.body.allowOverbook === true && req.user.role === 'admin';
+    const allowOverbook = req.body.allowOverbook === true && canOverbookFor(req.user, professional);
 
   // Si es paciente, asignar automáticamente como patient
   const patientId = req.user.role === 'patient' ? req.user._id : req.body.patient;
@@ -120,6 +123,14 @@ export const createAppointment = async (req, res) => {
     return res.status(404).json({
       success: false,
       message: 'Profesional no encontrado'
+    });
+  }
+
+  // Un profesional solo agenda en SU agenda: agendar en la de otro profesional es cosa del administrador
+  if (req.user.role === 'professional' && String(professional) !== String(req.user._id)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Solo el administrador puede agendar en la agenda de otro profesional'
     });
   }
 
@@ -165,13 +176,20 @@ export const createAppointment = async (req, res) => {
   // Un paciente "sobre cupo" agenda aunque esté lleno y su cita no cuenta en el máximo.
   const exemptFromCapacity = await isExemptFromCapacity(patientId);
   const patientsInSlot = exemptFromCapacity ? 0 : await countOverlappingAppointments(professional, date, startTime);
-  const isOverbooked = patientsInSlot >= MAX_PATIENTS_PER_SLOT;
-  if (isOverbooked && !allowOverbook) {
+  const verdict = capacityVerdict(patientsInSlot, allowOverbook);
+  if (verdict === 'full') {
+    return res.status(400).json({
+      success: false,
+      message: `El horario ${startTime} ya tiene el máximo de ${MAX_PATIENTS_WITH_OVERBOOK} pacientes (${MAX_PATIENTS_PER_SLOT} y 1 sobrecupo). Selecciona otro horario.`
+    });
+  }
+  if (verdict === 'needs-overbook') {
     return res.status(400).json({
       success: false,
       message: `El horario ${startTime} ya tiene ${MAX_PATIENTS_PER_SLOT} pacientes. Selecciona otro horario.`
     });
   }
+  const isOverbooked = verdict === 'overbook';
 
   // ──── Descuento atómico (Paso 15 de BLUEPRINT.md) ────
   // Se hace ANTES de crear la cita, no después: si no queda saldo (alguien
@@ -610,7 +628,7 @@ export const bulkCreateAppointments = async (req, res) => {
     }
 
     const patientId = req.user.role === 'patient' ? req.user._id : req.body.patient;
-    const allowOverbook = req.body.allowOverbook === true && req.user.role === 'admin';
+    const wantsOverbook = req.body.allowOverbook === true;
     const now = nowInSantiago();
     const created = [];
     const skipped = [];
@@ -661,12 +679,22 @@ export const bulkCreateAppointments = async (req, res) => {
           }
         }
 
+        if (req.user.role === 'professional' && String(professional) !== String(req.user._id)) {
+          skipped.push({ fecha: date, motivo: 'Solo el administrador puede agendar en la agenda de otro profesional' });
+          continue;
+        }
+
         const patientsInSlot = exemptFromCapacity ? 0 : await countOverlappingAppointments(professional, date, startTime);
-        const isOverbooked = patientsInSlot >= MAX_PATIENTS_PER_SLOT;
-        if (isOverbooked && !allowOverbook) {
+        const verdict = capacityVerdict(patientsInSlot, wantsOverbook && canOverbookFor(req.user, professional));
+        if (verdict === 'full') {
+          skipped.push({ fecha: date, motivo: `Horario lleno (${MAX_PATIENTS_WITH_OVERBOOK}/${MAX_PATIENTS_WITH_OVERBOOK})` });
+          continue;
+        }
+        if (verdict === 'needs-overbook') {
           skipped.push({ fecha: date, motivo: `Horario lleno (${MAX_PATIENTS_PER_SLOT}/${MAX_PATIENTS_PER_SLOT})` });
           continue;
         }
+        const isOverbooked = verdict === 'overbook';
 
         const [hours, minutes] = startTime.split(':').map(Number);
         const endTime = `${(hours + 1).toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;

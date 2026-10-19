@@ -162,6 +162,8 @@ export interface AvailableSlots {
   availableSlots: string[];
   bookedSlots: string[];
   blockedSlots?: string[];
+  // Solo para el personal: horarios que ya tienen 5 pacientes (ni el sobrecupo cabe)
+  overbookFullSlots?: string[];
 }
 
 // Tipos de ClientPlan (sistema de planes por bono de sesiones)

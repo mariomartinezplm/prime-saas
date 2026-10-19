@@ -406,11 +406,43 @@ describe('POST /appointments — sobrecupo (solo admin)', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('horario con 4 pacientes: un profesional recibe 400 aunque mande allowOverbook', async () => {
+  // Un profesional agenda en SU agenda (su id es el del profesional de la cita)
+  const ownProReq = (extra = {}) => {
+    const r = reqOf('professional', extra);
+    r.user._id = PROFESSIONAL_ID;
+    return r;
+  };
+
+  it('horario con 4 pacientes: el profesional SIN allowOverbook recibe 400', async () => {
     setup(4);
     const res = fakeRes();
-    await createAppointment(reqOf('professional', { allowOverbook: true }), res);
+    await createAppointment(ownProReq(), res);
     expect(res.statusCode).toBe(400);
+  });
+
+  it('horario con 4 pacientes: el profesional CON allowOverbook, en su agenda, crea el sobrecupo (5.º paciente)', async () => {
+    setup(4);
+    const res = fakeRes();
+    await createAppointment(ownProReq({ allowOverbook: true }), res);
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.appointment.overbooked).toBe(true);
+  });
+
+  it('horario con 5 pacientes: nadie puede agendar más (ni el profesional ni el admin con allowOverbook)', async () => {
+    setup(5);
+    for (const req of [ownProReq({ allowOverbook: true }), reqOf('admin', { allowOverbook: true })]) {
+      const res = fakeRes();
+      await createAppointment(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toMatch(/máximo de 5/);
+    }
+  });
+
+  it('un profesional no puede agendar (ni usar el sobrecupo) en la agenda de OTRO profesional: solo el admin', async () => {
+    setup(4);
+    const res = fakeRes();
+    await createAppointment(reqOf('professional', { allowOverbook: true }), res); // su id no es el del profesional de la cita
+    expect(res.statusCode).toBe(403);
   });
 
   it('horario con 4 pacientes: el admin SIN allowOverbook recibe 400', async () => {

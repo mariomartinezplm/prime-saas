@@ -97,7 +97,9 @@ describe('agendar en un horario LLENO', () => {
     setup({ overlapping: 4, exempt: true });
     for (const role of ['professional', 'admin']) {
       const res = fakeRes();
-      await createAppointment(reqOf(role), res);
+      const req = reqOf(role);
+      if (role === 'professional') req.user._id = PROFESSIONAL_ID; // un profesional agenda en su propia agenda
+      await createAppointment(req, res);
       expect(res.statusCode).toBe(201);
     }
   });

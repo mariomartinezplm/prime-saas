@@ -1,6 +1,6 @@
 import Availability from '../models/Availability.js';
 import { parseISO, getDay } from 'date-fns';
-import { MAX_PATIENTS_PER_SLOT, countOverlappingAppointments, isExemptFromCapacity } from '../services/bookingRulesService.js';
+import { MAX_PATIENTS_PER_SLOT, MAX_PATIENTS_WITH_OVERBOOK, countOverlappingAppointments, isExemptFromCapacity } from '../services/bookingRulesService.js';
 
 // @desc    Obtener disponibilidad de un profesional
 // @route   GET /api/availability/:professionalId
@@ -194,6 +194,8 @@ export const getAvailableSlots = async (req, res) => {
     const candidateSlots = allSlots.filter(slot => !blockedSlots.includes(slot));
     const availableSlots = [];
     const bookedSlots = [];
+    // Solo para el personal: horarios que ya llegaron al máximo de 5 (ni el sobrecupo cabe)
+    const overbookFullSlots = [];
 
     // Quién está mirando los horarios: un paciente "sobre cupo" los ve todos disponibles.
     // El personal puede indicar para qué paciente agenda con ?patientId=.
@@ -205,6 +207,7 @@ export const getAvailableSlots = async (req, res) => {
       const overlapping = exempt ? 0 : await countOverlappingAppointments(professionalId, date, slot);
       if (overlapping >= MAX_PATIENTS_PER_SLOT) {
         bookedSlots.push(slot);
+        if (overlapping >= MAX_PATIENTS_WITH_OVERBOOK) overbookFullSlots.push(slot);
       } else {
         availableSlots.push(slot);
       }
@@ -212,7 +215,7 @@ export const getAvailableSlots = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { date, availableSlots, bookedSlots, blockedSlots }
+      data: { date, availableSlots, bookedSlots, blockedSlots, ...(staffRoles.includes(req.user?.role) ? { overbookFullSlots } : {}) }
     });
   } catch (error) {
     res.status(500).json({

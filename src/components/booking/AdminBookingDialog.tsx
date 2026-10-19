@@ -170,33 +170,36 @@ const AdminBookingDialog = ({
                     {allSlots.map((slot) => {
                       const isFull = slots!.bookedSlots.includes(slot);
                       const isBlocked = !!slots!.blockedSlots?.includes(slot);
-                      const selectable = !isBlocked && (!isFull || canOverbook);
+                      // 5 de 5: ni el sobrecupo cabe
+                      const isMaxed = !!slots!.overbookFullSlots?.includes(slot);
+                      const selectable = !isBlocked && (!isFull || (canOverbook && !isMaxed));
                       return (
                         <button
                           key={slot}
                           type="button"
                           disabled={!selectable}
                           aria-pressed={selectedSlot === slot}
-                          aria-label={`${slot}, ${isBlocked ? 'bloqueado' : isFull ? (canOverbook ? 'ocupado, se puede agendar como sobrecupo' : 'ocupado') : 'disponible'}`}
+                          aria-label={`${slot}, ${isBlocked ? 'bloqueado' : isMaxed ? 'lleno, 5 de 5 pacientes' : isFull ? (canOverbook ? 'ocupado, se puede agendar 1 sobrecupo' : 'ocupado') : 'disponible'}`}
                           onClick={() => setSelectedSlot(slot)}
                           className={cn(
                             'rounded-md px-2 py-2.5 text-center text-sm font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                             !isFull && !isBlocked && 'bg-success/20 text-success hover:bg-success/30',
-                            isFull && canOverbook && 'bg-warning/20 text-warning hover:bg-warning/30',
-                            isFull && !canOverbook && 'bg-destructive/20 text-destructive cursor-not-allowed',
+                            isFull && canOverbook && !isMaxed && 'bg-warning/20 text-warning hover:bg-warning/30',
+                            isFull && (!canOverbook || isMaxed) && 'bg-destructive/20 text-destructive cursor-not-allowed',
                             isBlocked && 'bg-muted text-muted-foreground cursor-not-allowed',
                             selectedSlot === slot && 'ring-2 ring-secondary'
                           )}
                         >
                           {slot}
-                          {isFull && canOverbook && <span className="block text-[10px] font-normal">sobrecupo</span>}
+                          {isFull && canOverbook && !isMaxed && <span className="block text-[10px] font-normal">sobrecupo</span>}
+                          {isMaxed && <span className="block text-[10px] font-normal">lleno 5/5</span>}
                         </button>
                       );
                     })}
                   </div>
                   {canOverbook && (
                     <p className="text-xs text-muted-foreground">
-                      Los horarios en ámbar ya tienen el máximo de pacientes; puedes agendar igual como sobrecupo.
+                      Los horarios en ámbar ya tienen 4 pacientes: puedes agendar 1 sobrecupo (máximo 5 por hora). Los pacientes solo pueden agendar hasta 4.
                     </p>
                   )}
                 </>
@@ -208,7 +211,7 @@ const AdminBookingDialog = ({
             <Alert variant="warning">
               <TriangleAlert className="h-4 w-4" aria-hidden="true" />
               <AlertDescription>
-                El horario {selectedSlot} ya tiene el máximo de pacientes simultáneos. Esta cita quedará marcada como sobrecupo.
+                El horario {selectedSlot} ya tiene 4 pacientes. Esta cita será el 5.º y quedará marcada como sobrecupo.
               </AlertDescription>
             </Alert>
           )}

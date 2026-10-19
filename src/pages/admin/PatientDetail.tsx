@@ -530,7 +530,7 @@ const PatientDetail = () => {
           patientId={id!}
           professionalId={bookingProfessionalId}
           defaultType={bookingDefaultType}
-          canOverbook={user?.role === 'admin'}
+          canOverbook={user?.role === 'admin' || (user?.role === 'professional' && bookingProfessionalId === user.id)}
           onBooked={fetchData}
         />
       )}
