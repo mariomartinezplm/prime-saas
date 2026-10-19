@@ -19,8 +19,9 @@ export const recurringSlotService = {
     return response.data.data;
   },
 
-  // Las citas ya agendadas se mantienen
-  remove: async (id: string): Promise<void> => {
-    await api.delete(`/recurring-slots/${id}`);
+  // Quita el horario y cancela sus citas futuras (devolviendo las sesiones); devuelve el mensaje del servidor
+  remove: async (id: string): Promise<string> => {
+    const response = await api.delete<APIResponse<{ cancelled: number; kept: number }>>(`/recurring-slots/${id}`);
+    return response.data.message ?? 'Horario fijo eliminado.';
   },
 };

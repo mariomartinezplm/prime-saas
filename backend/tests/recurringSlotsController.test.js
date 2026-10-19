@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 
 import User from '../models/User.js';
 import Availability from '../models/Availability.js';
+import Appointment from '../models/Appointment.js';
 import RecurringSlot from '../models/RecurringSlot.js';
 import * as clientPlanService from '../services/clientPlanService.js';
 import { MAX_RECURRING_SLOTS } from '../services/recurringSlotService.js';
@@ -205,13 +206,55 @@ describe('pausar y borrar (pertenencia)', () => {
     return { user, params: { id: String(doc._id) }, body };
   };
 
-  it('el paciente borra el suyo, y las citas ya agendadas se mantienen (solo se borra la regla)', async () => {
+  const cita = (horasDesdeAhora, extra = {}) => {
+    const inicio = new Date(Date.now() + horasDesdeAhora * 3600 * 1000);
+    const p = (n) => String(n).padStart(2, '0');
+    // misma lectura que el controlador: día en ISO (UTC) + hora de pared
+    return {
+      date: new Date(`${inicio.getFullYear()}-${p(inicio.getMonth() + 1)}-${p(inicio.getDate())}T00:00:00Z`),
+      startTime: `${p(inicio.getHours())}:${p(inicio.getMinutes())}`,
+      status: 'scheduled', sessionDeducted: true, deduction: { source: 'clientPlan', refId: nuevoId() },
+      save: vi.fn().mockResolvedValue(true), ...extra
+    };
+  };
+
+  it('al quitar el horario se cancelan las citas futuras agendadas y se devuelven sus sesiones', async () => {
+    const citas = [cita(48), cita(96)];
+    vi.spyOn(Appointment, 'find').mockResolvedValue(citas);
+    const refund = vi.spyOn(clientPlanService, 'refundSession').mockResolvedValue();
     const doc = slotDoc();
     const res = fakeRes();
-    await deleteSlot(reqSlot(yoPaciente, doc), res);
+    await deleteSlot(reqSlot(yoProfesional, doc), res);
 
     expect(doc.deleteOne).toHaveBeenCalled();
-    expect(res.body.message).toMatch(/se mantienen/);
+    expect(citas.map((c) => c.status)).toEqual(['cancelled', 'cancelled']);
+    expect(citas.every((c) => c.sessionDeducted === false)).toBe(true);
+    expect(refund).toHaveBeenCalledTimes(2);
+    expect(res.body.data.cancelled).toBe(2);
+  });
+
+  it('si lo quita el paciente, una cita que empieza en menos de 4 horas se conserva (sin devolver)', async () => {
+    const lejana = cita(48);
+    const cercana = cita(2);
+    vi.spyOn(Appointment, 'find').mockResolvedValue([lejana, cercana]);
+    const refund = vi.spyOn(clientPlanService, 'refundSession').mockResolvedValue();
+    const res = fakeRes();
+    await deleteSlot(reqSlot(yoPaciente, slotDoc()), res);
+
+    expect(lejana.status).toBe('cancelled');
+    expect(cercana.status).toBe('scheduled');
+    expect(refund).toHaveBeenCalledTimes(1);
+    expect(res.body.data).toEqual({ cancelled: 1, kept: 1 });
+  });
+
+  it('una cita que ya pasó no se toca, ni siquiera por el personal', async () => {
+    const pasada = cita(-5);
+    vi.spyOn(Appointment, 'find').mockResolvedValue([pasada]);
+    const refund = vi.spyOn(clientPlanService, 'refundSession').mockResolvedValue();
+    await deleteSlot(reqSlot(yoProfesional, slotDoc()), fakeRes());
+
+    expect(pasada.status).toBe('scheduled');
+    expect(refund).not.toHaveBeenCalled();
   });
 
   it('el horario de otro paciente: 404 y sin efectos', async () => {

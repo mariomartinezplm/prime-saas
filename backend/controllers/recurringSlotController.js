@@ -1,3 +1,7 @@
+import Appointment from '../models/Appointment.js';
+import { addHours, isBefore } from 'date-fns';
+import { refundSession } from '../services/clientPlanService.js';
+import { PATIENT_CANCEL_AHEAD_HOURS, nowInSantiago } from '../services/bookingRulesService.js';
 import RecurringSlot, { RECURRING_TYPES } from '../models/RecurringSlot.js';
 import User from '../models/User.js';
 import Availability from '../models/Availability.js';
@@ -173,13 +177,47 @@ export const updateSlot = async (req, res) => {
   }
 };
 
-// @route DELETE /api/recurring-slots/:id   (las citas ya agendadas se mantienen)
+// @route DELETE /api/recurring-slots/:id
+// Al quitar un horario fijo se cancelan sus citas FUTURAS que siguen agendadas y se devuelven las sesiones descontadas (las citas
+// ya realizadas no se tocan). Si quien lo quita es el paciente, las que empiezan en menos de 4 horas se conservan (misma regla
+// que cancelar una cita: la sesión de una cita tan próxima no se devuelve).
 export const deleteSlot = async (req, res) => {
   try {
     const slot = await loadOwnedSlot(req, res);
     if (!slot) return;
+
+    const now = nowInSantiago();
+    const limit = req.user.role === 'patient' ? addHours(now, PATIENT_CANCEL_AHEAD_HOURS) : now;
+    const scheduled = await Appointment.find({ recurringSlot: slot._id, status: 'scheduled' });
+
+    let cancelled = 0;
+    let kept = 0;
+    for (const appointment of scheduled) {
+      const start = new Date(`${appointment.date.toISOString().split('T')[0]}T${appointment.startTime}`);
+      if (!isBefore(limit, start)) {
+        kept++;
+        continue;
+      }
+      appointment.status = 'cancelled';
+      appointment.cancellationReason = 'Se quitó el horario fijo';
+      appointment.cancelledBy = req.user._id;
+      appointment.cancelledAt = new Date();
+      if (appointment.sessionDeducted) {
+        await refundSession(appointment);
+        appointment.sessionDeducted = false;
+      }
+      await appointment.save();
+      cancelled++;
+    }
+
     await slot.deleteOne();
-    res.json({ success: true, message: 'Horario fijo eliminado. Las citas ya agendadas se mantienen.' });
+    res.json({
+      success: true,
+      message: cancelled > 0
+        ? `Horario fijo eliminado. Se cancelaron ${cancelled} ${cancelled === 1 ? 'cita futura' : 'citas futuras'} y se devolvieron sus sesiones.`
+        : 'Horario fijo eliminado.',
+      data: { cancelled, kept }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'No se pudo eliminar el horario fijo' });
   }

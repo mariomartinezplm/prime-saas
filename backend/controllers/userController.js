@@ -608,7 +608,7 @@ export const getPatientProfile = async (req, res) => {
 
     // Obtener estadísticas
     const [appointmentCount, upcomingAppointments, measurements, exercises, evaRecords] = await Promise.all([
-      Appointment.countDocuments({ patient: patientId }),
+      Appointment.countDocuments({ patient: patientId, status: { $ne: 'cancelled' } }),
       Appointment.find({
         patient: patientId,
         status: 'scheduled',

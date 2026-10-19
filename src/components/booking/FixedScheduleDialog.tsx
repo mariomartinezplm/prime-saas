@@ -132,8 +132,8 @@ const FixedScheduleDialog = ({ open, onClose, professionalId, allowedTypes, pati
   const confirmRemove = async () => {
     if (!removing) return;
     try {
-      await recurringSlotService.remove(removing._id);
-      notify.success('Horario fijo eliminado. Las citas ya agendadas se mantienen.');
+      const message = await recurringSlotService.remove(removing._id);
+      notify.success(message);
       setRemoving(null);
       setResult(null);
       await load();
@@ -314,7 +314,7 @@ const FixedScheduleDialog = ({ open, onClose, professionalId, allowedTypes, pati
         open={!!removing}
         onOpenChange={(next) => !next && setRemoving(null)}
         title="¿Quitar este horario fijo?"
-        description={`Dejaremos de agendar esos días. Las citas que ya están agendadas se mantienen: ${forPatient ? 'se pueden cancelar una por una desde la pestaña Citas' : 'puedes cancelarlas una por una desde Mis citas'}.`}
+        description={`Dejaremos de agendar esos días y se cancelarán las citas futuras de este horario que siguen agendadas; las sesiones descontadas se devuelven al plan.${forPatient ? '' : ' Las que empiecen en menos de 4 horas se conservan.'} Las citas que ya se realizaron no se tocan.`}
         confirmLabel="Sí, quitar"
         cancelLabel="Volver"
         destructive
