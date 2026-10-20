@@ -1,4 +1,5 @@
 import Appointment from '../models/Appointment.js';
+import RecurringSlot from '../models/RecurringSlot.js';
 import User from '../models/User.js';
 import { canAccessAppointment, canAccessPatient } from '../middleware/auth.js';
 import { parseISO, isBefore, addHours } from 'date-fns';
@@ -456,6 +457,37 @@ export const cancelAppointment = async (req, res) => {
 
     await appointment.save();
 
+    // ──── «Esta y las siguientes»: solo en citas de un horario fijo (como Google Calendar) ────
+    // Se cancelan también las siguientes citas agendadas de ese horario (con la misma regla de devolución) y se quita el horario
+    // para que no vuelva a agendar. Las anteriores y las ya realizadas no se tocan.
+    let alsoCancelled = 0;
+    if (req.body.scope === 'following' && appointment.recurringSlot) {
+      const following = await Appointment.find({
+        recurringSlot: appointment.recurringSlot,
+        status: 'scheduled',
+        _id: { $ne: appointment._id },
+        date: { $gt: appointment.date }
+      });
+      for (const next of following) {
+        let refundNext = true;
+        if (!isStaff(req.user)) {
+          const start = new Date(`${next.date.toISOString().split('T')[0]}T${next.startTime}`);
+          refundNext = isBefore(addHours(nowInSantiago(), PATIENT_CANCEL_AHEAD_HOURS), start);
+        }
+        next.status = 'cancelled';
+        next.cancellationReason = appointment.cancellationReason || 'Se canceló el horario fijo';
+        next.cancelledBy = req.user._id;
+        next.cancelledAt = new Date();
+        if (next.sessionDeducted && refundNext) {
+          await refundSession(next);
+          next.sessionDeducted = false;
+        }
+        await next.save();
+        alsoCancelled++;
+      }
+      await RecurringSlot.deleteOne({ _id: appointment.recurringSlot });
+    }
+
     // ──── ENVIAR EMAIL DE CANCELACIÓN AL PROFESIONAL ────
     sendAppointmentCancelledEmail({
       patient: appointment.patient,
@@ -477,8 +509,10 @@ export const cancelAppointment = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Cita cancelada exitosamente',
-      data: { appointment: appointmentForViewer(req.user, appointment) }
+      message: alsoCancelled > 0
+        ? `Cita cancelada, junto con ${alsoCancelled} ${alsoCancelled === 1 ? 'cita siguiente' : 'citas siguientes'} de su horario fijo.`
+        : 'Cita cancelada exitosamente',
+      data: { appointment: appointmentForViewer(req.user, appointment), alsoCancelled }
     });
   } catch (error) {
     res.status(500).json({
@@ -752,9 +786,14 @@ export const deleteAppointment = async (req, res) => {
       });
     }
 
+    // SEGURIDAD: el profesional solo borra citas de sus pacientes (el admin, cualquiera)
+    if (!(await canAccessAppointment(req.user, appointment))) {
+      return denyAppointmentAccess(req, res, 'No tienes permisos para eliminar esta cita');
+    }
+
     const wasCompleted = appointment.status === 'completed';
-    // Borrar una cita que sigue programada y ya había descontado una sesión devuelve esa sesión (si no, se perdería por un error de agenda)
-    if (appointment.status === 'scheduled' && appointment.sessionDeducted) await refundSession(appointment);
+    // Borrar una cita (programada, realizada o «no asistió») que descontó una sesión devuelve esa sesión: es como si nunca hubiera existido
+    if (appointment.sessionDeducted) await refundSession(appointment);
     await appointment.deleteOne();
 
     // Borrar una cita completada puede dejar un logro sin respaldo: se revisa (nunca se retira en silencio)

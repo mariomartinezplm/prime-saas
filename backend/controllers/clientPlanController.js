@@ -11,6 +11,7 @@ import {
   runPlanLifecycleJob
 } from '../services/planLifecycleService.js';
 import { TERMS, BILLING_CYCLES, isValidGraceDays, MAX_GRACE_DAYS, paymentDueBy } from '../services/planCycles.js';
+import { santiagoToUtc } from '../utils/timezone.js';
 import { ownedPatientsOr, canAccessPatient } from '../middleware/auth.js';
 
 function isStaff(user) {
@@ -35,6 +36,17 @@ export const createClientPlan = async (req, res) => {
     const billingCycle = req.body.billingCycle || 'calendar';
     const renews = req.body.renews !== false;
     const isUnlimited = unlimited === true;
+    // Fecha de ingreso: sin indicarla, hoy. Con indicarla ('YYYY-MM-DD') el plan parte ese día (para quienes pagan de fecha a fecha)
+    let planStart = new Date();
+    if (startDate) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(startDate));
+      const day = m ? santiagoToUtc(Number(m[1]), Number(m[2]), Number(m[3]), 0, 0) : null;
+      const dayMs = 24 * 60 * 60 * 1000;
+      if (!day || Number.isNaN(day.getTime()) || day.getTime() < Date.now() - 400 * dayMs || day.getTime() > Date.now() + 90 * dayMs) {
+        return res.status(400).json({ success: false, message: 'La fecha de ingreso debe estar entre hace un año y los próximos 3 meses' });
+      }
+      planStart = day;
+    }
     const graceDays = req.body.graceDays;
     if (graceDays !== undefined && !isValidGraceDays(graceDays)) {
       return res.status(400).json({ success: false, message: `El plazo de pago debe ser un número de días entre 0 y ${MAX_GRACE_DAYS}` });
@@ -105,7 +117,7 @@ export const createClientPlan = async (req, res) => {
         unlimited: isUnlimited,
         term,
         billingCycle,
-        startDate: startDate ? new Date(startDate) : new Date(),
+        startDate: planStart,
         renews,
         graceDays,
         registeredBy: req.user._id,

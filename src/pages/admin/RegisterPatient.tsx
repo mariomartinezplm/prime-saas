@@ -17,6 +17,8 @@ import SessionsSelect from '@/components/plans/SessionsSelect';
 import PlanTermFields from '@/components/plans/PlanTermFields';
 import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
 import GraceDaysField, { DEFAULT_GRACE_DAYS } from '@/components/plans/GraceDaysField';
+import StartDateField from '@/components/plans/StartDateField';
+import { format } from 'date-fns';
 import PageHeader from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -98,6 +100,7 @@ const RegisterPatient = () => {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [renews, setRenews] = useState(true);
   const [graceDays, setGraceDays] = useState(DEFAULT_GRACE_DAYS);
+  const [startDate, setStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [form, setForm] = useState<FormState>(emptyForm);
 
   const dirty = useMemo(() => Object.keys(emptyForm).some((k) => form[k as keyof FormState] !== ''), [form]);
@@ -163,6 +166,7 @@ const RegisterPatient = () => {
             billingCycle,
             renews,
             graceDays: Number.isInteger(graceDays) ? graceDays : undefined,
+            startDate: startDate || undefined,
           });
           notify.success('Paciente registrado con su plan inicial. Le llegará un correo para crear su contraseña.');
         } catch {
@@ -324,6 +328,7 @@ const RegisterPatient = () => {
                   <Label>{planInicial === 'kinesiologia' ? 'Sesiones del plan' : 'Sesiones por mes'}</Label>
                   <SessionsSelect serviceType={planInicial} value={choice} onChange={setChoice} />
                 </div>
+                <StartDateField id="register-start-date" value={startDate} onChange={setStartDate} />
                 {planInicial === 'kinesiologia' ? (
                   <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
                     Kinesiología se paga por sesiones: el plan dura hasta que se completen, sin fecha de término ni renovación mensual.
@@ -332,7 +337,7 @@ const RegisterPatient = () => {
                   <>
                     <PlanTermFields term={term} billingCycle={billingCycle} onTermChange={setTerm} onBillingCycleChange={setBillingCycle} />
                     <RenewsCheckbox id="register-renews" checked={renews} onChange={setRenews} />
-                    {renews && <GraceDaysField id="register-grace-days" value={graceDays} onChange={setGraceDays} billingCycle={billingCycle} />}
+                    {renews && <GraceDaysField id="register-grace-days" value={graceDays} onChange={setGraceDays} billingCycle={billingCycle} from={startDate ? new Date(`${startDate}T12:00:00`) : undefined} />}
                   </>
                 )}
               </div>

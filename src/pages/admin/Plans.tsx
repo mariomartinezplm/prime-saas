@@ -57,6 +57,7 @@ import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
 import GraceDaysField, { DEFAULT_GRACE_DAYS, MAX_GRACE_DAYS } from '@/components/plans/GraceDaysField';
 import EditGraceDaysDialog from '@/components/plans/EditGraceDaysDialog';
 import EditStartDateDialog from '@/components/plans/EditStartDateDialog';
+import StartDateField from '@/components/plans/StartDateField';
 
 const SERVICE_ICON: Record<ServiceType, typeof Dumbbell> = {
   entrenamiento: Dumbbell,
@@ -122,6 +123,7 @@ const Plans = () => {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [renews, setRenews] = useState(true);
   const [graceDays, setGraceDays] = useState(DEFAULT_GRACE_DAYS);
+  const [startDate, setStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [graceEditPlan, setGraceEditPlan] = useState<ClientPlan | null>(null);
   const [startEditPlan, setStartEditPlan] = useState<ClientPlan | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -173,6 +175,7 @@ const Plans = () => {
     setBillingCycle('calendar');
     setRenews(true);
     setGraceDays(DEFAULT_GRACE_DAYS);
+    setStartDate(format(new Date(), 'yyyy-MM-dd'));
     setConflictPlan(null);
   };
 
@@ -236,6 +239,7 @@ const Plans = () => {
         billingCycle,
         renews,
         graceDays: Number.isInteger(graceDays) ? graceDays : undefined,
+        startDate: pendingOfSelected ? undefined : startDate || undefined,
         replaceExisting,
       });
       notify.success('Plan registrado exitosamente');
@@ -514,6 +518,8 @@ const Plans = () => {
               <Label htmlFor="plan-sessions">{serviceType === 'kinesiologia' ? 'Sesiones del plan' : 'Sesiones por mes'}</Label>
               <SessionsSelect id="plan-sessions" serviceType={serviceType} value={choice} onChange={setChoice} />
             </div>
+
+            {!pendingOfSelected && <StartDateField id="plan-start-date-new" value={startDate} onChange={setStartDate} />}
 
             {/* Paso 4: Duración, ciclo y renovación (kinesiología no los tiene: dura hasta completar las sesiones) */}
             {serviceType === 'kinesiologia' ? (

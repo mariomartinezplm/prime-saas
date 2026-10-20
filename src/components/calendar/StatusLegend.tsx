@@ -9,7 +9,7 @@ const dot: Record<Appointment['status'], string> = {
   cancelled: 'bg-destructive/50',
 };
 
-const order: Appointment['status'][] = ['scheduled', 'completed', 'no-show', 'cancelled'];
+const order: Appointment['status'][] = ['scheduled', 'completed', 'no-show'];
 
 // Leyenda de colores del calendario: mismos estados y textos que las insignias.
 const StatusLegend = ({ className }: { className?: string }) => (

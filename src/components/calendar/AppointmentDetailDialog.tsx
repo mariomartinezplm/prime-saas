@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarCheck2, Check, CircleSlash, UserRound, X } from 'lucide-react';
+import { CalendarCheck2, Check, CircleSlash, Trash2, UserRound, X } from 'lucide-react';
+import CancelScopeChoice, { type CancelScope } from '@/components/booking/CancelScopeChoice';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { googleCalendarService } from '@/services/googleCalendarService';
@@ -19,7 +20,7 @@ import { showApiError } from '@/lib/apiError';
 import { capitalizeFirst } from '@/lib/utils';
 import type { Appointment } from '@/types';
 
-type PendingAction = 'completed' | 'no-show' | 'cancel' | null;
+type PendingAction = 'completed' | 'no-show' | 'cancel' | 'delete' | null;
 
 interface AppointmentDetailDialogProps {
   appointment: Appointment | null;
@@ -39,6 +40,7 @@ const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: Appointmen
   const { user } = useAuth();
   const [pending, setPending] = useState<PendingAction>(null);
   const [reason, setReason] = useState('');
+  const [scope, setScope] = useState<CancelScope>('this');
   const [syncing, setSyncing] = useState(false);
 
   if (!appointment) return null;
@@ -89,10 +91,20 @@ const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: Appointmen
 
   const confirmCancel = async () => {
     try {
-      await appointmentService.cancel(appointment._id, reason.trim() || undefined);
-      finish('Cita cancelada');
+      await appointmentService.cancel(appointment._id, reason.trim() || undefined, appointment.recurringSlot ? scope : 'this');
+      finish(appointment.recurringSlot && scope === 'following' ? 'Cita cancelada, junto con las siguientes de su horario fijo' : 'Cita cancelada');
     } catch (err) {
       showApiError(err, 'No se pudo cancelar la cita');
+      throw err;
+    }
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await appointmentService.delete(appointment._id);
+      finish('Cita eliminada');
+    } catch (err) {
+      showApiError(err, 'No se pudo eliminar la cita');
       throw err;
     }
   };
@@ -151,6 +163,15 @@ const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: Appointmen
             )}
           </div>
 
+          {canManage && !isScheduled && (
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPending('delete')}>
+                <Trash2 aria-hidden="true" />
+                Eliminar cita
+              </Button>
+            </DialogFooter>
+          )}
+
           {canManage && isScheduled && (
             <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
               <div className="grid grid-cols-2 gap-2">
@@ -166,6 +187,10 @@ const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: Appointmen
               <Button variant="destructive" onClick={() => setPending('cancel')}>
                 <X aria-hidden="true" />
                 Cancelar cita
+              </Button>
+              <Button variant="ghost" onClick={() => setPending('delete')}>
+                <Trash2 aria-hidden="true" />
+                Eliminar cita
               </Button>
             </DialogFooter>
           )}
@@ -198,6 +223,7 @@ const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: Appointmen
         destructive
         onConfirm={confirmCancel}
       >
+        {appointment.recurringSlot && <CancelScopeChoice value={scope} onChange={setScope} />}
         <Textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
@@ -207,6 +233,16 @@ const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: Appointmen
           aria-label="Motivo de la cancelación"
         />
       </ConfirmDialog>
+      <ConfirmDialog
+        open={pending === 'delete'}
+        onOpenChange={(open) => !open && setPending(null)}
+        title="¿Eliminar esta cita?"
+        description="Se borra el registro de la cita y, si había descontado una sesión del plan, la sesión se devuelve. Úsalo para corregir errores; si solo se canceló, usa «Cancelar cita». No se puede deshacer."
+        confirmLabel="Sí, eliminar"
+        cancelLabel="Volver"
+        destructive
+        onConfirm={confirmDelete}
+      />
     </>
   );
 };

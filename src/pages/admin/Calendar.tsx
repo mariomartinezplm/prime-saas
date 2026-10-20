@@ -82,7 +82,8 @@ const AdminCalendar = () => {
     try {
       const params: Record<string, string> = {};
       if (isAdmin && selectedProfessional !== 'all') params.professional = selectedProfessional;
-      setAppointments(await appointmentService.getAll(params));
+      // Las canceladas no se muestran en el calendario (la sesión ya volvió al plan); siguen en la ficha del paciente
+      setAppointments((await appointmentService.getAll(params)).filter((a) => a.status !== 'cancelled'));
     } catch {
       setFailed(true);
     } finally {

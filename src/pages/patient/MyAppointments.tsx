@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import CancelScopeChoice, { type CancelScope } from '@/components/booking/CancelScopeChoice';
 import DateBadge from '@/components/shared/DateBadge';
 import EmptyState from '@/components/shared/EmptyState';
 import { ListSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
@@ -96,6 +97,7 @@ const MyAppointments = () => {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [scope, setScope] = useState<CancelScope>('this');
   const [reason, setReason] = useState('');
 
   const load = useCallback(async () => {
@@ -130,10 +132,11 @@ const MyAppointments = () => {
   const confirmCancel = async () => {
     if (!cancelling) return;
     try {
-      await appointmentService.cancel(cancelling._id, reason.trim());
+      await appointmentService.cancel(cancelling._id, reason.trim(), cancelling.recurringSlot ? scope : 'this');
       notify.success('Cita cancelada');
       setCancelling(null);
       setReason('');
+      setScope('this');
       load();
     } catch (err) {
       showApiError(err, 'No se pudo cancelar la cita');
@@ -224,6 +227,7 @@ const MyAppointments = () => {
           if (!open) {
             setCancelling(null);
             setReason('');
+            setScope('this');
           }
         }}
         title="¿Cancelar esta cita?"
@@ -237,6 +241,7 @@ const MyAppointments = () => {
         destructive
         onConfirm={confirmCancel}
       >
+        {cancelling?.recurringSlot && <CancelScopeChoice value={scope} onChange={setScope} />}
         <Textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}

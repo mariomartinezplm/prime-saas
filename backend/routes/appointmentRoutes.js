@@ -27,8 +27,8 @@ router.route('/')
 router.route('/:id')
   .get(getAppointment)
   .put(authorize('admin', 'professional'), updateAppointment)
-  // Borrado definitivo: solo admin (un profesional cancela, no borra el registro)
-  .delete(authorize('admin'), deleteAppointment);
+  // Borrado definitivo: kinesiólogos (de sus pacientes) y administrador; el paciente no puede
+  .delete(authorize('admin', 'professional'), deleteAppointment);
 
 router.get('/:id/ics', getAppointmentICS);
 router.put('/:id/cancel', cancelAppointment);

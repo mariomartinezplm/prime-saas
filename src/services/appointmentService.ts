@@ -48,14 +48,16 @@ export const appointmentService = {
   },
 
   // Cancelar cita
-  cancel: async (id: string, reason?: string): Promise<Appointment> => {
+  // scope 'following': en una cita de horario fijo, cancela también las siguientes
+  cancel: async (id: string, reason?: string, scope: 'this' | 'following' = 'this'): Promise<Appointment> => {
     const response = await api.put<APIResponse<{ appointment: Appointment }>>(`/appointments/${id}/cancel`, {
       reason,
+      scope,
     });
     return response.data.data.appointment;
   },
 
-  // Eliminar cita (solo admin)
+  // Eliminar cita (kinesiólogos de sus pacientes y administrador)
   delete: async (id: string): Promise<void> => {
     await api.delete(`/appointments/${id}`);
   },
