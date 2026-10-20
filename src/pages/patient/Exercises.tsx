@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dumbbell, Medal, TriangleAlert, TrendingUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -16,7 +17,7 @@ import TrendChart from '@/components/premium/TrendChart';
 import EmptyGuide from '@/components/premium/EmptyGuide';
 import MetricDetailDrawer from '@/components/premium/MetricDetailDrawer';
 import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
-import { exercisesByFrequency, totalVolumeTons, weightSeries } from '@/lib/exerciseSeries';
+import { exercisesByFrequency, isRehabExercise, sessionDays, totalVolumeTons, volumeComparison, weightSeries } from '@/lib/exerciseSeries';
 import { formatValue, longDate, shortDate, summarize } from '@/lib/trend';
 import { cn } from '@/lib/utils';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
@@ -81,6 +82,9 @@ const ExercisesPage = () => {
   const heroBest = heroPoints.length > 0 ? Math.max(...heroPoints.map((p) => p.value)) : null;
   const heroLast = hero ? [...(byName.get(hero) ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
   const volume = totalVolumeTons(exercises);
+  const days = sessionDays(exercises);
+  const comparison = volumeComparison(exercises);
+  const heroRehab = hero ? isRehabExercise(byName.get(hero) ?? []) : false;
   const unitOf = (name: string) => byName.get(name)?.find((e) => e.weightUnit)?.weightUnit ?? 'kg';
 
   const registerButton = (
@@ -107,13 +111,21 @@ const ExercisesPage = () => {
   }
 
   const historyRows = (filter === 'all' ? exercises : exercises.filter((e) => e.exerciseName === filter)).slice().sort((a, b) => b.date.localeCompare(a.date));
+  // El historial se agrupa por día: cada día es una sesión con sus ejercicios
+  const groupedHistory = Object.entries(
+    historyRows.reduce<Record<string, ExerciseProgress[]>>((acc, ex) => {
+      const day = ex.date.slice(0, 10);
+      (acc[day] ??= []).push(ex);
+      return acc;
+    }, {})
+  ).sort(([a], [b]) => b.localeCompare(a));
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
       <PageTitle
         eyebrow="Ejercicios"
         title={<>Tu fuerza,<br />tu progreso</>}
-        description={exercises.length > 0 ? `${exercises.length} ${exercises.length === 1 ? 'registro' : 'registros'} · ${names.length} ${names.length === 1 ? 'ejercicio' : 'ejercicios'}${volume > 0 ? ` · ${formatValue(volume, 1)} ton movidas` : ''}` : undefined}
+        description={exercises.length > 0 ? 'Sigue cómo evolucionan tus ejercicios y tus marcas, sesión a sesión.' : undefined}
         actions={exercises.length > 0 ? registerButton : undefined}
       />
 
@@ -134,7 +146,14 @@ const ExercisesPage = () => {
           icon={Dumbbell}
           title="Tu primera marca está por llegar"
           description="Aquí verás cómo evoluciona la carga de cada ejercicio. Tu kinesiólogo los registra en tus sesiones y, con tu plan activo, tú también puedes anotarlos."
-          action={registerButton}
+          action={
+            <div className="flex w-full flex-col gap-2">
+              {registerButton}
+              <Button asChild variant="outline" className="min-h-[44px] rounded-2xl border-[#fff8e4]/20 text-[#fff8e4] hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4]">
+                <Link to="/app/mis-citas">Ver mis citas</Link>
+              </Button>
+            </div>
+          }
           preview={[
             { icon: TrendingUp, title: 'Progresión de carga', text: 'Cada ejercicio con su gráfico por fecha' },
             { icon: Medal, title: 'Tus mejores marcas', text: 'El mayor peso que has levantado' },
@@ -153,9 +172,21 @@ const ExercisesPage = () => {
         >
           {[
             <div key="progreso" className="space-y-5">
+              <div className="grid grid-cols-2 gap-3">
+                <div className={cn(CARD, 'p-4')}>
+                  <p className="text-[13px] text-[#fff8e4]/70">Sesiones registradas</p>
+                  <p className="mt-1.5 text-[1.75rem] font-extrabold leading-none tabular-nums text-[#fff8e4]">{days}</p>
+                  <p className="mt-1.5 text-[12.5px] text-[#fff8e4]/65">En tu historial</p>
+                </div>
+                <div className={cn(CARD, 'p-4')}>
+                  <p className="text-[13px] text-[#fff8e4]/70">Ejercicios distintos</p>
+                  <p className="mt-1.5 text-[1.75rem] font-extrabold leading-none tabular-nums text-[#fff8e4]">{names.length}</p>
+                  <p className="mt-1.5 text-[12.5px] text-[#fff8e4]/65">Con seguimiento</p>
+                </div>
+              </div>
               {hero && heroSummary ? (
                 <section aria-label={hero} className={cn('rounded-[24px] border p-4 pb-3 min-[375px]:p-5 min-[375px]:pb-4', HERO_SURFACE)}>
-                  <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>Ejercicio destacado</p>
+                  <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>{heroRehab ? 'Ejercicio de rehabilitación' : 'Ejercicio destacado'}</p>
                   <h2 className="mt-1 text-xl font-bold tracking-tight text-[#fff8e4]">{hero}</h2>
                   <div className="mt-2 flex items-end justify-between gap-3">
                     <p className="text-[3rem] font-extrabold leading-none tracking-tight tabular-nums text-[#fff8e4]">
@@ -166,7 +197,7 @@ const ExercisesPage = () => {
                   </div>
                   <p className="mt-1.5 text-sm text-[#fff8e4]/72">
                     {heroLast ? `Última sesión · ${heroLast.sets ?? '–'} series × ${heroLast.reps ?? '–'} reps` : 'Último registro'}
-                    {heroBest !== null && heroSummary.count > 1 ? ` · mejor marca ${formatValue(heroBest, 1)} ${heroUnit}` : ''}
+                    {!heroRehab && heroBest !== null && heroSummary.count > 1 ? ` · mejor marca ${formatValue(heroBest, 1)} ${heroUnit}` : ''}
                   </p>
                   {heroSummary.count > 1 ? (
                     <div className="-mx-1 mt-3">
@@ -176,6 +207,7 @@ const ExercisesPage = () => {
                     <p className="my-3 rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-3 text-sm text-[#fff8e4]/75">Con un segundo registro de este ejercicio verás aquí tu progresión.</p>
                   )}
                   <p className="px-1 text-xs text-[#fff8e4]/62">{heroSummary.count} {heroSummary.count === 1 ? 'día con registro' : 'días con registro'} · {heroSummary.sinceText}</p>
+                  {heroRehab && <p className="mx-1 mt-2 rounded-xl border border-[#398ca2]/30 bg-[#398ca2]/10 px-3 py-2 text-[12.5px] text-[#fff8e4]/80">En rehabilitación, la carga la define tu kinesiólogo: subir el peso no siempre es el objetivo.</p>}
                   {withLoad.length > 1 && (
                     <div role="group" aria-label="Elegir ejercicio" className="mt-3 flex flex-wrap gap-2 border-t border-[#fff8e4]/10 pt-3">
                       {withLoad.slice(0, 6).map((n) => (
@@ -223,6 +255,23 @@ const ExercisesPage = () => {
                   </div>
                 </section>
               )}
+
+              {comparison && (
+                <section aria-labelledby="vol-title" className={cn(CARD, 'p-4')}>
+                  <h2 id="vol-title" className="text-[15px] font-semibold text-[#fff8e4]">Volumen de entrenamiento</h2>
+                  <p className="mt-0.5 text-[12.5px] text-[#fff8e4]/65">Series × repeticiones × peso, sin contar la rehabilitación</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[12.5px] text-[#fff8e4]/70">Últimos 30 días</p>
+                      <p className="text-2xl font-extrabold tabular-nums text-[#fff8e4]">{formatValue(comparison.current, 1)}<span className="ml-1 text-sm font-semibold text-[#fff8e4]/65">ton</span></p>
+                    </div>
+                    <div>
+                      <p className="text-[12.5px] text-[#fff8e4]/70">30 días anteriores</p>
+                      <p className="text-2xl font-extrabold tabular-nums text-[#fff8e4]/80">{formatValue(comparison.previous, 1)}<span className="ml-1 text-sm font-semibold text-[#fff8e4]/60">ton</span></p>
+                    </div>
+                  </div>
+                </section>
+              )}
             </div>,
 
             <div key="historial" className="space-y-3">
@@ -240,26 +289,33 @@ const ExercisesPage = () => {
               {historyRows.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-6 text-center text-sm text-[#fff8e4]/70">No hay ejercicios para mostrar.</p>
               ) : (
-                <ul className={cn(CARD, 'divide-y divide-[#fff8e4]/10 px-4')}>
-                  {historyRows.map((ex) => (
-                    <li key={ex._id} className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-[15px] font-semibold text-[#fff8e4]">{ex.exerciseName}</p>
-                        <p className="text-[13px] text-[#fff8e4]/70">
-                          {longDate(ex.date)}
-                          {ex.rpe ? ` · esfuerzo ${ex.rpe}/10` : ''}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <p className="text-right text-[15px] font-bold tabular-nums text-[#fff8e4]">
-                          {ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ''}
-                          {ex.weight ? <span className="block text-[13px] font-semibold text-[#7cc0d2]">{ex.weight} {ex.weightUnit}</span> : null}
-                        </p>
-                        {canEdit && <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />}
-                      </div>
-                    </li>
+                <div className="space-y-4">
+                  {groupedHistory.map(([day, rows]) => (
+                    <section key={day} aria-label={longDate(day)} className="space-y-1.5">
+                      <h3 className="px-1 text-[13px] font-semibold text-[#fff8e4]/72">{longDate(day)}</h3>
+                      <ul className={cn(CARD, 'divide-y divide-[#fff8e4]/10 px-4')}>
+                        {rows.map((ex) => (
+                          <li key={ex._id} className="flex items-center justify-between gap-3 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-[15px] font-semibold text-[#fff8e4]">{ex.exerciseName}</p>
+                              <p className="text-[13px] text-[#fff8e4]/70">
+                                {ex.category === 'rehabilitacion' ? 'Rehabilitación' : 'Entrenamiento'}
+                                {ex.rpe ? ` · esfuerzo ${ex.rpe}/10` : ''}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <p className="text-right text-[15px] font-bold tabular-nums text-[#fff8e4]">
+                                {ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ''}
+                                {ex.weight ? <span className="block text-[13px] font-semibold text-[#7cc0d2]">{ex.weight} {ex.weightUnit}</span> : null}
+                              </p>
+                              {canEdit && <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
                   ))}
-                </ul>
+                </div>
               )}
             </div>,
           ]}

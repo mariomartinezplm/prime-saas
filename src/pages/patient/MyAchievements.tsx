@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ChevronDown, Trophy } from 'lucide-react';
+import { ChevronDown, HeartHandshake, Trophy } from 'lucide-react';
 import { achievementApi, type AchievementCategory, type AchievementItem, type AchievementsOverview } from '@/services/achievementService';
 import AchievementBadge from '@/components/achievements/AchievementBadge';
 import AchievementCard from '@/components/achievements/AchievementCard';
@@ -55,6 +55,8 @@ const MyAchievements = () => {
     () => (overview ? overview.categories.map((c) => ({ category: c, items: visibleItems(c).filter((i) => i.status !== 'earned') })).filter((g) => g.items.length > 0) : []),
     [overview]
   );
+  // Retos aún sin avance, para mostrar «por descubrir» en la colección (sin cifras ni culpas)
+  const discover = useMemo(() => toGo.flatMap((g) => g.items.filter((i) => i.status !== 'locked').map((item) => ({ item, category: g.category }))), [toGo]);
   const hashKey = location.hash.startsWith('#logro-') ? location.hash.slice(7) : null;
 
   if (loading) {
@@ -96,19 +98,18 @@ const MyAchievements = () => {
               aria-label={`Próximo hito: ${next.title}${next.progress ? `, ${formatNumber(next.progress.current)} de ${formatNumber(next.progress.target)} ${next.progress.label}` : ''}`}
               className={cn('block rounded-[24px] border p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', HERO_SURFACE)}
             >
-              <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>Tu próximo hito</p>
-              <div className="mt-3 flex items-center gap-4">
-                <AchievementBadge category={next.category} state="progress" ratio={nextRatio} size={76} />
-                <div className="min-w-0">
-                  <p className="text-xl font-bold leading-snug tracking-tight text-[#fff8e4]">{next.title}</p>
-                  <p className="text-sm text-[#fff8e4]/75">{next.categoryLabel}</p>
-                </div>
+              <p className={cn(EYEBROW_SOFT, 'text-center text-[#7cc0d2]')}>Tu próximo hito</p>
+              <div className="mt-4 flex flex-col items-center text-center">
+                <AchievementBadge category={next.category} state="progress" ratio={nextRatio} size={96} />
+                <p className="mt-3 text-[1.5rem] font-extrabold leading-tight tracking-tight text-[#fff8e4]">{next.title}</p>
+                <p className="mt-0.5 text-sm text-[#fff8e4]/75">{next.categoryLabel}</p>
               </div>
               {next.progress && (
-                <div className="mt-4 space-y-1.5">
+                <div className="mt-5 space-y-1.5">
                   <Meter ratio={nextRatio} label={`${next.title}: ${formatNumber(next.progress.current)} de ${formatNumber(next.progress.target)} ${next.progress.label}`} animateKey={`logros-next:${next.key}`} />
-                  <p className="text-sm text-[#fff8e4]/80">
-                    <span className="font-bold tabular-nums text-[#fff8e4]">{formatNumber(next.progress.current)}</span> de {formatNumber(next.progress.target)} {next.progress.label}
+                  <p className="flex items-baseline justify-between text-sm text-[#fff8e4]/80">
+                    <span><span className="font-bold tabular-nums text-[#fff8e4]">{formatNumber(next.progress.current)}</span> {next.progress.label}</span>
+                    <span className="tabular-nums">Meta: {formatNumber(next.progress.target)}</span>
                   </p>
                 </div>
               )}
@@ -126,7 +127,7 @@ const MyAchievements = () => {
               <h2 id="coleccion" className="text-lg font-bold tracking-tight text-[#fff8e4]">Tu colección</h2>
               {earned.length > 0 && <span className="rounded-full border border-[#398ca2]/50 bg-[#398ca2]/15 px-3 py-0.5 text-[13px] font-semibold text-[#fff8e4]">{earned.length} {earned.length === 1 ? 'conseguido' : 'conseguidos'}</span>}
             </div>
-            {earned.length > 0 ? (
+            {(earned.length > 0 || discover.length > 0) && (
               <ul className="grid grid-cols-2 gap-3">
                 {earned.map(({ item, category }) => {
                   const latest = item.awards[0];
@@ -140,10 +141,21 @@ const MyAchievements = () => {
                     </li>
                   );
                 })}
+                {discover.slice(0, Math.max(0, 4 - earned.length)).map(({ item, category }) => (
+                  <li key={item.key} className="flex flex-col items-start gap-3 rounded-[22px] border border-dashed border-[#fff8e4]/18 p-4">
+                    <AchievementBadge category={category.key} state="idle" size={52} />
+                    <div>
+                      <p className="text-[15px] font-semibold leading-snug text-[#fff8e4]/90">{item.title}</p>
+                      <p className="mt-0.5 text-[12.5px] text-[#fff8e4]/62">Por descubrir</p>
+                    </div>
+                  </li>
+                ))}
               </ul>
-            ) : (
-              <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-5 text-sm text-[#fff8e4]/75">Tu primera insignia está más cerca de lo que crees. Cada sesión y cada registro suman.</p>
             )}
+            <p className="flex items-start gap-3 rounded-2xl border border-[#398ca2]/30 bg-[#398ca2]/10 px-4 py-3 text-[13px] leading-relaxed text-[#fff8e4]/82">
+              <HeartHandshake className="mt-0.5 h-4 w-4 shrink-0 text-[#7cc0d2]" aria-hidden="true" />
+              <span><strong className="font-semibold text-[#fff8e4]">Tu progreso, a tu ritmo.</strong> Descansar y recuperarte también forma parte del proceso.</span>
+            </p>
           </section>
 
           {/* Por lograr: por categoría, plegable */}

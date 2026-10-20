@@ -28,6 +28,8 @@ const TrendChart = ({ points, unit, decimals = 1, label, height = 190 }: TrendCh
   const last = data[data.length - 1];
   const middle = data.length > 2 ? data[Math.floor(data.length / 2)] : undefined;
   const xTicks = [first.t, ...(middle ? [middle.t] : []), ...(last.t !== first.t ? [last.t] : [])];
+  // Con rangos chicos (p. ej. 2 a 3 kg) los ejes llevan un decimal para no repetir el mismo número
+  const axisDecimals = max - min < 6 && decimals > 0 ? 1 : 0;
   const suffix = unit ? ` ${unit}` : '';
   const crosses = parseISO(first.date).getFullYear() !== parseISO(last.date).getFullYear();
 
@@ -59,7 +61,7 @@ const TrendChart = ({ points, unit, decimals = 1, label, height = 190 }: TrendCh
               domain={domainY}
               tickCount={3}
               width={38}
-              tickFormatter={(v: number) => formatValue(v, 0)}
+              tickFormatter={(v: number) => formatValue(v, axisDecimals)}
               tick={{ fontSize: 11, fill: 'rgba(255,248,228,0.62)' }}
               axisLine={false}
               tickLine={false}

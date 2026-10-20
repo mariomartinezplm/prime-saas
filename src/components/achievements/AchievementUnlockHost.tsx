@@ -94,7 +94,7 @@ const AchievementUnlockHost = () => {
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && next()}>
-      <DialogContent className="max-w-sm border-primary/30 bg-background text-center sm:rounded-2xl [&>button]:hidden">
+      <DialogContent className="max-w-sm overflow-hidden rounded-[26px] border-[#398ca2]/50 bg-[linear-gradient(160deg,rgba(57,140,162,0.22),#201e22_55%)] text-center text-[#fff8e4] [&>button]:hidden">
         <div className="flex flex-col items-center gap-5 py-2">
           {queue.length > 1 && (
             <p className="text-xs text-muted-foreground" aria-live="polite">
@@ -119,17 +119,18 @@ const AchievementUnlockHost = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.4, delay: 0.35 }}
           >
-            <p className="text-xs uppercase tracking-[0.18em] text-primary">Logro desbloqueado · {current.categoryLabel}</p>
-            <DialogTitle className="text-2xl font-semibold text-foreground">{current.title}</DialogTitle>
-            <DialogDescription className="text-base text-muted-foreground">{current.message}</DialogDescription>
-            <p className="text-xs text-muted-foreground">Desbloqueado el {formatDay(current.awardedAt)}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7cc0d2]">Nuevo logro · {current.categoryLabel}</p>
+            <DialogTitle className="text-2xl font-extrabold tracking-tight text-[#fff8e4]">¡Lo conseguiste!</DialogTitle>
+            <p className="text-lg font-bold text-[#7cc0d2]">{current.title}</p>
+            <DialogDescription className="text-base text-[#fff8e4]/78">{current.message}</DialogDescription>
+            <p className="text-xs text-[#fff8e4]/62">Desbloqueado el {formatDay(current.awardedAt)} · celebración única</p>
           </motion.div>
 
           <div className="flex w-full flex-col gap-2 pt-1">
-            <Button onClick={next} autoFocus>
+            <Button onClick={next} autoFocus className="min-h-[52px] rounded-2xl border-[#398ca2] bg-[#398ca2] text-base font-bold text-[#181619] hover:bg-[#398ca2]/90">
               {position + 1 < queue.length ? 'Siguiente' : 'Continuar'}
             </Button>
-            <Button variant="ghost" onClick={goToDetails}>
+            <Button variant="ghost" onClick={goToDetails} className="min-h-[44px] text-[#7cc0d2] hover:bg-[#fff8e4]/[0.06] hover:text-[#7cc0d2]">
               Ver detalles del progreso
             </Button>
           </div>
