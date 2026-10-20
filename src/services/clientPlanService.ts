@@ -35,4 +35,9 @@ export const clientPlanService = {
   updateGraceDays: async (id: string, graceDays: number): Promise<void> => {
     await api.put(`/client-plans/${id}/grace-days`, { graceDays });
   },
+
+  // Cambiar la fecha de inicio de un plan (mueve todos los ciclos del mismo pago)
+  updateStartDate: async (id: string, startDate: string): Promise<void> => {
+    await api.put(`/client-plans/${id}/start-date`, { startDate });
+  },
 };

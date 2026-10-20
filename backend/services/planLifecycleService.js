@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import ClientPlan from '../models/ClientPlan.js';
 import User from '../models/User.js';
 import { notify } from './notificationService.js';
-import { formatDayMonthSantiago } from '../utils/timezone.js';
+import { formatDayMonthSantiago, santiagoToUtc } from '../utils/timezone.js';
 import { buildCycles, paymentDueBy, TERM_CYCLES } from './planCycles.js';
 
 // Vida de un plan (Prime F&H):
@@ -176,6 +176,78 @@ export async function cancelPlanAndFutureCycles(plan) {
     await ClientPlan.updateMany({ termId: plan.termId, status: 'upcoming' }, { $set: { status: 'cancelled' } });
   }
   await syncFounderFlag(plan.patient);
+}
+
+// ─── Cambiar la fecha de inicio de un plan ──────────────────────────────────
+
+export class PlanDateError extends Error {}
+
+// Estado de cada ciclo según la fecha de hoy: los ya terminados vencen, el vigente queda activo y los que vienen, por empezar.
+// Si todos terminaron, el último queda activo para que la pasada del programador abra la renovación como siempre.
+export function statusesForCycles(cycles, now = new Date()) {
+  const current = cycles.findIndex((c) => c.end.getTime() >= now.getTime());
+  const activeIndex = current === -1 ? cycles.length - 1 : current;
+  return cycles.map((_, i) => (i < activeIndex ? 'expired' : i === activeIndex ? 'active' : 'upcoming'));
+}
+
+/**
+ * Mueve la fecha de inicio de un plan (y de todos los ciclos de ese mismo pago). Las sesiones ya usadas NO cambian: cada plan
+ * conserva su contador. Lanza PlanDateError (mensaje listo para mostrar) si el cambio no es posible.
+ */
+export async function changePlanStartDate(plan, startDateStr, now = new Date()) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDateStr || '');
+  if (!match) throw new PlanDateError('Elige una fecha válida');
+  const [, y, m, d] = match.map(Number);
+  const start = santiagoToUtc(y, m, d, 0, 0);
+  if (Number.isNaN(start.getTime())) throw new PlanDateError('Elige una fecha válida');
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (start.getTime() < now.getTime() - 400 * dayMs || start.getTime() > now.getTime() + 90 * dayMs) {
+    throw new PlanDateError('La fecha de inicio debe estar entre hace un año y los próximos 3 meses');
+  }
+  if (plan.status === 'cancelled') throw new PlanDateError('Un plan cancelado no se puede modificar');
+  if (plan.openEnded) {
+    plan.startDate = start;
+    await plan.save();
+    return [plan];
+  }
+  if (plan.termId && plan.cycleNumber > 1) throw new PlanDateError('Cambia la fecha desde el primer ciclo del plan');
+
+  const cycleDocs = plan.termId
+    ? await ClientPlan.find({ termId: plan.termId, status: { $ne: 'cancelled' } }).sort({ cycleNumber: 1 })
+    : [plan];
+  const first = cycleDocs[0];
+  if (String(first._id) !== String(plan._id)) throw new PlanDateError('Cambia la fecha desde el primer ciclo del plan');
+
+  if (await ClientPlan.exists({ renewedFrom: { $in: cycleDocs.map((c) => c._id) } })) {
+    throw new PlanDateError('Este plan ya tiene una renovación abierta. Cambia primero la fecha de esa renovación.');
+  }
+
+  const cycles = buildCycles(start, plan.billingCycle, cycleDocs.length);
+  const total = cycleDocs.length;
+  const lastEnd = cycles[total - 1].end;
+
+  // No puede cruzarse con otro plan (no cancelado) del mismo paciente y servicio
+  const others = await ClientPlan.find({
+    patient: plan.patient,
+    serviceType: plan.serviceType,
+    status: { $ne: 'cancelled' },
+    _id: { $nin: cycleDocs.map((c) => c._id) },
+    openEnded: { $ne: true }
+  });
+  const clash = others.find((o) => o.startDate.getTime() <= lastEnd.getTime() && o.endDate.getTime() >= start.getTime());
+  if (clash) throw new PlanDateError('Con esa fecha el plan se cruzaría con otro plan del paciente. Elige otra fecha.');
+
+  const statuses = statusesForCycles(cycles, now);
+  for (let i = 0; i < total; i++) {
+    cycleDocs[i].startDate = i === 0 ? start : cycles[i].start;
+    cycleDocs[i].endDate = cycles[i].end;
+    cycleDocs[i].status = cycleDocs[i].paymentPending ? cycleDocs[i].status : statuses[i];
+    if (cycleDocs[i].paymentPending) cycleDocs[i].paymentDueBy = paymentDueBy(cycleDocs[i].startDate, cycleDocs[i].graceDays ?? 5);
+    await cycleDocs[i].save();
+  }
+  await syncFounderFlag(plan.patient);
+  return cycleDocs;
 }
 
 // ─── Mover los planes al estado de "ahora" ──────────────────────────────────

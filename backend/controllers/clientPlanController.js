@@ -5,6 +5,8 @@ import {
   createTermPlans,
   settlePendingPlan,
   cancelPlanAndFutureCycles,
+  changePlanStartDate,
+  PlanDateError,
   advancePlans,
   runPlanLifecycleJob
 } from '../services/planLifecycleService.js';
@@ -325,5 +327,31 @@ export const updateGraceDays = async (req, res) => {
     res.json({ success: true, message: 'Plazo de pago actualizado', data: { graceDays } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'No se pudo actualizar el plazo de pago' });
+  }
+};
+
+// @desc    Cambiar la fecha de inicio de un plan (mueve también los demás ciclos del mismo pago)
+// @route   PUT /api/client-plans/:id/start-date   { startDate: 'YYYY-MM-DD' }
+// @access  Private/Admin, Private/Professional (sus pacientes)
+export const updatePlanStartDate = async (req, res) => {
+  try {
+    const plan = await ClientPlan.findById(req.params.id);
+    if (!plan || !(await canAccessPatient(req.user, plan.patient))) {
+      return res.status(404).json({ success: false, message: 'Plan no encontrado' });
+    }
+
+    const cycles = await changePlanStartDate(plan, req.body?.startDate);
+    await advancePlans({ patientId: plan.patient });
+
+    res.json({
+      success: true,
+      message: 'Fecha de inicio actualizada. Las sesiones ya usadas se mantienen.',
+      data: { updated: cycles.length }
+    });
+  } catch (error) {
+    if (error instanceof PlanDateError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    res.status(500).json({ success: false, message: 'No se pudo cambiar la fecha de inicio' });
   }
 };

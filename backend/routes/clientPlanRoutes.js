@@ -6,6 +6,7 @@ import {
   getBalance,
   cancelClientPlan,
   updateGraceDays,
+  updatePlanStartDate,
   runExpireCheck
 } from '../controllers/clientPlanController.js';
 import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
@@ -22,6 +23,7 @@ router.post('/', authorize('admin', 'professional'), authorizePatientAccess('pat
 router.post('/expire-check', authorize('admin'), runExpireCheck);
 router.put('/:id/cancel', authorize('admin'), cancelClientPlan);
 router.put('/:id/grace-days', authorize('admin', 'professional'), updateGraceDays);
+router.put('/:id/start-date', authorize('admin', 'professional'), updatePlanStartDate);
 
 // Rutas "me" van ANTES que las de :patientId (si no, Express las confunde con el parámetro).
 // El controller ya resuelve al propio usuario cuando el rol es 'patient', así que

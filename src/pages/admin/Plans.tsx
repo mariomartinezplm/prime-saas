@@ -56,6 +56,7 @@ import type { ClientPlan, User } from '@/types';
 import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
 import GraceDaysField, { DEFAULT_GRACE_DAYS, MAX_GRACE_DAYS } from '@/components/plans/GraceDaysField';
 import EditGraceDaysDialog from '@/components/plans/EditGraceDaysDialog';
+import EditStartDateDialog from '@/components/plans/EditStartDateDialog';
 
 const SERVICE_ICON: Record<ServiceType, typeof Dumbbell> = {
   entrenamiento: Dumbbell,
@@ -122,6 +123,7 @@ const Plans = () => {
   const [renews, setRenews] = useState(true);
   const [graceDays, setGraceDays] = useState(DEFAULT_GRACE_DAYS);
   const [graceEditPlan, setGraceEditPlan] = useState<ClientPlan | null>(null);
+  const [startEditPlan, setStartEditPlan] = useState<ClientPlan | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Confirmación de reemplazo de plan activo
@@ -295,6 +297,11 @@ const Plans = () => {
             {plan.paymentPending && (
               <Button size="sm" variant="outline" onClick={() => openPaymentFor(plan)}>
                 Registrar pago
+              </Button>
+            )}
+            {plan.status !== 'cancelled' && (plan.cycleNumber ?? 1) === 1 && (
+              <Button size="sm" variant="ghost" onClick={() => setStartEditPlan(plan)}>
+                Fecha de inicio
               </Button>
             )}
             {!plan.openEnded && plan.renews !== false && (plan.status === 'active' || plan.status === 'upcoming') && (
@@ -539,6 +546,13 @@ const Plans = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <EditStartDateDialog
+        plan={startEditPlan}
+        patientName={startEditPlan && typeof startEditPlan.patient === 'object' ? `${startEditPlan.patient.firstName} ${startEditPlan.patient.lastName}` : 'el paciente'}
+        onClose={() => setStartEditPlan(null)}
+        onSaved={fetchClientPlans}
+      />
 
       <EditGraceDaysDialog
         plan={graceEditPlan}
