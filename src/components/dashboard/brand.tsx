@@ -20,6 +20,15 @@ export const PILL_SOLID = 'inline-flex items-center gap-1 rounded-full border bo
 export const HERO_SURFACE = 'border-[#398ca2]/45 bg-[linear-gradient(155deg,rgba(57,140,162,0.24),rgba(57,140,162,0.05)_62%)]';
 // Tono turquesa claro derivado de la marca (#398ca2 aclarado): segundo anillo, textos de apoyo sobre fondo oscuro. Contraste sobre #181619 > 9:1.
 export const BRAND_LIGHT = '#7cc0d2';
+// Paleta ampliada (Visual Polish 3.0, aprobada por Mario). Todo derivado de los tres colores oficiales; contraste sobre #181619:
+// texto secundario #cdc6b6 (11,6:1) y terciario #a8a295 (7,5:1); turquesas claros para TEXTO PEQUEÑO #62b8cf (8,0:1) y #8fd0e0 (10,5:1).
+// El turquesa de marca #398ca2 queda para gráficos, botones y elementos grandes (sobre tarjetas da 4,37:1: no para texto pequeño).
+export const TEXT_MUTED = 'text-[#cdc6b6]';
+export const TEXT_FAINT = 'text-[#a8a295]';
+export const BRAND_BRIGHT = '#62b8cf';
+export const BRAND_BRIGHTER = '#8fd0e0';
+export const SURFACE_1 = '#1f1c21';
+export const SURFACE_2 = '#272329';
 // Superficie de tarjeta estándar y su variante interactiva
 export const CARD = 'rounded-[22px] border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04]';
 export const CARD_LINK = 'transition-colors duration-150 hover:bg-[#fff8e4]/[0.07] active:bg-[#fff8e4]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]';

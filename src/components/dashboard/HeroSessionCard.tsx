@@ -72,8 +72,9 @@ const HeroSessionCard = ({ view, planView, onRetry, retrying = false }: HeroSess
               <span className={phase === 'future' ? PILL : PILL_SOLID}>{when}</span>
               {phase === 'future' && label.detail && <span className={cn('text-xs', TEXT_SOFT)}>{label.detail}</span>}
             </p>
-            <h2 id="hero-titulo" className={cn('text-[1.625rem] font-extrabold leading-none min-[360px]:text-[1.875rem] sm:text-[2.25rem] tabular-nums tracking-tight', TEXT)}>
-              {appointment.startTime} – {appointment.endTime}
+            <h2 id="hero-titulo" className={cn('flex flex-wrap items-baseline gap-x-2 leading-none tabular-nums', TEXT)}>
+              <span className="text-[2.75rem] font-extrabold tracking-[-0.04em] min-[360px]:text-[3.25rem] sm:text-[4rem]">{appointment.startTime}</span>{' '}
+              <span className="text-lg font-bold text-[#cdc6b6] sm:text-2xl">– {appointment.endTime}</span>
             </h2>
             <p className={cn('text-sm', TEXT_SOFT)}>
               {appointmentTypeLabels[appointment.type]}
