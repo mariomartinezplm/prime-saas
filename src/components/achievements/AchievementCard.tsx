@@ -32,8 +32,8 @@ const AchievementCard = ({ item, category }: AchievementCardProps) => {
       id={`logro-${item.key}`}
       tabIndex={-1}
       className={cn(
-        'scroll-mt-24 rounded-xl border bg-card p-4 outline-none transition-colors target:border-primary/60 focus-visible:border-primary/60',
-        earned ? 'border-primary/30' : 'border-border',
+        'scroll-mt-24 rounded-[22px] border bg-[#fff8e4]/[0.04] p-4 outline-none transition-colors target:border-primary/60 focus-visible:border-primary/60',
+        earned ? 'border-primary/40' : 'border-[#fff8e4]/10',
         dim && 'opacity-80'
       )}
     >

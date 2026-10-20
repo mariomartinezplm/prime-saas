@@ -64,6 +64,7 @@ const patientNav: NavGroup[] = [
   {
     label: 'Mi progreso',
     items: [
+      { label: 'Resumen', icon: Activity, path: '/app/progreso', exact: true },
       { label: 'Mediciones', icon: Ruler, path: '/app/mediciones' },
       { label: 'Ejercicios', icon: Dumbbell, path: '/app/ejercicios' },
       { label: 'Fotos', icon: Camera, path: '/app/fotos' },

@@ -29,6 +29,7 @@ import MyAppointments from "./pages/patient/MyAppointments";
 import MyProfile from "./pages/patient/MyProfile";
 import MyAchievements from "./pages/patient/MyAchievements";
 import PatientMeasurements from "./pages/patient/Measurements";
+import PatientProgress from "./pages/patient/Progress";
 import PatientExercises from "./pages/patient/Exercises";
 import PainRecords from "./pages/patient/PainRecords";
 import PatientPhotosPage from "./pages/patient/Photos";
@@ -115,6 +116,10 @@ const App = () => (
               <Route
                 path="logros"
                 element={<RoleRoute roles={['patient']}><MyAchievements /></RoleRoute>}
+              />
+              <Route
+                path="progreso"
+                element={<RoleRoute roles={['patient']}><PatientProgress /></RoleRoute>}
               />
               <Route
                 path="mediciones"

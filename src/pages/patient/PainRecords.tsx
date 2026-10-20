@@ -1,23 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, ChevronDown, ClipboardList, HeartPulse, TriangleAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
-import PageHeader from '@/components/shared/PageHeader';
-import { TriangleAlert } from 'lucide-react';
 import PainBodyDiagram from '@/components/body/PainBodyDiagram';
-import PainEvolutionChart from '@/components/charts/PainEvolutionChart';
-import { format, parseISO } from 'date-fns';
+import PageTitle from '@/components/premium/PageTitle';
+import TrendChart from '@/components/premium/TrendChart';
+import EmptyGuide from '@/components/premium/EmptyGuide';
+import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
+import { longDate, summarize, type TrendPoint } from '@/lib/trend';
+import { capitalizeFirst, cn } from '@/lib/utils';
 import api from '@/lib/api';
-import DataTable from '@/components/shared/DataTable';
-import { cn } from '@/lib/utils';
 import type { EVARecord } from '@/types';
+
+const zoneLabel = (area: string) => capitalizeFirst(area.replace(/-/g, ' '));
+
+// Escala 0–10 en 10 tramos: el valor siempre va escrito; la barra solo lo refuerza (no depende del color)
+const PainScale = ({ level }: { level: number }) => (
+  <div role="img" aria-label={`Dolor ${level} de 10`} className="flex gap-1">
+    {Array.from({ length: 10 }, (_, i) => (
+      <span key={i} className={cn('h-2 flex-1 rounded-full', i < level ? 'bg-[#398ca2]' : 'bg-[#fff8e4]/12')} />
+    ))}
+  </div>
+);
 
 const PainRecords = () => {
   const { user } = useAuth();
   const [records, setRecords] = useState<EVARecord[]>([]);
-  const [selectedZone, setSelectedZone] = useState<string | null>(null);
+  const [zone, setZone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -25,7 +37,8 @@ const PainRecords = () => {
   useEffect(() => {
     if (!user) return;
     setFailed(false);
-    api.get(`/eva/patient/${user.id}`)
+    api
+      .get(`/eva/patient/${user.id}`)
       .then((res) => setRecords(res.data.data.evaRecords || []))
       // Si falla la carga se avisa: antes se mostraba como si no hubiera registros
       .catch(() => setFailed(true))
@@ -37,15 +50,24 @@ const PainRecords = () => {
     setAttempt((n) => n + 1);
   };
 
-  // Calculate latest pain levels by zone
+  const sorted = useMemo(() => [...records].sort((a, b) => b.date.localeCompare(a.date)), [records]);
+  // Último registro de cada zona (la lista ya viene de más reciente a más antiguo)
+  const latestByArea = useMemo(() => {
+    const map = new Map<string, EVARecord>();
+    sorted.forEach((r) => !map.has(r.bodyArea) && map.set(r.bodyArea, r));
+    return map;
+  }, [sorted]);
+  const areas = [...latestByArea.keys()];
+  const current = zone && latestByArea.has(zone) ? zone : areas[0] ?? null;
+  const currentPoints: TrendPoint[] = useMemo(() => {
+    if (!current) return [];
+    const byDay = new Map<string, number>();
+    sorted.filter((r) => r.bodyArea === current).forEach((r) => byDay.set(r.date.slice(0, 10), r.painLevel));
+    return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value }));
+  }, [sorted, current]);
+  const s = summarize(currentPoints, '/10', 0);
   const painLevels: Record<string, number> = {};
-  const latestByArea: Record<string, EVARecord> = {};
-  records.forEach((r) => {
-    if (!latestByArea[r.bodyArea]) {
-      latestByArea[r.bodyArea] = r;
-      painLevels[r.bodyArea] = r.painLevel;
-    }
-  });
+  latestByArea.forEach((r, area) => (painLevels[area] = r.painLevel));
 
   if (loading) {
     return (
@@ -56,8 +78,12 @@ const PainRecords = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Registros de dolor (EVA)" description="Toca una zona del cuerpo para ver la evolución del dolor" />
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <PageTitle
+        eyebrow="Seguimiento de molestias"
+        title={<>Tu dolor, a lo largo<br />del tiempo</>}
+        description="Tu kinesiólogo lo registra contigo en cada evaluación. Aquí ves cómo cambia, sin alarmas ni diagnósticos."
+      />
 
       {failed && (
         <Alert variant="warning">
@@ -71,106 +97,92 @@ const PainRecords = () => {
         </Alert>
       )}
 
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Pain body diagram */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-lg">Mapa de Dolor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PainBodyDiagram
-              selectedZone={selectedZone}
-              onZoneClick={setSelectedZone}
-              painLevels={painLevels}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Charts and summary */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Pain evolution chart */}
-          <PainEvolutionChart
-            records={records}
-            bodyArea={selectedZone || undefined}
-          />
-
-          {/* Affected areas summary */}
-          {Object.keys(latestByArea).length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Zonas Afectadas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {Object.entries(latestByArea).map(([area, record]) => (
-                    <div
-                      key={area}
-                      className="p-3 rounded-lg border border-border cursor-pointer hover:border-secondary transition-colors"
-                      onClick={() => setSelectedZone(area)}
+      {records.length === 0 && !failed ? (
+        <EmptyGuide
+          icon={HeartPulse}
+          title="Aún no hay registros de dolor"
+          description="Cuando tu kinesiólogo mida tu dolor en una evaluación, lo verás aquí con su evolución por zona del cuerpo. Si hoy sientes una molestia, cuéntaselo en tu próxima sesión."
+          preview={[
+            { icon: Activity, title: 'Evolución por zona', text: 'Cómo cambia el dolor de cada parte del cuerpo' },
+            { icon: ClipboardList, title: 'Historial', text: 'Fecha, zona y nivel de cada registro' },
+          ]}
+        />
+      ) : (
+        current && (
+          <>
+            <section aria-label={`Dolor en ${zoneLabel(current)}`} className={cn('rounded-[24px] border p-4 pb-3 min-[375px]:p-5 min-[375px]:pb-4', HERO_SURFACE)}>
+              <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>Zona seleccionada</p>
+              <h2 className="mt-1 text-xl font-bold tracking-tight text-[#fff8e4]">{zoneLabel(current)}</h2>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <p className="text-[3rem] font-extrabold leading-none tracking-tight tabular-nums text-[#fff8e4]">
+                  {latestByArea.get(current)!.painLevel}
+                  <span className="ml-1 text-xl font-bold text-[#fff8e4]/65">/ 10</span>
+                </p>
+                {s && s.count > 1 && <span className="mb-1 shrink-0 rounded-full border border-[#fff8e4]/20 bg-[#fff8e4]/[0.06] px-3 py-1 text-[13px] font-semibold text-[#fff8e4]">{s.changeText.replace(' /10', '')} desde el primero</span>}
+              </div>
+              <div className="mt-3"><PainScale level={latestByArea.get(current)!.painLevel} /></div>
+              <p className="mt-2 text-sm text-[#fff8e4]/72">Último registro · {longDate(latestByArea.get(current)!.date)}</p>
+              {s && s.count > 1 ? (
+                <div className="-mx-1 mt-3">
+                  <TrendChart points={currentPoints} unit="/10" decimals={0} label={`Dolor en ${zoneLabel(current)}`} height={160} />
+                </div>
+              ) : (
+                <p className="my-3 rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-3 text-sm text-[#fff8e4]/75">Con un segundo registro de esta zona verás aquí su evolución.</p>
+              )}
+              {areas.length > 1 && (
+                <div role="group" aria-label="Elegir zona" className="mt-3 flex flex-wrap gap-2 border-t border-[#fff8e4]/10 pt-3">
+                  {areas.map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      aria-pressed={a === current}
+                      onClick={() => setZone(a)}
+                      className={cn(
+                        'min-h-[40px] rounded-full border px-3.5 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]',
+                        a === current ? 'border-[#398ca2] bg-[#398ca2]/25 text-[#fff8e4]' : 'border-[#fff8e4]/15 text-[#fff8e4]/70'
+                      )}
                     >
-                      <p className="text-sm font-medium capitalize">
-                        {area.replace(/-/g, ' ')}
-                      </p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className={`text-lg font-bold ${
-                          record.painLevel <= 3 ? 'text-success' :
-                          record.painLevel <= 6 ? 'text-warning' : 'text-destructive'
-                        }`}>
-                          {record.painLevel}/10
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(parseISO(record.date), 'dd/MM')}
-                        </span>
-                      </div>
-                    </div>
+                      {zoneLabel(a)}
+                    </button>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+              )}
+            </section>
 
-      {/* Records table */}
-      {records.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Historial</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              caption="Registros de dolor"
-              rows={records}
-              rowKey={(r) => r._id}
-              onRowClick={(r) => setSelectedZone(r.bodyArea)}
-              columns={[
-                { key: 'date', header: 'Fecha', cell: (r) => format(parseISO(r.date), 'dd/MM/yyyy') },
-                { key: 'zone', header: 'Zona', primary: true, cell: (r) => <span className="capitalize">{r.bodyArea.replace(/-/g, ' ')}</span> },
-                {
-                  key: 'pain',
-                  header: 'Dolor',
-                  align: 'center',
-                  cell: (r) => (
-                    <span className={cn('font-bold', r.painLevel <= 3 ? 'text-success' : r.painLevel <= 6 ? 'text-warning' : 'text-destructive')}>
-                      {r.painLevel}/10
-                    </span>
-                  ),
-                },
-                { key: 'type', header: 'Tipo', cell: (r) => <span className="capitalize text-muted-foreground">{r.painType?.join(', ') || '-'}</span> },
-                { key: 'duration', header: 'Duración', cell: (r) => <span className="capitalize text-muted-foreground">{r.duration || '-'}</span> },
-              ]}
-            />
-          </CardContent>
-        </Card>
-      )}
+            <Collapsible className={cn(CARD, 'overflow-hidden')}>
+              <CollapsibleTrigger className="group flex min-h-[56px] w-full items-center justify-between gap-3 px-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]">
+                <span className="flex items-center gap-3">
+                  <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#398ca2]/15 text-[#7cc0d2]"><Activity className="h-5 w-5" /></span>
+                  <span>
+                    <span className="block text-[15px] font-semibold text-[#fff8e4]">Mapa del cuerpo</span>
+                    <span className="block text-[13px] text-[#fff8e4]/70">Toca una zona para verla arriba</span>
+                  </span>
+                </span>
+                <ChevronDown className="h-5 w-5 shrink-0 text-[#fff8e4]/70 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-2 pb-4">
+                <PainBodyDiagram selectedZone={current} onZoneClick={setZone} painLevels={painLevels} />
+              </CollapsibleContent>
+            </Collapsible>
 
-      {records.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No tienes registros de dolor</p>
-          </CardContent>
-        </Card>
+            <section aria-labelledby="hist-eva" className="space-y-2">
+              <h2 id="hist-eva" className="px-1 text-lg font-bold tracking-tight text-[#fff8e4]">Historial</h2>
+              <ul className={cn(CARD, 'divide-y divide-[#fff8e4]/10 px-4')}>
+                {sorted.map((r) => (
+                  <li key={r._id}>
+                    <button type="button" onClick={() => setZone(r.bodyArea)} className="flex min-h-[56px] w-full items-center justify-between gap-3 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]">
+                      <span className="min-w-0">
+                        <span className="block text-[15px] font-semibold text-[#fff8e4]">{zoneLabel(r.bodyArea)}</span>
+                        <span className="block truncate text-[13px] text-[#fff8e4]/70">{longDate(r.date)}{r.painType && r.painType.length > 0 ? ` · ${r.painType.join(', ')}` : ''}</span>
+                      </span>
+                      <span className="shrink-0 text-lg font-extrabold tabular-nums text-[#fff8e4]">{r.painLevel}<span className="text-sm font-semibold text-[#fff8e4]/60">/10</span></span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
+        )
       )}
     </div>
   );

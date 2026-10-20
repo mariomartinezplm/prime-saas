@@ -156,7 +156,7 @@ const MeasurementsPage = () => {
   const history = measurements.slice(0, historyOpen ? measurements.length : 4);
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto w-full max-w-3xl space-y-5">
       <PageTitle
         eyebrow="Mediciones y progreso"
         title={<>Tu evolución,<br />en perspectiva</>}

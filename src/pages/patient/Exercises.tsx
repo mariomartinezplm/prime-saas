@@ -1,50 +1,52 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Dumbbell, Medal, TriangleAlert, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import ExerciseProgressChart from '@/components/charts/ExerciseProgressChart';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CardsSkeleton, PageSkeleton, StatsSkeleton } from '@/components/shared/Skeletons';
-import PageHeader from '@/components/shared/PageHeader';
-import { TriangleAlert } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { Dumbbell, TrendingUp, BarChart3, Award } from 'lucide-react';
-import api from '@/lib/api';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import ExerciseForm from '@/components/forms/ExerciseForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import RecordRowActions from '@/components/records/RecordRowActions';
-import DataTable from '@/components/shared/DataTable';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import PageTitle from '@/components/premium/PageTitle';
+import SegmentedTabs from '@/components/premium/SegmentedTabs';
+import MetricTile from '@/components/premium/MetricTile';
+import TrendChart from '@/components/premium/TrendChart';
+import EmptyGuide from '@/components/premium/EmptyGuide';
+import MetricDetailDrawer from '@/components/premium/MetricDetailDrawer';
+import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
+import { exercisesByFrequency, totalVolumeTons, weightSeries } from '@/lib/exerciseSeries';
+import { formatValue, longDate, shortDate, summarize } from '@/lib/trend';
+import { cn } from '@/lib/utils';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
+import api from '@/lib/api';
 import type { ExerciseProgress } from '@/types';
 
-const ExercisesEnhanced = () => {
+const ExercisesPage = () => {
   const { user } = useAuth();
   const [exercises, setExercises] = useState<ExerciseProgress[]>([]);
-  const [exerciseNames, setExerciseNames] = useState<string[]>([]);
-  const [selectedExercise, setSelectedExercise] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editing, setEditing] = useState<ExerciseProgress | null>(null);
+  const [tab, setTab] = useState('progreso');
+  const [heroName, setHeroName] = useState<string | null>(null);
+  const [detail, setDetail] = useState<string | null>(null);
+  const [filter, setFilter] = useState('all');
   const hasActivePlan = useHasActivePlan(user?.id);
+  const canEdit = hasActivePlan === true;
 
   useEffect(() => {
     if (!user) return;
     setFailed(false);
-    Promise.all([
-      api.get(`/exercises/patient/${user.id}`),
-      api.get(`/exercises/list/${user.id}`),
-    ]).then(([exRes, listRes]) => {
-      setExercises(exRes.data.data.exercises || []);
-      setExerciseNames(listRes.data.data.exercises || []);
-    // Si falla la carga se avisa: antes se mostraba como si no hubiera ejercicios
-    }).catch(() => setFailed(true))
+    api
+      .get(`/exercises/patient/${user.id}`)
+      .then((res) => setExercises(res.data.data.exercises || []))
+      // Si falla la carga se avisa: antes se mostraba como si no hubiera ejercicios
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, [user, refreshKey]);
 
@@ -52,8 +54,6 @@ const ExercisesEnhanced = () => {
     setLoading(true);
     setRefreshKey((k) => k + 1);
   };
-
-  const canEdit = hasActivePlan === true;
 
   const handleDelete = async (ex: ExerciseProgress) => {
     try {
@@ -66,64 +66,55 @@ const ExercisesEnhanced = () => {
     }
   };
 
-  const filtered = selectedExercise === 'all'
-    ? exercises
-    : exercises.filter((e) => e.exerciseName === selectedExercise);
+  const names = useMemo(() => exercisesByFrequency(exercises), [exercises]);
+  const byName = useMemo(() => {
+    const map = new Map<string, ExerciseProgress[]>();
+    exercises.forEach((e) => map.set(e.exerciseName, [...(map.get(e.exerciseName) ?? []), e]));
+    return map;
+  }, [exercises]);
+  // Solo los ejercicios con peso registrado tienen progresión de carga
+  const withLoad = names.filter((n) => weightSeries(byName.get(n) ?? []).length > 0);
+  const hero = withLoad.includes(heroName ?? '') ? (heroName as string) : withLoad[0];
+  const heroPoints = hero ? weightSeries(byName.get(hero) ?? []) : [];
+  const heroUnit = hero ? byName.get(hero)?.find((e) => e.weightUnit)?.weightUnit ?? 'kg' : 'kg';
+  const heroSummary = hero ? summarize(heroPoints, heroUnit, 1) : null;
+  const heroBest = heroPoints.length > 0 ? Math.max(...heroPoints.map((p) => p.value)) : null;
+  const heroLast = hero ? [...(byName.get(hero) ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
+  const volume = totalVolumeTons(exercises);
+  const unitOf = (name: string) => byName.get(name)?.find((e) => e.weightUnit)?.weightUnit ?? 'kg';
 
-  // Group exercises by name for charts
-  const groupedExercises: Record<string, ExerciseProgress[]> = {};
-  exercises.forEach(ex => {
-    if (!groupedExercises[ex.exerciseName]) {
-      groupedExercises[ex.exerciseName] = [];
-    }
-    groupedExercises[ex.exerciseName].push(ex);
-  });
-
-  // Get top 6 exercises by frequency
-  const topExercises = Object.entries(groupedExercises)
-    .sort((a, b) => b[1].length - a[1].length)
-    .slice(0, 6)
-    .map(([name]) => name);
-
-  // Calculate stats
-  const totalSessions = exercises.length;
-  const uniqueExercises = exerciseNames.length;
-  const totalVolume = exercises.reduce((sum, ex) => {
-    if (ex.sets && ex.reps && ex.weight) {
-      return sum + (ex.sets * ex.reps * ex.weight);
-    }
-    return sum;
-  }, 0);
+  const registerButton = (
+    <PatientRecordDialog label="Registrar ejercicio" title="Registrar ejercicio" description="Anota el ejercicio, el peso y las repeticiones que hiciste.">
+      {(close) => (
+        <ExerciseForm
+          patientId={user!.id}
+          embedded
+          onSuccess={() => {
+            close();
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
+    </PatientRecordDialog>
+  );
 
   if (loading) {
     return (
       <PageSkeleton label="Cargando tus ejercicios…">
-        <StatsSkeleton count={3} />
         <CardsSkeleton count={2} bodyHeight="h-56" />
       </PageSkeleton>
     );
   }
 
+  const historyRows = (filter === 'all' ? exercises : exercises.filter((e) => e.exerciseName === filter)).slice().sort((a, b) => b.date.localeCompare(a.date));
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Progreso de ejercicios"
-        description="Monitorea tu evolución en cada ejercicio"
-        actions={
-          <PatientRecordDialog
-            label="Registrar ejercicio"
-            title="Registrar ejercicio"
-            description="Anota el ejercicio, el peso y las repeticiones que hiciste."
-          >
-            {(close) => (
-              <ExerciseForm
-                patientId={user!.id}
-                embedded
-                onSuccess={() => { close(); setRefreshKey((k) => k + 1); }}
-              />
-            )}
-          </PatientRecordDialog>
-        }
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <PageTitle
+        eyebrow="Ejercicios"
+        title={<>Tu fuerza,<br />tu progreso</>}
+        description={exercises.length > 0 ? `${exercises.length} ${exercises.length === 1 ? 'registro' : 'registros'} · ${names.length} ${names.length === 1 ? 'ejercicio' : 'ejercicios'}${volume > 0 ? ` · ${formatValue(volume, 1)} ton movidas` : ''}` : undefined}
+        actions={exercises.length > 0 ? registerButton : undefined}
       />
 
       {failed && (
@@ -138,150 +129,144 @@ const ExercisesEnhanced = () => {
         </Alert>
       )}
 
+      {exercises.length === 0 && !failed ? (
+        <EmptyGuide
+          icon={Dumbbell}
+          title="Tu primera marca está por llegar"
+          description="Aquí verás cómo evoluciona la carga de cada ejercicio. Tu kinesiólogo los registra en tus sesiones y, con tu plan activo, tú también puedes anotarlos."
+          action={registerButton}
+          preview={[
+            { icon: TrendingUp, title: 'Progresión de carga', text: 'Cada ejercicio con su gráfico por fecha' },
+            { icon: Medal, title: 'Tus mejores marcas', text: 'El mayor peso que has levantado' },
+            { icon: Dumbbell, title: 'Historial', text: 'Series, repeticiones y peso de cada sesión' },
+          ]}
+        />
+      ) : (
+        <SegmentedTabs
+          ariaLabel="Qué quieres ver"
+          value={tab}
+          onValueChange={setTab}
+          items={[
+            { value: 'progreso', label: 'Progreso' },
+            { value: 'historial', label: 'Historial' },
+          ]}
+        >
+          {[
+            <div key="progreso" className="space-y-5">
+              {hero && heroSummary ? (
+                <section aria-label={hero} className={cn('rounded-[24px] border p-4 pb-3 min-[375px]:p-5 min-[375px]:pb-4', HERO_SURFACE)}>
+                  <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>Ejercicio destacado</p>
+                  <h2 className="mt-1 text-xl font-bold tracking-tight text-[#fff8e4]">{hero}</h2>
+                  <div className="mt-2 flex items-end justify-between gap-3">
+                    <p className="text-[3rem] font-extrabold leading-none tracking-tight tabular-nums text-[#fff8e4]">
+                      {formatValue(heroSummary.last.value, 1)}
+                      <span className="ml-1.5 text-xl font-bold text-[#fff8e4]/65">{heroUnit}</span>
+                    </p>
+                    {heroSummary.count > 1 && <span className="mb-1 shrink-0 rounded-full border border-[#fff8e4]/20 bg-[#fff8e4]/[0.06] px-3 py-1 text-[13px] font-semibold text-[#fff8e4]">{heroSummary.changeText}</span>}
+                  </div>
+                  <p className="mt-1.5 text-sm text-[#fff8e4]/72">
+                    {heroLast ? `Última sesión · ${heroLast.sets ?? '–'} series × ${heroLast.reps ?? '–'} reps` : 'Último registro'}
+                    {heroBest !== null && heroSummary.count > 1 ? ` · mejor marca ${formatValue(heroBest, 1)} ${heroUnit}` : ''}
+                  </p>
+                  {heroSummary.count > 1 ? (
+                    <div className="-mx-1 mt-3">
+                      <TrendChart points={heroPoints} unit={heroUnit} decimals={1} label={`Carga de ${hero}`} height={170} />
+                    </div>
+                  ) : (
+                    <p className="my-3 rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-3 text-sm text-[#fff8e4]/75">Con un segundo registro de este ejercicio verás aquí tu progresión.</p>
+                  )}
+                  <p className="px-1 text-xs text-[#fff8e4]/62">{heroSummary.count} {heroSummary.count === 1 ? 'día con registro' : 'días con registro'} · {heroSummary.sinceText}</p>
+                  {withLoad.length > 1 && (
+                    <div role="group" aria-label="Elegir ejercicio" className="mt-3 flex flex-wrap gap-2 border-t border-[#fff8e4]/10 pt-3">
+                      {withLoad.slice(0, 6).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          aria-pressed={n === hero}
+                          onClick={() => setHeroName(n)}
+                          className={cn(
+                            'min-h-[40px] max-w-full truncate rounded-full border px-3.5 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]',
+                            n === hero ? 'border-[#398ca2] bg-[#398ca2]/25 text-[#fff8e4]' : 'border-[#fff8e4]/15 text-[#fff8e4]/70'
+                          )}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              ) : (
+                <EmptyGuide icon={TrendingUp} title="Aún no hay cargas registradas" description="Tus ejercicios están registrados, pero sin peso. Cuando se anote el peso de cada uno, verás aquí su progresión." />
+              )}
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="shadow-card bg-gradient-section">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Total Sesiones</p>
-                <p className="text-3xl font-bold text-primary">{totalSessions}</p>
-              </div>
-              <Dumbbell className="w-10 h-10 text-primary/30" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-card bg-gradient-section">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Ejercicios Únicos</p>
-                <p className="text-3xl font-bold text-primary">{uniqueExercises}</p>
-              </div>
-              <BarChart3 className="w-10 h-10 text-primary/30" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-card bg-gradient-section">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Volumen Total</p>
-                <p className="text-3xl font-bold text-primary">{(totalVolume / 1000).toFixed(1)}<span className="text-lg ml-1">ton</span></p>
-              </div>
-              <Award className="w-10 h-10 text-primary/30" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              {withLoad.length > 0 && (
+                <section aria-labelledby="ej-title" className="space-y-3">
+                  <h2 id="ej-title" className="px-1 text-lg font-bold tracking-tight text-[#fff8e4]">Tus ejercicios</h2>
+                  <div className="grid grid-cols-2 gap-3">
+                    {withLoad.map((n) => {
+                      const pts = weightSeries(byName.get(n) ?? []);
+                      const u = unitOf(n);
+                      const s = summarize(pts, u, 1)!;
+                      return (
+                        <MetricTile
+                          key={n}
+                          label={n}
+                          value={formatValue(s.last.value, Number.isInteger(s.last.value) ? 0 : 1)}
+                          unit={u}
+                          values={pts.map((p) => p.value)}
+                          caption={s.count > 1 ? `${s.changeText} ${s.sinceText}` : 'Primer registro'}
+                          ariaLabel={`${n}: ${formatValue(s.last.value, 1)} ${u}. ${s.count > 1 ? `${s.changeText} ${s.sinceText}.` : 'Primer registro.'} Ver detalle`}
+                          onClick={() => setDetail(n)}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </div>,
 
-      {/* Tabs */}
-      <Tabs defaultValue="progress" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="progress" className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            <span>Gráficos de Progreso</span>
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            <span>Historial</span>
-          </TabsTrigger>
-        </TabsList>
+            <div key="historial" className="space-y-3">
+              <Select value={filter} onValueChange={setFilter}>
+                <SelectTrigger aria-label="Filtrar por ejercicio" className="min-h-[48px] rounded-2xl border-[#fff8e4]/15 bg-[#fff8e4]/[0.04] text-[#fff8e4]">
+                  <SelectValue placeholder="Filtrar ejercicio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los ejercicios</SelectItem>
+                  {names.map((n) => (
+                    <SelectItem key={n} value={n}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {historyRows.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-6 text-center text-sm text-[#fff8e4]/70">No hay ejercicios para mostrar.</p>
+              ) : (
+                <ul className={cn(CARD, 'divide-y divide-[#fff8e4]/10 px-4')}>
+                  {historyRows.map((ex) => (
+                    <li key={ex._id} className="flex items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-semibold text-[#fff8e4]">{ex.exerciseName}</p>
+                        <p className="text-[13px] text-[#fff8e4]/70">
+                          {longDate(ex.date)}
+                          {ex.rpe ? ` · esfuerzo ${ex.rpe}/10` : ''}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <p className="text-right text-[15px] font-bold tabular-nums text-[#fff8e4]">
+                          {ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ''}
+                          {ex.weight ? <span className="block text-[13px] font-semibold text-[#7cc0d2]">{ex.weight} {ex.weightUnit}</span> : null}
+                        </p>
+                        {canEdit && <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>,
+          ]}
+        </SegmentedTabs>
+      )}
 
-        {/* Progress Charts Tab */}
-        <TabsContent value="progress" className="space-y-6">
-          {topExercises.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2">
-              {topExercises.map(exerciseName => {
-                const exerciseData = groupedExercises[exerciseName]
-                  .filter(ex => ex.weight)
-                  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                  .map(ex => ({
-                    date: ex.date,
-                    weight: ex.weight!,
-                    reps: ex.reps,
-                    sets: ex.sets,
-                  }));
-
-                return (
-                  <ExerciseProgressChart
-                    key={exerciseName}
-                    exerciseName={exerciseName}
-                    data={exerciseData}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="py-20 text-center">
-                <Dumbbell className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  No hay ejercicios registrados
-                </h3>
-                <p className="text-muted-foreground">
-                  Tu kinesiólogo registrará tus ejercicios durante las sesiones
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* History Table Tab */}
-        <TabsContent value="history" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Historial Completo</h2>
-              <p className="text-sm text-muted-foreground">Filtra por ejercicio para ver detalles</p>
-            </div>
-            <Select value={selectedExercise} onValueChange={setSelectedExercise}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Filtrar ejercicio" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los ejercicios</SelectItem>
-                {exerciseNames.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {filtered.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground">No hay ejercicios para mostrar</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="shadow-card">
-              <CardContent className="p-0">
-                <DataTable
-                  caption="Ejercicios registrados"
-                  rows={filtered}
-                  rowKey={(ex) => ex._id}
-                  columns={[
-                    { key: 'date', header: 'Fecha', cell: (ex) => format(parseISO(ex.date), 'dd/MM/yyyy') },
-                    { key: 'name', header: 'Ejercicio', cell: (ex) => <span className="font-semibold">{ex.exerciseName}</span>, primary: true },
-                    { key: 'category', header: 'Categoría', align: 'center', cell: (ex) => <Badge variant="neutral" className="capitalize">{ex.category}</Badge> },
-                    { key: 'sets', header: 'Series', align: 'center', cell: (ex) => ex.sets || '-' },
-                    { key: 'reps', header: 'Reps', align: 'center', cell: (ex) => ex.reps || '-' },
-                    { key: 'weight', header: 'Peso', align: 'center', cell: (ex) => <span className="font-semibold text-primary">{ex.weight ? `${ex.weight} ${ex.weightUnit}` : '-'}</span> },
-                    { key: 'rpe', header: 'RPE', align: 'center', cell: (ex) => (ex.rpe ? `${ex.rpe}/10` : '-') },
-                    { key: 'rm', header: '1RM', align: 'center', cell: (ex) => <span className="font-semibold text-secondary">{ex.oneRepMax ? `${ex.oneRepMax.toFixed(1)} kg` : '-'}</span> },
-                  ]}
-                  actions={
-                    canEdit
-                      ? (ex) => <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />
-                      : undefined
-                  }
-                />
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+      {detail && <MetricDetailDrawer open onOpenChange={(open) => !open && setDetail(null)} label={detail} unit={unitOf(detail)} decimals={1} points={weightSeries(byName.get(detail) ?? [])} />}
 
       <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
@@ -295,7 +280,10 @@ const ExercisesEnhanced = () => {
               patientId={user!.id}
               record={editing}
               embedded
-              onSuccess={() => { setEditing(null); setRefreshKey((k) => k + 1); }}
+              onSuccess={() => {
+                setEditing(null);
+                setRefreshKey((k) => k + 1);
+              }}
             />
           )}
         </DialogContent>
@@ -304,4 +292,4 @@ const ExercisesEnhanced = () => {
   );
 };
 
-export default ExercisesEnhanced;
+export default ExercisesPage;

@@ -15,6 +15,8 @@ import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import ReadinessBars from './ReadinessBars';
 import { readinessStatusOf, type ReadinessTodayStatus } from './readinessStatus';
 import { RESERVED, SkeletonBones } from '@/components/dashboard/CardSkeleton';
+import { HERO_SURFACE } from '@/components/dashboard/brand';
+import { cn } from '@/lib/utils';
 import { withTimeout } from '@/lib/withTimeout';
 import { READINESS_QUESTIONS, METRIC_LABELS, STATUS_STYLES, formatScore } from './readinessConfig';
 import type { WellnessCheckin, ReadinessKey } from '@/types';
@@ -259,11 +261,11 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
   if (!hasActivePlan && compact) return null;
   if (!hasActivePlan) {
     return (
-      <Card className="border-2 border-secondary/30 bg-secondary/5">
+      <Card className={cn('rounded-[24px] border', HERO_SURFACE)}>
         {header}
         <CardContent className="space-y-3">
-          <p className="text-sm text-destructive font-medium">
-            Tu plan venció. Contacta a Prime F&H para renovar y poder registrar tu check-in.
+          <p className="text-sm font-medium text-[#fff8e4]/85">
+            Para registrar tu check-in necesitas un plan activo. Contacta a Prime F&H para activarlo o renovarlo.
           </p>
           <Button
             className="bg-[#25D366] hover:bg-[#20BD5C] text-background"
@@ -301,7 +303,7 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
   }
   if (step === null) {
     return (
-      <Card className="border-2 border-secondary/30 bg-secondary/5">
+      <Card className={cn('rounded-[24px] border', HERO_SURFACE)}>
         {header}
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
@@ -319,7 +321,7 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
   // --- Última pantalla: notas y guardar ---
   if (step >= TOTAL) {
     return (
-      <Card className="border-2 border-secondary/30 bg-secondary/5">
+      <Card className={cn('rounded-[24px] border', HERO_SURFACE)}>
         {header}
         <CardContent>
          <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
@@ -352,7 +354,7 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
   const current = pressed[question.key];
 
   return (
-    <Card className="border-2 border-secondary/30 bg-secondary/5">
+    <Card className={cn('rounded-[24px] border', HERO_SURFACE)}>
       {header}
       <CardContent className="space-y-5">
         <div className="flex items-center justify-between">
@@ -365,17 +367,17 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
             <ArrowLeft className="h-4 w-4 mr-1" />
             Atrás
           </Button>
-          <div className="flex items-center gap-1.5" aria-label={`Pregunta ${step + 1} de ${TOTAL}`}>
+          <div role="img" className="flex items-center gap-1.5" aria-label={`Pregunta ${step + 1} de ${TOTAL}`}>
             {READINESS_QUESTIONS.map((q, i) => (
               <span
                 key={q.key}
-                className={`h-1.5 w-6 rounded-full ${i <= step ? 'bg-primary' : 'bg-muted'}`}
+                className={`h-1.5 w-6 rounded-full ${i <= step ? 'bg-[#398ca2]' : 'bg-[#fff8e4]/15'}`}
               />
             ))}
           </div>
         </div>
 
-        <h3 className="text-center text-xl font-bold text-foreground">{question.title}</h3>
+        <h3 className="text-center text-2xl font-extrabold leading-tight tracking-tight text-[#fff8e4]">{question.title}</h3>
 
         <div className="mx-auto grid max-w-xs grid-cols-3 gap-y-3">
           {NUMBERS.map((n) => (
@@ -383,8 +385,8 @@ const WellnessCheckinCard = ({ hasActivePlan, onStatusChange, planStatus = 'read
               <button
                 type="button"
                 onClick={() => handlePress(n)}
-                className={`flex h-16 w-full items-center justify-center rounded-xl text-4xl font-light transition-colors hover:bg-secondary/20 active:bg-secondary/30 ${
-                  current === n ? 'bg-primary/20 text-secondary' : 'text-foreground'
+                className={`flex h-16 w-full items-center justify-center rounded-2xl border text-4xl font-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4] ${
+                  current === n ? 'border-[#398ca2] bg-[#398ca2]/25 text-[#fff8e4]' : 'border-transparent text-[#fff8e4] hover:bg-[#fff8e4]/[0.06] active:bg-[#398ca2]/20'
                 }`}
                 aria-label={`${n}${n === 1 ? ` — ${question.atOne}` : n === 9 ? ` — ${question.atNine}` : ''}`}
               >

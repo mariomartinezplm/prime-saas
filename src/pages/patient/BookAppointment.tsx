@@ -22,7 +22,9 @@ import { MIN_BOOKING_AHEAD_HOURS, PATIENT_CANCEL_AHEAD_HOURS } from '@/config/bo
 import { capitalizeFirst } from '@/lib/utils';
 import LoadingState from '@/components/shared/LoadingState';
 import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
-import PageHeader from '@/components/shared/PageHeader';
+import PageTitle from '@/components/premium/PageTitle';
+import { HERO_SURFACE } from '@/components/dashboard/brand';
+import { cn } from '@/lib/utils';
 import type { User, SessionBalance, AvailableSlots } from '@/types';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 
@@ -254,9 +256,7 @@ const BookAppointment = () => {
       sessionCounter: formatPlanUsage(plan),
       canBook,
       blockMessage: !canBook ? 'Has completado todas tus sesiones. Contacta a Prime F&H para renovar tu plan.' : null,
-      color: canBook
-        ? (plan.serviceType === 'kinesiologia' ? 'border-primary/40 bg-primary/10' : 'border-info/40 bg-info/10')
-        : 'border-destructive/40 bg-destructive/10',
+      color: canBook ? HERO_SURFACE : 'border-[#fff8e4]/15 bg-[#fff8e4]/[0.04]',
       progressPercent: unlimited ? 0 : (plan.sessionsUsed / plan.sessionsTotal) * 100
     };
   };
@@ -273,7 +273,7 @@ const BookAppointment = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Reservar hora" description="Reserva tus sesiones con tu kinesiólogo" />
+      <PageTitle eyebrow="Reservar hora" title={<>Elige tu próxima<br />sesión</>} description="Reserva con tu kinesiólogo. Todas las horas son de Chile." />
 
       {balance?.paymentPending && balance.paymentDueBy && (
         <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />
@@ -281,14 +281,14 @@ const BookAppointment = () => {
 
       {/* ─── Banner de Estado del Plan con Contador de Sesiones ─── */}
       {planInfo ? (
-        <Card className={`border-2 ${planInfo.color}`}>
+        <Card className={cn('rounded-[22px] border', planInfo.color)}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
                 {planInfo.canBook ? (
-                  <CheckCircle className="w-6 h-6 text-success" />
+                  <CheckCircle className="w-6 h-6 text-[#7cc0d2]" />
                 ) : (
-                  <Ban className="w-6 h-6 text-destructive" />
+                  <Ban className="w-6 h-6 text-[#fff8e4]/70" />
                 )}
                 <div>
                   <p className="font-semibold text-sm">{planInfo.label}</p>
@@ -302,7 +302,7 @@ const BookAppointment = () => {
                   <div className="text-right">
                     <p className="text-xs font-medium text-muted-foreground">{planInfo.sessionCounter}</p>
                     <div
-                      className="w-32 h-2 bg-muted rounded-full mt-1 overflow-hidden"
+                      className="w-32 h-2 bg-[#fff8e4]/12 rounded-full mt-1 overflow-hidden"
                       role="progressbar"
                       aria-label="Sesiones usadas del plan"
                       aria-valuemin={0}
@@ -310,8 +310,7 @@ const BookAppointment = () => {
                       aria-valuenow={Math.round(Math.min(planInfo.progressPercent, 100))}
                     >
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${planInfo.progressPercent >= 80 ? 'bg-destructive' : planInfo.progressPercent >= 50 ? 'bg-warning' : 'bg-success'
-                          }`}
+                        className="h-full rounded-full bg-[#398ca2] transition-all duration-500 motion-reduce:transition-none"
                         style={{ width: `${Math.min(planInfo.progressPercent, 100)}%` }}
                       />
                     </div>
@@ -321,7 +320,7 @@ const BookAppointment = () => {
             </div>
 
             {planInfo.blockMessage && (
-              <div className="mt-3 flex items-center gap-2 p-3 bg-destructive/10 rounded-lg text-destructive text-sm">
+              <div className="mt-3 flex items-center gap-2 rounded-2xl bg-[#fff8e4]/[0.06] p-3 text-sm text-[#fff8e4]">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 {planInfo.blockMessage}
               </div>
@@ -329,13 +328,13 @@ const BookAppointment = () => {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-2 border-warning/40 bg-warning/10">
+        <Card className="rounded-[22px] border border-[#fff8e4]/15 bg-[#fff8e4]/[0.04]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-warning" />
+              <AlertCircle className="w-6 h-6 text-[#7cc0d2]" />
               <div>
-                <p className="font-semibold text-sm text-warning">No tienes un plan activo</p>
-                <p className="text-xs text-warning">
+                <p className="font-semibold text-sm text-[#fff8e4]">Aún no tienes un plan activo</p>
+                <p className="text-xs text-[#fff8e4]/75">
                   Contacta al equipo de Prime F&H para activar tu plan y poder agendar sesiones.
                 </p>
               </div>
@@ -352,13 +351,13 @@ const BookAppointment = () => {
           onSelect={setSelectedProfessional}
         />
       ) : (
-        <Card className="border-2 border-destructive/40 bg-destructive/10">
+        <Card className="rounded-[22px] border border-[#fff8e4]/15 bg-[#fff8e4]/[0.04]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-destructive" />
+              <AlertCircle className="w-6 h-6 text-[#7cc0d2]" />
               <div>
-                <p className="font-semibold text-sm text-destructive">No tienes un kinesiólogo asignado</p>
-                <p className="text-xs text-destructive">
+                <p className="font-semibold text-sm text-[#fff8e4]">Aún no tienes un kinesiólogo asignado</p>
+                <p className="text-xs text-[#fff8e4]/75">
                   Debes tener un profesional asignado (desde tu ingreso en recepción) para poder agendar. Contacta al equipo de Prime F&H.
                 </p>
               </div>
@@ -378,9 +377,9 @@ const BookAppointment = () => {
                   type="button"
                   aria-pressed={bookingMode === 'single'}
                   onClick={() => setBookingMode('single')}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'single'
-                    ? 'border-primary bg-primary/10 shadow-sm'
-                    : 'border-border hover:border-muted-foreground/40'
+                  className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${bookingMode === 'single'
+                    ? 'border-[#398ca2] bg-[#398ca2]/15'
+                    : 'border-[#fff8e4]/12 hover:border-[#fff8e4]/30'
                     }`}
                 >
                   <CalendarIcon className={`w-5 h-5 ${bookingMode === 'single' ? 'text-secondary' : 'text-muted-foreground'}`} aria-hidden="true" />
@@ -399,9 +398,9 @@ const BookAppointment = () => {
                     setBookingMode('recurring');
                     if (balance?.hasActivePlan) setShowBulk(true);
                   }}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${bookingMode === 'recurring'
-                    ? 'border-primary bg-primary/10 shadow-sm'
-                    : 'border-border hover:border-muted-foreground/40'
+                  className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${bookingMode === 'recurring'
+                    ? 'border-[#398ca2] bg-[#398ca2]/15'
+                    : 'border-[#fff8e4]/12 hover:border-[#fff8e4]/30'
                     }`}
                 >
                   <Repeat className={`w-5 h-5 ${bookingMode === 'recurring' ? 'text-secondary' : 'text-muted-foreground'}`} aria-hidden="true" />
@@ -495,7 +494,7 @@ const BookAppointment = () => {
           )}
 
           {/* ─── Rules Info Card ─── */}
-          <Card className="border border-primary/30 bg-primary/5">
+          <Card className="rounded-[22px] border border-[#fff8e4]/10 bg-[#fff8e4]/[0.03]">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" aria-hidden="true" />

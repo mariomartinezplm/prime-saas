@@ -2,18 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { addHours, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarClock, CalendarPlus, CalendarX, History, TriangleAlert, X } from 'lucide-react';
+import { CalendarClock, CalendarPlus, TriangleAlert, X } from 'lucide-react';
 import { appointmentService } from '@/services/appointmentService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import CancelScopeChoice, { type CancelScope } from '@/components/booking/CancelScopeChoice';
 import DateBadge from '@/components/shared/DateBadge';
-import EmptyState from '@/components/shared/EmptyState';
+import EmptyGuide from '@/components/premium/EmptyGuide';
+import SegmentedTabs from '@/components/premium/SegmentedTabs';
+import { CARD, HERO_SURFACE } from '@/components/dashboard/brand';
 import { ListSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
-import PageHeader from '@/components/shared/PageHeader';
+import PageTitle from '@/components/premium/PageTitle';
 import { AppointmentStatusBadge } from '@/components/shared/StatusBadge';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { PATIENT_CANCEL_AHEAD_HOURS } from '@/config/bookingRules';
@@ -49,45 +50,47 @@ const AppointmentCard = ({
     }
   };
 
+  const professional = typeof apt.professional === 'object' ? personName(apt.professional, '') : '';
   return (
     <li
       className={cn(
-        'flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between',
-        highlight ? 'border-primary/50 bg-primary/5' : 'border-border bg-card',
+        'flex flex-col gap-4 p-4 min-[375px]:p-5',
+        highlight ? cn('rounded-[24px] border', HERO_SURFACE) : cn(CARD, 'p-4'),
         (apt.status === 'cancelled' || apt.status === 'no-show') && 'opacity-80'
       )}
     >
-      <div className="flex min-w-0 items-center gap-4">
-        <DateBadge date={parseDay(apt.date)} />
-        <div className="min-w-0 space-y-1">
-        {highlight && <p className="text-xs font-semibold uppercase tracking-wider text-secondary">Próxima sesión</p>}
-        <p className="font-medium">{capitalizeFirst(format(parseDay(apt.date), "EEEE d 'de' MMMM", { locale: es }))}</p>
-        <p className="text-sm tabular-nums text-muted-foreground">
-          {apt.startTime} – {apt.endTime}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {appointmentTypeLabels[apt.type]}
-          {apt.recurringSlot && <span> · Horario fijo</span>}
-          {typeof apt.professional === 'object' && <span className="text-secondary"> · {personName(apt.professional, '')}</span>}
-        </p>
+      <div className="flex items-center justify-between gap-2">
+        {highlight ? <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7cc0d2]">Próxima sesión</p> : <span aria-hidden="true" />}
+        <AppointmentStatusBadge status={apt.status} />
+      </div>
+      <div className="flex min-w-0 items-start gap-4">
+        <DateBadge date={parseDay(apt.date)} className={cn('border-[#398ca2]/50 bg-[#181619]/55 text-[#fff8e4] [&>span:first-child]:text-[#7cc0d2]', highlight ? 'h-[4.75rem] w-[4rem] [&>span:last-child]:text-[30px] [&>span:last-child]:font-extrabold' : '')} />
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-[15px] font-semibold text-[#fff8e4]">{capitalizeFirst(format(parseDay(apt.date), "EEEE d 'de' MMMM", { locale: es }))}</p>
+          <p className={cn('whitespace-nowrap font-extrabold tabular-nums tracking-tight text-[#fff8e4]', highlight ? 'text-[1.5rem] leading-none' : 'text-lg')}>
+            {apt.startTime} – {apt.endTime}
+          </p>
+          <p className="text-[13px] text-[#fff8e4]/72">
+            {appointmentTypeLabels[apt.type]}
+            {apt.recurringSlot && <span> · Horario fijo</span>}
+            {professional && <span> · con {professional}</span>}
+          </p>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <AppointmentStatusBadge status={apt.status} />
-        {apt.status === 'scheduled' && (
-          <Button variant="outline" size="sm" onClick={addToCalendar} disabled={downloading}>
+      {(apt.status === 'scheduled') && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={addToCalendar} disabled={downloading} className="min-h-[44px] flex-1 border-[#fff8e4]/20 text-[#fff8e4] hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4]">
             <CalendarPlus aria-hidden="true" />
-            <span className="sr-only sm:not-sr-only">Agregar a mi calendario</span>
-            <span className="sr-only sm:hidden">calendario</span>
+            Agregar a mi calendario
           </Button>
-        )}
-        {canCancel && (
-          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => onCancel(apt)}>
-            <X aria-hidden="true" />
-            Cancelar
-          </Button>
-        )}
-      </div>
+          {canCancel && (
+            <Button variant="outline" onClick={() => onCancel(apt)} className="min-h-[44px] border-[#fff8e4]/20 text-[#fff8e4]/85 hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4]">
+              <X aria-hidden="true" />
+              Cancelar
+            </Button>
+          )}
+        </div>
+      )}
     </li>
   );
 };
@@ -98,6 +101,7 @@ const MyAppointments = () => {
   const [failed, setFailed] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
   const [scope, setScope] = useState<CancelScope>('this');
+  const [tab, setTab] = useState('upcoming');
   const [reason, setReason] = useState('');
 
   const load = useCallback(async () => {
@@ -164,12 +168,13 @@ const MyAppointments = () => {
     );
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Mis citas"
-        description="Gestiona tus sesiones"
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <PageTitle
+        eyebrow="Mis citas"
+        title={<>Tus citas,<br />en orden</>}
+        description="Todas las horas son de Chile."
         actions={
-          <Button asChild>
+          <Button asChild className="min-h-[48px] rounded-2xl text-base font-bold">
             <Link to="/app/reservar">
               <CalendarPlus aria-hidden="true" />
               Reservar hora
@@ -190,36 +195,35 @@ const MyAppointments = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="upcoming">
-        <TabsList>
-          <TabsTrigger value="upcoming">Próximas ({upcoming.length})</TabsTrigger>
-          <TabsTrigger value="past">Historial ({past.length})</TabsTrigger>
-          <TabsTrigger value="cancelled">Canceladas ({cancelled.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="upcoming" className="mt-4">
-          {renderList(
+      <SegmentedTabs
+        ariaLabel="Tus citas"
+        value={tab}
+        onValueChange={setTab}
+        items={[
+          { value: 'upcoming', label: `Próximas (${upcoming.length})` },
+          { value: 'past', label: `Historial (${past.length})` },
+          { value: 'cancelled', label: `Canceladas (${cancelled.length})` },
+        ]}
+      >
+        {[
+          renderList(
             upcoming,
-            <EmptyState
+            <EmptyGuide
               icon={CalendarClock}
-              title="No tienes citas próximas"
-              description="Reserva tu próxima sesión cuando quieras."
+              title="Tu próxima sesión comienza aquí"
+              description="No tienes citas agendadas. Reserva cuando quieras: verás aquí la fecha, la hora y con quién."
               action={
-                <Button asChild size="sm">
+                <Button asChild className="min-h-[48px] rounded-2xl text-base font-bold">
                   <Link to="/app/reservar">Reservar hora</Link>
                 </Button>
               }
             />,
             true
-          )}
-        </TabsContent>
-        <TabsContent value="past" className="mt-4">
-          {renderList(past, <EmptyState icon={History} title="Todavía no tienes citas anteriores" />)}
-        </TabsContent>
-        <TabsContent value="cancelled" className="mt-4">
-          {renderList(cancelled, <EmptyState icon={CalendarX} title="No tienes citas canceladas" />)}
-        </TabsContent>
-      </Tabs>
+          ),
+          renderList(past, <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-8 text-center text-sm text-[#fff8e4]/72">Todavía no tienes citas anteriores. Aquí quedará el historial de tus sesiones.</p>),
+          renderList(cancelled, <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-8 text-center text-sm text-[#fff8e4]/72">No tienes citas canceladas.</p>),
+        ]}
+      </SegmentedTabs>
 
       <ConfirmDialog
         open={!!cancelling}

@@ -13,7 +13,7 @@ interface Tab {
 const TABS: Tab[] = [
   { to: '/app/dashboard', label: 'Inicio', icon: Home, match: ['/app/dashboard'] },
   { to: '/app/mis-citas', label: 'Mis citas', icon: CalendarCheck, match: ['/app/mis-citas', '/app/reservar'] },
-  { to: '/app/mediciones', label: 'Progreso', icon: Activity, match: ['/app/mediciones', '/app/ejercicios', '/app/fotos', '/app/dolor', '/app/logros'] },
+  { to: '/app/progreso', label: 'Progreso', icon: Activity, match: ['/app/progreso', '/app/mediciones', '/app/ejercicios', '/app/fotos', '/app/dolor', '/app/logros'] },
   { to: '/app/mi-perfil', label: 'Perfil', icon: UserRound, match: ['/app/mi-perfil'] },
 ];
 
