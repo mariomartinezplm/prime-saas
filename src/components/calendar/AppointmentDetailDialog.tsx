@@ -27,6 +27,10 @@ interface AppointmentDetailDialogProps {
   onClose: () => void;
   // Se llama tras cancelar o cambiar el estado, para recargar la agenda
   onChanged: () => void;
+  // Desde la ficha del paciente el personal ya tiene acceso a ese paciente: puede gestionar sus citas aunque sean de otro profesional
+  canManageAny?: boolean;
+  // Abre directo la confirmación (Cancelar o Eliminar), sin pasar por el detalle
+  initialAction?: 'cancel' | 'delete';
 }
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -36,9 +40,9 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
   </div>
 );
 
-const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: AppointmentDetailDialogProps) => {
+const AppointmentDetailDialog = ({ appointment, onClose, onChanged, canManageAny = false, initialAction }: AppointmentDetailDialogProps) => {
   const { user } = useAuth();
-  const [pending, setPending] = useState<PendingAction>(null);
+  const [pending, setPending] = useState<PendingAction>(initialAction ?? null);
   const [reason, setReason] = useState('');
   const [scope, setScope] = useState<CancelScope>('this');
   const [syncing, setSyncing] = useState(false);
@@ -48,7 +52,7 @@ const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: Appointmen
   const patientId = personId(appointment.patient);
   const isMine = personId(appointment.professional) === user?.id;
   // El profesional gestiona sus propias citas; el admin, todas
-  const canManage = user?.role === 'admin' || isMine;
+  const canManage = user?.role === 'admin' || isMine || canManageAny;
   const isScheduled = appointment.status === 'scheduled';
   const hasStarted = appointmentStart(appointment) <= new Date();
 
@@ -111,7 +115,7 @@ const AppointmentDetailDialog = ({ appointment, onClose, onChanged }: Appointmen
 
   return (
     <>
-      <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={!initialAction} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex flex-wrap items-center gap-2">

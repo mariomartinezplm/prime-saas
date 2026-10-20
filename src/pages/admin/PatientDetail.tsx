@@ -43,6 +43,7 @@ import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import EditPatientDialog from '@/components/forms/EditPatientDialog';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
 import FixedScheduleDialog from '@/components/booking/FixedScheduleDialog';
+import AppointmentDetailDialog from '@/components/calendar/AppointmentDetailDialog';
 import FounderBadge from '@/components/plans/FounderBadge';
 import { DetailList, DetailRow } from '@/components/patients/DetailList';
 import PlanLine from '@/components/patients/PlanLine';
@@ -54,7 +55,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import { ActiveStatusBadge, AppointmentStatusBadge, InviteStatusBadge, StatusBadge } from '@/components/shared/StatusBadge';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress, formatPaymentDeadline } from '@/config/planCatalog';
-import { parseDay } from '@/lib/appointments';
+import { appointmentStart, parseDay } from '@/lib/appointments';
 import { showApiError } from '@/lib/apiError';
 import { todayLocal } from '@/lib/evolutionDate';
 import { infoFromBalance } from '@/lib/patientPlan';
@@ -84,6 +85,9 @@ const PatientDetail = () => {
   const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [balance, setBalance] = useState<SessionBalance | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  // Próximas = agendadas que aún no empiezan (la más cercana primero); historial = el resto (la más reciente primero)
+  const upcomingApts = appointments.filter((a) => a.status === 'scheduled' && appointmentStart(a) > new Date()).sort((a, b) => appointmentStart(a).getTime() - appointmentStart(b).getTime());
+  const pastApts = appointments.filter((a) => !upcomingApts.includes(a)).sort((a, b) => appointmentStart(b).getTime() - appointmentStart(a).getTime());
   const [tab, setTab] = useState('profile');
   // Cambiar de sección descarta lo escrito en la anterior: si hay un formulario a medias, se pregunta
   const { confirmLeave } = useUnsavedChangesApi();
@@ -95,17 +99,18 @@ const PatientDetail = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [manageApt, setManageApt] = useState<{ apt: Appointment; action?: 'cancel' | 'delete' } | null>(null);
   const navigate = useNavigate();
   const [recordsKey, setRecordsKey] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    // El perfil es imprescindible; el saldo y las citas se muestran si llegan. Las citas se piden
-    // desde hoy y ya filtradas por este paciente en el servidor.
+    // El perfil es imprescindible; el saldo y las citas se muestran si llegan. Se piden TODAS las citas de este paciente
+    // (próximas, realizadas y canceladas), ya filtradas en el servidor, para poder corregir o borrar cualquiera.
     const [prof, bal, apts] = await Promise.allSettled([
       userService.getPatientProfile(id),
       clientPlanService.getBalance(id),
-      appointmentService.getAll({ status: 'scheduled', from: todayLocal(), patient: id }),
+      appointmentService.getAll({ patient: id }),
     ]);
 
     if (prof.status === 'rejected') {
@@ -401,8 +406,16 @@ const PatientDetail = () => {
               }
             />
           ) : (
-            <ul className="space-y-2">
-              {appointments.map((apt) => (
+            <div className="space-y-5">
+              {[
+                { title: 'Próximas', list: upcomingApts },
+                { title: 'Historial', list: pastApts },
+              ].map(({ title, list }) =>
+                list.length === 0 ? null : (
+                  <section key={title} aria-label={title} className="space-y-2">
+                    <h3 className="text-sm font-semibold text-muted-foreground">{title} ({list.length})</h3>
+                    <ul className="space-y-2">
+              {list.map((apt) => (
                 <li key={apt._id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
                   <div>
                     <p className="text-sm font-medium">{capitalizeFirst(format(parseDay(apt.date), "EEEE d 'de' MMMM", { locale: es }))}</p>
@@ -418,10 +431,23 @@ const PatientDetail = () => {
                     {apt.overbooked && <Badge variant="warning">Sobrecupo</Badge>}
                     {apt.outsideCapacity && <Badge variant="accent">Sobre cupo</Badge>}
                     <AppointmentStatusBadge status={apt.status} />
+                    {apt.status === 'scheduled' && (
+                      <Button size="sm" variant="outline" onClick={() => setManageApt({ apt, action: 'cancel' })}>
+                        Cancelar
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setManageApt({ apt, action: 'delete' })} aria-label={`Eliminar la cita del ${format(parseDay(apt.date), "d 'de' MMMM", { locale: es })} a las ${apt.startTime}`}>
+                      <Trash2 aria-hidden="true" />
+                      Eliminar
+                    </Button>
                   </div>
                 </li>
               ))}
-            </ul>
+                    </ul>
+                  </section>
+                )
+              )}
+            </div>
           )}
         </TabsContent>
 
@@ -561,6 +587,17 @@ const PatientDetail = () => {
           defaultType={bookingDefaultType}
           canOverbook={user?.role === 'admin' || (user?.role === 'professional' && bookingProfessionalId === user.id)}
           onBooked={fetchData}
+        />
+      )}
+
+      {manageApt && (
+        <AppointmentDetailDialog
+          key={`${manageApt.apt._id}-${manageApt.action}`}
+          appointment={manageApt.apt}
+          initialAction={manageApt.action}
+          canManageAny
+          onClose={() => setManageApt(null)}
+          onChanged={fetchData}
         />
       )}
 
