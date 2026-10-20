@@ -14,7 +14,7 @@ const NextAchievementCard = ({ view }: { view: ProgressView }) => {
   if (!next) {
     if (!earnedText) return null;
     return (
-      <Link to="/app/logros" className={cn('flex min-h-[3.5rem] items-center gap-3 rounded-2xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] px-4 py-3 transition-colors duration-150 hover:bg-[#fff8e4]/[0.07] active:bg-[#fff8e4]/10', TEXT)}>
+      <Link to="/app/logros" className={cn('flex min-h-[3.5rem] items-center gap-3 rounded-[22px] border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] px-4 py-3 transition-colors duration-150 hover:bg-[#fff8e4]/[0.07] active:bg-[#fff8e4]/10', TEXT)}>
         <Trophy className="h-5 w-5 text-[#398ca2]" aria-hidden="true" />
         <span className="flex-1 text-sm font-medium">Mis logros · {earnedText}</span>
         <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -29,7 +29,7 @@ const NextAchievementCard = ({ view }: { view: ProgressView }) => {
     <Link
       to={`/app/logros#logro-${next.key}`}
       aria-label={`Próximo logro: ${next.title}. ${detail}.${earnedText ? ` ${earnedText}.` : ''}`}
-      className="flex items-center gap-3 rounded-2xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] p-4 transition-colors duration-150 hover:bg-[#fff8e4]/[0.07] active:bg-[#fff8e4]/10"
+      className="flex items-center gap-3 rounded-[22px] border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] p-4 transition-colors duration-150 hover:bg-[#fff8e4]/[0.07] active:bg-[#fff8e4]/10"
     >
       <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#398ca2]/45 bg-[#398ca2]/15 text-[#fff8e4]">
         <Trophy className="h-5 w-5" />

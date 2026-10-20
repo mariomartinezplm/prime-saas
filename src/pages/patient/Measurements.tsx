@@ -1,51 +1,72 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Activity, ChevronDown, Ruler, Scale, TriangleAlert, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
-import PageHeader from '@/components/shared/PageHeader';
-import { TriangleAlert } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BodyDiagram from '@/components/body/BodyDiagram';
-import MetricChart from '@/components/charts/MetricChart';
-import MetricChartGrid from '@/components/charts/MetricChartGrid';
-import {
-  GENERAL_METRICS,
-  PERIMETER_METRICS,
-  JUMP_METRICS,
-  PERIMETER_LABELS,
-  JUMP_TEST_LABELS,
-  buildSeries,
-} from '@/components/charts/measurementMetrics';
-import { format, parseISO } from 'date-fns';
-import { Ruler, Activity, TrendingUp, Zap } from 'lucide-react';
-import api from '@/lib/api';
+import { GENERAL_METRICS, PERIMETER_METRICS, JUMP_METRICS, buildSeries, type MetricDefinition } from '@/components/charts/measurementMetrics';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import RecordRowActions from '@/components/records/RecordRowActions';
-import DataTable from '@/components/shared/DataTable';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import PageTitle from '@/components/premium/PageTitle';
+import SegmentedTabs from '@/components/premium/SegmentedTabs';
+import MetricTile from '@/components/premium/MetricTile';
+import TrendChart from '@/components/premium/TrendChart';
+import EmptyGuide from '@/components/premium/EmptyGuide';
+import MetricDetailDrawer from '@/components/premium/MetricDetailDrawer';
+import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
+import { filterByRange, formatValue, longDate, summarize, type TrendRange } from '@/lib/trend';
+import { cn } from '@/lib/utils';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
 import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
+import api from '@/lib/api';
 import type { Measurement } from '@/types';
 
-const MeasurementsEnhanced = () => {
+const RANGES: { value: TrendRange; label: string }[] = [
+  { value: '3m', label: '3 meses' },
+  { value: '6m', label: '6 meses' },
+  { value: 'all', label: 'Todo' },
+];
+
+// Resumen de una medición para el historial: lo principal que se registró ese día
+function summaryOf(m: Measurement): string {
+  const parts: string[] = [];
+  if (m.weight) parts.push(`${formatValue(m.weight, 1)} kg`);
+  if (m.bodyFatPercentage) parts.push(`${formatValue(m.bodyFatPercentage, 1)} % grasa`);
+  const perimeters = Object.values(m.perimeters ?? {}).filter((v) => typeof v === 'number' && v > 0).length;
+  if (perimeters > 0) parts.push(`${perimeters} ${perimeters === 1 ? 'perímetro' : 'perímetros'}`);
+  const jumps = Object.values(m.jumpTests ?? {}).filter((v) => typeof v === 'number' && v > 0).length;
+  if (jumps > 0) parts.push(`${jumps} ${jumps === 1 ? 'salto' : 'saltos'}`);
+  return parts.length > 0 ? parts.join(' · ') : 'Registro';
+}
+
+const MeasurementsPage = () => {
   const { user } = useAuth();
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
-  const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [activeTab, setActiveTab] = useState('perimeters');
+  const [tab, setTab] = useState('resumen');
   const [refreshKey, setRefreshKey] = useState(0);
   const [editing, setEditing] = useState<Measurement | null>(null);
+  const [range, setRange] = useState<TrendRange>('6m');
+  const [heroKey, setHeroKey] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MetricDefinition | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [zone, setZone] = useState<string | null>(null);
   const hasActivePlan = useHasActivePlan(user?.id);
+  const canEdit = hasActivePlan === true;
 
   useEffect(() => {
     if (!user) return;
     setFailed(false);
-    api.get(`/measurements/patient/${user.id}`)
+    api
+      .get(`/measurements/patient/${user.id}`)
       .then((res) => setMeasurements(res.data.data.measurements || []))
       // Si falla la carga se avisa: antes se mostraba como si no hubiera mediciones
       .catch(() => setFailed(true))
@@ -56,8 +77,6 @@ const MeasurementsEnhanced = () => {
     setLoading(true);
     setRefreshKey((k) => k + 1);
   };
-
-  const canEdit = hasActivePlan === true;
 
   const handleDelete = async (m: Measurement) => {
     try {
@@ -70,13 +89,44 @@ const MeasurementsEnhanced = () => {
     }
   };
 
-  const latestMeasurement = measurements[0];
+  // Series reales de cada medida (un 0 cuenta como «sin dato», ver buildSeries)
+  const seriesOf = useMemo(() => {
+    const cache = new Map<string, ReturnType<typeof buildSeries>>();
+    const all = [...GENERAL_METRICS, ...PERIMETER_METRICS, ...JUMP_METRICS];
+    all.forEach((m) => cache.set(`${m.key}`, buildSeries(measurements, m.read)));
+    return (m: MetricDefinition) => cache.get(m.key) ?? [];
+  }, [measurements]);
+
+  const generalWithData = GENERAL_METRICS.filter((m) => seriesOf(m).length > 0);
+  // Primero las medidas que cambiaron más (lo que aporta información); las que no cambian quedan al final
+  const changeOf = (m: MetricDefinition) => Math.abs(summarize(seriesOf(m), m.unit, m.decimals)?.change ?? 0);
+  const perimetersWithData = PERIMETER_METRICS.filter((m) => seriesOf(m).length > 0).sort((a, b) => changeOf(b) - changeOf(a));
+  const jumpsWithData = JUMP_METRICS.filter((m) => seriesOf(m).length > 0);
+  const hero = generalWithData.find((m) => m.key === heroKey) ?? generalWithData[0];
+  const heroPoints = hero ? seriesOf(hero) : [];
+  const heroSummary = hero ? summarize(heroPoints, hero.unit, hero.decimals) : null;
+  const shownPoints = hero ? filterByRange(heroPoints, range) : [];
+  const latest = measurements[0];
+
   const zoneValues: Record<string, number> = {};
-  if (latestMeasurement) {
-    Object.entries(latestMeasurement.perimeters ?? {}).forEach(([key, value]) => {
-      if (value) zoneValues[key] = value;
-    });
-  }
+  Object.entries(latest?.perimeters ?? {}).forEach(([key, value]) => {
+    if (value) zoneValues[key] = value;
+  });
+
+  const registerButton = (
+    <PatientRecordDialog label="Registrar medición" title="Registrar medición" description="Anota tu peso, % de grasa, perímetros o resultados. Solo completa lo que tengas.">
+      {(close) => (
+        <MeasurementForm
+          patientId={user!.id}
+          embedded
+          onSuccess={() => {
+            close();
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
+    </PatientRecordDialog>
+  );
 
   if (loading) {
     return (
@@ -86,36 +136,32 @@ const MeasurementsEnhanced = () => {
     );
   }
 
+  const tile = (m: MetricDefinition) => {
+    const pts = seriesOf(m);
+    const s = summarize(pts, m.unit, m.decimals)!;
+    return (
+      <MetricTile
+        key={m.key}
+        label={m.label}
+        value={formatValue(s.last.value, m.decimals === 1 && Number.isInteger(s.last.value) ? 0 : m.decimals)}
+        unit={m.unit}
+        values={pts.map((p) => p.value)}
+        caption={s.count > 1 ? `${s.changeText} ${s.sinceText}` : 'Primer registro'}
+        ariaLabel={`${m.label}: ${formatValue(s.last.value, m.decimals)} ${m.unit}. ${s.count > 1 ? `${s.changeText} ${s.sinceText}.` : 'Primer registro.'} Ver detalle`}
+        onClick={() => setDetail(m)}
+      />
+    );
+  };
+
+  const history = measurements.slice(0, historyOpen ? measurements.length : 4);
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Mediciones y progreso"
-        description="Monitorea tu evolución física y de rendimiento"
-        actions={
-          <>
-          {latestMeasurement && (
-            <div className="bg-gradient-section rounded-lg p-4 border border-border">
-              <div className="text-xs text-muted-foreground mb-1">Última medición</div>
-              <div className="text-lg font-bold text-foreground">
-                {format(parseISO(latestMeasurement.date), 'dd/MM/yyyy')}
-              </div>
-            </div>
-          )}
-          <PatientRecordDialog
-            label="Registrar medición"
-            title="Registrar medición"
-            description="Anota tu peso, % de grasa, perímetros o resultados. Solo completa lo que tengas."
-          >
-            {(close) => (
-              <MeasurementForm
-                patientId={user!.id}
-                embedded
-                onSuccess={() => { close(); setRefreshKey((k) => k + 1); }}
-              />
-            )}
-          </PatientRecordDialog>
-          </>
-        }
+    <div className="space-y-5">
+      <PageTitle
+        eyebrow="Mediciones y progreso"
+        title={<>Tu evolución,<br />en perspectiva</>}
+        description={measurements.length > 0 ? `Última medición: ${longDate(measurements[0].date)}` : undefined}
+        actions={measurements.length > 0 ? registerButton : undefined}
       />
 
       {failed && (
@@ -130,213 +176,181 @@ const MeasurementsEnhanced = () => {
         </Alert>
       )}
 
-      {/* Tabs para diferentes vistas */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="perimeters" className="flex items-center gap-2">
-            <Ruler className="w-4 h-4" />
-            <span>Perímetros</span>
-          </TabsTrigger>
-          <TabsTrigger value="jumps" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            <span>Tests de Salto</span>
-          </TabsTrigger>
-          <TabsTrigger value="general" className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            <span>General</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Pestaña de Perímetros */}
-        <TabsContent value="perimeters" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Body diagram */}
-            <Card className="lg:col-span-1 shadow-card">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-primary" />
-                  Diagrama Corporal
-                </CardTitle>
-                <CardDescription>
-                  Toca una zona para ver su evolución
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BodyDiagram
-                  selectedZone={selectedZone}
-                  onZoneClick={setSelectedZone}
-                  zoneValues={zoneValues}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Charts */}
-            <div className="lg:col-span-2 space-y-4">
-              {selectedZone ? (
-                <>
-                  <Button variant="outline" size="sm" onClick={() => setSelectedZone(null)}>
-                    Ver todos los perímetros
-                  </Button>
-                  {(() => {
-                    const metric = PERIMETER_METRICS.find((m) => m.key === selectedZone);
-                    const points = metric ? buildSeries(measurements, metric.read) : [];
-                    return points.length > 0 && metric ? (
-                      <MetricChart
-                        title={`Evolución - ${PERIMETER_LABELS[selectedZone] || selectedZone}`}
-                        unit={metric.unit}
-                        color={metric.color}
-                        points={points}
-                      />
-                    ) : (
-                      <p className="py-8 text-center text-sm text-muted-foreground">
-                        Aún no hay medidas de esta zona.
+      {measurements.length === 0 && !failed ? (
+        <EmptyGuide
+          icon={Scale}
+          title="Tu primera medición marca el punto de partida"
+          description="Aquí verás cómo cambian tu peso y tus medidas con el tiempo. Se registran en tus evaluaciones con tu kinesiólogo, o tú mismo cuando quieras."
+          action={registerButton}
+          preview={[
+            { icon: Scale, title: 'Peso', text: 'Tendencia con fechas y cambios' },
+            { icon: Ruler, title: 'Perímetros', text: 'Cintura, cadera, brazos y piernas' },
+            { icon: Zap, title: 'Tests de salto', text: 'Tu rendimiento a lo largo del tiempo' },
+          ]}
+        />
+      ) : (
+        <SegmentedTabs
+          ariaLabel="Qué quieres ver"
+          value={tab}
+          onValueChange={setTab}
+          items={[
+            { value: 'resumen', label: 'Resumen' },
+            { value: 'perimetros', label: 'Perímetros' },
+            { value: 'saltos', label: 'Saltos' },
+          ]}
+        >
+          {[
+            /* ===== Resumen ===== */
+            <div key="resumen" className="space-y-5">
+              {hero && heroSummary ? (
+                <section aria-label={hero.label} className={cn('rounded-[24px] border p-4 pb-2 min-[375px]:p-5 min-[375px]:pb-3', HERO_SURFACE)}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>{hero.label === 'Peso' ? 'Peso actual' : hero.label}</p>
+                      <p className="mt-1.5 text-[3.25rem] font-extrabold leading-none tracking-tight tabular-nums text-[#fff8e4]">
+                        {formatValue(heroSummary.last.value, hero.decimals)}
+                        {hero.unit && <span className="ml-1.5 text-xl font-bold text-[#fff8e4]/65">{hero.unit}</span>}
                       </p>
-                    );
-                  })()}
-                </>
-              ) : (
-                <MetricChartGrid
-                  measurements={measurements}
-                  metrics={PERIMETER_METRICS}
-                  emptyMessage="Todavía no hay perímetros registrados. Anótalos con el botón “Registrar medición”."
-                />
-              )}
-            </div>
-          </div>
-        </TabsContent>
+                      <p className="mt-1.5 text-sm text-[#fff8e4]/72">Último registro · {format(parseISO(heroSummary.last.date), "d 'de' MMM", { locale: es })}</p>
+                    </div>
+                    {heroSummary.count > 1 && (
+                      <span className="shrink-0 rounded-full border border-[#fff8e4]/20 bg-[#fff8e4]/[0.06] px-3 py-1 text-[13px] font-semibold text-[#fff8e4]">{heroSummary.changeText}</span>
+                    )}
+                  </div>
 
-        {/* Pestaña de Tests de Salto */}
-        <TabsContent value="jumps" className="space-y-6">
-          <MetricChartGrid
-            measurements={measurements}
-            metrics={JUMP_METRICS}
-            emptyMessage="Todavía no hay tests de salto registrados."
-          />
-
-          {/* Jump tests summary */}
-          {latestMeasurement?.jumpTests && (
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-primary" />
-                  Resumen de Tests de Salto
-                </CardTitle>
-                <CardDescription>Última medición realizada</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {Object.entries(latestMeasurement.jumpTests).map(([key, value]) =>
-                    value ? (
-                      <div key={key} className="p-4 rounded-lg bg-gradient-section border border-border">
-                        <div className="text-xs text-muted-foreground mb-2">
-                          {JUMP_TEST_LABELS[key as keyof typeof JUMP_TEST_LABELS]?.label || key}
-                        </div>
-                        <div className="text-2xl font-bold" style={{ color: JUMP_TEST_LABELS[key as keyof typeof JUMP_TEST_LABELS]?.color }}>
-                          {value} <span className="text-sm text-muted-foreground">cm</span>
-                        </div>
+                  {heroSummary.count > 1 ? (
+                    <>
+                      <div role="group" aria-label="Rango de tiempo" className="mt-4 flex gap-2">
+                        {RANGES.map((r) => (
+                          <button
+                            key={r.value}
+                            type="button"
+                            aria-pressed={range === r.value}
+                            onClick={() => setRange(r.value)}
+                            className={cn(
+                              'min-h-[40px] rounded-full border px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]',
+                              range === r.value ? 'border-[#398ca2] bg-[#398ca2]/25 text-[#fff8e4]' : 'border-[#fff8e4]/15 text-[#fff8e4]/70 hover:bg-[#fff8e4]/[0.05]'
+                            )}
+                          >
+                            {r.label}
+                          </button>
+                        ))}
                       </div>
-                    ) : null
+                      <div className="mt-3 -mx-1">
+                        <TrendChart points={shownPoints} unit={hero.unit} decimals={hero.decimals} label={hero.label} />
+                      </div>
+                      <p className="px-1 pb-2 text-xs text-[#fff8e4]/62">
+                        {shownPoints.length} {shownPoints.length === 1 ? 'registro' : 'registros'} · {heroSummary.sinceText} ({heroSummary.changeText})
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mb-3 mt-4 rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-3 text-sm text-[#fff8e4]/75">
+                      Este es tu punto de partida. Con un segundo registro verás aquí tu tendencia.
+                    </p>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
 
-        {/* Pestaña General */}
-        <TabsContent value="general" className="space-y-6">
-          {latestMeasurement && (
-            <div className="grid gap-4 md:grid-cols-4">
-              {latestMeasurement.weight && (
-                <Card className="shadow-card bg-gradient-section">
-                  <CardContent className="pt-6">
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground mb-2">Peso</div>
-                      <div className="text-3xl font-bold text-primary">{latestMeasurement.weight} <span className="text-sm">kg</span></div>
+                  {generalWithData.length > 1 && (
+                    <div role="group" aria-label="Medida principal" className="mb-3 flex flex-wrap gap-2 border-t border-[#fff8e4]/10 pt-3">
+                      {generalWithData.map((m) => (
+                        <button
+                          key={m.key}
+                          type="button"
+                          aria-pressed={m.key === hero.key}
+                          onClick={() => setHeroKey(m.key)}
+                          className={cn(
+                            'min-h-[40px] rounded-full border px-3.5 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]',
+                            m.key === hero.key ? 'border-[#398ca2] bg-[#398ca2]/25 text-[#fff8e4]' : 'border-[#fff8e4]/15 text-[#fff8e4]/70'
+                          )}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-              {latestMeasurement.height && (
-                <Card className="shadow-card bg-gradient-section">
-                  <CardContent className="pt-6">
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground mb-2">Altura</div>
-                      <div className="text-3xl font-bold text-primary">{latestMeasurement.height} <span className="text-sm">cm</span></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              {latestMeasurement.bmi && (
-                <Card className="shadow-card bg-gradient-section">
-                  <CardContent className="pt-6">
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground mb-2">IMC</div>
-                      <div className="text-3xl font-bold text-primary">{latestMeasurement.bmi.toFixed(1)}</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              {latestMeasurement.bodyFatPercentage && (
-                <Card className="shadow-card bg-gradient-section">
-                  <CardContent className="pt-6">
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground mb-2">% Grasa</div>
-                      <div className="text-3xl font-bold text-primary">{latestMeasurement.bodyFatPercentage}<span className="text-sm">%</span></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          <MetricChartGrid
-            measurements={measurements}
-            metrics={GENERAL_METRICS}
-            emptyMessage="Todavía no hay datos de peso, grasa o músculo."
-          />
-
-          {/* Measurement history table */}
-          {measurements.length > 0 && (
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="text-lg">Historial de Mediciones</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable
-                  caption="Historial de mediciones"
-                  rows={measurements}
-                  rowKey={(m) => m._id}
-                  columns={[
-                    { key: 'date', header: 'Fecha', cell: (m) => format(parseISO(m.date), 'dd/MM/yyyy'), primary: true },
-                    { key: 'weight', header: 'Peso', align: 'right', cell: (m) => (m.weight ? `${m.weight} kg` : '-') },
-                    { key: 'bmi', header: 'IMC', align: 'right', cell: (m) => (m.bmi ? m.bmi.toFixed(1) : '-') },
-                    { key: 'fat', header: '% Grasa', align: 'right', cell: (m) => (m.bodyFatPercentage ? `${m.bodyFatPercentage}%` : '-') },
-                  ]}
-                  actions={
-                    canEdit
-                      ? (m) => <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />
-                      : undefined
-                  }
+                  )}
+                </section>
+              ) : (
+                <EmptyGuide
+                  icon={Scale}
+                  title="Aún no hay peso ni composición registrados"
+                  description="Cuando se registre tu peso o tu % de grasa, lo verás aquí con su tendencia. Mientras tanto puedes revisar tus perímetros."
                 />
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+              )}
 
-      {measurements.length === 0 && (
-        <Card>
-          <CardContent className="py-20 text-center">
-            <Activity className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              No tienes mediciones registradas
-            </h3>
-            <p className="text-muted-foreground">
-              Usa el botón "Registrar medición" para anotar tu peso, % de grasa o perímetros
-            </p>
-          </CardContent>
-        </Card>
+              {perimetersWithData.length > 0 && (
+                <section aria-labelledby="peri-title" className="space-y-3">
+                  <div className="flex items-baseline justify-between px-1">
+                    <h2 id="peri-title" className="text-lg font-bold tracking-tight text-[#fff8e4]">Perímetros</h2>
+                    {perimetersWithData.length > 4 && (
+                      <button type="button" onClick={() => setTab('perimetros')} className="min-h-[44px] px-1 text-[13px] font-semibold text-[#7cc0d2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
+                        Ver todos
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">{perimetersWithData.slice(0, 4).map(tile)}</div>
+                </section>
+              )}
+
+              <section aria-labelledby="hist-title" className="space-y-2">
+                <h2 id="hist-title" className="px-1 text-lg font-bold tracking-tight text-[#fff8e4]">Historial</h2>
+                <ul className={cn(CARD, 'divide-y divide-[#fff8e4]/10 px-4')}>
+                  {history.map((m) => (
+                    <li key={m._id} className="flex items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="text-[15px] font-semibold text-[#fff8e4]">{longDate(m.date)}</p>
+                        <p className="truncate text-[13px] text-[#fff8e4]/70">{summaryOf(m)}</p>
+                      </div>
+                      {canEdit && <RecordRowActions itemLabel="esta medición" onEdit={() => setEditing(m)} onDelete={() => handleDelete(m)} />}
+                    </li>
+                  ))}
+                </ul>
+                {measurements.length > 4 && (
+                  <Button variant="ghost" className="w-full text-[#7cc0d2] hover:bg-[#fff8e4]/[0.05] hover:text-[#7cc0d2]" onClick={() => setHistoryOpen((v) => !v)}>
+                    {historyOpen ? 'Ver menos' : `Ver los ${measurements.length} registros`}
+                  </Button>
+                )}
+              </section>
+            </div>,
+
+            /* ===== Perímetros ===== */
+            <div key="perimetros" className="space-y-4">
+              {perimetersWithData.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">{perimetersWithData.map(tile)}</div>
+              ) : (
+                <EmptyGuide icon={Ruler} title="Aún no hay perímetros registrados" description="Cintura, cadera, brazos y piernas aparecerán aquí cuando se midan." action={measurements.length > 0 ? registerButton : undefined} />
+              )}
+              {perimetersWithData.length > 0 && (
+                <Collapsible className={cn(CARD, 'overflow-hidden')}>
+                  <CollapsibleTrigger className="group flex min-h-[56px] w-full items-center justify-between gap-3 px-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]">
+                    <span className="flex items-center gap-3">
+                      <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#398ca2]/15 text-[#7cc0d2]"><Activity className="h-5 w-5" /></span>
+                      <span>
+                        <span className="block text-[15px] font-semibold text-[#fff8e4]">Mapa corporal</span>
+                        <span className="block text-[13px] text-[#fff8e4]/70">Toca una zona para ver su evolución</span>
+                      </span>
+                    </span>
+                    <ChevronDown className="h-5 w-5 shrink-0 text-[#fff8e4]/70 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-2 pb-4">
+                    <BodyDiagram selectedZone={zone} onZoneClick={(z) => { setZone(z); const m = PERIMETER_METRICS.find((p) => p.key === z); if (m && seriesOf(m).length > 0) setDetail(m); else notify.info('Aún no hay medidas de esta zona.'); }} zoneValues={zoneValues} />
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </div>,
+
+            /* ===== Saltos ===== */
+            <div key="saltos" className="space-y-4">
+              {jumpsWithData.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">{jumpsWithData.map(tile)}</div>
+              ) : (
+                <EmptyGuide icon={Zap} title="Aún no hay tests de salto" description="Si tu kinesiólogo evalúa tu salto, verás aquí cómo mejora con el tiempo." />
+              )}
+            </div>,
+          ]}
+        </SegmentedTabs>
+      )}
+
+      {detail && (
+        <MetricDetailDrawer open onOpenChange={(open) => !open && setDetail(null)} label={detail.label} unit={detail.unit} decimals={detail.decimals} points={seriesOf(detail)} />
       )}
 
       <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
@@ -351,7 +365,10 @@ const MeasurementsEnhanced = () => {
               patientId={user!.id}
               record={editing}
               embedded
-              onSuccess={() => { setEditing(null); setRefreshKey((k) => k + 1); }}
+              onSuccess={() => {
+                setEditing(null);
+                setRefreshKey((k) => k + 1);
+              }}
             />
           )}
         </DialogContent>
@@ -360,4 +377,4 @@ const MeasurementsEnhanced = () => {
   );
 };
 
-export default MeasurementsEnhanced;
+export default MeasurementsPage;

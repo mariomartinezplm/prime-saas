@@ -8,7 +8,7 @@ import type { PlanView } from './planView';
 import { SkeletonBones } from './CardSkeleton';
 import { useContentFade } from './useContentFade';
 
-export const RING_CARD = 'rounded-2xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] p-4 min-h-[14.5rem]';
+export const RING_CARD = 'rounded-[22px] border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] p-4 min-h-[15.5rem]';
 
 const INACTIVE_LABEL: Record<NonNullable<PlanView['inactiveReason']>, string> = {
   expired: 'Plan vencido',

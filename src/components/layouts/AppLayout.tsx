@@ -8,11 +8,16 @@ import WelcomeSplash from './WelcomeSplash';
 import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext';
 import AchievementUnlockHost from '@/components/achievements/AchievementUnlockHost';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePatientBottomNav } from '@/hooks/usePatientBottomNav';
+import PatientBottomNav from './PatientBottomNav';
+import { cn } from '@/lib/utils';
 
 const AppLayout = () => {
   useAppDarkTheme();
   const location = useLocation();
   const { user } = useAuth();
+  // Prototipo (apagado por defecto): barra inferior de 4 pestañas para el paciente
+  const bottomNav = usePatientBottomNav();
 
   return (
     <UnsavedChangesProvider>
@@ -29,7 +34,7 @@ const AppLayout = () => {
             <SidebarTrigger className="-ml-2 h-9 w-9 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" />
             <NotificationBell />
           </header>
-          <main id="contenido" tabIndex={-1} className="flex-1 overflow-auto p-6 focus:outline-none">
+          <main id="contenido" tabIndex={-1} className={cn('flex-1 overflow-auto p-6 focus:outline-none', bottomNav && 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-6')}>
             <ErrorBoundary resetKey={location.pathname}>
               {/* Entrada suave al cambiar de pantalla (se anula si el sistema pide menos movimiento) */}
               <div key={location.pathname} className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
@@ -39,6 +44,7 @@ const AppLayout = () => {
           </main>
         </SidebarInset>
       </SidebarProvider>
+      {bottomNav && <PatientBottomNav />}
       <WelcomeSplash />
       {/* Animación de logros nuevos: solo para pacientes y solo en pantallas tranquilas */}
       {user?.role === 'patient' && <AchievementUnlockHost />}

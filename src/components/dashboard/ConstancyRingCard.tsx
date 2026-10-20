@@ -32,7 +32,7 @@ const ConstancyRingCard = ({ consistency, loading = false }: ConstancyRingCardPr
             ratio={consistency.ratio}
             value={consistency.current}
             caption={`de ${consistency.target}`}
-            tone="cream"
+            tone="light"
             label={`${consistency.current} de ${consistency.target} sesiones este mes`}
             animateKey="consistency-ring"
           />

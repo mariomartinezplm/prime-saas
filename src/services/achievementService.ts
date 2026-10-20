@@ -119,10 +119,20 @@ export interface PatientAchievements extends AchievementsOverview {
   reviewCount: number;
 }
 
+// Logros que dependen de funciones que PRIME aún no tiene (conexión con relojes o pulseras): no se muestran. Cuando exista la función, se quita de aquí.
+export const HIDDEN_ACHIEVEMENT_KEYS: ReadonlySet<string> = new Set(['device_sleep']);
+
+export function withoutUnavailable<T extends { categories: AchievementCategory[] }>(overview: T): T {
+  const categories = overview.categories
+    .map((c) => ({ ...c, items: c.items.filter((i) => !HIDDEN_ACHIEVEMENT_KEYS.has(i.key)) }))
+    .filter((c) => c.items.length > 0);
+  return { ...overview, categories };
+}
+
 export const achievementApi = {
   getMine: async (): Promise<AchievementsOverview> => {
     const response = await api.get<APIResponse<AchievementsOverview>>('/achievements/me');
-    return response.data.data;
+    return withoutUnavailable(response.data.data);
   },
 
   getUnseen: async (): Promise<UnseenAchievement[]> => {
@@ -137,7 +147,7 @@ export const achievementApi = {
   // Personal con acceso al paciente
   getForPatient: async (patientId: string): Promise<PatientAchievements> => {
     const response = await api.get<APIResponse<PatientAchievements>>(`/achievements/patients/${patientId}`);
-    return response.data.data;
+    return withoutUnavailable(response.data.data);
   },
 
   createPause: async (patientId: string, periodKey: string, reason: string): Promise<void> => {

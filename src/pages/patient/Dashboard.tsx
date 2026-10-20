@@ -118,12 +118,12 @@ const PatientDashboard = () => {
 
   return (
     <div className="space-y-3">
-      <header className="space-y-0.5 pb-1">
+      <header className="space-y-1 pb-2 pt-1">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <p className="text-sm text-[#fff8e4]/70">{todayLabel(now)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#fff8e4]/60">{todayLabel(now)}</p>
           {user?.isFounder && <FounderBadge tone="brand" />}
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-[#fff8e4]">
+        <h1 className="text-[1.75rem] font-extrabold leading-[1.1] tracking-tight text-[#fff8e4] sm:text-[2rem]">
           {greetingFor(now)}, {user?.firstName ?? ''}
         </h1>
       </header>
@@ -148,7 +148,7 @@ const PatientDashboard = () => {
           <HeroSessionCard view={hero} planView={planView} onRetry={retry} retrying={retrying} />
 
           {/* Check-in de hoy: una fila compacta si está pendiente; el resultado completo si ya lo hizo */}
-          <div id="readiness" ref={readinessRef} tabIndex={-1} className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
+          <div id="readiness" ref={readinessRef} tabIndex={-1} role="region" className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
             <WellnessCheckinCard compact hasActivePlan={!!balance?.hasActivePlan} planStatus={states.balance} onRetryPlan={retry} onStatusChange={setReadiness} />
           </div>
         </div>

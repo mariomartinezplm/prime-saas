@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils';
 import { ringDash } from './meterMath';
-import { useMeterAnimation } from './brand';
+import { BRAND_LIGHT, useMeterAnimation } from './brand';
 
-const SIZE = 88;
-const STROKE = 8;
+const SIZE = 104;
+const STROKE = 9;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -15,7 +15,8 @@ interface ProgressRingProps {
   // Cifra grande del centro y su texto corto (ambos son los valores REALES, nunca se animan como conteo)
   value: string | number;
   caption?: string;
-  tone?: 'brand' | 'cream';
+  // 'light' = turquesa claro derivado de la marca (segundo anillo). Nunca crema/blanco: los anillos se resuelven con turquesa.
+  tone?: 'brand' | 'light';
   animateKey?: string;
   className?: string;
 }
@@ -38,14 +39,14 @@ const ProgressRing = ({ ratio, label, value, caption, tone = 'brand', animateKey
       style={{ width: SIZE, height: SIZE }}
     >
       <svg aria-hidden="true" viewBox={`0 0 ${SIZE} ${SIZE}`} className="absolute inset-0 -rotate-90">
-        <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="#fff8e4" strokeOpacity="0.12" strokeWidth={STROKE} />
+        <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="#fff8e4" strokeOpacity="0.10" strokeWidth={STROKE} />
         {valid && pct > 0 && (
           <circle
             cx={SIZE / 2}
             cy={SIZE / 2}
             r={RADIUS}
             fill="none"
-            stroke={tone === 'brand' ? '#398ca2' : '#fff8e4'}
+            stroke={tone === 'brand' ? '#398ca2' : BRAND_LIGHT}
             strokeWidth={STROKE}
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
@@ -56,7 +57,7 @@ const ProgressRing = ({ ratio, label, value, caption, tone = 'brand', animateKey
         )}
       </svg>
       <div aria-hidden="true" className="text-center leading-none text-[#fff8e4]">
-        <div className="text-[26px] font-semibold tabular-nums tracking-tight">{value}</div>
+        <div className="text-[32px] font-extrabold tabular-nums leading-none tracking-tight">{value}</div>
         {caption && <div className="mt-1 text-[11px] text-[#fff8e4]/65">{caption}</div>}
       </div>
     </div>

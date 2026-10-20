@@ -5,7 +5,7 @@ import DateBadge from '@/components/shared/DateBadge';
 import { appointmentTypeLabels } from '@/components/shared/statusMeta';
 import { parseDay, personName } from '@/lib/appointments';
 import { cn } from '@/lib/utils';
-import { BTN_FILL, PILL, PILL_SOLID, TEXT, TEXT_SOFT } from './brand';
+import { BTN_FILL, HERO_SURFACE, PILL, PILL_SOLID, TEXT, TEXT_SOFT } from './brand';
 import { SkeletonBones } from './CardSkeleton';
 import { useContentFade } from './useContentFade';
 import WhatsAppButton from './WhatsAppButton';
@@ -20,8 +20,8 @@ const BLOCKED: Record<BlockedReason, { title: string; detail: string; cta?: { la
   'used-up': { title: 'Usaste todas las sesiones de tu plan', detail: 'Renuévalo con Prime F&H para seguir reservando.', cta: { label: 'Renovar por WhatsApp', message: 'Hola, quiero renovar mi plan en Prime F&H' } },
 };
 
-const SHELL = 'flex min-h-[12.5rem] flex-col rounded-2xl border p-4 min-[360px]:p-5 sm:p-6';
-const BRAND_SHELL = 'border-[#398ca2]/55 bg-[#398ca2]/10';
+const SHELL = 'flex min-h-[12.5rem] flex-col rounded-[24px] border p-4 min-[360px]:p-5 sm:p-6';
+const BRAND_SHELL = HERO_SURFACE;
 const PLAIN_SHELL = 'border-[#fff8e4]/10 bg-[#fff8e4]/[0.04]';
 
 interface HeroSessionCardProps {
@@ -66,13 +66,13 @@ const HeroSessionCard = ({ view, planView, onRetry, retrying = false }: HeroSess
     return (
       <section aria-labelledby="hero-titulo" className={cn(SHELL, BRAND_SHELL, 'justify-between gap-5', fade)}>
         <div className="flex items-start gap-3 min-[360px]:gap-4">
-          <DateBadge date={parseDay(appointment.date)} className="h-[4.5rem] w-[3.75rem] rounded-2xl border-[#398ca2]/70 bg-[#181619]/60 min-[360px]:h-[4.75rem] min-[360px]:w-[4.25rem] text-[#fff8e4] [&>span:last-child]:text-[28px]" />
+          <DateBadge date={parseDay(appointment.date)} className="h-[4.75rem] w-[4rem] rounded-2xl border-[#398ca2]/60 bg-[#181619]/55 min-[360px]:h-[5rem] min-[360px]:w-[4.5rem] text-[#fff8e4] [&>span:first-child]:text-[#7cc0d2] [&>span:last-child]:text-[32px] [&>span:last-child]:font-extrabold" />
           <div className="min-w-0 flex-1 space-y-1.5">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className={phase === 'future' ? PILL : PILL_SOLID}>{when}</span>
               {phase === 'future' && label.detail && <span className={cn('text-xs', TEXT_SOFT)}>{label.detail}</span>}
             </p>
-            <h2 id="hero-titulo" className={cn('text-[1.375rem] font-semibold leading-none min-[360px]:text-2xl sm:text-[1.75rem] tabular-nums tracking-tight', TEXT)}>
+            <h2 id="hero-titulo" className={cn('text-[1.625rem] font-extrabold leading-none min-[360px]:text-[1.875rem] sm:text-[2.25rem] tabular-nums tracking-tight', TEXT)}>
               {appointment.startTime} – {appointment.endTime}
             </h2>
             <p className={cn('text-sm', TEXT_SOFT)}>
@@ -85,7 +85,7 @@ const HeroSessionCard = ({ view, planView, onRetry, retrying = false }: HeroSess
             </p>
           </div>
         </div>
-        <Button asChild className={cn('w-full', BTN_FILL)}>
+        <Button asChild className={cn('min-h-[52px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>
           <Link to="/app/mis-citas">
             Ver mis citas
             <ArrowRight aria-hidden="true" />
@@ -144,7 +144,7 @@ const HeroSessionCard = ({ view, planView, onRetry, retrying = false }: HeroSess
           </p>
         </div>
       </div>
-      <Button asChild className={cn('w-full', BTN_FILL)}>
+      <Button asChild className={cn('min-h-[52px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>
         <Link to="/app/reservar">
           Reservar hora
           <ArrowRight aria-hidden="true" />
