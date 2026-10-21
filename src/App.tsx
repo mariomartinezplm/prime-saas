@@ -29,6 +29,7 @@ import MyAppointments from "./pages/patient/MyAppointments";
 import MyProfile from "./pages/patient/MyProfile";
 import MyAchievements from "./pages/patient/MyAchievements";
 import MonthlySummary from "./pages/patient/MonthlySummary";
+import Workout from "./pages/patient/Workout";
 import PatientMeasurements from "./pages/patient/Measurements";
 import PatientProgress from "./pages/patient/Progress";
 import PatientExercises from "./pages/patient/Exercises";
@@ -121,6 +122,10 @@ const App = () => (
               <Route
                 path="resumen-mensual"
                 element={<RoleRoute roles={['patient']}><MonthlySummary /></RoleRoute>}
+              />
+              <Route
+                path="entrenamiento"
+                element={<RoleRoute roles={['patient']}><Workout /></RoleRoute>}
               />
               <Route
                 path="progreso"

@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import { withTimeout } from '@/lib/withTimeout';
+import WorkoutEntryCard from '@/components/workout/WorkoutEntryCard';
 import WellnessCheckinCard from '@/components/wellness/WellnessCheckinCard';
 import type { ReadinessTodayStatus } from '@/components/wellness/readinessStatus';
 import HeroSessionCard from '@/components/dashboard/HeroSessionCard';
@@ -146,6 +147,9 @@ const PatientDashboard = () => {
         <div className="space-y-3">
           {/* La pieza principal: una sola cosa importante según el estado real (reglas en dashboard/heroView.ts) */}
           <HeroSessionCard view={hero} planView={planView} onRetry={retry} retrying={retrying} />
+
+          {/* Entrenamiento en curso: solo si hay una sesión activa o una cita de entrenamiento por comenzar */}
+          <WorkoutEntryCard />
 
           {/* Check-in de hoy: una fila compacta si está pendiente; el resultado completo si ya lo hizo */}
           <div id="readiness" ref={readinessRef} tabIndex={-1} role="region" className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">
