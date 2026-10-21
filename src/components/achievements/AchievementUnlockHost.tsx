@@ -94,23 +94,38 @@ const AchievementUnlockHost = () => {
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && next()}>
-      <DialogContent className="max-w-sm overflow-hidden rounded-[26px] border-[#398ca2]/50 bg-[linear-gradient(160deg,rgba(57,140,162,0.22),#201e22_55%)] text-center text-[#fff8e4] [&>button]:hidden">
+      <DialogContent className="max-w-sm overflow-hidden rounded-[28px] border-[#62b8cf]/35 bg-[linear-gradient(180deg,#272329,#1f1c21)] text-center text-[#fff8e4] [&>button]:hidden">
         <div className="flex flex-col items-center gap-5 py-2">
           {queue.length > 1 && (
-            <p className="text-xs text-muted-foreground" aria-live="polite">
+            <p className="text-xs text-[#a8a295]" aria-live="polite">
               {position + 1} de {queue.length}
             </p>
           )}
 
-          {/* La insignia aparece con opacidad y escala y se asienta con un leve rebote; con "menos movimiento" no se anima */}
-          <motion.div
-            key={current.id}
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
-            animate={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: [0.7, 1.06, 1] }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 0.7, times: [0, 0.65, 1], ease: 'easeOut' }}
-          >
-            <AchievementBadge category={current.category} state="earned" size={112} />
-          </motion.div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8fd0e0]">Nuevo logro · {current.categoryLabel}</p>
+
+          {/* La insignia aparece con opacidad y escala y se asienta con un leve rebote; un halo suave se expande UNA vez.
+              Con "menos movimiento" no hay animación alguna. */}
+          <div className="relative flex items-center justify-center">
+            {!reduceMotion && (
+              <motion.span
+                key={`${current.id}-halo`}
+                aria-hidden="true"
+                className="absolute h-[120px] w-[120px] rounded-full border border-[#62b8cf]/50"
+                initial={{ opacity: 0.7, scale: 0.8 }}
+                animate={{ opacity: 0, scale: 1.8 }}
+                transition={{ duration: 1.1, delay: 0.35, ease: 'easeOut' }}
+              />
+            )}
+            <motion.div
+              key={current.id}
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
+              animate={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: [0.7, 1.06, 1] }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.7, times: [0, 0.65, 1], ease: 'easeOut' }}
+            >
+              <AchievementBadge category={current.category} state="earned" size={112} />
+            </motion.div>
+          </div>
 
           <motion.div
             key={`${current.id}-text`}
@@ -119,18 +134,26 @@ const AchievementUnlockHost = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.4, delay: 0.35 }}
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7cc0d2]">Nuevo logro · {current.categoryLabel}</p>
-            <DialogTitle className="text-2xl font-extrabold tracking-tight text-[#fff8e4]">¡Lo conseguiste!</DialogTitle>
-            <p className="text-lg font-bold text-[#7cc0d2]">{current.title}</p>
-            <DialogDescription className="text-base text-[#fff8e4]/78">{current.message}</DialogDescription>
-            <p className="text-xs text-[#fff8e4]/62">Desbloqueado el {formatDay(current.awardedAt)} · celebración única</p>
+            <DialogTitle className="font-serif text-[1.875rem] font-medium leading-tight text-[#fff8e4]">{current.title}</DialogTitle>
+            <DialogDescription className="text-base text-[#cdc6b6]">{current.message}</DialogDescription>
           </motion.div>
 
-          <div className="flex w-full flex-col gap-2 pt-1">
+          <dl className="flex w-full items-center justify-around border-y border-[#fff8e4]/10 py-3 text-center">
+            <div>
+              <dt className="text-xs text-[#a8a295]">Fecha</dt>
+              <dd className="mt-0.5 text-sm font-semibold text-[#fff8e4]">{formatDay(current.awardedAt)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[#a8a295]">Categoría</dt>
+              <dd className="mt-0.5 text-sm font-semibold text-[#fff8e4]">{current.categoryLabel}</dd>
+            </div>
+          </dl>
+
+          <div className="flex w-full flex-col gap-1 pt-1">
             <Button onClick={next} autoFocus className="min-h-[52px] rounded-2xl border-[#398ca2] bg-[#398ca2] text-base font-bold text-[#181619] hover:bg-[#398ca2]/90">
-              {position + 1 < queue.length ? 'Siguiente' : 'Continuar'}
+              {position + 1 < queue.length ? 'Siguiente' : 'Seguir mi camino'}
             </Button>
-            <Button variant="ghost" onClick={goToDetails} className="min-h-[44px] text-[#7cc0d2] hover:bg-[#fff8e4]/[0.06] hover:text-[#7cc0d2]">
+            <Button variant="ghost" onClick={goToDetails} className="min-h-[48px] text-[#8fd0e0] hover:bg-[#fff8e4]/[0.06] hover:text-[#8fd0e0]">
               Ver detalles del progreso
             </Button>
           </div>

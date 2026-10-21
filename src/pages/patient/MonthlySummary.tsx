@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import ShareSummaryDialog from '@/components/achievements/ShareSummaryDialog';
+import { canShareSummary } from '@/lib/shareCard';
 import { achievementApi, type MonthlySummary as Summary } from '@/services/achievementService';
 import AchievementBadge from '@/components/achievements/AchievementBadge';
 import { formatDay } from '@/components/achievements/format';
@@ -44,6 +47,7 @@ const MonthlySummary = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -145,8 +149,20 @@ const MonthlySummary = () => {
             </dl>
             <p className="px-1 text-xs text-[#a8a295]">Aquí solo se cuentan tus registros. Tus medidas y su evolución están en <Link to="/app/mediciones" className="underline underline-offset-4">Mediciones</Link>.</p>
           </section>
+
+          {canShareSummary(summary) && (
+            <div className="space-y-2">
+              <Button variant="outline" onClick={() => setSharing(true)} className="min-h-[52px] w-full rounded-2xl border-[#398ca2] bg-transparent text-base font-semibold text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]">
+                <Share2 aria-hidden="true" />
+                Compartir sin datos clínicos
+              </Button>
+              <p className="px-1 text-center text-xs text-[#a8a295]">Ves la imagen antes de compartirla. Solo lleva sesiones e hitos.</p>
+            </div>
+          )}
         </>
       )}
+
+      <ShareSummaryDialog summary={summary} open={sharing} onOpenChange={setSharing} />
     </div>
   );
 };
