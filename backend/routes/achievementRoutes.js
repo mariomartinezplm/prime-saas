@@ -7,6 +7,7 @@ import {
   updateMyBodyGoal,
   getPatientBodyGoal,
   updatePatientBodyGoal,
+  updatePatientWeeklyGoal,
   getMyAchievements,
   getMyUnseen,
   markMyAchievementSeen,
@@ -37,6 +38,7 @@ router.delete('/patients/:patientId/pauses/:periodKey', authorize('admin', 'prof
 router.get('/body-goal', authorize('patient'), getMyBodyGoal);
 router.put('/body-goal', authorize('patient'), updateMyBodyGoal);
 router.get('/patients/:patientId/body-goal', authorize('admin', 'professional'), authorizePatientAccess('patientId'), getPatientBodyGoal);
+router.put('/patients/:patientId/weekly-goal', authorize('admin', 'professional'), authorizePatientAccess('patientId'), updatePatientWeeklyGoal);
 router.put('/patients/:patientId/body-goal', authorize('admin', 'professional'), authorizePatientAccess('patientId'), updatePatientBodyGoal);
 
 export default router;

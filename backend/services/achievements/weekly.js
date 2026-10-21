@@ -39,7 +39,7 @@ function currentTrainingPlan(plans, now) {
   );
 }
 
-export function computeWeeklyGoal({ plans = [], appointments = [], pauses = [] }, now = new Date()) {
+export function computeWeeklyGoal({ plans = [], appointments = [], pauses = [], weeklyGoal = null }, now = new Date()) {
   const today = dayOf(now);
   const { start, end } = weekBounds(today);
   const plan = currentTrainingPlan(plans, now);
@@ -66,6 +66,9 @@ export function computeWeeklyGoal({ plans = [], appointments = [], pauses = [] }
     else if (a.status === 'scheduled') scheduled += 1;
   }
 
-  const target = defaultWeeklyTarget(plan.sessionsTotal);
-  return { state: 'active', weekStart: start, weekEnd: end, periodKey, target, completed, scheduled, met: completed >= target, source: 'plan' };
+  // El profesional puede fijar otro número para este paciente; nunca más que las sesiones del plan del mes
+  const defaultTarget = defaultWeeklyTarget(plan.sessionsTotal);
+  const custom = Number.isInteger(weeklyGoal) && weeklyGoal >= 1 ? Math.min(weeklyGoal, plan.sessionsTotal) : null;
+  const target = custom ?? defaultTarget;
+  return { state: 'active', weekStart: start, weekEnd: end, periodKey, target, defaultTarget, completed, scheduled, met: completed >= target, source: custom ? 'professional' : 'plan' };
 }

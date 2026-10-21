@@ -100,7 +100,7 @@ export interface AchievementHistoryEntry extends AchievementAward {
 // Objetivo de la semana (Mi camino PRIME): 'none' = sin objetivo (plan ilimitado, de kinesiología o sin plan) · 'paused' = pausa autorizada
 export type WeeklyGoal =
   | { state: 'none' | 'paused'; weekStart: string; weekEnd: string }
-  | { state: 'active'; weekStart: string; weekEnd: string; periodKey: string; target: number; completed: number; scheduled: number; met: boolean; source: 'plan' };
+  | { state: 'active'; weekStart: string; weekEnd: string; periodKey: string; target: number; defaultTarget: number; completed: number; scheduled: number; met: boolean; source: 'plan' | 'professional' };
 
 export interface AchievementsOverview {
   categories: AchievementCategory[];
@@ -162,6 +162,11 @@ export const achievementApi = {
 
   deletePause: async (patientId: string, periodKey: string): Promise<void> => {
     await api.delete(`/achievements/patients/${patientId}/pauses/${periodKey}`);
+  },
+
+  // Objetivo semanal de entrenamiento (1 a 7 sesiones); null vuelve al valor por defecto del plan
+  updatePatientWeeklyGoal: async (patientId: string, sessions: number | null): Promise<void> => {
+    await api.put(`/achievements/patients/${patientId}/weekly-goal`, { sessions });
   },
 
   updatePatientBodyGoal: async (patientId: string, changes: { direction?: BodyGoalDirection | null; targetKg?: number | null; enabled?: boolean }): Promise<BodyGoal> => {

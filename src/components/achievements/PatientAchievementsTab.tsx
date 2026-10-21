@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PauseCircle, Trash2, Trophy } from 'lucide-react';
-import { achievementApi, type AchievementHistoryEntry, type BodyGoalDirection, type PatientAchievements } from '@/services/achievementService';
+import { achievementApi, type AchievementHistoryEntry, type BodyGoalDirection, type PatientAchievements, type WeeklyGoal } from '@/services/achievementService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +68,7 @@ const PatientAchievementsTab = ({ patientId }: PatientAchievementsTabProps) => {
       <SummaryCard data={data} />
       <ProgressCard data={data} />
       <HistoryCard history={data.history} />
+      <WeeklyGoalStaffCard patientId={patientId} weekly={data.weekly} onChanged={load} />
       <PausesCard patientId={patientId} pauses={data.pauses} onChanged={load} />
       <GoalCard patientId={patientId} goal={data.goal} onChanged={(goal) => setData((prev) => (prev ? { ...prev, goal } : prev))} />
     </div>
@@ -367,6 +368,70 @@ const GoalCard = ({ patientId, goal, onChanged }: GoalCardProps) => {
           onSave={({ direction, targetKg }) => change({ direction, targetKg }, direction === null ? 'Meta quitada' : 'Meta guardada')}
           onToggleEnabled={(enabled) => change({ enabled }, enabled ? 'Reconocimientos activados' : 'Reconocimientos desactivados')}
         />
+      </CardContent>
+    </Card>
+  );
+};
+
+interface WeeklyGoalStaffCardProps {
+  patientId: string;
+  weekly?: WeeklyGoal;
+  onChanged: () => void;
+}
+
+// Objetivo semanal de entrenamiento: por defecto sesiones del plan ÷ 4; el profesional puede fijar otro número (1 a 7)
+const WeeklyGoalStaffCard = ({ patientId, weekly, onChanged }: WeeklyGoalStaffCardProps) => {
+  const [saving, setSaving] = useState(false);
+  if (!weekly) return null;
+
+  const save = async (sessions: number | null) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await achievementApi.updatePatientWeeklyGoal(patientId, sessions);
+      notify.success(sessions === null ? 'Objetivo semanal por defecto' : 'Objetivo semanal guardado');
+      onChanged();
+    } catch (err) {
+      showApiError(err, 'No se pudo guardar el objetivo semanal');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Objetivo semanal de entrenamiento</CardTitle>
+        <CardDescription>
+          Por defecto son las sesiones del plan del mes divididas en 4 semanas (8 al mes = 2 por semana). Puedes fijar otro número para este paciente; nunca
+          supera las sesiones de su plan. No aplica a planes ilimitados ni de kinesiología, y se oculta en los meses con pausa autorizada.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {weekly.state === 'active' ? (
+          <>
+            <p className="text-sm">
+              Objetivo actual: <strong>{weekly.target}</strong> {weekly.target === 1 ? 'sesión' : 'sesiones'} por semana
+              {weekly.source === 'professional' ? ' (fijado por el profesional)' : ` (por defecto del plan)`}.
+            </p>
+            <div role="group" aria-label="Sesiones por semana" className="flex flex-wrap gap-2">
+              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <Button key={n} type="button" size="sm" variant={weekly.target === n && weekly.source === 'professional' ? 'default' : 'outline'} disabled={saving} aria-pressed={weekly.target === n && weekly.source === 'professional'} onClick={() => save(n)} className="min-h-[44px] min-w-[44px]">
+                  {n}
+                </Button>
+              ))}
+            </div>
+            {weekly.source === 'professional' && (
+              <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => save(null)}>
+                Volver al valor por defecto ({weekly.defaultTarget})
+              </Button>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {weekly.state === 'paused' ? 'Este mes tiene una pausa autorizada: el objetivo semanal está oculto para el paciente.' : 'Sin objetivo semanal: el paciente no tiene un plan de entrenamiento vigente con sesiones definidas.'}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

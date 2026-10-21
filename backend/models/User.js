@@ -140,6 +140,13 @@ const userSchema = new mongoose.Schema({
       enabled: { type: Boolean, default: true },
       startedAt: { type: Date }
     },
+    // Objetivo semanal de entrenamiento fijado por el profesional (Mi camino PRIME). Sin este campo se usa el valor por
+    // defecto del plan (sesiones del mes ÷ 4). Solo lo escribe el personal con acceso al paciente; el paciente no puede.
+    weeklyGoal: {
+      sessions: { type: Number, min: 1, max: 7 },
+      setBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      setAt: { type: Date }
+    },
     readinessReminder: {
       enabled: { type: Boolean, default: true },
       hour: { type: Number, min: 0, max: 23, default: 20 }

@@ -223,6 +223,34 @@ export const updatePatientBodyGoal = async (req, res) => {
 };
 
 
+// ── Objetivo semanal (Mi camino PRIME) ───────────────────────────────────────
+export const MAX_WEEKLY_GOAL = 7;
+
+// @desc    Fijar (o quitar, con sessions: null) el objetivo semanal de entrenamiento de un paciente
+// @route   PUT /api/achievements/patients/:patientId/weekly-goal   { sessions: 1..7 | null }
+// @access  Private/Staff (el acceso al paciente lo verifica la ruta)
+export const updatePatientWeeklyGoal = async (req, res) => {
+  try {
+    const { sessions } = req.body ?? {};
+    const valid = sessions === null || (Number.isInteger(sessions) && sessions >= 1 && sessions <= MAX_WEEKLY_GOAL);
+    if (!valid) {
+      return res.status(400).json({ success: false, message: `El objetivo semanal debe ser un número entero de sesiones entre 1 y ${MAX_WEEKLY_GOAL}, o null para volver al valor por defecto` });
+    }
+    const user = await User.findById(req.params.patientId).select('role');
+    if (!user || user.role !== 'patient') {
+      return res.status(404).json({ success: false, message: 'Paciente no encontrado' });
+    }
+    const update =
+      sessions === null
+        ? { $unset: { 'preferences.weeklyGoal': '' } }
+        : { $set: { 'preferences.weeklyGoal': { sessions, setBy: req.user._id, setAt: new Date() } } };
+    await User.updateOne({ _id: user._id }, update);
+    res.status(200).json({ success: true, message: sessions === null ? 'Objetivo semanal por defecto' : 'Objetivo semanal guardado', data: { sessions } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'No se pudo guardar el objetivo semanal' });
+  }
+};
+
 // ── "Mis logros" ─────────────────────────────────────────────────────────────
 
 // @desc    Mis logros: categorías, retos, progreso, historial y próximo hito (solo los del propio paciente)

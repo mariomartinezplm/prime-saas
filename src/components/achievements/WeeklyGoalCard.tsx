@@ -25,6 +25,7 @@ const WeeklyGoalCard = ({ weekly }: { weekly?: WeeklyGoal }) => {
         <span className="text-[3rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums">{shown}</span>
         <span className="text-base font-semibold text-[#cdc6b6]">de {target} {target === 1 ? 'sesión' : 'sesiones'}</span>
       </p>
+      {weekly.source === 'professional' && <p className="text-xs text-[#a8a295]">Objetivo definido por tu profesional.</p>}
       <Meter ratio={target > 0 ? shown / target : 0} label={label} animateKey={`semana:${weekly.weekStart}`} />
       <p className="flex items-start gap-2 text-sm text-[#cdc6b6]">
         <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#62b8cf]" aria-hidden="true" />

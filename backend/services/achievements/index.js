@@ -33,9 +33,9 @@ export async function loadData(patientId) {
     WellnessCheckin.find({ patient: id }).select('_id date scale sleep stress').lean(),
     Measurement.find({ patient: id, weight: { $gt: 0 } }).select('_id date weight').lean(),
     ExerciseProgress.find({ patient: id, weight: { $gt: 0 } }).select('_id exerciseName date weight weightUnit reps sets').lean(),
-    User.findById(id).select('preferences.bodyGoal').lean()
+    User.findById(id).select('preferences.bodyGoal preferences.weeklyGoal').lean()
   ]);
-  return { appointments, plans, pauses, checkins, measurements, exercises, goal: user?.preferences?.bodyGoal ?? null };
+  return { appointments, plans, pauses, checkins, measurements, exercises, goal: user?.preferences?.bodyGoal ?? null, weeklyGoal: user?.preferences?.weeklyGoal?.sessions ?? null };
 }
 
 // Logros que corresponde conceder hoy. Cada categoría aporta los suyos; las siguientes fases agregan más.

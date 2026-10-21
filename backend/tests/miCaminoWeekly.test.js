@@ -77,3 +77,20 @@ describe('integración con el resumen de logros', () => {
     expect(buildOverview(data, { now: NOW }).weekly).toMatchObject({ state: 'active', target: 2, completed: 1 });
   });
 });
+
+describe('objetivo semanal fijado por el profesional', () => {
+  it('reemplaza al valor por defecto pero nunca supera las sesiones del plan', () => {
+    const base = { plans: [plan({ sessionsTotal: 8 })], appointments: [], pauses: [] };
+    expect(computeWeeklyGoal({ ...base, weeklyGoal: 3 }, NOW)).toMatchObject({ target: 3, defaultTarget: 2, source: 'professional' });
+    expect(computeWeeklyGoal({ ...base, weeklyGoal: 7 }, NOW).target).toBe(7);
+    expect(computeWeeklyGoal({ ...base, plans: [plan({ sessionsTotal: 4 })], weeklyGoal: 6 }, NOW).target).toBe(4);
+    expect(computeWeeklyGoal({ ...base, weeklyGoal: null }, NOW)).toMatchObject({ target: 2, source: 'plan' });
+    expect(computeWeeklyGoal({ ...base, weeklyGoal: 0 }, NOW).source).toBe('plan');
+    expect(computeWeeklyGoal({ ...base, weeklyGoal: 2.5 }, NOW).source).toBe('plan');
+  });
+
+  it('no aplica a planes ilimitados ni en pausa autorizada aunque haya valor fijado', () => {
+    expect(computeWeeklyGoal({ plans: [plan({ unlimited: true })], appointments: [], pauses: [], weeklyGoal: 3 }, NOW).state).toBe('none');
+    expect(computeWeeklyGoal({ plans: [plan()], appointments: [], pauses: [{ periodKey: '2026-10' }], weeklyGoal: 3 }, NOW).state).toBe('paused');
+  });
+});
