@@ -22,6 +22,26 @@ const restSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// Un bloque lo arma la persona durante la atención (no hay rutinas precargadas): un ejercicio, dos (superserie) o tres (triserie)
+const slotSchema = new mongoose.Schema(
+  {
+    slot: { type: String, required: true, maxlength: 10 }, // A1, A2, B3…
+    exerciseName: { type: String, required: true, trim: true, maxlength: 60 },
+    modality: { type: String, enum: ['weight', 'bodyweight', 'time'], default: 'weight' }
+  },
+  { _id: false }
+);
+const blockSchema = new mongoose.Schema(
+  {
+    blockId: { type: String, required: true, maxlength: 60 },
+    kind: { type: String, enum: ['single', 'super', 'tri'], required: true },
+    label: { type: String, required: true, maxlength: 2 }, // A, B, C…
+    slots: { type: [slotSchema], default: [] },
+    createdAt: { type: Date, default: Date.now }
+  },
+  { _id: false }
+);
+
 const workoutSessionSchema = new mongoose.Schema(
   {
     patient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: [true, 'El paciente es requerido'], index: true },
@@ -34,7 +54,8 @@ const workoutSessionSchema = new mongoose.Schema(
     status: { type: String, enum: ['active', 'finished', 'auto_closed'], default: 'active' },
     // Última acción del paciente (inicio, descanso…). Sirve para cerrar sesiones abandonadas con una hora de fin honesta.
     lastActivityAt: { type: Date, required: true },
-    rest: { type: restSchema, default: () => ({}) }
+    rest: { type: restSchema, default: () => ({}) },
+    blocks: { type: [blockSchema], default: [] }
   },
   { timestamps: true }
 );

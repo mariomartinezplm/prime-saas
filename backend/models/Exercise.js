@@ -84,7 +84,22 @@ const exerciseProgressSchema = new mongoose.Schema({
   // 1RM calculado (para ejercicios de fuerza)
   oneRepMax: {
     type: Number
-  }
+  },
+
+  // ── Procedencia: serie registrada desde «Entrenamiento en curso» (todo opcional; los registros históricos no lo tienen) ──
+  source: { type: String, enum: ['workout'] },
+  workoutSession: { type: mongoose.Schema.Types.ObjectId, ref: 'WorkoutSession', index: true },
+  blockId: { type: String, trim: true, maxlength: 60 },
+  blockKind: { type: String, enum: ['single', 'super', 'tri'] },
+  // Posición dentro del bloque (A1, A2, B3…): conserva la identidad individual del ejercicio dentro de una superserie
+  slot: { type: String, trim: true, maxlength: 10 },
+  setNumber: { type: Number, min: 1, max: 99 },
+  // Con peso externo, peso corporal o por tiempo. No se convierten entre sí.
+  modality: { type: String, enum: ['weight', 'bodyweight', 'time'] },
+  // Segundos de un ejercicio por tiempo (`duration` sigue siendo minutos, como siempre)
+  durationSec: { type: Number, min: 1, max: 7200 },
+  // Clave de idempotencia de esta serie: reintentar el mismo envío nunca la duplica
+  clientId: { type: String, trim: true, maxlength: 80 }
 }, {
   timestamps: true
 });
@@ -92,6 +107,7 @@ const exerciseProgressSchema = new mongoose.Schema({
 // Índices para mejorar el rendimiento
 exerciseProgressSchema.index({ patient: 1, exerciseName: 1, date: -1 });
 exerciseProgressSchema.index({ patient: 1, category: 1 });
+exerciseProgressSchema.index({ patient: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } }, name: 'serie_idempotente' });
 
 // Calcular 1RM aproximado usando la fórmula de Epley antes de guardar
 exerciseProgressSchema.pre('save', function(next) {

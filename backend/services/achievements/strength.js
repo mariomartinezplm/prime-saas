@@ -14,6 +14,7 @@ import { dayOf, dayNumber, isoWeekOf } from './dates.js';
  * sirve como base de comparación, nunca como motivo de aviso.
  */
 
+// Días distintos con carga registrada que hacen falta ANTES de poder ganar un récord (no filas: ver allStrengthRecords)
 export const PR_MIN_PRIOR = 3;
 export const PR_MIN_INCREASE = 0.025;
 export const PR_RECENT_DAYS = 7;
@@ -35,7 +36,13 @@ const isComparable = (e) => Number.isFinite(e.weight) && e.weight > 0 && Number.
 
 const sortKey = (a, b) => dayNumber(dayOf(a.date)) - dayNumber(dayOf(b.date)) || String(a._id).localeCompare(String(b._id));
 
-// Todos los récords que cumplen la regla (sin límite de recencia); uno por ejercicio-unidad-semana
+// Todos los récords que cumplen la regla (sin límite de recencia); uno por ejercicio-unidad-semana.
+//
+// MÉTRICA DEL RÉCORD: la carga más alta (kg o lbs, cada unidad por separado) que la persona levantó en ese ejercicio ese DÍA
+// (hora de Chile), con al menos 1 repetición. Se comparan DÍAS, no filas: registrar muchas series el mismo día cuenta como
+// un solo día, y las series del mismo día no se comparan entre sí. Hace falta tener antes al menos 3 DÍAS distintos con
+// carga registrada en ese ejercicio, y superar la mejor carga anterior en 2,5 % o más. Los registros sin carga (peso corporal
+// o por tiempo) no son comparables y no entran.
 export function allStrengthRecords(exercises) {
   const groups = new Map();
   for (const e of exercises.filter(isComparable)) {
@@ -48,9 +55,16 @@ export function allStrengthRecords(exercises) {
   const records = [];
   const seenPeriods = new Set();
   for (const [, list] of groups) {
-    list.sort(sortKey);
+    // El mejor registro de cada día (la carga más alta; a igual carga, el más antiguo)
+    const bestOfDay = new Map();
+    for (const record of list.sort(sortKey)) {
+      const day = dayOf(record.date);
+      const current = bestOfDay.get(day);
+      if (!current || record.weight > current.weight) bestOfDay.set(day, record);
+    }
+    const days = [...bestOfDay.entries()].sort(([a], [b]) => dayNumber(a) - dayNumber(b));
     let best = 0;
-    list.forEach((record, index) => {
+    days.forEach(([, record], index) => {
       if (index >= PR_MIN_PRIOR && record.weight >= best * (1 + PR_MIN_INCREASE)) {
         const slug = normalizeExerciseName(record.exerciseName);
         const periodKey = `${slug}@${isoWeekOf(dayOf(record.date))}`;

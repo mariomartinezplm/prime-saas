@@ -11,6 +11,7 @@ import { hasActivePlan } from '../services/clientPlanService.js';
 import WorkoutSession from '../models/WorkoutSession.js';
 import Appointment from '../models/Appointment.js';
 import ClientPlan from '../models/ClientPlan.js';
+import ExerciseProgress from '../models/Exercise.js';
 import workoutRoutes from '../routes/workoutRoutes.js';
 import { getActive, startWorkout, restAction, finishWorkout, sessionView } from '../controllers/workoutController.js';
 import { santiagoToUtc } from '../utils/timezone.js';
@@ -146,6 +147,8 @@ beforeEach(() => {
   vi.setSystemTime(at(18, 30));
   hasActivePlan.mockReset();
   hasActivePlan.mockResolvedValue(true);
+  // Las series de la sesión (Incremento 2): aquí no hay ninguna
+  vi.spyOn(ExerciseProgress, 'find').mockReturnValue(lean([]));
 });
 
 describe('POST /start', () => {
@@ -350,7 +353,7 @@ describe('POST /:id/rest y /finish', () => {
 describe('rutas', () => {
   it('todas exigen sesión y rol de paciente, y ninguna recibe el id de otro paciente', () => {
     const rutas = workoutRoutes.stack.filter((l) => l.route).map((l) => l.route.path);
-    expect(rutas.sort()).toEqual(['/:id/finish', '/:id/rest', '/active', '/start']);
+    expect(rutas.sort()).toEqual(['/:id/blocks', '/:id/finish', '/:id/rest', '/:id/sets', '/:id/summary', '/active', '/exercises/search', '/sets/:setId', '/sets/:setId', '/start']);
     expect(rutas.some((p) => /patientId/i.test(p))).toBe(false);
     // protect + authorize se aplican al router completo, antes de cualquier ruta
     const guards = workoutRoutes.stack.filter((l) => !l.route);
@@ -367,6 +370,6 @@ describe('rutas', () => {
 describe('sessionView', () => {
   it('no expone el paciente ni datos internos', () => {
     const view = sessionView(sesion(), at(18, 30));
-    expect(Object.keys(view).sort()).toEqual(['appointmentId', 'endedAt', 'id', 'lastActivityAt', 'rest', 'startedAt', 'status']);
+    expect(Object.keys(view).sort()).toEqual(['appointmentId', 'blocks', 'endedAt', 'id', 'lastActivityAt', 'rest', 'sets', 'startedAt', 'status']);
   });
 });
