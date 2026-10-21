@@ -2,6 +2,70 @@ import api from '../lib/api';
 import type { APIResponse } from '../types';
 import type { RestState } from '@/lib/workoutClock';
 
+export type BlockKind = 'single' | 'super' | 'tri';
+export type Modality = 'weight' | 'bodyweight' | 'time';
+
+export interface BlockSlot {
+  slot: string; // A1, A2, B3…
+  exerciseName: string;
+  modality: Modality;
+}
+
+export interface WorkoutBlock {
+  blockId: string;
+  kind: BlockKind;
+  label: string; // A, B, C…
+  slots: BlockSlot[];
+}
+
+// Una serie guardada (cada una es una fila del historial de Ejercicios)
+export interface SavedSet {
+  id: string;
+  blockId: string | null;
+  slot: string | null;
+  exerciseName: string;
+  setNumber: number | null;
+  reps: number | null;
+  weight: number | null;
+  weightUnit: 'kg' | 'lbs';
+  durationSec: number | null;
+  modality: Modality | null;
+  clientId: string | null;
+  createdAt: string;
+}
+
+export interface SetInput {
+  clientId: string;
+  slot: string;
+  reps?: number;
+  weight?: number;
+  weightUnit?: 'kg' | 'lbs';
+  durationSec?: number;
+}
+
+export interface ExerciseSuggestion {
+  name: string;
+  count: number;
+  days: number;
+  lastDate: string;
+  // Fecha de la referencia «última vez» (de otra sesión); null si el ejercicio solo existe en la sesión de hoy
+  refDate: string | null;
+  last: { reps: number | null; weight: number | null; weightUnit: 'kg' | 'lbs'; durationSec: number | null; modality: Modality | null };
+}
+
+export interface ExerciseSearch {
+  recent: ExerciseSuggestion[];
+  frequent: ExerciseSuggestion[];
+  matches: ExerciseSuggestion[];
+  exact: boolean;
+}
+
+export interface WorkoutSummary {
+  durationSec: number;
+  exercises: { name: string; slots: string[]; sets: number; reps: number; bestWeight: number | null; unit: 'kg' | 'lbs' | null; timeSec: number; modality: Modality | null }[];
+  totals: { exercises: number; sets: number; reps: number; timeSec: number; volumeTons: number | null; volumeExcludesLbs: boolean };
+}
+
 export interface WorkoutSessionView {
   id: string;
   appointmentId: string | null;
@@ -10,6 +74,8 @@ export interface WorkoutSessionView {
   endedAt: string | null;
   lastActivityAt: string;
   rest: RestState;
+  blocks: WorkoutBlock[];
+  sets: SavedSet[];
 }
 
 export interface Startable {
@@ -30,7 +96,8 @@ export interface WorkoutMutation {
   serverNow: string;
   session: WorkoutSessionView;
   resumed?: boolean;
-  summary?: { durationSec: number };
+  summary?: WorkoutSummary;
+  saved?: { clientId: string; created: boolean; set: SavedSet }[];
 }
 
 export type RestAction = 'start' | 'pause' | 'resume' | 'add' | 'skip' | 'set_next';
@@ -50,6 +117,32 @@ export const workoutService = {
 
   rest: async (id: string, action: RestAction, options: { seconds?: number; expectedVersion?: number } = {}): Promise<WorkoutMutation> => {
     const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/rest`, { action, ...options });
+    return response.data.data;
+  },
+
+  searchExercises: async (q: string): Promise<ExerciseSearch> => {
+    const response = await api.get<APIResponse<ExerciseSearch>>('/workouts/exercises/search', { params: { q } });
+    return response.data.data;
+  },
+
+  addBlock: async (id: string, block: { blockId: string; kind: BlockKind; slots: { exerciseName: string; modality: Modality }[] }): Promise<WorkoutMutation> => {
+    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/blocks`, block);
+    return response.data.data;
+  },
+
+  // Por lote e idempotente: cada serie lleva su `clientId`; reintentar nunca duplica
+  saveSets: async (id: string, blockId: string, sets: SetInput[]): Promise<WorkoutMutation> => {
+    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/sets`, { blockId, sets });
+    return response.data.data;
+  },
+
+  updateSet: async (setId: string, values: { reps?: number; weight?: number; weightUnit?: 'kg' | 'lbs'; durationSec?: number }): Promise<WorkoutMutation> => {
+    const response = await api.put<APIResponse<WorkoutMutation>>(`/workouts/sets/${setId}`, values);
+    return response.data.data;
+  },
+
+  deleteSet: async (setId: string): Promise<WorkoutMutation> => {
+    const response = await api.delete<APIResponse<WorkoutMutation>>(`/workouts/sets/${setId}`);
     return response.data.data;
   },
 

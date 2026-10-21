@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { clearPending } from '@/lib/pendingSets';
 import { authService } from '../services/authService';
 import { getAccessToken, refreshAccessToken, setAccessToken } from '../lib/api';
 import { releasePushOnLogout } from '../lib/push';
@@ -64,6 +65,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setAccessToken(null);
     setUser(null);
     resetWelcome();
+    // Las series de entrenamiento pendientes de envío no deben quedar en el dispositivo cuando alguien cierra sesión
+    clearPending().catch(() => {});
     try {
       await authService.logout();
     } catch {

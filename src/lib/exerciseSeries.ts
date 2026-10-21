@@ -23,6 +23,18 @@ export function weightSeries(records: ExerciseRecord[]): TrendPoint[] {
   return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value }));
 }
 
+// «Última sesión» de un ejercicio: lo de su ÚLTIMO DÍA con registro. Un registro antiguo guarda «N series × X reps» en una fila;
+// el entrenamiento en curso guarda una fila por serie, así que se suman las del mismo día (nunca se muestra solo la última fila).
+export function lastSessionText(records: ExerciseRecord[]): string | null {
+  if (records.length === 0) return null;
+  const lastDay = records.reduce((d, r) => (r.date.slice(0, 10) > d ? r.date.slice(0, 10) : d), '');
+  const day = records.filter((r) => r.date.slice(0, 10) === lastDay);
+  if (day.length === 1) return `${day[0].sets ?? '–'} series × ${day[0].reps ?? '–'} reps`;
+  const sets = day.reduce((n, r) => n + (r.sets ?? 1), 0);
+  const reps = day.reduce((n, r) => n + (r.reps ?? 0) * (r.sets ?? 1), 0);
+  return reps > 0 ? `${sets} series · ${reps} reps en total` : `${sets} series`;
+}
+
 // Ejercicios ordenados por cuántas veces se registraron (el más frecuente primero)
 export function exercisesByFrequency(records: ExerciseRecord[]): string[] {
   const count = new Map<string, number>();

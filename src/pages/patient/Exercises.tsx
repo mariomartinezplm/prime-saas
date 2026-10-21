@@ -17,7 +17,7 @@ import TrendChart from '@/components/premium/TrendChart';
 import EmptyGuide from '@/components/premium/EmptyGuide';
 import MetricDetailDrawer from '@/components/premium/MetricDetailDrawer';
 import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
-import { exercisesByFrequency, isRehabExercise, sessionDays, totalVolumeTons, volumeComparison, weightSeries } from '@/lib/exerciseSeries';
+import { exercisesByFrequency, isRehabExercise, lastSessionText, sessionDays, totalVolumeTons, volumeComparison, weightSeries } from '@/lib/exerciseSeries';
 import { formatValue, longDate, shortDate, summarize } from '@/lib/trend';
 import { cn } from '@/lib/utils';
 import { useHasActivePlan } from '@/hooks/useHasActivePlan';
@@ -196,7 +196,7 @@ const ExercisesPage = () => {
                     {heroSummary.count > 1 && <span className="mb-1 shrink-0 rounded-full border border-[#fff8e4]/20 bg-[#fff8e4]/[0.06] px-3 py-1 text-[13px] font-semibold text-[#fff8e4]">{heroSummary.changeText}</span>}
                   </div>
                   <p className="mt-1.5 text-sm text-[#fff8e4]/72">
-                    {heroLast ? `Última sesión · ${heroLast.sets ?? '–'} series × ${heroLast.reps ?? '–'} reps` : 'Último registro'}
+                    {heroLast ? `Última sesión · ${lastSessionText(byName.get(hero!) ?? []) ?? ''}` : 'Último registro'}
                     {!heroRehab && heroBest !== null && heroSummary.count > 1 ? ` · mejor marca ${formatValue(heroBest, 1)} ${heroUnit}` : ''}
                   </p>
                   {heroSummary.count > 1 ? (

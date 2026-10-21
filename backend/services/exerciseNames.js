@@ -30,21 +30,25 @@ export function cleanExerciseName(name) {
 const HISTORY_LIMIT = 3000;
 
 // Historial del paciente agrupado por ejercicio (identidad = clave normalizada). El nombre mostrado es la escritura más reciente.
-export async function exerciseHistory(patientId) {
-  const rows = await ExerciseProgress.find({ patient: patientId }).sort({ date: -1, createdAt: -1 }).limit(HISTORY_LIMIT).select('exerciseName date reps weight weightUnit durationSec modality').lean();
+// Los ejercicios guardados HOY también aparecen (para poder reutilizarlos en otro bloque), pero la referencia «última vez»
+// (`last`, `refDate`) sale solo de OTRAS sesiones: lo de hoy nunca se presenta como si fuera del pasado.
+export async function exerciseHistory(patientId, { excludeSession } = {}) {
+  const rows = await ExerciseProgress.find({ patient: patientId }).sort({ date: -1, createdAt: -1 }).limit(HISTORY_LIMIT).select('exerciseName date reps weight weightUnit durationSec modality workoutSession').lean();
   const groups = new Map();
   for (const r of rows) {
     const key = exerciseKey(r.exerciseName);
     if (!key) continue;
     let g = groups.get(key);
     if (!g) {
-      g = { key, name: r.exerciseName, count: 0, days: new Set(), lastDate: r.date, last: { reps: r.reps ?? null, weight: r.weight ?? null, weightUnit: r.weightUnit ?? 'kg', durationSec: r.durationSec ?? null, modality: r.modality ?? null } };
+      g = { key, name: r.exerciseName, count: 0, days: new Set(), lastDate: r.date, ref: null };
       groups.set(key, g);
     }
     g.count += 1;
     g.days.add(new Date(r.date).toISOString().slice(0, 10));
+    const fromCurrent = excludeSession && r.workoutSession && String(r.workoutSession) === String(excludeSession);
+    if (!g.ref && !fromCurrent) g.ref = { reps: r.reps ?? null, weight: r.weight ?? null, weightUnit: r.weightUnit ?? 'kg', durationSec: r.durationSec ?? null, modality: r.modality ?? null, date: r.date };
   }
-  return [...groups.values()].map((g) => ({ key: g.key, name: g.name, count: g.count, days: g.days.size, lastDate: g.lastDate, last: g.last }));
+  return [...groups.values()].map((g) => ({ key: g.key, name: g.name, count: g.count, days: g.days.size, lastDate: g.lastDate, last: g.ref ? { reps: g.ref.reps, weight: g.ref.weight, weightUnit: g.ref.weightUnit, durationSec: g.ref.durationSec, modality: g.ref.modality } : { reps: null, weight: null, weightUnit: 'kg', durationSec: null, modality: null }, refDate: g.ref?.date ?? null }));
 }
 
 // Si el nombre ya existe en el historial, se reutiliza EXACTAMENTE esa escritura (misma identidad); si no, es un ejercicio nuevo
@@ -56,7 +60,7 @@ export async function resolveCanonicalName(patientId, typed, history) {
   return found ? { name: found.name, existing: true } : { name: clean, existing: false };
 }
 
-const view = (g) => ({ name: g.name, count: g.count, days: g.days, lastDate: g.lastDate, last: g.last });
+const view = (g) => ({ name: g.name, count: g.count, days: g.days, lastDate: g.lastDate, refDate: g.refDate ?? null, last: g.last });
 
 // Búsqueda: recientes, frecuentes y coincidencias del texto (todas las palabras escritas deben aparecer en el nombre)
 export function searchExercises(history, q = '') {

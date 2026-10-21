@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clockOffset } from '@/lib/workoutClock';
-import { workoutService, type RestAction, type WorkoutActive, type WorkoutMutation, type WorkoutSessionView } from '@/services/workoutService';
+import { listPending, putPending, removePending, type PendingBatch } from '@/lib/pendingSets';
+import { workoutService, type BlockKind, type Modality, type RestAction, type SetInput, type WorkoutActive, type WorkoutMutation, type WorkoutSessionView } from '@/services/workoutService';
 
 type Status = 'loading' | 'ready' | 'error';
+
+// ¿Fue un problema de conexión o del servidor (se puede reintentar) y no un dato rechazado (no tiene sentido reintentar)?
+const isRetryable = (error: unknown) => {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  return status === undefined || status >= 500 || status === 429 || status === 408;
+};
 
 const CHANNEL = 'prime-workout';
 // Refrescar desde el servidor al volver a la app, como máximo cada tanto (no en cada cambio de foco)
@@ -20,6 +27,8 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
   const lastLoad = useRef(0);
   const channel = useRef<BroadcastChannel | null>(null);
   const inFlight = useRef(false);
+  const [pending, setPending] = useState<PendingBatch[]>([]);
+  const flushing = useRef(false);
 
   const calibrate = (serverNowIso: string, sentAt: number) => {
     // Punto medio del viaje: compensa la demora de la red
@@ -113,6 +122,67 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
     return false;
   };
 
+  const refreshPending = useCallback(async (sessionId?: string) => setPending(await listPending(sessionId)), []);
+
+  // Envía lo que quedó pendiente (sin conexión o con error). Cada serie lleva su clientId: reenviar nunca duplica.
+  const flushPending = useCallback(async (): Promise<number> => {
+    const id = data?.session?.id;
+    if (!id || flushing.current) return 0;
+    flushing.current = true;
+    let sent = 0;
+    try {
+      for (const batch of await listPending(id)) {
+        const sentAt = Date.now();
+        try {
+          const mutation = await workoutService.saveSets(batch.sessionId, batch.blockId, batch.sets);
+          await removePending(batch.batchId);
+          apply(mutation, sentAt);
+          sent += 1;
+        } catch (error) {
+          if (isRetryable(error)) break; // sigue sin conexión: se intenta de nuevo después
+          await removePending(batch.batchId); // el servidor lo rechazó: reintentar no sirve
+        }
+      }
+    } finally {
+      flushing.current = false;
+      await refreshPending(id);
+    }
+    return sent;
+  }, [data?.session?.id, apply, refreshPending]);
+
+  useEffect(() => {
+    const id = data?.session?.id;
+    if (!id) return;
+    refreshPending(id).then(() => flushPending());
+    const online = () => flushPending();
+    window.addEventListener('online', online);
+    return () => window.removeEventListener('online', online);
+  }, [data?.session?.id, flushPending, refreshPending]);
+
+  // Guarda un lote: primero queda a salvo en la cola local, luego se envía. Si falla por conexión, queda «pendiente».
+  const saveBatch = async (session: WorkoutSessionView, blockId: string, sets: SetInput[], display: PendingBatch['display']): Promise<'saved' | 'pending'> => {
+    const batch: PendingBatch = { batchId: sets[0].clientId, sessionId: session.id, blockId, sets, display, savedAt: Date.now() };
+    await putPending(batch);
+    await refreshPending(session.id);
+    try {
+      await run(() => workoutService.saveSets(session.id, blockId, sets));
+      await removePending(batch.batchId);
+      await refreshPending(session.id);
+      return 'saved';
+    } catch (error) {
+      if ((error as Error)?.message === 'busy') {
+        await removePending(batch.batchId);
+        await refreshPending(session.id);
+        throw error;
+      }
+      if (isRetryable(error)) return 'pending';
+      // Dato rechazado por el servidor: no se queda en la cola
+      await removePending(batch.batchId);
+      await refreshPending(session.id);
+      throw error;
+    }
+  };
+
   return {
     data,
     status,
@@ -130,5 +200,11 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
         throw error;
       }),
     finish: (session: WorkoutSessionView) => run(() => workoutService.finish(session.id)),
+    pending,
+    flushPending,
+    saveBatch,
+    addBlock: (session: WorkoutSessionView, block: { blockId: string; kind: BlockKind; slots: { exerciseName: string; modality: Modality }[] }) => run(() => workoutService.addBlock(session.id, block)),
+    updateSet: (setId: string, values: { reps?: number; weight?: number; weightUnit?: 'kg' | 'lbs'; durationSec?: number }) => run(() => workoutService.updateSet(setId, values)),
+    deleteSet: (setId: string) => run(() => workoutService.deleteSet(setId)),
   };
 }

@@ -431,10 +431,32 @@ describe('corregir y eliminar series', () => {
 describe('búsqueda por la API y finalizar con series reales', () => {
   it('la búsqueda usa solo el historial del propio paciente', async () => {
     const find = vi.spyOn(ExerciseProgress, 'find').mockReturnValue(lean([{ exerciseName: 'Sentadilla búlgara', date: at(15), reps: 10, weight: 20, weightUnit: 'kg' }]));
+    const activa = sesion();
+    vi.spyOn(WorkoutSession, 'findOne').mockReturnValue(lean(activa));
     const r = res();
     await searchExercises({ user: PACIENTE, query: { q: 'sentadilla' } }, r);
     expect(String(find.mock.calls[0][0].patient)).toBe(String(PACIENTE._id));
+    void activa;
     expect(r.body.data.matches[0]).toMatchObject({ name: 'Sentadilla búlgara', last: { reps: 10, weight: 20 } });
+  });
+
+  it('«última vez» sale de otras sesiones: lo guardado hoy aparece en la búsqueda pero no como referencia del pasado', async () => {
+    const hoy = id();
+    const filas = [
+      { exerciseName: 'Sentadilla búlgara', date: at(21), reps: 10, weight: 22, weightUnit: 'kg', modality: 'weight', workoutSession: hoy },
+      { exerciseName: 'Sentadilla búlgara', date: at(14), reps: 8, weight: 20, weightUnit: 'kg', modality: 'weight', workoutSession: id() },
+      { exerciseName: 'Press militar', date: at(21), reps: 12, weight: 10, weightUnit: 'kg', modality: 'weight', workoutSession: hoy }
+    ];
+    vi.spyOn(ExerciseProgress, 'find').mockReturnValue(lean(filas));
+    vi.spyOn(WorkoutSession, 'findOne').mockReturnValue(lean({ _id: hoy }));
+    const r = res();
+    await searchExercises({ user: PACIENTE, query: { q: '' } }, r);
+    const sentadilla = r.body.data.recent.find((x) => x.name === 'Sentadilla búlgara');
+    const press = r.body.data.recent.find((x) => x.name === 'Press militar');
+    expect(sentadilla.last).toMatchObject({ reps: 8, weight: 20 }); // la de otra sesión, no la de hoy
+    expect(sentadilla.refDate).toEqual(at(14));
+    expect(press.last.reps).toBeNull(); // solo existe hoy: no hay «última vez»
+    expect(press.refDate).toBeNull();
   });
 
   it('finalizar avisa UNA vez al profesional (sin cifras de salud) y entrega el resumen real', async () => {
@@ -495,5 +517,18 @@ describe('integración con Ejercicios (mismo historial, mismas métricas)', () =
     expect(weightSeries(filas).map((p) => p.value)).toEqual([20, 22]);
     expect(sessionDays(filas)).toBe(2);
     expect(totalVolumeTons(filas)).toBeCloseTo((10 * 16 + 10 * 18 + 8 * 20 + 10 * 22) / 1000, 3);
+  });
+});
+
+describe('pantalla Ejercicios: «Última sesión» con series sueltas', () => {
+  it('suma las series del último día; un registro antiguo conserva su texto', async () => {
+    const { lastSessionText } = await import('../../src/lib/exerciseSeries.ts');
+    const dia = (d, over) => ({ _id: String(Math.random()), exerciseName: 'X', date: `2026-10-${d}T15:00:00.000Z`, ...over });
+    // formato antiguo: una fila con «3 series × 10 reps»
+    expect(lastSessionText([dia(14, { sets: 3, reps: 10, weight: 20 })])).toBe('3 series × 10 reps');
+    // entrenamiento en curso: una fila por serie el mismo día
+    expect(lastSessionText([dia(14, { sets: 3, reps: 10 }), dia(21, { sets: 1, reps: 10, weight: 16 }), dia(21, { sets: 1, reps: 10, weight: 18 }), dia(21, { sets: 1, reps: 8, weight: 20 })])).toBe('3 series · 28 reps en total');
+    expect(lastSessionText([dia(21, { sets: 1, durationSec: 30 }), dia(21, { sets: 1, durationSec: 40 })])).toBe('2 series');
+    expect(lastSessionText([])).toBeNull();
   });
 });

@@ -271,7 +271,9 @@ export const getSummary = async (req, res) => {
 export const searchExercises = async (req, res) => {
   try {
     const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 60) : '';
-    res.status(200).json({ success: true, data: searchHistory(await exerciseHistory(req.user._id), q) });
+    // La referencia «última vez» no incluye lo que ya se guardó en la sesión de hoy
+    const active = await WorkoutSession.findOne({ patient: req.user._id, status: 'active' }).select('_id');
+    res.status(200).json({ success: true, data: searchHistory(await exerciseHistory(req.user._id, { excludeSession: active?._id }), q) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'No se pudo buscar tus ejercicios' });
   }
