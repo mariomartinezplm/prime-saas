@@ -8,6 +8,7 @@ import { formatDay, formatNumber } from '@/components/achievements/format';
 import { CATEGORY_ICONS } from '@/components/achievements/categoryMeta';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import { CardsSkeleton, ListSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
+import WeeklyGoalCard from '@/components/achievements/WeeklyGoalCard';
 import PageTitle from '@/components/premium/PageTitle';
 import EmptyGuide from '@/components/premium/EmptyGuide';
 import { CARD, EYEBROW_SOFT, HERO_SURFACE, Meter } from '@/components/dashboard/brand';
@@ -79,6 +80,8 @@ const MyAchievements = () => {
         title={<>Tus avances merecen<br />celebrarse</>}
         description="Aquí solo estás tú y tu propio progreso, a tu ritmo: sin rankings ni comparaciones. Descansar también es parte del proceso."
       />
+
+      <WeeklyGoalCard weekly={overview?.weekly} />
 
       {failed && <LoadErrorAlert message="No se pudieron cargar tus logros." onRetry={load} />}
 

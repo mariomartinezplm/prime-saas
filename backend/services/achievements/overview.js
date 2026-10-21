@@ -6,6 +6,7 @@ import { readinessWeekProgress } from './readiness.js';
 import { wellbeingProgress } from './wellbeing.js';
 import { bodyProgress, goalPeriodKey, isActiveGoal } from './body.js';
 import { strengthSummary } from './strength.js';
+import { computeWeeklyGoal } from './weekly.js';
 
 /**
  * "Mis logros": arma lo que se muestra de un paciente (función pura, sin base de datos).
@@ -200,6 +201,8 @@ export function buildOverview(data, { audience = 'patient', now = new Date() } =
     categories,
     next: nextItem ? { key: nextItem.key, title: nextItem.title, category: nextItem.category, categoryLabel: nextItem.categoryLabel, progress: nextItem.progress } : null,
     unseen,
+    // Objetivo de la semana (Mi camino PRIME): solo lectura, derivado del plan; ver weekly.js
+    weekly: computeWeeklyGoal(data, now),
     history,
     summary: { earned: awards.filter((a) => ACHIEVEMENTS[a.key]).length }
   };

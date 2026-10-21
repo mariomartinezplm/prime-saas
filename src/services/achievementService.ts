@@ -97,10 +97,16 @@ export interface AchievementHistoryEntry extends AchievementAward {
   categoryLabel: string;
 }
 
+// Objetivo de la semana (Mi camino PRIME): 'none' = sin objetivo (plan ilimitado, de kinesiología o sin plan) · 'paused' = pausa autorizada
+export type WeeklyGoal =
+  | { state: 'none' | 'paused'; weekStart: string; weekEnd: string }
+  | { state: 'active'; weekStart: string; weekEnd: string; periodKey: string; target: number; completed: number; scheduled: number; met: boolean; source: 'plan' };
+
 export interface AchievementsOverview {
   categories: AchievementCategory[];
   next: { key: string; title: string; category: AchievementCategoryKey; categoryLabel: string; progress: AchievementProgress | null } | null;
   unseen: UnseenAchievement[];
+  weekly?: WeeklyGoal;
   history: AchievementHistoryEntry[];
   summary: { earned: number };
 }
