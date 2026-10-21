@@ -15,6 +15,7 @@ import { computeReadinessCandidates } from './readiness.js';
 import { computeWellbeingCandidates } from './wellbeing.js';
 import { computeBodyCandidates, bodyGoalStillMet } from './body.js';
 import { buildOverview } from './overview.js';
+import { buildMonthlySummary, monthRange } from './monthly.js';
 import { computeFirstsCandidates, firstsStillMet } from './firsts.js';
 import { computeStrengthCandidates, strengthRecordStillValid, PR_NOTIFY_CAP_PER_WEEK } from './strength.js';
 
@@ -186,4 +187,19 @@ export async function runAchievementSweep({ now = new Date(), windowDays = 3, li
 export async function getAchievementsOverview(patientId, { audience = 'patient', now = new Date() } = {}) {
   const [data, awards] = await Promise.all([loadData(patientId), AchievementAward.find({ patient: patientId }).lean()]);
   return buildOverview({ ...data, awards }, { audience, now });
+}
+
+// Resumen de un mes del paciente (ya validado el mes por quien llama). Solo cuenta lo registrado; ver monthly.js
+export async function getMonthlySummary(patientId, month, { now = new Date() } = {}) {
+  const { from, to } = monthRange(month);
+  const id = new mongoose.Types.ObjectId(String(patientId));
+  const [data, awards, measurements, exercises] = await Promise.all([
+    loadData(patientId),
+    AchievementAward.find({ patient: patientId }).lean(),
+    Measurement.countDocuments({ patient: id, date: { $gte: from, $lt: to } }),
+    ExerciseProgress.countDocuments({ patient: id, date: { $gte: from, $lt: to } })
+  ]);
+  // El Readiness guarda el día como texto 'AAAA-MM-DD' (día de Chile)
+  const readinessDays = data.checkins.filter((c) => typeof c.date === 'string' && c.date.slice(0, 7) === month).length;
+  return buildMonthlySummary({ appointments: data.appointments, plans: data.plans, awards, counts: { measurements, exercises, readinessDays } }, month, now);
 }

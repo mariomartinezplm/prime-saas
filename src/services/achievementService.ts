@@ -136,7 +136,22 @@ export function withoutUnavailable<T extends { categories: AchievementCategory[]
   return { ...overview, categories };
 }
 
+// Resumen mensual de Mi camino PRIME: solo lo registrado (cantidades), sin interpretaciones
+export interface MonthlySummary {
+  month: string; // AAAA-MM
+  isCurrent: boolean;
+  sessions: { completed: number; training: number; kinesiology: number; plan: { completed: number; target: number; met: boolean } | null };
+  milestones: { key: string; title: string; category: AchievementCategoryKey; categoryLabel: string; awardedAt: string }[];
+  records: { measurements: number; exercises: number; readinessDays: number };
+  hasActivity: boolean;
+}
+
 export const achievementApi = {
+  getMonthly: async (month: string): Promise<MonthlySummary> => {
+    const response = await api.get<APIResponse<MonthlySummary>>(`/achievements/me/monthly/${month}`);
+    return response.data.data;
+  },
+
   getMine: async (): Promise<AchievementsOverview> => {
     const response = await api.get<APIResponse<AchievementsOverview>>('/achievements/me');
     return withoutUnavailable(response.data.data);

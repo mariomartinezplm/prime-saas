@@ -4,6 +4,7 @@ import {
   createPause,
   deletePause,
   getMyBodyGoal,
+  getMyMonthly,
   updateMyBodyGoal,
   getPatientBodyGoal,
   updatePatientBodyGoal,
@@ -21,6 +22,7 @@ router.use(protect);
 
 // Mis logros: SOLO los del propio paciente (nunca se recibe el id de otro paciente)
 router.get('/me', authorize('patient'), getMyAchievements);
+router.get('/me/monthly/:month', authorize('patient'), getMyMonthly);
 router.get('/me/unseen', authorize('patient'), getMyUnseen);
 router.post('/me/:awardId/seen', authorize('patient'), markMyAchievementSeen);
 

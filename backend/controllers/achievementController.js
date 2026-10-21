@@ -5,7 +5,8 @@ import mongoose from 'mongoose';
 import AchievementAward from '../models/AchievementAward.js';
 import { ACHIEVEMENTS, CATEGORIES } from '../config/achievements.js';
 import { markSeen } from '../services/achievementService.js';
-import { triggerAchievementEvaluation, getAchievementsOverview } from '../services/achievements/index.js';
+import { triggerAchievementEvaluation, getAchievementsOverview, getMonthlySummary } from '../services/achievements/index.js';
+import { validateMonth } from '../services/achievements/monthly.js';
 
 // Las pausas y los logros son de PACIENTES: un id de otro rol (o inexistente) responde 404 sin tocar nada
 async function ensurePatient(patientId, res) {
@@ -262,6 +263,22 @@ export const getMyAchievements = async (req, res) => {
     res.status(200).json({ success: true, data: overview });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Error al obtener tus logros' });
+  }
+};
+
+// @desc    Resumen mensual de Mi camino PRIME (solo lo registrado, sin interpretaciones; solo el propio paciente)
+// @route   GET /api/achievements/me/monthly/:month   (AAAA-MM, no futuro, hasta 24 meses atrás)
+// @access  Private/Patient
+export const getMyMonthly = async (req, res) => {
+  try {
+    const { month } = req.params;
+    if (!validateMonth(month)) {
+      return res.status(400).json({ success: false, message: 'El mes debe tener el formato AAAA-MM, no ser futuro y no tener más de 24 meses' });
+    }
+    const summary = await getMonthlySummary(req.user._id, month);
+    res.status(200).json({ success: true, data: summary });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'No se pudo obtener tu resumen mensual' });
   }
 };
 

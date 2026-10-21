@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { ChevronDown, HeartHandshake, Trophy } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ChevronDown, ChevronRight, HeartHandshake, Trophy } from 'lucide-react';
 import { achievementApi, type AchievementCategory, type AchievementItem, type AchievementsOverview } from '@/services/achievementService';
 import AchievementBadge from '@/components/achievements/AchievementBadge';
 import AchievementCard from '@/components/achievements/AchievementCard';
@@ -82,6 +82,11 @@ const MyAchievements = () => {
       />
 
       <WeeklyGoalCard weekly={overview?.weekly} />
+
+      <Link to="/app/resumen-mensual" className={cn(CARD, 'flex min-h-[56px] items-center justify-between gap-3 px-4 py-3 text-[15.5px] font-semibold text-[#fff8e4] transition-colors hover:bg-[#fff8e4]/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]')}>
+        <span>Ver mi resumen del mes</span>
+        <ChevronRight className="h-5 w-5 text-[#fff8e4]/55" aria-hidden="true" />
+      </Link>
 
       {failed && <LoadErrorAlert message="No se pudieron cargar tus logros." onRetry={load} />}
 
