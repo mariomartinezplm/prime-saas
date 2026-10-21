@@ -8,7 +8,7 @@ const Photos = () => {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
-      <PageTitle eyebrow="Fotos de progreso" title={<>Tu progreso,<br />en imágenes</>} />
+      <PageTitle serif eyebrow="Fotos de progreso" title={<>Tu progreso,<br />en imágenes</>} />
       <PatientPhotos patientId={user.id} />
     </div>
   );

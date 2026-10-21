@@ -10,7 +10,7 @@ import SubmitButton from '@/components/forms/SubmitButton';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
 import { DetailList, DetailRow } from '@/components/patients/DetailList';
 import PageTitle from '@/components/premium/PageTitle';
-import { CARD, CARD_LINK, HERO_SURFACE } from '@/components/dashboard/brand';
+import { CARD, HERO_SURFACE } from '@/components/dashboard/brand';
 import { cn } from '@/lib/utils';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import LoadingState from '@/components/shared/LoadingState';
@@ -171,7 +171,7 @@ const SectionShell = ({ title, onBack, children }: { title: string; onBack: () =
 );
 
 const HubRow = ({ icon: Icon, title, summary, onClick, attention }: { icon: LucideIcon; title: string; summary: string; onClick: () => void; attention?: string }) => (
-  <button type="button" onClick={onClick} className={cn(CARD, CARD_LINK, 'flex min-h-[68px] w-full items-center gap-3.5 px-4 py-3 text-left')}>
+  <button type="button" onClick={onClick} className="flex min-h-[68px] w-full items-center gap-3.5 px-4 py-3 text-left transition-colors duration-150 hover:bg-[#fff8e4]/[0.05] active:bg-[#fff8e4]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]">
     <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#398ca2]/40 bg-[#398ca2]/15 text-[#7cc0d2]">
       <Icon className="h-5 w-5" />
     </span>
@@ -328,18 +328,18 @@ const MyProfile = () => {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
-      <PageTitle eyebrow="Mi perfil" title={<>Tu espacio<br />personal</>} />
+      <PageTitle serif eyebrow="Mi perfil" title={<>Tu espacio<br />personal</>} />
 
       <section aria-label="Tu cuenta" className={cn('flex items-center gap-4 rounded-[24px] border p-5', HERO_SURFACE)}>
         <span aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#398ca2]/60 bg-[#181619]/60 text-xl font-extrabold text-[#fff8e4]">{initialsOf(user)}</span>
         <div className="min-w-0 space-y-1">
-          <p className="truncate text-xl font-bold tracking-tight text-[#fff8e4]">{user.firstName} {user.lastName}</p>
+          <p className="truncate font-serif text-2xl font-medium text-[#fff8e4]">{user.firstName} {user.lastName}</p>
           <p className="truncate text-sm text-[#fff8e4]/72">{user.email}</p>
           {user.isFounder && <FounderBadge tone="brand" />}
         </div>
       </section>
 
-      <nav aria-label="Secciones de tu perfil" className="space-y-2.5">
+      <nav aria-label="Secciones de tu perfil" className={cn(CARD, 'divide-y divide-[#fff8e4]/10 overflow-hidden')}>
         <HubRow icon={UserRound} title="Datos personales" summary={user.phone ? `Contacto y preferencias · ${user.phone}` : 'Contacto y preferencias'} onClick={() => setSection('personal')} />
         <HubRow icon={Users} title="Contacto de emergencia" summary={hasEmergency ? (user.emergencyContact?.name ?? 'Registrado') : 'Aún sin registrar'} attention={hasEmergency ? undefined : 'Pendiente'} onClick={() => setSection('emergency')} />
         <HubRow icon={HeartPulse} title="Información médica" summary="Antecedentes, alergias y cuidados" onClick={() => setSection('medical')} />
