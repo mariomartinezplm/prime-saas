@@ -15,6 +15,7 @@ import { computeReadinessCandidates } from './readiness.js';
 import { computeWellbeingCandidates } from './wellbeing.js';
 import { computeBodyCandidates, bodyGoalStillMet } from './body.js';
 import { buildOverview } from './overview.js';
+import { computeFirstsCandidates, firstsStillMet } from './firsts.js';
 import { computeStrengthCandidates, strengthRecordStillValid, PR_NOTIFY_CAP_PER_WEEK } from './strength.js';
 
 /**
@@ -26,21 +27,25 @@ import { computeStrengthCandidates, strengthRecordStillValid, PR_NOTIFY_CAP_PER_
 
 export async function loadData(patientId) {
   const id = new mongoose.Types.ObjectId(String(patientId));
-  const [appointments, plans, pauses, checkins, measurements, exercises, user] = await Promise.all([
+  const [appointments, plans, pauses, checkins, measurements, exercises, user, firstMeasurement, firstExercise] = await Promise.all([
     Appointment.find({ patient: id }).select('_id type status date startTime deduction').lean(),
     ClientPlan.find({ patient: id }).select('_id serviceType sessionsTotal unlimited status startDate endDate').lean(),
     AchievementPause.find({ patient: id }).select('periodKey').lean(),
     WellnessCheckin.find({ patient: id }).select('_id date scale sleep stress').lean(),
     Measurement.find({ patient: id, weight: { $gt: 0 } }).select('_id date weight').lean(),
     ExerciseProgress.find({ patient: id, weight: { $gt: 0 } }).select('_id exerciseName date weight weightUnit reps sets').lean(),
-    User.findById(id).select('preferences.bodyGoal preferences.weeklyGoal').lean()
+    User.findById(id).select('preferences.bodyGoal preferences.weeklyGoal').lean(),
+    // El registro más antiguo de cada tipo (cualquier medición, no solo las de peso): para "Primer registro de progreso"
+    Measurement.findOne({ patient: id }).sort({ date: 1 }).select('_id date').lean(),
+    ExerciseProgress.findOne({ patient: id }).sort({ date: 1 }).select('_id date').lean()
   ]);
-  return { appointments, plans, pauses, checkins, measurements, exercises, goal: user?.preferences?.bodyGoal ?? null, weeklyGoal: user?.preferences?.weeklyGoal?.sessions ?? null };
+  return { appointments, plans, pauses, checkins, measurements, exercises, goal: user?.preferences?.bodyGoal ?? null, weeklyGoal: user?.preferences?.weeklyGoal?.sessions ?? null, firstRecords: { measurement: firstMeasurement, exercise: firstExercise } };
 }
 
 // Logros que corresponde conceder hoy. Cada categoría aporta los suyos; las siguientes fases agregan más.
-export function computeCandidates({ appointments, plans, pauses = [], checkins = [], measurements = [], exercises = [], goal = null }, now = new Date()) {
+export function computeCandidates({ appointments, plans, pauses = [], checkins = [], measurements = [], exercises = [], goal = null, firstRecords = {} }, now = new Date()) {
   return [
+    ...computeFirstsCandidates(appointments, firstRecords, now),
     ...computeKinesiologyCandidates(appointments),
     ...computeConsistencyCandidates(plans, appointments),
     ...computeStreakCandidates(plans, appointments, pauses, now),
@@ -77,7 +82,9 @@ export async function evaluatePatientAchievements(patientId, { dryRun = false, n
       notify = recentRecords < PR_NOTIFY_CAP_PER_WEEK;
     }
 
-    const { created } = await grantAchievement({ patientId, ...candidate, notify });
+    // Un "primero" antiguo (activación de la función) se concede en silencio: sin aviso ni animación
+    const { silent, ...grant } = candidate;
+    const { created } = await grantAchievement({ patientId, ...grant, notify: notify && !silent, seen: !!silent });
     if (created) {
       granted.push({ key: candidate.key, periodKey: candidate.periodKey });
       if (candidate.key === 'strength_pr') recentRecords += 1;
@@ -97,7 +104,7 @@ export async function reconcilePatientAchievements(patientId, { now = new Date()
   const data = preloaded ?? (await loadData(patientId));
   const awards = await AchievementAward.find({
     patient: patientId,
-    key: { $in: ['kine_5', 'consistency_month', 'streak_3', 'streak_6', 'streak_12', 'body_goal', 'strength_pr'] }
+    key: { $in: ['first_session', 'first_progress', 'kine_5', 'consistency_month', 'streak_3', 'streak_6', 'streak_12', 'body_goal', 'strength_pr'] }
   });
 
   const flagged = [];
@@ -105,7 +112,8 @@ export async function reconcilePatientAchievements(patientId, { now = new Date()
 
   for (const award of awards) {
     let stillMet;
-    if (award.key === 'kine_5') stillMet = kinesiologyMilestoneStillMet(data.appointments, award.key);
+    if (award.key === 'first_session' || award.key === 'first_progress') stillMet = firstsStillMet(award.key, data.appointments, data.firstRecords);
+    else if (award.key === 'kine_5') stillMet = kinesiologyMilestoneStillMet(data.appointments, award.key);
     else if (award.key === 'consistency_month') stillMet = consistencyPeriodStillMet(data.plans, data.appointments, award.periodKey);
     else if (award.key === 'body_goal') stillMet = bodyGoalStillMet(data.measurements, data.goal, award.periodKey);
     else if (award.key === 'strength_pr') stillMet = strengthRecordStillValid(data.exercises, award.periodKey);

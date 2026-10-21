@@ -183,7 +183,7 @@ describe('rachas: meses consecutivos con constancia', () => {
 });
 
 // ── Servicio con la base simulada ───────────────────────────────────────────
-const query = (value) => ({ select: () => query(value), lean: () => Promise.resolve(value) });
+const query = (value) => ({ select: () => query(value), sort: () => query(value), lean: () => Promise.resolve(value) });
 
 function almacen() {
   const rows = [];
@@ -220,6 +220,8 @@ function datos({ plans, citas, pausas = [] }) {
   vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
   vi.spyOn(Measurement, 'find').mockImplementation(() => query([]));
   vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query([]));
+  vi.spyOn(Measurement, 'findOne').mockImplementation(() => query(null));
+  vi.spyOn(ExerciseProgress, 'findOne').mockImplementation(() => query(null));
   vi.spyOn(UserModel, 'findById').mockImplementation(() => query(null));
   return state;
 }

@@ -13,6 +13,7 @@
  */
 
 export const CATEGORIES = {
+  primeros: { label: 'Primeros pasos' },
   kinesiologia: { label: 'Kinesiología' },
   constancia: { label: 'Constancia en entrenamiento' },
   readiness: { label: 'Readiness diario' },
@@ -24,7 +25,7 @@ export const CATEGORIES = {
 };
 
 // Orden en que se muestran las categorías en "Mis logros"
-export const CATEGORY_ORDER = ['kinesiologia', 'constancia', 'readiness', 'descanso', 'estres', 'trayectoria', 'cuerpo', 'fuerza'];
+export const CATEGORY_ORDER = ['primeros', 'kinesiologia', 'constancia', 'readiness', 'descanso', 'estres', 'trayectoria', 'cuerpo', 'fuerza'];
 
 // Retos que se mencionan pero TODAVÍA NO funcionan: se muestran como "pendientes", nunca como si ya existieran.
 // `note` es lo que ve la persona (sin tecnicismos); no concede nada y no tiene progreso.
@@ -73,6 +74,29 @@ export const GENERIC_NOTIFICATION = {
  * }
  */
 export const ACHIEVEMENTS = {
+  // ── Primeros pasos ──────────────────────────────────────────────────────────
+  // Una sola vez por paciente. Ver services/achievements/firsts.js.
+  first_session: {
+    key: 'first_session',
+    category: 'primeros',
+    title: 'Primera sesión completada',
+    description: 'Completaste tu primera sesión en PRIME F&H.',
+    criteria: 'Completar tu primera sesión de kinesiología o de entrenamiento. Solo cuentan las sesiones realizadas: no las reservas, las canceladas ni las ausencias.',
+    message: 'Completaste tu primera sesión. Empezar es el paso más importante: gracias por confiar en nosotros.',
+    ruleVersion: 1,
+    periodic: false
+  },
+  first_progress: {
+    key: 'first_progress',
+    category: 'primeros',
+    title: 'Primer registro de progreso',
+    description: 'Guardaste tu primer registro de mediciones o de ejercicio.',
+    criteria: 'Guardar tu primera medición corporal o tu primer registro de ejercicio. Registrar es lo que permite ver tu evolución con el tiempo.',
+    message: 'Guardaste tu primer registro. Desde hoy tu evolución queda a la vista, a tu ritmo.',
+    ruleVersion: 1,
+    periodic: false
+  },
+
   // ── Kinesiología ────────────────────────────────────────────────────────────
   // Sesiones de kinesiología REALMENTE realizadas (estado "completada"), de por vida. No cuentan citas
   // futuras, canceladas, ausentes ni evaluaciones. Hitos futuros (10, 20…) se agregan aquí y a

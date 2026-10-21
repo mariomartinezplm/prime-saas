@@ -347,7 +347,7 @@ describe('periodos por ejercicio y semana', () => {
 });
 
 // ── Servicio: evaluación completa con la base simulada ──────────────────────
-const query = (value) => ({ select: () => query(value), lean: () => Promise.resolve(value) });
+const query = (value) => ({ select: () => query(value), sort: () => query(value), lean: () => Promise.resolve(value) });
 
 function montar({ medidas = [], ejercicios = [], goal = null }) {
   vi.restoreAllMocks();
@@ -357,6 +357,8 @@ function montar({ medidas = [], ejercicios = [], goal = null }) {
   vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
   vi.spyOn(Measurement, 'find').mockImplementation(() => query(medidas));
   vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query(ejercicios));
+  vi.spyOn(Measurement, 'findOne').mockImplementation(() => query(null));
+  vi.spyOn(ExerciseProgress, 'findOne').mockImplementation(() => query(null));
   vi.spyOn(User, 'findById').mockImplementation(() => query(goal ? { preferences: { bodyGoal: goal } } : null));
   vi.spyOn(AchievementAward, 'countDocuments').mockResolvedValue(0);
   const filas = [];

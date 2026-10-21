@@ -248,7 +248,7 @@ describe('constancia mensual en entrenamiento', () => {
 });
 
 // ── Servicio con la base de datos simulada ──────────────────────────────────
-const query = (value) => ({ select: () => query(value), lean: () => Promise.resolve(value) });
+const query = (value) => ({ select: () => query(value), sort: () => query(value), lean: () => Promise.resolve(value) });
 
 function datos({ citas = [], planes = [] }) {
   vi.spyOn(Appointment, 'find').mockImplementation(() => query(citas));
@@ -257,6 +257,8 @@ function datos({ citas = [], planes = [] }) {
   vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query([]));
   vi.spyOn(Measurement, 'find').mockImplementation(() => query([]));
   vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query([]));
+  vi.spyOn(Measurement, 'findOne').mockImplementation(() => query(null));
+  vi.spyOn(ExerciseProgress, 'findOne').mockImplementation(() => query(null));
   vi.spyOn(User, 'findById').mockImplementation(() => query(null));
 }
 
@@ -300,27 +302,28 @@ describe('evaluatePatientAchievements', () => {
     const filas = almacen();
     const notifs = avisos();
 
-    const first = await evaluatePatientAchievements(patientId);
-    await evaluatePatientAchievements(patientId);
-    await evaluatePatientAchievements(patientId);
+    const now = new Date('2026-10-10T12:00:00Z'); // fecha cercana a las sesiones de prueba: la primera sesión no es "antigua"
+    const first = await evaluatePatientAchievements(patientId, { now });
+    await evaluatePatientAchievements(patientId, { now });
+    await evaluatePatientAchievements(patientId, { now });
 
-    expect(first.granted.map((g) => g.key).sort()).toEqual(['consistency_month', 'kine_5']);
-    expect(filas).toHaveLength(2);
-    expect(notifs).toHaveLength(2);
+    expect(first.granted.map((g) => g.key).sort()).toEqual(['consistency_month', 'first_session', 'kine_5']);
+    expect(filas).toHaveLength(3);
+    expect(notifs).toHaveLength(3);
     expect(notifs[0]).toMatchObject({ title: GENERIC_NOTIFICATION.title, body: GENERIC_NOTIFICATION.body });
   });
 
-  it('con datos insuficientes no concede nada ni avisa', async () => {
+  it('con datos insuficientes solo concede el primer paso (la primera sesión), nada más', async () => {
     const p = plan(8);
     datos({ citas: [...muchas(4, () => kine()), ...muchas(7, () => entreno(p))], planes: [p] });
     const filas = almacen();
     const notifs = avisos();
 
-    const result = await evaluatePatientAchievements(nuevoId());
+    const result = await evaluatePatientAchievements(nuevoId(), { now: new Date('2026-10-10T12:00:00Z') });
 
-    expect(result).toEqual({ candidates: 0, granted: [] });
-    expect(filas).toHaveLength(0);
-    expect(notifs).toHaveLength(0);
+    expect(result).toEqual({ candidates: 1, granted: [{ key: 'first_session', periodKey: 'once' }] });
+    expect(filas).toHaveLength(1);
+    expect(notifs).toHaveLength(1);
   });
 
   it('dryRun informa lo que concedería SIN conceder ni avisar', async () => {
@@ -330,7 +333,7 @@ describe('evaluatePatientAchievements', () => {
 
     const result = await evaluatePatientAchievements(nuevoId(), { dryRun: true });
 
-    expect(result.granted).toEqual([{ key: 'kine_5', periodKey: 'once' }]);
+    expect(result.granted).toEqual([{ key: 'first_session', periodKey: 'once' }, { key: 'kine_5', periodKey: 'once' }]);
     expect(filas).toHaveLength(0);
     expect(notifs).toHaveLength(0);
   });
@@ -344,26 +347,28 @@ describe('reconcilePatientAchievements: correcciones', () => {
     const filas = almacen();
     avisos();
     await evaluatePatientAchievements(patientId);
-    expect(filas[0].status).toBe('active');
+    const kineFila = () => filas.find((f) => f.key === 'kine_5');
+    expect(kineFila().status).toBe('active');
 
     // el profesional corrige una sesión a "ausente"
     citas[2].status = 'no-show';
     const flagged = await reconcilePatientAchievements(patientId);
     expect(flagged.flagged).toEqual([{ key: 'kine_5', periodKey: 'once' }]);
-    expect(filas).toHaveLength(1);
-    expect(filas[0].status).toBe('under_review');
-    expect(filas[0].reviewNote).toMatch(/^\[auto\]/);
+    expect(filas).toHaveLength(2); // primera sesión + 5 sesiones; la primera sesión sigue respaldada
+    expect(kineFila().status).toBe('under_review');
+    expect(filas.find((f) => f.key === 'first_session').status).toBe('active');
+    expect(kineFila().reviewNote).toMatch(/^\[auto\]/);
 
     // evaluar de nuevo NO concede un segundo logro
     await evaluatePatientAchievements(patientId);
-    expect(filas).toHaveLength(1);
+    expect(filas).toHaveLength(2);
 
     // la corrección se revierte
     citas[2].status = 'completed';
     const restored = await reconcilePatientAchievements(patientId);
     expect(restored.restored).toEqual([{ key: 'kine_5', periodKey: 'once' }]);
-    expect(filas[0].status).toBe('active');
-    expect(filas[0].reviewNote).toBeUndefined();
+    expect(kineFila().status).toBe('active');
+    expect(kineFila().reviewNote).toBeUndefined();
   });
 
   it('una revisión puesta por una persona no se restaura sola', async () => {
@@ -392,7 +397,7 @@ describe('reconcilePatientAchievements: correcciones', () => {
     const result = await reconcilePatientAchievements(patientId);
 
     expect(result.flagged).toEqual([{ key: 'consistency_month', periodKey: '2026-10' }]);
-    expect(filas[0].status).toBe('under_review');
+    expect(filas.find((f) => f.key === 'consistency_month').status).toBe('under_review');
   });
 });
 
@@ -422,6 +427,8 @@ describe('triggerAchievementEvaluation y programador', () => {
     vi.spyOn(WellnessCheckin, 'distinct').mockResolvedValue([]);
     vi.spyOn(Measurement, 'find').mockImplementation(() => query([]));
     vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query([]));
+    vi.spyOn(Measurement, 'findOne').mockImplementation(() => query(null));
+    vi.spyOn(ExerciseProgress, 'findOne').mockImplementation(() => query(null));
     vi.spyOn(User, 'findById').mockImplementation(() => query(null));
     vi.spyOn(Measurement, 'distinct').mockResolvedValue([]);
     vi.spyOn(ExerciseProgress, 'distinct').mockResolvedValue([]);

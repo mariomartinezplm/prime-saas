@@ -132,7 +132,7 @@ describe('catálogo: honestidad y tono', () => {
 });
 
 describe('servicio: se concede una sola vez y sin datos suficientes no concede nada', () => {
-  const query = (value) => ({ select: () => query(value), lean: () => Promise.resolve(value) });
+  const query = (value) => ({ select: () => query(value), sort: () => query(value), lean: () => Promise.resolve(value) });
 
   function montar(checkins) {
     vi.spyOn(Appointment, 'find').mockImplementation(() => query([]));
@@ -141,6 +141,8 @@ describe('servicio: se concede una sola vez y sin datos suficientes no concede n
     vi.spyOn(WellnessCheckin, 'find').mockImplementation(() => query(checkins));
     vi.spyOn(Measurement, 'find').mockImplementation(() => query([]));
     vi.spyOn(ExerciseProgress, 'find').mockImplementation(() => query([]));
+    vi.spyOn(Measurement, 'findOne').mockImplementation(() => query(null));
+    vi.spyOn(ExerciseProgress, 'findOne').mockImplementation(() => query(null));
     vi.spyOn(User, 'findById').mockImplementation(() => query(null));
     const filas = [];
     const llave = (f) => `${f.patient}|${f.key}|${f.periodKey}`;

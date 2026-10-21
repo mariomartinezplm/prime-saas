@@ -83,7 +83,7 @@ describe('Mis logros: qué categorías aparecen', () => {
   });
 
   it('las categorías salen en el orden definido', () => {
-    const datos = { ...vacio(), plans: [plan(), plan({ serviceType: 'kinesiologia', sessionsTotal: 5 })], goal: { direction: 'lose', targetKg: 4, enabled: true, startedAt: AHORA }, exercises: [{ _id: 2, exerciseName: 'x', weight: 1, reps: 1, date: AHORA }] };
+    const datos = { ...vacio(), appointments: [cita('entrenamiento', 'completed')], plans: [plan(), plan({ serviceType: 'kinesiologia', sessionsTotal: 5 })], goal: { direction: 'lose', targetKg: 4, enabled: true, startedAt: AHORA }, exercises: [{ _id: 2, exerciseName: 'x', weight: 1, reps: 1, date: AHORA }] };
     expect(buildOverview(datos, { now: AHORA }).categories.map((c) => c.key)).toEqual(CATEGORY_ORDER);
   });
 });

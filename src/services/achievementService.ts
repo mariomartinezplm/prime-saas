@@ -32,6 +32,7 @@ export type AchievementCategoryKey =
   | 'readiness'
   | 'descanso'
   | 'estres'
+  | 'primeros'
   | 'trayectoria'
   | 'cuerpo'
   | 'fuerza';

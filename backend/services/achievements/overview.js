@@ -23,12 +23,14 @@ import { computeWeeklyGoal } from './weekly.js';
 const trainingPlan = (p) => p.serviceType === 'entrenamiento';
 
 // Qué categorías corresponden a este paciente
-function visibleCategories({ appointments, plans, checkins, measurements, exercises, goal, awards }) {
+function visibleCategories({ appointments, plans, checkins, measurements, exercises, goal, awards, firstRecords = {} }) {
   const withAwards = new Set(awards.map((a) => a.category));
   const hasKine = appointments.some((a) => a.type === 'kinesiologia') || plans.some((p) => p.serviceType === 'kinesiologia');
   const hasTraining = plans.some(trainingPlan);
   const hasAnyPlan = plans.length > 0 || checkins.length > 0;
   return {
+    // Los "primeros pasos" aparecen en cuanto hay una cita o un registro (no antes: no se muestra un reto sin base real)
+    primeros: appointments.length > 0 || !!firstRecords.measurement || !!firstRecords.exercise,
     kinesiologia: hasKine,
     constancia: hasTraining,
     readiness: hasAnyPlan,

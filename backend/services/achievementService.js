@@ -18,7 +18,7 @@ export const awardNotificationKey = (patientId, key, periodKey) => `achievement:
 //   created = true  → se concedió ahora (y se avisó)
 //   created = false → ya lo tenía: no se hace nada más
 export async function grantAchievement(
-  { patientId, key, periodKey = ONCE, awardedAt = new Date(), evidence, source = 'auto', grantedBy, reason, notify = true },
+  { patientId, key, periodKey = ONCE, awardedAt = new Date(), evidence, source = 'auto', grantedBy, reason, notify = true, seen = false },
   { definitions = ACHIEVEMENTS } = {}
 ) {
   const definition = getDefinition(key, definitions);
@@ -40,6 +40,8 @@ export async function grantAchievement(
     source,
     status: 'active',
     evidence: evidence ?? {},
+    // Concesión retroactiva en silencio: queda en el historial pero sin animación de desbloqueo
+    ...(seen ? { seenAt: new Date() } : {}),
     ...(source === 'manual' ? { grantedBy: toObjectId(grantedBy), reason: reason.trim() } : {})
   };
 
