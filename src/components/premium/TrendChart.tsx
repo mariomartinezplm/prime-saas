@@ -40,8 +40,8 @@ const TrendChart = ({ points, unit, decimals = 1, label, height = 190 }: TrendCh
           <AreaChart data={data} margin={{ top: 12, right: 14, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#398ca2" stopOpacity={0.4} />
-                <stop offset="100%" stopColor="#398ca2" stopOpacity={0} />
+                <stop offset="0%" stopColor="#62b8cf" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="#62b8cf" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid stroke="rgba(255,248,228,0.08)" vertical={false} />
@@ -52,7 +52,7 @@ const TrendChart = ({ points, unit, decimals = 1, label, height = 190 }: TrendCh
               domain={first.t === last.t ? [first.t - 864e5, last.t + 864e5] : [first.t, last.t]}
               ticks={xTicks}
               tickFormatter={(t: number) => shortDate(new Date(t).toISOString(), crosses ? first.date : undefined)}
-              tick={{ fontSize: 11, fill: 'rgba(255,248,228,0.62)' }}
+              tick={{ fontSize: 11, fill: '#a8a295' }}
               axisLine={false}
               tickLine={false}
               padding={{ left: 10, right: 10 }}
@@ -62,7 +62,7 @@ const TrendChart = ({ points, unit, decimals = 1, label, height = 190 }: TrendCh
               tickCount={3}
               width={38}
               tickFormatter={(v: number) => formatValue(v, axisDecimals)}
-              tick={{ fontSize: 11, fill: 'rgba(255,248,228,0.62)' }}
+              tick={{ fontSize: 11, fill: '#a8a295' }}
               axisLine={false}
               tickLine={false}
             />
@@ -75,9 +75,9 @@ const TrendChart = ({ points, unit, decimals = 1, label, height = 190 }: TrendCh
               labelStyle={{ color: 'rgba(255,248,228,0.7)' }}
             />
             {data.length > 1 && (
-              <Area type="monotone" dataKey="value" stroke="#398ca2" strokeWidth={2.6} fill={`url(#${gradientId})`} dot={{ r: 4, fill: '#201e22', stroke: '#398ca2', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#fff8e4', stroke: '#398ca2', strokeWidth: 3 }} isAnimationActive={false} />
+              <Area type="monotone" dataKey="value" stroke="#62b8cf" strokeWidth={2.6} fill={`url(#${gradientId})`} dot={{ r: 4, fill: '#201e22', stroke: '#62b8cf', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#fff8e4', stroke: '#62b8cf', strokeWidth: 3 }} isAnimationActive={false} />
             )}
-            <ReferenceDot x={last.t} y={last.value} r={6} fill="#fff8e4" stroke="#398ca2" strokeWidth={3} ifOverflow="extendDomain" />
+            <ReferenceDot x={last.t} y={last.value} r={6} fill="#fff8e4" stroke="#62b8cf" strokeWidth={3} ifOverflow="extendDomain" />
           </AreaChart>
         </ResponsiveContainer>
       </div>

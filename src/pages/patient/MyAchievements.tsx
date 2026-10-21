@@ -74,6 +74,7 @@ const MyAchievements = () => {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <PageTitle
+        serif
         eyebrow="Mis logros"
         title={<>Tus avances merecen<br />celebrarse</>}
         description="Aquí solo estás tú y tu propio progreso, a tu ritmo: sin rankings ni comparaciones. Descansar también es parte del proceso."
@@ -101,7 +102,7 @@ const MyAchievements = () => {
               <p className={cn(EYEBROW_SOFT, 'text-center text-[#7cc0d2]')}>Tu próximo hito</p>
               <div className="mt-4 flex flex-col items-center text-center">
                 <AchievementBadge category={next.category} state="progress" ratio={nextRatio} size={96} />
-                <p className="mt-3 text-[1.5rem] font-extrabold leading-tight tracking-tight text-[#fff8e4]">{next.title}</p>
+                <p className="mt-3 font-serif text-[1.75rem] font-medium leading-tight text-[#fff8e4]">{next.title}</p>
                 <p className="mt-0.5 text-sm text-[#fff8e4]/75">{next.categoryLabel}</p>
               </div>
               {next.progress && (

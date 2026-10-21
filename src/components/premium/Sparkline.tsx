@@ -18,7 +18,7 @@ const Sparkline = ({ values, className }: SparklineProps) => {
   const [lx, ly] = pts[pts.length - 1];
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${W} ${H}`} className={cn('h-[30px] w-full', className)} preserveAspectRatio="none">
-      {pts.length > 1 && <path d={d} fill="none" stroke="#398ca2" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={flat ? '3 4' : undefined} opacity={flat ? 0.7 : 1} vectorEffect="non-scaling-stroke" />}
+      {pts.length > 1 && <path d={d} fill="none" stroke="#62b8cf" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={flat ? '3 4' : undefined} opacity={flat ? 0.7 : 1} vectorEffect="non-scaling-stroke" />}
       <circle cx={lx} cy={ly} r="3.2" fill="#fff8e4" />
     </svg>
   );

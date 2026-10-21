@@ -189,7 +189,7 @@ const ExercisesPage = () => {
                   <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>{heroRehab ? 'Ejercicio de rehabilitación' : 'Ejercicio destacado'}</p>
                   <h2 className="mt-1 text-xl font-bold tracking-tight text-[#fff8e4]">{hero}</h2>
                   <div className="mt-2 flex items-end justify-between gap-3">
-                    <p className="text-[3rem] font-extrabold leading-none tracking-tight tabular-nums text-[#fff8e4]">
+                    <p className="text-[3.75rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[#fff8e4]">
                       {formatValue(heroSummary.last.value, 1)}
                       <span className="ml-1.5 text-xl font-bold text-[#fff8e4]/65">{heroUnit}</span>
                     </p>

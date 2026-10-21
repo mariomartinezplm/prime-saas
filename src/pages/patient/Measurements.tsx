@@ -158,6 +158,7 @@ const MeasurementsPage = () => {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
       <PageTitle
+        serif
         eyebrow="Mediciones y progreso"
         title={<>Tu evolución,<br />en perspectiva</>}
         description={measurements.length > 0 ? `Última medición: ${longDate(measurements[0].date)}` : undefined}
@@ -207,7 +208,7 @@ const MeasurementsPage = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>{hero.label === 'Peso' ? 'Peso actual' : hero.label}</p>
-                      <p className="mt-1.5 text-[3.25rem] font-extrabold leading-none tracking-tight tabular-nums text-[#fff8e4]">
+                      <p className="mt-1.5 font-serif text-[3.75rem] font-medium leading-none tracking-[-0.02em] tabular-nums text-[#fff8e4]">
                         {formatValue(heroSummary.last.value, hero.decimals)}
                         {hero.unit && <span className="ml-1.5 text-xl font-bold text-[#fff8e4]/65">{hero.unit}</span>}
                       </p>
