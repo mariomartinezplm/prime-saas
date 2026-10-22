@@ -80,7 +80,16 @@ export interface AchievementCategory {
   items: AchievementItem[];
 }
 
+// Solo en «Nueva marca personal»: ejercicio, marca anterior y nueva (kg)
+export interface RecordDetail {
+  exercise: string;
+  previous: number | null;
+  current: number | null;
+  unit: string;
+}
+
 export interface UnseenAchievement {
+  record?: RecordDetail;
   id: string;
   key: string;
   title: string;

@@ -16,7 +16,7 @@ import WorkoutSession from '../models/WorkoutSession.js';
 import ExerciseProgress from '../models/Exercise.js';
 import { addBlock, saveSets, updateSet, deleteSet, searchExercises, finishWorkout, getSummary } from '../controllers/workoutController.js';
 import { exerciseKey, cleanExerciseName, searchExercises as searchHistory } from '../services/exerciseNames.js';
-import { validateBlockInput, validateSetInput, buildSummary } from '../services/workoutSets.js';
+import { validateBlockInput, validateSetInput, buildSummary, sessionRecords } from '../services/workoutSets.js';
 import { allStrengthRecords, computeStrengthCandidates } from '../services/achievements/strength.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 
@@ -102,29 +102,50 @@ describe('validación de series según la modalidad', () => {
   });
 });
 
-describe('resumen con datos reales', () => {
+describe('resumen con datos reales (sin tonelaje)', () => {
   const set = (name, slot, over = {}) => ({ exerciseName: name, slot, reps: 10, weight: 20, weightUnit: 'kg', modality: 'weight', ...over });
   const session = { startedAt: at(20, 17), endedAt: at(20, 18) };
 
-  it('una superserie de 2 ejercicios con 3 series cada uno cuenta 6 series', () => {
+  it('una superserie de 2 ejercicios con 3 series cada uno cuenta 6 series y NO calcula toneladas', () => {
     const sets = [1, 2, 3].flatMap(() => [set('Sentadilla búlgara', 'A1'), set('Press militar', 'A2', { weight: 10, reps: 12 })]);
     const s = buildSummary(session, sets);
     expect(s.totals).toMatchObject({ exercises: 2, sets: 6, reps: 66 });
-    expect(s.totals.volumeTons).toBeCloseTo((3 * 10 * 20 + 3 * 12 * 10) / 1000, 3);
+    expect(JSON.stringify(s)).not.toMatch(/volume|ton/i);
     expect(s.durationSec).toBe(3600);
+    expect(s.exercises.find((e) => e.name === 'Sentadilla búlgara')).toMatchObject({ sets: 3, bestWeight: 20, unit: 'kg' });
   });
-  it('un ejercicio por tiempo suma segundos y no aporta volumen; sin cargas, el volumen es null (no se inventa)', () => {
+  it('un ejercicio por tiempo suma segundos', () => {
     const s = buildSummary(session, [{ exerciseName: 'Plancha', slot: 'B3', durationSec: 30, modality: 'time' }, { exerciseName: 'Plancha', slot: 'B3', durationSec: 40, modality: 'time' }]);
-    expect(s.totals).toMatchObject({ sets: 2, timeSec: 70, volumeTons: null });
+    expect(s.totals).toMatchObject({ sets: 2, timeSec: 70 });
     expect(s.exercises[0]).toMatchObject({ name: 'Plancha', timeSec: 70, bestWeight: null });
   });
-  it('las libras no se convierten: quedan fuera del volumen y se avisa', () => {
-    const s = buildSummary(session, [set('Press', 'A1'), set('Remo', 'A2', { weightUnit: 'lbs' })]);
-    expect(s.totals.volumeTons).toBeCloseTo(0.2, 3);
-    expect(s.totals.volumeExcludesLbs).toBe(true);
-  });
   it('sin series no hay nada que resumir', () => {
-    expect(buildSummary(session, []).totals).toMatchObject({ exercises: 0, sets: 0, volumeTons: null });
+    expect(buildSummary(session, []).totals).toMatchObject({ exercises: 0, sets: 0, reps: 0 });
+  });
+});
+
+describe('marcas personales de la sesión (derivadas, idempotentes)', () => {
+  const dayOfIso = (d) => new Date(d).toISOString().slice(0, 10);
+  const prev = (name, weight, day, unit = 'kg') => ({ exerciseName: name, weight, weightUnit: unit, date: at(day) });
+  const hoy = [{ exerciseName: 'Press banca', slot: 'A1', reps: 5, weight: 75, weightUnit: 'kg' }, { exerciseName: 'Press banca', slot: 'A1', reps: 8, weight: 70, weightUnit: 'kg' }];
+
+  it('Press banca: anterior 70 kg → nueva marca 75 kg (+5 kg)', () => {
+    const r = sessionRecords(hoy, [prev('Press Banca', 70, 14), prev('press banca', 65, 7)], '2026-10-21', dayOfIso);
+    expect(r).toEqual([{ name: 'Press banca', previous: 70, current: 75, improvement: 5, reps: 5 }]);
+  });
+  it('la primera marca NO es récord, igualar tampoco, y no hay récord por series del mismo día', () => {
+    expect(sessionRecords(hoy, [], '2026-10-21', dayOfIso)).toEqual([]);
+    expect(sessionRecords(hoy, [prev('Press banca', 75, 14)], '2026-10-21', dayOfIso)).toEqual([]);
+    expect(sessionRecords(hoy, [prev('Press banca', 60, 21)], '2026-10-21', dayOfIso)).toEqual([]); // «anterior» del mismo día no cuenta
+  });
+  it('otro ejercicio parecido no aporta la marca, y las libras no se mezclan', () => {
+    expect(sessionRecords(hoy, [prev('Press banca inclinado', 60, 14)], '2026-10-21', dayOfIso)).toEqual([]);
+    expect(sessionRecords(hoy, [prev('Press banca', 200, 14, 'lbs')], '2026-10-21', dayOfIso)).toEqual([]);
+  });
+  it('recalcular da lo mismo (idempotente)', () => {
+    const a = sessionRecords(hoy, [prev('Press banca', 70, 14)], '2026-10-21', dayOfIso);
+    const b = sessionRecords(hoy, [prev('Press banca', 70, 14)], '2026-10-21', dayOfIso);
+    expect(a).toEqual(b);
   });
 });
 
@@ -135,16 +156,24 @@ describe('récords: se comparan DÍAS, no filas', () => {
     const hoy = [16, 18, 20, 22].map((w) => rec(20, w));
     expect(allStrengthRecords(hoy)).toEqual([]);
   });
-  it('hacen falta 3 días anteriores con carga; el 4.º día con +2,5 % sí es récord', () => {
+  it('superar la mejor carga de días anteriores es récord; la primera marca no', () => {
+    expect(allStrengthRecords([rec(5, 16)])).toEqual([]);
     const dias = [rec(5, 16), rec(8, 17), rec(11, 18), rec(20, 22), rec(20, 20)];
     const out = allStrengthRecords(dias);
-    expect(out).toHaveLength(1);
-    expect(out[0].record.weight).toBe(22);
-    expect(out[0].previousBest).toBe(18);
+    // 17 (semana del 8) y 22 (semana del 20): un aviso por ejercicio y semana; el 18 del día 11 comparte semana con el 17
+    expect(out.map((r) => r.record.weight)).toEqual([17, 22]);
+    expect(out.at(-1).previousBest).toBe(18);
   });
-  it('con solo 2 días previos no hay récord, aunque haya muchas filas', () => {
-    const dias = [rec(5, 16), rec(5, 17), rec(5, 18), rec(8, 17), rec(8, 17.5), rec(20, 30)];
-    expect(allStrengthRecords(dias)).toEqual([]);
+  it('sin porcentaje mínimo: +0,5 kg ya supera la marca; igualar no; las libras no se comparan', () => {
+    expect(allStrengthRecords([rec(5, 20), rec(8, 20.5)])).toHaveLength(1);
+    expect(allStrengthRecords([rec(5, 20), rec(8, 20)])).toEqual([]);
+    expect(allStrengthRecords([rec(5, 100, { weightUnit: 'lbs' }), rec(8, 150, { weightUnit: 'lbs' })])).toEqual([]);
+  });
+  it('«Press Banca» y «press banca» son la misma marca; «press banca inclinado» es otra', () => {
+    const mixto = [rec(5, 70, { exerciseName: 'Press Banca' }), rec(8, 75, { exerciseName: 'press banca' }), rec(9, 90, { exerciseName: 'Press banca inclinado' })];
+    const out = allStrengthRecords(mixto);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ previousBest: 70 });
   });
   it('los registros sin carga (peso corporal o por tiempo) no son válidos para récords', () => {
     const sinCarga = [rec(5, 0), rec(8, 0), rec(11, 0), rec(20, 0, { weight: undefined, durationSec: 30 })];
@@ -153,7 +182,7 @@ describe('récords: se comparan DÍAS, no filas', () => {
   });
   it('un día solo cuenta una vez en la mejor carga del día', () => {
     const dias = [rec(5, 16), rec(5, 40), rec(8, 17), rec(11, 18), rec(20, 22)];
-    // el día 5 aporta 40 como mejor carga: 22 no supera 40 → no es récord
+    // el día 5 aporta 40 como mejor carga: nada de lo posterior lo supera → no hay récord
     expect(allStrengthRecords(dias)).toEqual([]);
   });
 });
@@ -265,7 +294,7 @@ describe('POST /:id/sets — guardado por lote', () => {
     expect(rows).toHaveLength(2);
     expect(rows.map((x) => [x.exerciseName, x.slot, x.reps, x.weight, x.sets])).toEqual([['Sentadilla búlgara', 'A1', 10, 20, 1], ['Press militar', 'A2', 12, 10, 1]]);
     expect(rows.every((x) => x.source === 'workout' && x.blockKind === 'super' && x.setNumber === 1)).toBe(true);
-    expect(rows.every((x) => String(x.patient) === String(PACIENTE._id) && x.date.getTime() === at(21, 17).getTime())).toBe(true);
+    expect(rows.every((x) => String(x.patient) === String(PACIENTE._id) && x.date.getTime() === at(21, 12).getTime())).toBe(true);
   });
 
   it('guardado PARCIAL: solo A1; no se inventa una serie de A2', async () => {
@@ -530,5 +559,20 @@ describe('pantalla Ejercicios: «Última sesión» con series sueltas', () => {
     expect(lastSessionText([dia(14, { sets: 3, reps: 10 }), dia(21, { sets: 1, reps: 10, weight: 16 }), dia(21, { sets: 1, reps: 10, weight: 18 }), dia(21, { sets: 1, reps: 8, weight: 20 })])).toBe('3 series · 28 reps en total');
     expect(lastSessionText([dia(21, { sets: 1, durationSec: 30 }), dia(21, { sets: 1, durationSec: 40 })])).toBe('2 series');
     expect(lastSessionText([])).toBeNull();
+  });
+});
+
+describe('la fecha de cada serie es el día de Chile (no se corre de día de noche)', () => {
+  it('una serie guardada a las 22:30 de Chile queda en ESE día, para cualquier lector (UTC o Chile)', async () => {
+    const store = almacenSeries();
+    vi.setSystemTime(santiagoToUtc(2026, 10, 21, 22, 30)); // 01:30 UTC del día 22
+    const s = sesion({ blocks: [bloque('single')], _id: id() });
+    vi.spyOn(WorkoutSession, 'findOne').mockResolvedValue(s);
+    vi.spyOn(WorkoutSession, 'findById').mockResolvedValue(s);
+    vi.spyOn(WorkoutSession, 'updateOne').mockResolvedValue({});
+    await saveSets({ user: PACIENTE, params: { id: String(s._id) }, body: { blockId: 'bloque-0001', sets: [{ clientId: 'serie-noche-001', slot: 'A1', reps: 5, weight: 60 }] } }, res());
+    const fecha = store.rows[0].date;
+    expect(fecha.toISOString().slice(0, 10)).toBe('2026-10-21'); // lector UTC (el navegador)
+    expect(fecha.getTime()).toBe(santiagoToUtc(2026, 10, 21, 12).getTime()); // mediodía de Chile
   });
 });

@@ -30,6 +30,7 @@ import MyProfile from "./pages/patient/MyProfile";
 import MyAchievements from "./pages/patient/MyAchievements";
 import MonthlySummary from "./pages/patient/MonthlySummary";
 import Workout from "./pages/patient/Workout";
+import ExerciseDetail from "./pages/patient/ExerciseDetail";
 import PatientMeasurements from "./pages/patient/Measurements";
 import PatientProgress from "./pages/patient/Progress";
 import PatientExercises from "./pages/patient/Exercises";
@@ -138,6 +139,10 @@ const App = () => (
               <Route
                 path="ejercicios"
                 element={<RoleRoute roles={['patient']}><PatientExercises /></RoleRoute>}
+              />
+              <Route
+                path="ejercicios/:key"
+                element={<RoleRoute roles={['patient']}><ExerciseDetail /></RoleRoute>}
               />
               <Route
                 path="dolor"

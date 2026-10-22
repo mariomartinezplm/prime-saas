@@ -234,7 +234,7 @@ const ejercicio = (nombre, weight, reps, dia, { mes = 10, unit = 'kg', sets = 3 
 const base = (nombre = 'Sentadilla') => [ejercicio(nombre, 100, 5, 1, { mes: 9 }), ejercicio(nombre, 100, 5, 8, { mes: 9 }), ejercicio(nombre, 100, 5, 15, { mes: 9 })];
 
 describe('fuerza: récord personal de carga', () => {
-  it('con 3 registros previos, una carga 2,5 % o más mayor concede el récord (con la evidencia)', () => {
+  it('superar la mejor carga de días anteriores concede el récord (con la evidencia)', () => {
     const nuevo = ejercicio('Sentadilla', 105, 5, 13);
     const [candidate] = computeStrengthCandidates([...base(), nuevo], AHORA);
 
@@ -243,15 +243,14 @@ describe('fuerza: récord personal de carga', () => {
     expect(candidate.evidence.values).toMatchObject({ exercise: 'Sentadilla', previousBest: 100, weight: 105, unit: 'kg', reps: 5, date: '2026-10-13' });
   });
 
-  it('umbral exacto: 102,5 kg (2,5 %) sí; 102 kg (2 %) no', () => {
-    expect(computeStrengthCandidates([...base(), ejercicio('Sentadilla', 102.5, 5, 13)], AHORA)).toHaveLength(1);
-    expect(computeStrengthCandidates([...base(), ejercicio('Sentadilla', 102, 5, 13)], AHORA)).toEqual([]);
+  it('sin porcentaje mínimo: cualquier carga mayor supera la marca; igualarla no', () => {
+    expect(computeStrengthCandidates([...base(), ejercicio('Sentadilla', 100.5, 5, 13)], AHORA)).toHaveLength(1);
+    expect(computeStrengthCandidates([...base(), ejercicio('Sentadilla', 100, 5, 13)], AHORA)).toEqual([]);
   });
 
-  it('con menos de 3 registros previos NO hay récord (no se inventan marcas históricas)', () => {
-    const dos = base().slice(0, 2);
-    expect(computeStrengthCandidates([...dos, ejercicio('Sentadilla', 120, 5, 13)], AHORA)).toEqual([]);
+  it('la PRIMERA marca no es un récord; con un día anterior que superar, sí', () => {
     expect(computeStrengthCandidates([ejercicio('Sentadilla', 120, 5, 13)], AHORA)).toEqual([]);
+    expect(computeStrengthCandidates([...base().slice(0, 1), ejercicio('Sentadilla', 120, 5, 13)], AHORA)).toHaveLength(1);
   });
 
   it('el nombre se normaliza (mayúsculas, tildes, espacios) pero otro ejercicio es otra marca', () => {
@@ -273,8 +272,8 @@ describe('fuerza: récord personal de carga', () => {
     expect(computeStrengthCandidates([...base(), incompleto], AHORA)).toEqual([]);
     expect(computeStrengthCandidates([...base(), sinPeso], AHORA)).toEqual([]);
     // y un registro incompleto tampoco cuenta como "previo"
-    const dosCompletos = [...base().slice(0, 2), { ...base()[2], reps: undefined }];
-    expect(computeStrengthCandidates([...dosCompletos, ejercicio('Sentadilla', 120, 5, 13)], AHORA)).toEqual([]);
+    const todosIncompletos = base().map((b) => ({ ...b, reps: undefined }));
+    expect(computeStrengthCandidates([...todosIncompletos, ejercicio('Sentadilla', 120, 5, 13)], AHORA)).toEqual([]);
   });
 
   it('dos récords en la misma semana dan UN solo aviso; otra semana, otro', () => {
@@ -290,9 +289,9 @@ describe('fuerza: récord personal de carga', () => {
   it('un récord viejo (más de 7 días) no genera aviso retroactivo, pero sí sirve de base de comparación', () => {
     const viejo = ejercicio('Sentadilla', 110, 5, 20, { mes: 9 });
     expect(computeStrengthCandidates([...base(), viejo], AHORA)).toEqual([]);
-    // el récord viejo (110) es ahora la marca a superar: 112 no alcanza el 2,5 %, 113 sí
-    expect(computeStrengthCandidates([...base(), viejo, ejercicio('Sentadilla', 112, 5, 13)], AHORA)).toEqual([]);
-    expect(computeStrengthCandidates([...base(), viejo, ejercicio('Sentadilla', 113, 5, 13)], AHORA)).toHaveLength(1);
+    // el récord viejo (110) es ahora la marca a superar: 109 no la supera, 112 sí
+    expect(computeStrengthCandidates([...base(), viejo, ejercicio('Sentadilla', 109, 5, 13)], AHORA)).toEqual([]);
+    expect(computeStrengthCandidates([...base(), viejo, ejercicio('Sentadilla', 112, 5, 13)], AHORA)).toHaveLength(1);
   });
 
   it('igualar o bajar la marca no es récord', () => {
@@ -303,7 +302,7 @@ describe('fuerza: récord personal de carga', () => {
     const nuevo = ejercicio('Sentadilla', 105, 5, 13);
     const datos = [...base(), nuevo];
     expect(strengthRecordStillValid(datos, 'sentadilla@2026-W42')).toBe(true);
-    nuevo.weight = 101; // se corrigió el peso
+    nuevo.weight = 99; // se corrigió el peso
     expect(strengthRecordStillValid(datos, 'sentadilla@2026-W42')).toBe(false);
     expect(allStrengthRecords([])).toEqual([]);
   });

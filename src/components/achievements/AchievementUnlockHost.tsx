@@ -134,9 +134,19 @@ const AchievementUnlockHost = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.4, delay: 0.35 }}
           >
-            <DialogTitle className="font-serif text-[1.875rem] font-medium leading-tight text-[#fff8e4]">{current.title}</DialogTitle>
-            <DialogDescription className="text-base text-[#cdc6b6]">{current.message}</DialogDescription>
+            <DialogTitle className="font-serif text-[1.875rem] font-medium leading-tight text-[#fff8e4]">{current.record ? 'Nueva marca personal' : current.title}</DialogTitle>
+            <DialogDescription className="text-base text-[#cdc6b6]">{current.record ? current.record.exercise : current.message}</DialogDescription>
           </motion.div>
+
+          {current.record && current.record.current !== null && (
+            <div className="flex w-full items-end justify-center gap-4 rounded-2xl border border-[#62b8cf]/40 bg-[#398ca2]/15 px-3 py-3">
+              {current.record.previous !== null && (
+                <div><p className="text-[11.5px] text-[#a8a295]">Anterior</p><p className="text-[1.25rem] font-bold tabular-nums text-[#cdc6b6]">{String(current.record.previous).replace('.', ',')} {current.record.unit}</p></div>
+              )}
+              <div><p className="text-[11.5px] text-[#8fd0e0]">Nueva marca</p><p className="text-[2rem] font-extrabold leading-none tabular-nums text-[#fff8e4]">{String(current.record.current).replace('.', ',')} {current.record.unit}</p></div>
+              {current.record.previous !== null && <p className="mb-0.5 rounded-full border border-[#8fd0e0]/50 bg-[#398ca2]/30 px-2.5 py-1 text-[13px] font-extrabold tabular-nums text-[#fff8e4]">+{String(Math.round((current.record.current - current.record.previous) * 100) / 100).replace('.', ',')} {current.record.unit}</p>}
+            </div>
+          )}
 
           <dl className="flex w-full items-center justify-around border-y border-[#fff8e4]/10 py-3 text-center">
             <div>

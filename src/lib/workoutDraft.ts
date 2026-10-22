@@ -12,6 +12,7 @@ export interface Reference {
   reps: number | null;
   weight: number | null;
   durationSec: number | null;
+  weightUnit?: 'kg' | 'lbs';
 }
 
 export const DEFAULT_REPS = 10;
@@ -20,9 +21,11 @@ export const DEFAULT_SECONDS = 30;
 // Valores iniciales: lo último guardado HOY en ese ejercicio; si no hay, la referencia de la última sesión; si no, valores neutros
 export function initialDraft(slot: BlockSlot, lastToday: SavedSet | undefined, reference: Reference | undefined): SlotDraft {
   const from = lastToday ?? reference;
+  // Todo se registra en kg: una referencia antigua en libras NO se copia como si fueran kilos
+  const refWeight = from && 'weightUnit' in from && from.weightUnit === 'lbs' ? null : from?.weight ?? null;
   if (slot.modality === 'time') return { include: true, reps: null, weight: null, durationSec: from?.durationSec ?? DEFAULT_SECONDS };
   if (slot.modality === 'bodyweight') return { include: true, reps: from?.reps ?? DEFAULT_REPS, weight: null, durationSec: null };
-  return { include: true, reps: from?.reps ?? DEFAULT_REPS, weight: from?.weight ?? null, durationSec: null };
+  return { include: true, reps: from?.reps ?? DEFAULT_REPS, weight: refWeight, durationSec: null };
 }
 
 // ¿Se puede guardar este borrador? (misma regla que el servidor, para avisar antes de enviar)
@@ -33,10 +36,10 @@ export function draftProblem(slot: BlockSlot, d: SlotDraft): string | null {
   return null;
 }
 
-export function toSetInput(slot: BlockSlot, d: SlotDraft, clientId: string, weightUnit: 'kg' | 'lbs' = 'kg'): SetInput {
+export function toSetInput(slot: BlockSlot, d: SlotDraft, clientId: string): SetInput {
   if (slot.modality === 'time') return { clientId, slot: slot.slot, durationSec: d.durationSec ?? undefined };
   if (slot.modality === 'bodyweight') return { clientId, slot: slot.slot, reps: d.reps ?? undefined };
-  return { clientId, slot: slot.slot, reps: d.reps ?? undefined, weight: d.weight ?? undefined, weightUnit };
+  return { clientId, slot: slot.slot, reps: d.reps ?? undefined, weight: d.weight ?? undefined, weightUnit: 'kg' };
 }
 
 // Texto corto de una serie: «10 × 20 kg», «12 rep», «30 s»

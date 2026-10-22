@@ -1,3 +1,4 @@
+import { exerciseKey } from '../../utils/exerciseKey.js';
 import { dayOf, dayNumber, isoWeekOf } from './dates.js';
 
 /**
@@ -14,9 +15,9 @@ import { dayOf, dayNumber, isoWeekOf } from './dates.js';
  * sirve como base de comparación, nunca como motivo de aviso.
  */
 
-// Días distintos con carga registrada que hacen falta ANTES de poder ganar un récord (no filas: ver allStrengthRecords)
-export const PR_MIN_PRIOR = 3;
-export const PR_MIN_INCREASE = 0.025;
+// Días distintos con carga registrada que hacen falta ANTES de poder ganar un récord: con 1 día anterior ya hay una marca que superar
+export const PR_MIN_PRIOR = 1;
+export const PR_MIN_INCREASE = 0;
 export const PR_RECENT_DAYS = 7;
 export const PR_NOTIFY_CAP_PER_WEEK = 3;
 
@@ -32,24 +33,26 @@ export function normalizeExerciseName(name) {
     .slice(0, 30);
 }
 
-const isComparable = (e) => Number.isFinite(e.weight) && e.weight > 0 && Number.isFinite(e.reps) && e.reps >= 1 && !!e.date && normalizeExerciseName(e.exerciseName) !== '';
+// Solo registros con carga EN KG, repeticiones y fecha. Las libras (datos antiguos) conservan su valor pero no se comparan: no hay conversión silenciosa.
+const isComparable = (e) => Number.isFinite(e.weight) && e.weight > 0 && Number.isFinite(e.reps) && e.reps >= 1 && !!e.date && (e.weightUnit || 'kg') === 'kg' && exerciseKey(e.exerciseName) !== '';
 
 const sortKey = (a, b) => dayNumber(dayOf(a.date)) - dayNumber(dayOf(b.date)) || String(a._id).localeCompare(String(b._id));
 
-// Todos los récords que cumplen la regla (sin límite de recencia); uno por ejercicio-unidad-semana.
+// Todos los récords que cumplen la regla (sin límite de recencia); uno por ejercicio-semana.
 //
-// MÉTRICA DEL RÉCORD: la carga más alta (kg o lbs, cada unidad por separado) que la persona levantó en ese ejercicio ese DÍA
-// (hora de Chile), con al menos 1 repetición. Se comparan DÍAS, no filas: registrar muchas series el mismo día cuenta como
-// un solo día, y las series del mismo día no se comparan entre sí. Hace falta tener antes al menos 3 DÍAS distintos con
-// carga registrada en ese ejercicio, y superar la mejor carga anterior en 2,5 % o más. Los registros sin carga (peso corporal
-// o por tiempo) no son comparables y no entran.
+// RÉCORD PERSONAL: la carga más alta (kg) que la persona levantó en un ejercicio en UN DÍA (hora de Chile, con al menos 1
+// repetición) SUPERA la mejor carga de los días anteriores en ese mismo ejercicio. Reglas:
+//  - Se comparan DÍAS, no filas: varias series el mismo día no generan varios récords ni se comparan entre sí.
+//  - Hace falta al menos 1 día anterior con carga: la PRIMERA marca no es un récord («superaste» exige algo que superar).
+//  - Se compara solo en kg. Los registros en libras conservan su valor pero no entran: no se mezclan unidades en silencio.
+//  - Sin carga (peso corporal o por tiempo) no hay récord de carga.
+//  - La identidad del ejercicio es su clave canónica completa (sin tildes, mayúsculas ni espacios de más).
 export function allStrengthRecords(exercises) {
   const groups = new Map();
   for (const e of exercises.filter(isComparable)) {
-    const unit = e.weightUnit || 'kg';
-    const key = `${normalizeExerciseName(e.exerciseName)}|${unit}`;
+    const key = exerciseKey(e.exerciseName);
     if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push({ ...e, unit });
+    groups.get(key).push({ ...e, unit: 'kg' });
   }
 
   const records = [];
@@ -65,10 +68,10 @@ export function allStrengthRecords(exercises) {
     const days = [...bestOfDay.entries()].sort(([a], [b]) => dayNumber(a) - dayNumber(b));
     let best = 0;
     days.forEach(([, record], index) => {
-      if (index >= PR_MIN_PRIOR && record.weight >= best * (1 + PR_MIN_INCREASE)) {
+      if (index >= PR_MIN_PRIOR && record.weight > best * (1 + PR_MIN_INCREASE)) {
         const slug = normalizeExerciseName(record.exerciseName);
         const periodKey = `${slug}@${isoWeekOf(dayOf(record.date))}`;
-        // Una unidad distinta del mismo ejercicio comparte semana: se conserva solo la primera (un aviso por semana)
+        // Un aviso por ejercicio y semana
         if (!seenPeriods.has(periodKey)) {
           seenPeriods.add(periodKey);
           records.push({ record, previousBest: best, periodKey });

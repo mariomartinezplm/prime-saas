@@ -145,11 +145,11 @@ const PatientDashboard = () => {
 
       <div className="space-y-3 lg:grid lg:grid-cols-[1.25fr_1fr] lg:items-start lg:gap-4 lg:space-y-0">
         <div className="space-y-3">
+          {/* Entrenamiento en curso: con una sesión activa es lo PRIMERO que se ve y no se ofrece «Iniciar» otra vez */}
+          <WorkoutEntryCard />
+
           {/* La pieza principal: una sola cosa importante según el estado real (reglas en dashboard/heroView.ts) */}
           <HeroSessionCard view={hero} planView={planView} onRetry={retry} retrying={retrying} />
-
-          {/* Entrenamiento en curso: solo si hay una sesión activa o una cita de entrenamiento por comenzar */}
-          <WorkoutEntryCard />
 
           {/* Check-in de hoy: una fila compacta si está pendiente; el resultado completo si ya lo hizo */}
           <div id="readiness" ref={readinessRef} tabIndex={-1} role="region" className="scroll-mt-20 focus:outline-none" aria-label="Readiness de hoy">

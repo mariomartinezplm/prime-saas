@@ -6,8 +6,9 @@ import { hasActivePlan } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 import { exerciseHistory, resolveCanonicalName, searchExercises as searchHistory } from '../services/exerciseNames.js';
-import { validateBlockInput, validateSetInput, buildSummary, nextLabel, slotId, MAX_SETS_PER_BATCH } from '../services/workoutSets.js';
-import { santiagoParts } from '../utils/timezone.js';
+import { validateBlockInput, validateSetInput, buildSummary, sessionRecords, nextLabel, slotId, MAX_SETS_PER_BATCH } from '../services/workoutSets.js';
+import { dayOf } from '../services/achievements/dates.js';
+import { santiagoParts, santiagoToUtc } from '../utils/timezone.js';
 import { applyRestAction, settle, remainingSec, pickStartable, isStale, REST_ACTIONS } from '../services/workoutService.js';
 
 /**
@@ -58,9 +59,25 @@ export function sessionView(session, now = new Date(), sets = []) {
   };
 }
 
+// Mediodía de Chile del día de `now` (las fechas de evolución se guardan así, ver achievements/dates.js)
+const dayAtNoon = (now) => {
+  const p = santiagoParts(now);
+  return santiagoToUtc(p.year, p.month, p.day, 12);
+};
+
 const SET_FIELDS = '_id blockId slot exerciseName setNumber reps weight weightUnit durationSec modality clientId createdAt date';
 const loadSets = (session) => ExerciseProgress.find({ workoutSession: session._id }).sort({ createdAt: 1 }).select(SET_FIELDS).lean();
 // Vista completa de una sesión (con sus series)
+// Resumen completo: lo guardado + las marcas personales logradas hoy (comparadas con DÍAS anteriores, solo kg)
+async function summaryFor(session, sets) {
+  const summary = buildSummary(session, sets);
+  const withLoad = sets.some((s) => s.weight > 0);
+  const previous = withLoad
+    ? await ExerciseProgress.find({ patient: session.patient, workoutSession: { $ne: session._id }, weight: { $gt: 0 } }).sort({ date: -1 }).limit(3000).select('exerciseName weight weightUnit date').lean()
+    : [];
+  return { ...summary, records: sessionRecords(sets, previous ?? [], dayOf(session.startedAt), dayOf) };
+}
+
 const viewOf = async (session, now) => sessionView(session, now, await loadSets(session));
 
 // Cierra una sesión abandonada (sin actividad por 6 h). El fin es la ÚLTIMA ACTIVIDAD, no el momento del cierre.
@@ -233,7 +250,7 @@ export const finishWorkout = async (req, res) => {
     }
     // Repetir «Finalizar» no cambia nada: devuelve lo ya cerrado
     const sets = await loadSets(session);
-    const summary = buildSummary(session, sets);
+    const summary = await summaryFor(session, sets);
     // UN solo aviso al profesional por entrenamiento (no uno por serie), sin cifras de salud en el texto
     if (justClosed && sets.length > 0) notifyProfessional(req.user, sets.length);
     res.status(200).json({ success: true, data: { serverNow: now, session: sessionView(session, now, sets), summary } });
@@ -259,7 +276,7 @@ export const getSummary = async (req, res) => {
     const session = await ownSession(req, res);
     if (!session) return;
     const sets = await loadSets(session);
-    res.status(200).json({ success: true, data: { summary: buildSummary(session, sets) } });
+    res.status(200).json({ success: true, data: { summary: await summaryFor(session, sets) } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'No se pudo obtener el resumen' });
   }
@@ -371,7 +388,8 @@ export const saveSets = async (req, res) => {
           recordedBy: req.user._id,
           exerciseName: slotDef.exerciseName,
           category: 'fuerza',
-          date: now,
+          // Como el resto de la evolución: el DÍA de Chile al mediodía, para que ningún lector (UTC o Chile) lo corra al día siguiente
+          date: dayAtNoon(now),
           sets: 1,
           reps: value.reps,
           weight: value.weight,

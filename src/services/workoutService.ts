@@ -2,6 +2,9 @@ import api from '../lib/api';
 import type { APIResponse } from '../types';
 import type { RestState } from '@/lib/workoutClock';
 
+// Una solicitud que no responde en 15 s se corta: la serie queda «pendiente» y se reenvía con la MISMA clave (no se duplica)
+const REQUEST = { timeout: 15000 };
+
 export type BlockKind = 'single' | 'super' | 'tri';
 export type Modality = 'weight' | 'bodyweight' | 'time';
 
@@ -63,7 +66,9 @@ export interface ExerciseSearch {
 export interface WorkoutSummary {
   durationSec: number;
   exercises: { name: string; slots: string[]; sets: number; reps: number; bestWeight: number | null; unit: 'kg' | 'lbs' | null; timeSec: number; modality: Modality | null }[];
-  totals: { exercises: number; sets: number; reps: number; timeSec: number; volumeTons: number | null; volumeExcludesLbs: boolean };
+  totals: { exercises: number; sets: number; reps: number; timeSec: number };
+  // Marcas personales logradas en esta sesión (carga en kg que supera la mejor de días anteriores)
+  records: { name: string; previous: number; current: number; improvement: number; reps: number | null }[];
 }
 
 export interface WorkoutSessionView {
@@ -116,7 +121,7 @@ export const workoutService = {
   },
 
   rest: async (id: string, action: RestAction, options: { seconds?: number; expectedVersion?: number } = {}): Promise<WorkoutMutation> => {
-    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/rest`, { action, ...options });
+    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/rest`, { action, ...options }, REQUEST);
     return response.data.data;
   },
 
@@ -126,28 +131,28 @@ export const workoutService = {
   },
 
   addBlock: async (id: string, block: { blockId: string; kind: BlockKind; slots: { exerciseName: string; modality: Modality }[] }): Promise<WorkoutMutation> => {
-    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/blocks`, block);
+    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/blocks`, block, REQUEST);
     return response.data.data;
   },
 
   // Por lote e idempotente: cada serie lleva su `clientId`; reintentar nunca duplica
   saveSets: async (id: string, blockId: string, sets: SetInput[]): Promise<WorkoutMutation> => {
-    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/sets`, { blockId, sets });
+    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/sets`, { blockId, sets }, REQUEST);
     return response.data.data;
   },
 
   updateSet: async (setId: string, values: { reps?: number; weight?: number; weightUnit?: 'kg' | 'lbs'; durationSec?: number }): Promise<WorkoutMutation> => {
-    const response = await api.put<APIResponse<WorkoutMutation>>(`/workouts/sets/${setId}`, values);
+    const response = await api.put<APIResponse<WorkoutMutation>>(`/workouts/sets/${setId}`, values, REQUEST);
     return response.data.data;
   },
 
   deleteSet: async (setId: string): Promise<WorkoutMutation> => {
-    const response = await api.delete<APIResponse<WorkoutMutation>>(`/workouts/sets/${setId}`);
+    const response = await api.delete<APIResponse<WorkoutMutation>>(`/workouts/sets/${setId}`, REQUEST);
     return response.data.data;
   },
 
   finish: async (id: string): Promise<WorkoutMutation> => {
-    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/finish`);
+    const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/finish`, undefined, REQUEST);
     return response.data.data;
   },
 };

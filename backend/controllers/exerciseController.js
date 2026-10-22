@@ -6,6 +6,7 @@ import { canAccessPatient } from '../middleware/auth.js';
 import { evolutionDateError } from '../utils/evolutionDate.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { notify } from '../services/notificationService.js';
+import { canonicalSpelling } from '../services/exerciseNames.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
@@ -83,7 +84,8 @@ export const createExerciseProgress = async (req, res) => {
     const exerciseProgress = await ExerciseProgress.create({
       patient,
       recordedBy: req.user._id,
-      exerciseName,
+      // Misma identidad que el resto del historial: «press banca» reutiliza la escritura de «Press Banca»
+      exerciseName: await canonicalSpelling(patient, exerciseName),
       category,
       date: date || new Date(),
       sets,
@@ -260,7 +262,7 @@ export const updateExerciseProgress = async (req, res) => {
     }
 
     // Actualizar campos
-    if (exerciseName) exerciseProgress.exerciseName = exerciseName;
+    if (exerciseName) exerciseProgress.exerciseName = await canonicalSpelling(exerciseProgress.patient, exerciseName);
     if (category) exerciseProgress.category = category;
     if (date) exerciseProgress.date = date;
     if (sets !== undefined) exerciseProgress.sets = sets;

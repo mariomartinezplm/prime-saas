@@ -1,4 +1,5 @@
 import ExerciseProgress from '../models/Exercise.js';
+import { exerciseKey } from '../utils/exerciseKey.js';
 
 /**
  * Identidad de los ejercicios SIN un catálogo nuevo: el nombre que ya existe en el historial de la persona manda.
@@ -10,14 +11,7 @@ import ExerciseProgress from '../models/Exercise.js';
 
 export const MAX_EXERCISE_NAME = 60;
 
-export function exerciseKey(name) {
-  return String(name ?? '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9ñ]+/g, ' ')
-    .trim();
-}
+export { exerciseKey };
 
 // Texto que se guarda para un ejercicio NUEVO. Devuelve null si no es un nombre válido.
 export function cleanExerciseName(name) {
@@ -58,6 +52,16 @@ export async function resolveCanonicalName(patientId, typed, history) {
   const rows = history ?? (await exerciseHistory(patientId));
   const found = rows.find((g) => g.key === exerciseKey(clean));
   return found ? { name: found.name, existing: true } : { name: clean, existing: false };
+}
+
+// Escritura con la que se guarda un registro del flujo clásico de Ejercicios: si ya existe el mismo ejercicio (misma clave) se
+// reutiliza SU escritura; si no, la que se escribió, con los espacios limpios. Nunca rechaza (la validación es del controlador).
+export async function canonicalSpelling(patientId, typed) {
+  const text = String(typed ?? '').replace(/\s+/g, ' ').trim();
+  const key = exerciseKey(text);
+  if (!key) return text;
+  const found = (await exerciseHistory(patientId)).find((g) => g.key === key);
+  return found ? found.name : text;
 }
 
 const view = (g) => ({ name: g.name, count: g.count, days: g.days, lastDate: g.lastDate, refDate: g.refDate ?? null, last: g.last });

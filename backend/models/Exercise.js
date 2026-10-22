@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { escapeRegex } from '../middleware/sanitize.js';
+import { exerciseKey } from '../utils/exerciseKey.js';
 
 const exerciseProgressSchema = new mongoose.Schema({
   patient: {
@@ -17,6 +18,11 @@ const exerciseProgressSchema = new mongoose.Schema({
     required: [true, 'El nombre del ejercicio es requerido'],
     trim: true
   },
+  // Identidad canónica (se calcula sola desde el nombre): agrupa «Press Banca», «press banca» y «PRESS BANCA».
+  // Los registros anteriores a este campo se agrupan igual calculando la clave al leerlos.
+  exerciseKey: { type: String, index: true },
+  // Solo si una normalización autorizada unificó la escritura: el nombre original se conserva aquí
+  exerciseNameOriginal: { type: String, trim: true },
   category: {
     type: String,
     enum: ['fuerza', 'cardio', 'flexibilidad', 'funcional', 'rehabilitacion', 'otro'],
@@ -108,6 +114,12 @@ const exerciseProgressSchema = new mongoose.Schema({
 exerciseProgressSchema.index({ patient: 1, exerciseName: 1, date: -1 });
 exerciseProgressSchema.index({ patient: 1, category: 1 });
 exerciseProgressSchema.index({ patient: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } }, name: 'serie_idempotente' });
+
+// La clave canónica siempre sigue al nombre (al crear o al corregirlo)
+exerciseProgressSchema.pre('validate', function(next) {
+  if (this.exerciseName) this.exerciseKey = exerciseKey(this.exerciseName);
+  next();
+});
 
 // Calcular 1RM aproximado usando la fórmula de Epley antes de guardar
 exerciseProgressSchema.pre('save', function(next) {

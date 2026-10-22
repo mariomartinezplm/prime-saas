@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dumbbell, Medal, TriangleAlert, TrendingUp } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -17,6 +17,8 @@ import TrendChart from '@/components/premium/TrendChart';
 import EmptyGuide from '@/components/premium/EmptyGuide';
 import MetricDetailDrawer from '@/components/premium/MetricDetailDrawer';
 import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
+import { exerciseKeyOf } from '@/lib/exerciseKey';
+import { groupExercises, normalizeNames, primaryMetric, progressPoints, formatNumber as fmtNum, metricLabel } from '@/lib/exerciseProgress';
 import { exercisesByFrequency, isRehabExercise, lastSessionText, sessionDays, totalVolumeTons, volumeComparison, weightSeries } from '@/lib/exerciseSeries';
 import { formatValue, longDate, shortDate, summarize } from '@/lib/trend';
 import { cn } from '@/lib/utils';
@@ -28,6 +30,7 @@ import type { ExerciseProgress } from '@/types';
 
 const ExercisesPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [exercises, setExercises] = useState<ExerciseProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -45,7 +48,7 @@ const ExercisesPage = () => {
     setFailed(false);
     api
       .get(`/exercises/patient/${user.id}`)
-      .then((res) => setExercises(res.data.data.exercises || []))
+      .then((res) => setExercises(normalizeNames<ExerciseProgress>(res.data.data.exercises || [])))
       // Si falla la carga se avisa: antes se mostraba como si no hubiera ejercicios
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
@@ -67,6 +70,7 @@ const ExercisesPage = () => {
     }
   };
 
+  const groups = useMemo(() => groupExercises(exercises), [exercises]);
   const names = useMemo(() => exercisesByFrequency(exercises), [exercises]);
   const byName = useMemo(() => {
     const map = new Map<string, ExerciseProgress[]>();
@@ -81,9 +85,7 @@ const ExercisesPage = () => {
   const heroSummary = hero ? summarize(heroPoints, heroUnit, 1) : null;
   const heroBest = heroPoints.length > 0 ? Math.max(...heroPoints.map((p) => p.value)) : null;
   const heroLast = hero ? [...(byName.get(hero) ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
-  const volume = totalVolumeTons(exercises);
   const days = sessionDays(exercises);
-  const comparison = volumeComparison(exercises);
   const heroRehab = hero ? isRehabExercise(byName.get(hero) ?? []) : false;
   const unitOf = (name: string) => byName.get(name)?.find((e) => e.weightUnit)?.weightUnit ?? 'kg';
 
@@ -187,7 +189,10 @@ const ExercisesPage = () => {
               {hero && heroSummary ? (
                 <section aria-label={hero} className={cn('rounded-[24px] border p-4 pb-3 min-[375px]:p-5 min-[375px]:pb-4', HERO_SURFACE)}>
                   <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>{heroRehab ? 'Ejercicio de rehabilitación' : 'Ejercicio destacado'}</p>
-                  <h2 className="mt-1 text-xl font-bold tracking-tight text-[#fff8e4]">{hero}</h2>
+                  <div className="mt-1 flex items-start justify-between gap-3">
+                    <h2 className="text-xl font-bold tracking-tight text-[#fff8e4]">{hero}</h2>
+                    <Link to={`/app/ejercicios/${encodeURIComponent(exerciseKeyOf(hero))}`} className="shrink-0 rounded-xl px-1 py-2 text-[13px] font-semibold text-[#8fd0e0] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">Ver evolución</Link>
+                  </div>
                   <div className="mt-2 flex items-end justify-between gap-3">
                     <p className="text-[3.75rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[#fff8e4]">
                       {formatValue(heroSummary.last.value, 1)}
@@ -231,24 +236,26 @@ const ExercisesPage = () => {
                 <EmptyGuide icon={TrendingUp} title="Aún no hay cargas registradas" description="Tus ejercicios están registrados, pero sin peso. Cuando se anote el peso de cada uno, verás aquí su progresión." />
               )}
 
-              {withLoad.length > 0 && (
+              {groups.length > 0 && (
                 <section aria-labelledby="ej-title" className="space-y-3">
                   <h2 id="ej-title" className="px-1 text-lg font-bold tracking-tight text-[#fff8e4]">Tus ejercicios</h2>
                   <div className="grid grid-cols-2 gap-3">
-                    {withLoad.map((n) => {
-                      const pts = weightSeries(byName.get(n) ?? []);
-                      const u = unitOf(n);
-                      const s = summarize(pts, u, 1)!;
+                    {groups.map((g) => {
+                      const metric = primaryMetric(g.records);
+                      const pts = metric ? progressPoints(g.records, metric) : [];
+                      const last = pts[pts.length - 1];
+                      const unit = metric ? metricLabel[metric].unit : '';
+                      const caption = !last ? 'Sin carga ni repeticiones' : pts.length > 1 ? `${last.value - pts[0].value >= 0 ? '+' : '−'}${fmtNum(Math.abs(last.value - pts[0].value))} ${unit} desde el primer registro` : 'Primer registro';
                       return (
                         <MetricTile
-                          key={n}
-                          label={n}
-                          value={formatValue(s.last.value, Number.isInteger(s.last.value) ? 0 : 1)}
-                          unit={u}
-                          values={pts.map((p) => p.value)}
-                          caption={s.count > 1 ? `${s.changeText} ${s.sinceText}` : 'Primer registro'}
-                          ariaLabel={`${n}: ${formatValue(s.last.value, 1)} ${u}. ${s.count > 1 ? `${s.changeText} ${s.sinceText}.` : 'Primer registro.'} Ver detalle`}
-                          onClick={() => setDetail(n)}
+                          key={g.key}
+                          label={g.name}
+                          value={last ? fmtNum(last.value) : '—'}
+                          unit={last ? unit : undefined}
+                          values={pts.length > 1 ? pts.map((p) => p.value) : undefined}
+                          caption={caption}
+                          ariaLabel={`${g.name}: ${last ? `${fmtNum(last.value)} ${unit}` : 'sin datos'}. Ver su evolución`}
+                          onClick={() => navigate(`/app/ejercicios/${encodeURIComponent(g.key)}`)}
                         />
                       );
                     })}
@@ -256,22 +263,6 @@ const ExercisesPage = () => {
                 </section>
               )}
 
-              {comparison && (
-                <section aria-labelledby="vol-title" className={cn(CARD, 'p-4')}>
-                  <h2 id="vol-title" className="text-[15px] font-semibold text-[#fff8e4]">Volumen de entrenamiento</h2>
-                  <p className="mt-0.5 text-[12.5px] text-[#fff8e4]/65">Series × repeticiones × peso, sin contar la rehabilitación</p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-[12.5px] text-[#fff8e4]/70">Últimos 30 días</p>
-                      <p className="text-2xl font-extrabold tabular-nums text-[#fff8e4]">{formatValue(comparison.current, 1)}<span className="ml-1 text-sm font-semibold text-[#fff8e4]/65">ton</span></p>
-                    </div>
-                    <div>
-                      <p className="text-[12.5px] text-[#fff8e4]/70">30 días anteriores</p>
-                      <p className="text-2xl font-extrabold tabular-nums text-[#fff8e4]/80">{formatValue(comparison.previous, 1)}<span className="ml-1 text-sm font-semibold text-[#fff8e4]/60">ton</span></p>
-                    </div>
-                  </div>
-                </section>
-              )}
             </div>,
 
             <div key="historial" className="space-y-3">

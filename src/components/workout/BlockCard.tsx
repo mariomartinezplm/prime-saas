@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy, Loader2, Play } from 'lucide-react';
+import { Check, Copy, Link2, Loader2, Play, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NumberStepper from '@/components/premium/NumberStepper';
 import { BTN_FILL } from '@/components/dashboard/brand';
@@ -10,6 +10,7 @@ import type { PendingBatch } from '@/lib/pendingSets';
 import { cn } from '@/lib/utils';
 
 const KIND_TITLE = { single: 'Ejercicio', super: 'Superserie', tri: 'Triserie' } as const;
+const KIND_HINT = { single: 'Un ejercicio', super: 'Dos ejercicios seguidos', tri: 'Tres ejercicios seguidos' } as const;
 const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `s-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`);
 const dateText = (iso: string) => new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' }).format(new Date(iso));
 
@@ -36,7 +37,8 @@ const BlockCard = ({ block, sets, pending, references, nextRestSec, onSave, onEd
 
   const [drafts, setDrafts] = useState<Record<string, SlotDraft>>(() => Object.fromEntries(block.slots.map((sl) => [sl.slot, initialDraft(sl, lastBySlot.get(sl.slot), references[sl.exerciseName])])));
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState<'saved' | 'pending' | null>(null);
+  const [saved, setSaved] = useState<'saved' | 'round' | 'pending' | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
   const [tried, setTried] = useState(false);
   const touched = useRef(new Set<string>());
 
@@ -83,14 +85,17 @@ const BlockCard = ({ block, sets, pending, references, nextRestSec, onSave, onEd
     setTried(true);
     if (!canSave || saving) return;
     setSaving(true);
-    const inputs = included.map((sl) => toSetInput(sl, drafts[sl.slot], newId(), references[sl.exerciseName]?.weightUnit ?? 'kg'));
+    const inputs = included.map((sl) => toSetInput(sl, drafts[sl.slot], newId()));
     const display = included.map((sl) => ({ slot: sl.slot, exerciseName: sl.exerciseName, reps: drafts[sl.slot].reps ?? undefined, weight: drafts[sl.slot].weight ?? undefined, durationSec: drafts[sl.slot].durationSec ?? undefined }));
+    setFailed(null);
     try {
       const result = await onSave(block.blockId, inputs, display);
-      setSaved(result);
+      // «Guardado» solo aparece cuando el servidor lo confirmó; sin conexión queda «pendiente»
+      setSaved(result === 'saved' && multi && included.length === block.slots.length ? 'round' : result);
       setTried(false);
-    } catch {
-      /* el aviso de error lo muestra la pantalla */
+    } catch (err) {
+      // El servidor rechazó el dato (no es un problema de conexión): se dice QUÉ pasó y no se muestra como guardado
+      setFailed((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'No se pudo guardar. Revisa los datos e inténtalo de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -99,19 +104,33 @@ const BlockCard = ({ block, sets, pending, references, nextRestSec, onSave, onEd
   return (
     <section aria-label={`${KIND_TITLE[block.kind]} ${block.label}`} className="overflow-hidden rounded-[24px] border border-[#62b8cf]/30 bg-[linear-gradient(165deg,rgba(57,140,162,0.2),#1f1c21_55%)] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.9)]">
       <div className="flex items-center justify-between gap-3 px-4 pt-4">
-        <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#8fd0e0]">{KIND_TITLE[block.kind]} {block.label}</p>
-        <span className="rounded-full border border-[#62b8cf]/40 bg-[#398ca2]/20 px-3 py-1 text-[12px] font-semibold tabular-nums text-[#fff8e4]">{multi ? `Vuelta ${round}` : `Serie ${round}`}</span>
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#8fd0e0]">
+            {multi && <Link2 className="h-3.5 w-3.5" aria-hidden="true" />}
+            {KIND_TITLE[block.kind]} {block.label}
+          </p>
+          <p className="mt-0.5 text-[12px] text-[#a8a295]">{multi ? block.slots.map((x) => x.slot).join(' → ') + ' → descanso' : KIND_HINT[block.kind]}</p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <span className="rounded-full border border-[#62b8cf]/40 bg-[#398ca2]/20 px-3 py-1 text-[12px] font-semibold tabular-nums text-[#fff8e4]">{multi ? `Vuelta ${round}` : `Serie ${round}`}</span>
+          <span className="flex gap-1" aria-hidden="true">
+            {Array.from({ length: Math.min(8, Math.max(round, 4)) }, (_, i) => (
+              <i key={i} className={cn('h-1.5 w-1.5 rounded-full', i < round - 1 ? 'bg-[#62b8cf]' : i === round - 1 ? 'bg-[#62b8cf]/45 ring-1 ring-[#62b8cf]' : 'bg-[#fff8e4]/15')} />
+            ))}
+          </span>
+        </div>
       </div>
 
-      <div className="mt-1 divide-y divide-[#fff8e4]/10 px-4">
-        {block.slots.map((sl) => {
+      <div className={cn('mt-1 px-4', !multi && 'divide-y divide-[#fff8e4]/10')}>
+        {block.slots.map((sl, index) => {
           const d = drafts[sl.slot];
           const ref = references[sl.exerciseName];
           const mine = sets.filter((s) => s.slot === sl.slot);
           const mineP = pending.filter((p) => p.slot === sl.slot);
           const problem = tried && d.include ? draftProblem(sl, d) : null;
           return (
-            <div key={sl.slot} className={cn('py-3.5 transition-opacity', !d.include && 'opacity-55')}>
+            <div key={sl.slot} className={cn('relative py-3.5 transition-opacity', !d.include && 'opacity-55')}>
+              {multi && index < block.slots.length - 1 && <span aria-hidden="true" className="absolute left-5 top-[54px] -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-[linear-gradient(180deg,rgba(98,184,207,0.55),rgba(98,184,207,0.12))]" />}
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#62b8cf]/40 bg-[#398ca2]/15 text-sm font-extrabold text-[#8fd0e0]">{multi ? sl.slot : block.label}</span>
                 <div className="min-w-0 flex-1">
@@ -138,7 +157,7 @@ const BlockCard = ({ block, sets, pending, references, nextRestSec, onSave, onEd
                   ) : (
                     <>
                       <NumberStepper label="Repeticiones" value={d.reps} onChange={(v) => patch(sl.slot, { reps: v })} min={0} max={999} invalid={!!problem && !d.reps} />
-                      {sl.modality === 'weight' && <NumberStepper label="Carga" unit={ref?.weightUnit ?? 'kg'} decimals step={2.5} value={d.weight} onChange={(v) => patch(sl.slot, { weight: v })} min={0} max={1000} invalid={!!problem && !d.weight} />}
+                      {sl.modality === 'weight' && <NumberStepper label="Carga" unit="kg" decimals step={2.5} value={d.weight} onChange={(v) => patch(sl.slot, { weight: v })} min={0} max={1000} invalid={!!problem && !d.weight} />}
                     </>
                   )}
                 </div>
@@ -178,9 +197,15 @@ const BlockCard = ({ block, sets, pending, references, nextRestSec, onSave, onEd
           {saving ? 'Guardando…' : multi ? (included.length === block.slots.length ? 'Guardar vuelta' : `Guardar ${included.length} de ${block.slots.length}`) : 'Guardar serie'}
         </Button>
         <div aria-live="polite" className="min-h-[24px]">
-          {saved === 'saved' && (
-            <div className="flex items-center justify-between gap-2 pt-1.5 text-[13px] text-[#cdc6b6]">
-              <span className="flex items-center gap-1.5 font-semibold text-[#8fd0e0]"><Check className="h-4 w-4" aria-hidden="true" /> Guardado</span>
+          {failed && (
+            <div role="alert" className="mt-1.5 flex items-start gap-2 rounded-xl border border-[#e8b4a0]/60 bg-[#e8b4a0]/10 p-2.5 text-[13px] text-[#fff8e4]">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#e8b4a0]" aria-hidden="true" />
+              <span><span className="font-bold">No se guardó.</span> {failed}</span>
+            </div>
+          )}
+          {(saved === 'saved' || saved === 'round') && (
+            <div className="flex items-center justify-between gap-2 pt-1.5 text-[13px] text-[#cdc6b6] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-300">
+              <span className="flex items-center gap-1.5 font-semibold text-[#8fd0e0]"><Check className="h-4 w-4" aria-hidden="true" /> {saved === 'round' ? `Vuelta ${round - 1} completada` : 'Guardado'}</span>
               <button type="button" onClick={onRest} className="flex min-h-[44px] items-center gap-1.5 rounded-xl px-2 font-semibold text-[#fff8e4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]"><Play className="h-4 w-4 text-[#8fd0e0]" aria-hidden="true" /> Descansar {formatClock(nextRestSec)}</button>
             </div>
           )}

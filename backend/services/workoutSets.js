@@ -63,7 +63,7 @@ export function validateSetInput(input, slotDef) {
   return { value: { reps, weight: Math.round(weight * 100) / 100, unit } };
 }
 
-// Resumen de lo REALMENTE guardado en la sesión (nunca se inventa nada)
+// Resumen de lo REALMENTE guardado en la sesión (nunca se inventa nada). Sin tonelaje: se muestran cargas, repeticiones y tiempo.
 export function buildSummary(session, sets) {
   const startedAt = new Date(session.startedAt).getTime();
   const end = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
@@ -83,18 +83,6 @@ export function buildSummary(session, sets) {
   }
   const exercises = [...byKey.values()].map((e) => ({ name: e.name, slots: [...e.slots], sets: e.sets, reps: e.reps, bestWeight: e.bestWeight, unit: e.unit, timeSec: e.timeSec, modality: e.modality }));
 
-  // Volumen = repeticiones × carga, SOLO en kg y solo series con carga. Las lbs no se convierten: se avisa que quedaron fuera.
-  let volumeKg = 0;
-  let hasLoad = false;
-  let lbsSets = 0;
-  for (const s of sets) {
-    if (!(s.weight > 0 && s.reps > 0)) continue;
-    if ((s.weightUnit || 'kg') === 'kg') {
-      volumeKg += s.weight * s.reps;
-      hasLoad = true;
-    } else lbsSets += 1;
-  }
-
   return {
     durationSec: Math.max(0, Math.round((end - startedAt) / 1000)),
     exercises,
@@ -102,9 +90,33 @@ export function buildSummary(session, sets) {
       exercises: exercises.length,
       sets: sets.length,
       reps: sets.reduce((n, s) => n + (s.reps || 0), 0),
-      timeSec: sets.reduce((n, s) => n + (s.durationSec || 0), 0),
-      volumeTons: hasLoad ? Math.round(volumeKg) / 1000 : null,
-      volumeExcludesLbs: lbsSets > 0
+      timeSec: sets.reduce((n, s) => n + (s.durationSec || 0), 0)
     }
   };
+}
+
+// Marcas personales logradas EN ESTA SESIÓN, derivadas (sin depender de ningún aviso): la mejor carga en kg de un ejercicio hoy
+// supera la mejor carga de DÍAS anteriores del mismo ejercicio. Sin días anteriores no hay récord (la primera marca no lo es).
+// Es idempotente: recalcular da lo mismo. Las libras no se comparan.
+export function sessionRecords(sets, previousRows, sessionDay, dayOf) {
+  const best = new Map();
+  for (const s of sets) {
+    if (!(s.weight > 0) || (s.weightUnit || 'kg') !== 'kg') continue;
+    const key = exerciseKey(s.exerciseName);
+    const cur = best.get(key);
+    if (!cur || s.weight > cur.weight) best.set(key, { name: s.exerciseName, weight: s.weight, reps: s.reps ?? null });
+  }
+  const records = [];
+  for (const [key, today] of best) {
+    let previous = 0;
+    for (const r of previousRows) {
+      if (!(r.weight > 0) || (r.weightUnit || 'kg') !== 'kg' || !r.date || exerciseKey(r.exerciseName) !== key) continue;
+      if (dayOf(r.date) >= sessionDay) continue;
+      previous = Math.max(previous, r.weight);
+    }
+    if (previous > 0 && today.weight > previous) {
+      records.push({ name: today.name, previous, current: today.weight, improvement: Math.round((today.weight - previous) * 100) / 100, reps: today.reps });
+    }
+  }
+  return records.sort((a, b) => b.improvement - a.improvement);
 }

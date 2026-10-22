@@ -297,7 +297,11 @@ export const getMyUnseen = async (req, res) => {
         message: ACHIEVEMENTS[a.key].message,
         category: a.category,
         categoryLabel: CATEGORIES[a.category]?.label ?? '',
-        awardedAt: a.awardedAt
+        awardedAt: a.awardedAt,
+        // Solo para «Nueva marca personal»: lo que se muestra en la celebración (ejercicio, marca anterior y nueva)
+        record: a.key === 'strength_pr' && a.evidence?.values?.exercise
+          ? { exercise: a.evidence.values.exercise, previous: a.evidence.values.previousBest ?? null, current: a.evidence.values.weight ?? null, unit: a.evidence.values.unit ?? 'kg' }
+          : undefined
       }));
     res.status(200).json({ success: true, data: { unseen } });
   } catch (error) {

@@ -273,6 +273,7 @@ describe('ejercicios — pertenencia, plan y fecha', () => {
   });
 
   it('el paciente registra su ejercicio con plan activo', async () => {
+    vi.spyOn(ExerciseProgress, 'find').mockReturnValue({ sort: () => ({ limit: () => ({ select: () => ({ lean: () => Promise.resolve([]) }) }) }) });
     const create = vi.spyOn(ExerciseProgress, 'create').mockResolvedValue(ejercicio());
     const res = fakeRes();
 
