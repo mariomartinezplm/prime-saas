@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clockOffset } from '@/lib/workoutClock';
-import { listPending, putPending, removePending, type PendingBatch } from '@/lib/pendingSets';
+import { useAuth } from '@/contexts/AuthContext';
+import { isRetryable, listPending, putPending, removePending, type PendingBatch } from '@/lib/pendingSets';
 import { workoutService, type BlockKind, type Modality, type RestAction, type SetInput, type WorkoutActive, type WorkoutMutation, type WorkoutSessionView } from '@/services/workoutService';
 
 type Status = 'loading' | 'ready' | 'error';
-
-// ¿Fue un problema de conexión o del servidor (se puede reintentar) y no un dato rechazado (no tiene sentido reintentar)?
-const isRetryable = (error: unknown) => {
-  const status = (error as { response?: { status?: number } })?.response?.status;
-  return status === undefined || status >= 500 || status === 429 || status === 408;
-};
 
 const CHANNEL = 'prime-workout';
 // Refrescar desde el servidor al volver a la app, como máximo cada tanto (no en cada cambio de foco)
@@ -18,6 +13,7 @@ const REFRESH_MIN_MS = 10_000;
 // Estado del entrenamiento en curso. La verdad vive en el servidor: aquí solo se guarda lo último que se recibió y la
 // diferencia entre el reloj del servidor y el del dispositivo. `now` solo sirve para repintar; los tiempos se calculan
 // siempre con instantes guardados (ver lib/workoutClock.ts).
+
 export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
   const [data, setData] = useState<WorkoutActive | null>(null);
   const [status, setStatus] = useState<Status>('loading');
@@ -27,6 +23,8 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
   const lastLoad = useRef(0);
   const channel = useRef<BroadcastChannel | null>(null);
   const inFlight = useRef(false);
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
   const [pending, setPending] = useState<PendingBatch[]>([]);
   const flushing = useRef(false);
 
@@ -122,7 +120,7 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
     return false;
   };
 
-  const refreshPending = useCallback(async (sessionId?: string) => setPending(await listPending(sessionId)), []);
+  const refreshPending = useCallback(async (sessionId?: string) => setPending(await listPending(sessionId, userId)), [userId]);
 
   // Envía lo que quedó pendiente (sin conexión o con error). Cada serie lleva su clientId: reenviar nunca duplica.
   const flushPending = useCallback(async (): Promise<number> => {
@@ -131,7 +129,7 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
     flushing.current = true;
     let sent = 0;
     try {
-      for (const batch of await listPending(id)) {
+      for (const batch of await listPending(id, userId)) {
         const sentAt = Date.now();
         try {
           const mutation = await workoutService.saveSets(batch.sessionId, batch.blockId, batch.sets);
@@ -148,7 +146,7 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
       await refreshPending(id);
     }
     return sent;
-  }, [data?.session?.id, apply, refreshPending]);
+  }, [data?.session?.id, userId, apply, refreshPending]);
 
   useEffect(() => {
     const id = data?.session?.id;
@@ -161,7 +159,7 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
 
   // Guarda un lote: primero queda a salvo en la cola local, luego se envía. Si falla por conexión, queda «pendiente».
   const saveBatch = async (session: WorkoutSessionView, blockId: string, sets: SetInput[], display: PendingBatch['display']): Promise<'saved' | 'pending'> => {
-    const batch: PendingBatch = { batchId: sets[0].clientId, sessionId: session.id, blockId, sets, display, savedAt: Date.now() };
+    const batch: PendingBatch = { batchId: sets[0].clientId, userId, sessionId: session.id, blockId, sets, display, savedAt: Date.now() };
     await putPending(batch);
     await refreshPending(session.id);
     try {

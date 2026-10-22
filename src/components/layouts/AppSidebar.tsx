@@ -20,7 +20,9 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import PendingLogoutDialog from '@/components/workout/PendingLogoutDialog';
 import {
   Sidebar,
   SidebarContent,
@@ -126,6 +128,7 @@ const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { setOpenMobile, isMobile } = useSidebar();
+  const [pendingLogout, setPendingLogout] = useState(false);
 
   const isStaff = user?.role === 'admin' || user?.role === 'professional';
   const groups = isStaff ? staffNav : patientNav;
@@ -150,14 +153,23 @@ const AppSidebar = () => {
   };
 
   const handleLogout = () => {
-    confirmLeave(() => {
+    confirmLeave(async () => {
       closeMobileMenu();
-      logout();
-      navigate('/login');
+      // Con series de entrenamiento sin sincronizar NO se cierra sesión en silencio: se avisa y la persona decide
+      if (await logout()) navigate('/login');
+      else setPendingLogout(true);
     });
   };
 
+  const leaveAnyway = async () => {
+    setPendingLogout(false);
+    await logout({ force: true });
+    navigate('/login');
+  };
+
   return (
+    <>
+    {user && <PendingLogoutDialog open={pendingLogout} userId={user.id} onCancel={() => setPendingLogout(false)} onLeave={leaveAnyway} />}
     <Sidebar>
       {/* Un solo contenedor con el fondo de la marca: cubre igual el panel del celular y la barra de escritorio */}
       <div className="flex h-full min-h-0 w-full flex-col bg-[#181619] text-[#fff8e4] [padding-left:env(safe-area-inset-left)]">
@@ -253,6 +265,7 @@ const AppSidebar = () => {
         </SidebarFooter>
       </div>
     </Sidebar>
+    </>
   );
 };
 

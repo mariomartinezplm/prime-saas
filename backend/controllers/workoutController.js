@@ -60,7 +60,7 @@ export function sessionView(session, now = new Date(), sets = []) {
 }
 
 // Mediodía de Chile del día de `now` (las fechas de evolución se guardan así, ver achievements/dates.js)
-const dayAtNoon = (now) => {
+export const dayAtNoon = (now) => {
   const p = santiagoParts(now);
   return santiagoToUtc(p.year, p.month, p.day, 12);
 };

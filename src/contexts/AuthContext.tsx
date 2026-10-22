@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { clearPending } from '@/lib/pendingSets';
+import { clearPending, countPendingSets } from '@/lib/pendingSets';
 import { authService } from '../services/authService';
 import { getAccessToken, refreshAccessToken, setAccessToken } from '../lib/api';
 import { releasePushOnLogout } from '../lib/push';
@@ -11,7 +11,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<User>;
-  logout: () => Promise<void>;
+  // Devuelve false si NO cerró sesión porque hay series de entrenamiento sin sincronizar (a menos que se fuerce)
+  logout: (options?: { force?: boolean; preservePending?: boolean }) => Promise<boolean>;
   updateUser: (user: User) => void;
   refreshUser: () => Promise<void>;
 }
@@ -53,7 +54,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return response.data.user;
   };
 
-  const logout = async () => {
+  const logout = async (options: { force?: boolean; preservePending?: boolean } = {}): Promise<boolean> => {
+    // Registros de entrenamiento sin sincronizar: no se pierden en silencio. Quien llama avisa y decide.
+    if (user && !options.force && !options.preservePending && (await countPendingSets(user.id)) > 0) return false;
     // Se limpia el estado local PRIMERO: dos pantallas del código llaman
     // `logout(); navigate('/login');` sin esperar la promesa. Si el aviso al
     // backend fuera antes, ese navigate ocurriría con `user` todavía seteado
@@ -66,13 +69,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
     resetWelcome();
     // Las series de entrenamiento pendientes de envío no deben quedar en el dispositivo cuando alguien cierra sesión
-    clearPending().catch(() => {});
+    if (!options.preservePending && user) clearPending(user.id).catch(() => {});
     try {
       await authService.logout();
     } catch {
       // Sin red o backend caído: no importa, el cliente ya quedó deslogueado
     }
     await pushRelease;
+    return true;
   };
 
   const updateUser = (updatedUser: User) => {
@@ -84,7 +88,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
     } catch {
-      logout();
+      // La sesión ya no es válida: se sale, pero lo pendiente de esta cuenta se CONSERVA para cuando vuelva a entrar
+      logout({ force: true, preservePending: true });
     }
   };
 

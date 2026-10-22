@@ -112,7 +112,7 @@ const Workout = () => {
     // Lo pendiente de envío se intenta una última vez: finalizar no debe perder series
     if (w.pending.length > 0) {
       await w.flushPending();
-      if ((await listPending(session.id)).length > 0) {
+      if ((await listPending(session.id, user?.id)).length > 0) {
         notify.error('Todavía hay series sin enviar. Reconéctate para no perderlas.');
         setConfirming(false);
         return;
@@ -174,11 +174,11 @@ const Workout = () => {
         <Button asChild variant="ghost" size="icon" className="h-11 w-11 rounded-2xl text-[#cdc6b6]" aria-label="Volver al inicio">
           <Link to="/app/dashboard"><ChevronLeft aria-hidden="true" /></Link>
         </Button>
-        <p className="flex items-center gap-2 text-[15px] font-bold text-[#fff8e4]">
+        <p className="flex min-w-0 items-center gap-2 whitespace-nowrap text-[14px] font-bold text-[#fff8e4] min-[380px]:text-[15px]">
           <span className="h-2.5 w-2.5 rounded-full bg-[#62b8cf] shadow-[0_0_0_4px_rgba(98,184,207,0.2)] motion-safe:animate-pulse" aria-hidden="true" />
           Entrenamiento en curso
         </p>
-        <button type="button" onClick={() => setConfirming(true)} className="min-h-[44px] rounded-xl px-3 text-[14px] font-semibold text-[#cdc6b6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">Finalizar</button>
+        <button type="button" onClick={() => setConfirming(true)} className="min-h-[44px] shrink-0 rounded-xl px-2.5 text-[14px] font-semibold text-[#cdc6b6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">Finalizar</button>
       </div>
 
       <section aria-label="Tiempo de sesión" className={cn('relative overflow-hidden rounded-[24px] border px-4 py-3.5', HERO_SURFACE)}>

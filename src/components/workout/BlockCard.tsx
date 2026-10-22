@@ -129,8 +129,7 @@ const BlockCard = ({ block, sets, pending, references, nextRestSec, onSave, onEd
           const mineP = pending.filter((p) => p.slot === sl.slot);
           const problem = tried && d.include ? draftProblem(sl, d) : null;
           return (
-            <div key={sl.slot} className={cn('relative py-3.5 transition-opacity', !d.include && 'opacity-55')}>
-              {multi && index < block.slots.length - 1 && <span aria-hidden="true" className="absolute left-5 top-[54px] -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-[linear-gradient(180deg,rgba(98,184,207,0.55),rgba(98,184,207,0.12))]" />}
+            <div key={sl.slot} className={cn('relative py-3.5 transition-opacity', multi && index < block.slots.length - 1 && 'mb-3 border-b border-[#fff8e4]/10 pb-5', !d.include && 'opacity-55')}>
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#62b8cf]/40 bg-[#398ca2]/15 text-sm font-extrabold text-[#8fd0e0]">{multi ? sl.slot : block.label}</span>
                 <div className="min-w-0 flex-1">
@@ -179,6 +178,13 @@ const BlockCard = ({ block, sets, pending, references, nextRestSec, onSave, onEd
                     </li>
                   ))}
                 </ul>
+              )}
+              {multi && index < block.slots.length - 1 && (
+                <div aria-hidden="true" className="absolute inset-x-0 -bottom-2.5 z-10 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8fd0e0]">
+                  <span className="h-px flex-1 bg-[linear-gradient(90deg,transparent,rgba(98,184,207,0.45))]" />
+                  <Link2 className="h-3.5 w-3.5" />luego
+                  <span className="h-px flex-1 bg-[linear-gradient(270deg,transparent,rgba(98,184,207,0.45))]" />
+                </div>
               )}
             </div>
           );
