@@ -118,10 +118,12 @@ const Income = () => {
       </header>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi accent icon={<BarChart3 className="h-[18px] w-[18px]" aria-hidden="true" />} label={`Valor estimado de planes · ${monthLabel}`} value={clp(current.estimated)} foot={
-          variation === null ? <span>Sin {prevLabel} con valor para comparar</span> : variation.amount === 0 ? <span>Igual que {prevLabel}</span> : (
+        <Kpi accent icon={<BarChart3 className="h-[18px] w-[18px]" aria-hidden="true" />} label={`Valor estimado de planes · ${monthLabel}`} value={clp(current.estimated)} foot={<>
+          {variation === null ? <span>Sin {prevLabel} con valor para comparar</span> : variation.amount === 0 ? <span>Igual que {prevLabel}</span> : (
             <span className="flex flex-wrap items-center gap-1"><span className={cn('inline-flex items-center gap-0.5 font-bold', variation.amount > 0 ? 'text-[#8fd0e0]' : 'text-[#e8b4a0]')}>{variation.amount > 0 ? <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /> : <ArrowDownRight className="h-3.5 w-3.5" aria-hidden="true" />}{variation.amount > 0 ? '+' : '−'}{String(Math.abs(variation.percent)).replace('.', ',')} %</span> vs. {prevLabel} (estimado)</span>
-          )} />
+          )}
+          {data.monthly.total !== current.estimated && <span className="mt-1 block text-[#8fd0e0]">A tarifa mensual: {clp(data.monthly.total)} (ver desglose)</span>}
+        </>} />
         <Kpi icon={<TrendingUp className="h-[18px] w-[18px]" aria-hidden="true" />} label={projection ? `Proyección estimada · ${MONTHS[Number(projection.month.slice(5, 7)) - 1]}` : 'Pendiente de pago (estimado)'} value={projection ? clp(projection.value) : clp(current.pendingValue)} foot={projection ? <span>Supuesto: se renuevan los {projection.count} {projection.count === 1 ? 'plan vigente' : 'planes vigentes'} que terminan este mes. No es dinero recibido.</span> : <span>{current.pendingCount} {current.pendingCount === 1 ? 'plan' : 'planes'} con pago pendiente</span>} />
         <Kpi icon={<Users className="h-[18px] w-[18px]" aria-hidden="true" />} label="Pacientes activos" value={data.activePatients} foot={<span>Con un plan vigente hoy</span>} />
         <Kpi icon={<WalletCards className="h-[18px] w-[18px]" aria-hidden="true" />} label="Planes con pago registrado" value={current.paidCount} foot={<span>{current.pendingCount} {current.pendingCount === 1 ? 'pendiente' : 'pendientes'} de {current.contracts}</span>} />
@@ -174,6 +176,32 @@ const Income = () => {
           ) : <p className="mt-6 rounded-2xl border border-dashed border-[#fff8e4]/20 p-4 text-center text-sm text-[#a8a295]">Todavía no hay planes con tarifa en {monthLabel}.</p>}
         </Panel>
       </div>
+
+
+      <Panel label="Desglose mensual">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#fff8e4]">Desglose mensual · {monthLabel}</h2>
+            <p className="text-[12.5px] text-[#a8a295]">Cada mes a su tarifa mensual base, sin descuento, aunque el plan largo se haya pagado de una vez</p>
+          </div>
+          <p className="text-[1.5rem] font-extrabold tabular-nums leading-none text-[#fff8e4]">{clp(data.monthly.total)}</p>
+        </div>
+        {data.monthly.rows.length === 0 ? <p className="mt-4 rounded-2xl border border-dashed border-[#fff8e4]/20 p-5 text-center text-sm text-[#a8a295]">No hay meses de plan con tarifa en {monthLabel}.</p> : (
+          <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-x-8 divide-y divide-[#fff8e4]/10 md:grid-cols-[repeat(2,minmax(0,1fr))] md:divide-y-0">
+            {data.monthly.rows.map((r, i) => (
+              <li key={`${r.patientId}${i}`} className="flex items-center justify-between gap-3 border-[#fff8e4]/10 py-2.5 md:border-b">
+                <div className="min-w-0">
+                  <p className="truncate text-[14.5px] font-semibold text-[#fff8e4]">{r.patient}</p>
+                  <p className="truncate text-[12.5px] text-[#a8a295]">{planName({ serviceType: r.serviceType, sessions: r.sessions, unlimited: false })}{r.cyclesTotal > 1 ? ` · ${TERM[r.term]} · mes ${r.cycleNumber} de ${r.cyclesTotal}` : ''}</p>
+                  {r.contractValue !== null && <p className="truncate text-[11.5px] text-[#8fd0e0]">Contrato {clp(r.contractValue)}{r.discount ? ` (−${Math.round(r.discount * 100)} %)` : ''}</p>}
+                </div>
+                <p className="shrink-0 text-[14.5px] font-bold tabular-nums text-[#fff8e4]">{clp(r.monthly)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        {data.monthly.untariffed > 0 && <p className="mt-2 text-[12px] text-[#a8a295]">{data.monthly.untariffed} {data.monthly.untariffed === 1 ? 'plan sin tarifa definida no suma' : 'planes sin tarifa definida no suman'}.</p>}
+      </Panel>
 
       <div className="grid gap-4 lg:grid-cols-5">
         <Panel label="Estado de pago de los planes" className="lg:col-span-3">

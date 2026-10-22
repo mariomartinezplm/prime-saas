@@ -17,6 +17,19 @@ export interface PlanLine {
   untariffed: number;
 }
 
+export interface MonthlyRow {
+  patientId: string;
+  patient: string;
+  serviceType: ServiceType;
+  sessions: number | null;
+  term: 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  cycleNumber: number;
+  cyclesTotal: number;
+  monthly: number;
+  discount: number | null;
+  contractValue: number | null;
+}
+
 // VALOR ESTIMADO de planes (no dinero cobrado): PRIME F&H todavía no guarda el monto pagado ni la fecha de cada pago.
 export interface FinanceSummary {
   month: string;
@@ -39,7 +52,8 @@ export interface FinanceSummary {
   variation: { amount: number; percent: number } | null;
   activePatients: number;
   activePatientInitials: string[];
-  series: { month: string; estimated: number; pendingValue: number; contracts: number }[];
+  series: { month: string; estimated: number; pendingValue: number; contracts: number; monthlyBase: number }[];
+  monthly: { month: string; total: number; untariffed: number; rows: MonthlyRow[] };
   projection: { month: string; value: number; count: number } | null;
   plans: { patientId: string; patient: string; serviceType: ServiceType; sessions: number | null; unlimited: boolean; term: string; cycles: number; value: number | null; paid: boolean; startDate: string }[];
   basis: { kind: 'estimate'; tracksPayments: boolean; notes: string[]; untariffed: number };

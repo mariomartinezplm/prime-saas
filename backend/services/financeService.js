@@ -116,6 +116,40 @@ export function projectNextMonth(plans, month) {
   return { month: target, value, count };
 }
 
+
+// Desglose MENSUAL a tarifa base (sin descuento): cada ciclo mensual de un plan de entrenamiento vale su tarifa mensual, aunque el contrato
+// (trimestral, semestral o anual) se haya pagado de una vez. Kinesiología es un paquete: vale su tarifa en el mes en que empieza.
+// Es una vista de "cuánto vale cada mes", no de lo que el paciente pagó (el descuento del contrato se informa aparte).
+export function summarizeMonthly(plans, month, names = new Map()) {
+  const rows = [];
+  let total = 0;
+  let untariffed = 0;
+  for (const p of plans.filter((x) => live(x) && monthKey(x.startDate) === month)) {
+    const monthly = priceOf(p);
+    if (monthly === null) {
+      untariffed += 1;
+      continue;
+    }
+    total += monthly;
+    const patient = names.get(String(p.patient));
+    const cyclesTotal = Math.max(1, p.cyclesTotal ?? 1);
+    rows.push({
+      patientId: String(p.patient),
+      patient: patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente',
+      serviceType: p.serviceType,
+      sessions: p.unlimited ? null : p.sessionsTotal,
+      term: p.term ?? 'mensual',
+      cycleNumber: p.cycleNumber ?? 1,
+      cyclesTotal,
+      monthly,
+      discount: discountOf(p),
+      contractValue: cyclesTotal > 1 ? contractValue({ ...p, cyclesTotal }) : null
+    });
+  }
+  rows.sort((a, b) => b.cyclesTotal - a.cyclesTotal || String(a.patient).localeCompare(String(b.patient)));
+  return { month, total, rows, untariffed };
+}
+
 export function buildFinance({ plans, patients, month, now = new Date() }) {
   const names = new Map(patients.map((p) => [String(p._id), p]));
   const contracts = toContracts(plans);
@@ -124,7 +158,7 @@ export function buildFinance({ plans, patients, month, now = new Date() }) {
   const previous = summarizeMonth(contracts, previousKey);
   const series = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5)).map((m) => {
     const s = summarizeMonth(contracts, m);
-    return { month: m, estimated: s.estimated, pendingValue: s.pendingValue, contracts: s.contracts };
+    return { month: m, estimated: s.estimated, pendingValue: s.pendingValue, contracts: s.contracts, monthlyBase: summarizeMonthly(plans, m).total };
   });
 
   // Pacientes con un plan vigente HOY (no depende del mes elegido)
@@ -155,12 +189,14 @@ export function buildFinance({ plans, patients, month, now = new Date() }) {
     series,
     projection: isCurrentMonth ? projectNextMonth(plans, month) : null,
     plans: list,
+    monthly: summarizeMonthly(plans, month, names),
     basis: {
       kind: 'estimate',
       tracksPayments: false,
       notes: [
         'Es una estimación según los planes registrados: PRIME F&H todavía no guarda el monto pagado ni la fecha de cada pago.',
         'Cada contrato cuenta una sola vez, en el mes en que empieza, con su valor completo (un plan trimestral o anual no se reparte en cobros mensuales).',
+        'Desglose mensual: cada mes de un plan largo se muestra a la tarifa mensual base ($90.000 por 2 veces por semana, $130.000 por 3), sin descuento; por eso la suma de los meses es mayor que lo que pagó el paciente.',
         'Descuentos en entrenamiento: trimestral 10 %, semestral 15 %, anual 20 %.'
       ],
       untariffed: current.untariffed

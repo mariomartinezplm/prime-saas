@@ -177,3 +177,31 @@ describe('alcance y permisos', () => {
     expect(financeRoutes.stack.filter((l) => !l.route).length).toBeGreaterThanOrEqual(2); // protect + authorize en todo el router
   });
 });
+
+describe('desglose mensual a tarifa base', async () => {
+  const { summarizeMonthly } = await import('../services/financeService.js');
+  const termId = 'anual-1';
+  const annual = Array.from({ length: 12 }, (_, i) => plan({ patient: 'p1', termId, term: 'anual', cyclesTotal: 12, cycleNumber: i + 1, sessionsTotal: 12, status: i === 0 ? 'active' : 'upcoming', startDate: santiagoToUtc(2026, 10 + i, 1) }));
+
+  it('un anual de 3 veces por semana vale $130.000 en CADA mes, aunque se pagó de una vez', () => {
+    for (const m of ['2026-10', '2026-11', '2027-03']) {
+      const r = summarizeMonthly(annual, m);
+      expect(r.total).toBe(130000);
+      expect(r.rows).toHaveLength(1);
+    }
+    expect(summarizeMonthly(annual, '2027-10').total).toBe(0); // fuera del contrato
+  });
+
+  it('informa el contrato con descuento aparte (130.000 × 12 × 0,80 = 1.248.000)', () => {
+    const [row] = summarizeMonthly(annual, '2026-12').rows;
+    expect(row).toMatchObject({ cycleNumber: 3, cyclesTotal: 12, monthly: 130000, discount: 0.2, contractValue: 1248000 });
+  });
+
+  it('2 veces por semana = $90.000 al mes; sin tarifa no suma', () => {
+    const two = plan({ patient: 'p2', sessionsTotal: 8, startDate: santiagoToUtc(2026, 10, 1) });
+    const free = plan({ patient: 'p3', sessionsTotal: 16, startDate: santiagoToUtc(2026, 10, 1) });
+    const r = summarizeMonthly([...annual, two, free], '2026-10');
+    expect(r.total).toBe(220000);
+    expect(r.untariffed).toBe(1);
+  });
+});
