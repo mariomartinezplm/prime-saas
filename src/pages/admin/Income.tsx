@@ -200,7 +200,7 @@ const Income = () => {
 
       <Panel label="Detalle por plan">
         <h2 className="text-[16px] font-bold text-[#fff8e4]">Detalle por plan</h2>
-        <p className="text-[12.5px] text-[#a8a295]">Contratos que empiezan en {monthLabel}. Un plan trimestral o anual cuenta una sola vez, con su descuento.</p>
+        <p className="text-[12.5px] text-[#a8a295]">Contratos que empiezan en {monthLabel}. Un plan trimestral, semestral o anual cuenta una sola vez, con su descuento.</p>
         {!hasData ? <p className="mt-4 rounded-2xl border border-dashed border-[#fff8e4]/20 p-5 text-center text-sm text-[#a8a295]">No hay planes que empiecen en {monthLabel}.</p> : (
           <>
             <div className="mt-3 hidden overflow-x-auto md:block">

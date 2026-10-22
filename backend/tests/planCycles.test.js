@@ -77,8 +77,15 @@ describe('ciclo de fecha a fecha (los que pagan el 10)', () => {
 });
 
 describe('planes de varios meses', () => {
-  it('mensual = 1 ciclo, trimestral = 3, anual = 12', () => {
-    expect(TERM_CYCLES).toEqual({ mensual: 1, trimestral: 3, anual: 12 });
+  it('mensual = 1 ciclo, trimestral = 3, semestral = 6, anual = 12', () => {
+    expect(TERM_CYCLES).toEqual({ mensual: 1, trimestral: 3, semestral: 6, anual: 12 });
+  });
+
+  it('semestral pagado el 1 de octubre: 6 ciclos seguidos hasta marzo, pagados de una vez (sin renovar mes a mes)', () => {
+    const cycles = buildCycles(at(2026, 10, 1), 'calendar', TERM_CYCLES.semestral);
+    expect(cycles.map((c) => c.cycleNumber)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(wall(cycles[5].end)).toBe('2027-03-31 23:59:59');
+    cycles.slice(1).forEach((c, i) => expect(c.start.getTime()).toBe(cycles[i].end.getTime() + 1));
   });
 
   it('trimestral pagado el 1 de octubre: octubre, noviembre y diciembre, sin huecos', () => {

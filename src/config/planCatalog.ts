@@ -60,18 +60,22 @@ export function formatPlanRemaining(plan: PlanUsage): string {
 
 // ─── Duración del plan y tipo de ciclo (debe coincidir con backend/services/planCycles.js) ───
 
-export type PlanTerm = 'mensual' | 'trimestral' | 'anual';
+export type PlanTerm = 'mensual' | 'trimestral' | 'semestral' | 'anual';
 export type BillingCycle = 'calendar' | 'rolling';
 
-export const PLAN_TERMS: PlanTerm[] = ['mensual', 'trimestral', 'anual'];
+export const PLAN_TERMS: PlanTerm[] = ['mensual', 'trimestral', 'semestral', 'anual'];
 
 export const TERM_LABELS: Record<PlanTerm, string> = {
   mensual: 'Mensual',
   trimestral: 'Trimestral (3 meses)',
+  semestral: 'Semestral (6 meses)',
   anual: 'Anual (12 meses)',
 };
 
-export const TERM_MONTHS: Record<PlanTerm, number> = { mensual: 1, trimestral: 3, anual: 12 };
+// Nombre corto del plazo para textos como «Anual · mes 3 de 12»
+export const TERM_NAME: Record<string, string> = { trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual' };
+
+export const TERM_MONTHS: Record<PlanTerm, number> = { mensual: 1, trimestral: 3, semestral: 6, anual: 12 };
 
 export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
   calendar: 'Hasta fin de mes (lo normal)',
@@ -81,7 +85,7 @@ export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
 // "Mes 3 de 12" para planes de varios meses; vacío para los mensuales
 export function formatCycleProgress(plan: { cycleNumber?: number; cyclesTotal?: number; term?: PlanTerm }): string {
   if (!plan.cyclesTotal || plan.cyclesTotal <= 1) return '';
-  return `${plan.term === 'anual' ? 'Anual' : 'Trimestral'} · mes ${plan.cycleNumber ?? 1} de ${plan.cyclesTotal}`;
+  return `${TERM_NAME[plan.term as string] ?? 'Trimestral'} · mes ${plan.cycleNumber ?? 1} de ${plan.cyclesTotal}`;
 }
 
 // Fecha en que terminaría el plan si se registrara hoy (solo para mostrar)

@@ -161,7 +161,7 @@ export function buildFinance({ plans, patients, month, now = new Date() }) {
       notes: [
         'Es una estimación según los planes registrados: PRIME F&H todavía no guarda el monto pagado ni la fecha de cada pago.',
         'Cada contrato cuenta una sola vez, en el mes en que empieza, con su valor completo (un plan trimestral o anual no se reparte en cobros mensuales).',
-        'Descuentos en entrenamiento: trimestral 10 %, anual 20 % (semestral 15 % cuando exista ese plazo).'
+        'Descuentos en entrenamiento: trimestral 10 %, semestral 15 %, anual 20 %.'
       ],
       untariffed: current.untariffed
     }

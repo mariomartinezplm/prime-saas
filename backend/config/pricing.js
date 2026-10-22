@@ -11,7 +11,7 @@ export const PRICES = {
 };
 
 // Descuentos por pagar por adelantado un plan de ENTRENAMIENTO de varios meses (condiciones comerciales vigentes).
-// Hoy el sistema tiene los plazos mensual, trimestral y anual; «semestral» queda definido para cuando exista ese plazo.
+// Plazos del sistema: mensual (1 ciclo), trimestral (3), semestral (6) y anual (12).
 export const TERM_DISCOUNTS = { mensual: 0, trimestral: 0.1, semestral: 0.15, anual: 0.2 };
 
 // Tarifa de UN ciclo mensual (o del paquete de kinesiología), o null si no hay tarifa definida

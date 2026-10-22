@@ -1,6 +1,7 @@
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import type { ClientPlan, SessionBalance } from '../../types';
 import type { PlanHistory } from './todayActions';
+import { TERM_NAME } from '../../config/planCatalog';
 
 /**
  * «Mi plan»: qué mostrar según el estado real del plan (función pura, sin React ni API).
@@ -53,7 +54,7 @@ export const planHistoryOf = (plans: Pick<ClientPlan, 'status' | 'startDate' | '
 
 const cycleTextOf = (plan: Pick<ClientPlan, 'cycleNumber' | 'cyclesTotal' | 'term'>) => {
   if (!plan.cyclesTotal || plan.cyclesTotal <= 1) return undefined;
-  return `${plan.term === 'anual' ? 'Anual' : 'Trimestral'} · mes ${plan.cycleNumber ?? 1} de ${plan.cyclesTotal}`;
+  return `${TERM_NAME[plan.term as string] ?? 'Trimestral'} · mes ${plan.cycleNumber ?? 1} de ${plan.cyclesTotal}`;
 };
 
 const daysLeftTextOf = (days: number) => (days <= 0 ? 'vence hoy' : days === 1 ? '1 día restante' : `${days} días restantes`);

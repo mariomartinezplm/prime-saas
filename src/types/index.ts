@@ -183,7 +183,7 @@ export interface ClientPlan {
   // Kinesiología: dura hasta completar las sesiones (sin fecha de término ni ciclos); endDate es solo una fecha lejana interna
   openEnded?: boolean;
   status: 'active' | 'expired' | 'cancelled' | 'upcoming';
-  term?: 'mensual' | 'trimestral' | 'anual';
+  term?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   billingCycle?: 'calendar' | 'rolling';
   cycleNumber?: number;
   cyclesTotal?: number;
@@ -204,7 +204,7 @@ export interface CreateClientPlanData {
   serviceType: 'entrenamiento' | 'kinesiologia';
   sessionsTotal: number;
   unlimited?: boolean;
-  term?: 'mensual' | 'trimestral' | 'anual';
+  term?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   billingCycle?: 'calendar' | 'rolling';
   renews?: boolean;
   graceDays?: number;
