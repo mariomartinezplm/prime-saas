@@ -1,16 +1,16 @@
-import { priceOf } from '../config/pricing.js';
+import { contractValue, discountOf, priceOf } from '../config/pricing.js';
 import { santiagoParts } from '../utils/timezone.js';
 
 /**
- * Panel de ingresos del profesional (lógica pura, sin base de datos).
+ * Valor ESTIMADO de planes (lógica pura, sin base de datos). NO es dinero cobrado.
  *
- * Cómo se cuenta (fiel al modelo actual, que NO guarda montos ni fecha de pago):
- *  - Cada CICLO mensual de plan es un registro. Un ciclo pertenece al MES en que EMPIEZA (hora de Chile).
- *  - «Cobrado» = ciclo cuyo pago ya está registrado (`paymentPending` falso) y que no está cancelado.
- *  - «Pendiente» = ciclo abierto sin pago registrado todavía (`paymentPending` verdadero). Suma al ingreso PROYECTADO, no al cobrado.
- *  - Los planes trimestral/anual se pagan de una vez, pero el sistema los guarda como ciclos mensuales: cada ciclo cuenta al precio del
- *    plan mensual en su mes (devengado mensual). No hay descuento por plazo en los datos, así que no se inventa ninguno.
- *  - Precio = config/pricing.js. Sin tarifa definida → «sin tarifa»: se cuenta, pero no suma pesos.
+ * PRIME F&H hoy NO guarda el monto pagado ni la fecha de cada pago: solo si un ciclo tiene el pago pendiente o registrado. Por eso:
+ *  - Un CONTRATO es lo que se paga de una vez: un plan mensual (1 ciclo) o un trimestral/anual (varios ciclos enlazados por `termId`).
+ *    Se cuenta UNA vez, en el mes en que EMPIEZA, con su valor completo y su descuento (nunca se reparte en cobros mensuales inventados).
+ *  - «Valor estimado» = tarifa base × ciclos × (1 − descuento). Es una estimación contractual, no una recaudación.
+ *  - «Pago registrado» / «pendiente»: el estado real del plan (ciclo con `paymentPending`). Sin montos ni fechas reales detrás.
+ *  - «Proyección»: SOLO estima la renovación del mes siguiente si se renuevan los planes vigentes que terminan este mes (supuesto explícito).
+ *  - No hay cobros por semana ni por día porque no existe fecha de pago.
  */
 export const monthKey = (date) => {
   const p = santiagoParts(new Date(date));
@@ -23,100 +23,147 @@ export const shiftMonth = (key, delta) => {
   return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
 };
 
-const counts = (plan) => plan.status !== 'cancelled';
+const live = (p) => p.status !== 'cancelled';
 
-export function summarizeMonth(plans, month) {
-  const inMonth = plans.filter((p) => counts(p) && monthKey(p.startDate) === month);
-  let collected = 0;
-  let pending = 0;
+// Agrupa ciclos en contratos: un trimestral/anual son varios ciclos con el mismo `termId`; un plan suelto es su propio contrato
+export function toContracts(plans) {
+  const groups = new Map();
+  for (const p of plans.filter(live)) {
+    const key = p.termId ? `t:${p.termId}` : `p:${p._id ?? `${p.patient}|${p.startDate}|${p.serviceType}`}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  }
+  return [...groups.values()].map((cycles) => {
+    const first = [...cycles].sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
+    return {
+      patient: first.patient,
+      serviceType: first.serviceType,
+      sessions: first.unlimited ? null : first.sessionsTotal,
+      unlimited: !!first.unlimited,
+      term: first.term ?? 'mensual',
+      cycles: Math.max(cycles.length, first.cyclesTotal ?? 1),
+      startDate: first.startDate,
+      month: monthKey(first.startDate),
+      unitPrice: priceOf(first),
+      discount: discountOf(first),
+      value: contractValue({ ...first, cyclesTotal: Math.max(cycles.length, first.cyclesTotal ?? 1) }),
+      // Pago pendiente si algún ciclo del contrato sigue sin pago registrado
+      pending: cycles.some((c) => c.paymentPending)
+    };
+  });
+}
+
+export function summarizeMonth(contracts, month) {
+  const list = contracts.filter((c) => c.month === month);
+  let estimated = 0;
+  let paidValue = 0;
+  let pendingValue = 0;
   let paidCount = 0;
   let pendingCount = 0;
   let untariffed = 0;
   const byService = { entrenamiento: 0, kinesiologia: 0 };
   const byPlan = new Map();
 
-  for (const p of inMonth) {
-    const price = priceOf(p);
-    const paid = !p.paymentPending;
-    const key = `${p.serviceType}|${p.unlimited ? 'ilimitado' : p.sessionsTotal}`;
-    const row = byPlan.get(key) ?? { serviceType: p.serviceType, sessions: p.unlimited ? null : p.sessionsTotal, unlimited: !!p.unlimited, price, count: 0, collected: 0, pending: 0 };
+  for (const c of list) {
+    const key = `${c.serviceType}|${c.unlimited ? 'ilimitado' : c.sessions}|${c.term}`;
+    const row = byPlan.get(key) ?? { serviceType: c.serviceType, sessions: c.sessions, unlimited: c.unlimited, term: c.term, unitPrice: c.unitPrice, discount: c.discount, count: 0, value: 0, paidCount: 0, pendingCount: 0, untariffed: 0 };
     row.count += 1;
-    if (paid) paidCount += 1;
-    else pendingCount += 1;
-    if (price === null) untariffed += 1;
-    else if (paid) {
-      collected += price;
-      row.collected += price;
-      byService[p.serviceType] = (byService[p.serviceType] ?? 0) + price;
+    if (c.pending) {
+      pendingCount += 1;
+      row.pendingCount += 1;
     } else {
-      pending += price;
-      row.pending += price;
+      paidCount += 1;
+      row.paidCount += 1;
+    }
+    if (c.value === null) {
+      untariffed += 1;
+      row.untariffed += 1;
+    } else {
+      estimated += c.value;
+      row.value += c.value;
+      byService[c.serviceType] = (byService[c.serviceType] ?? 0) + c.value;
+      if (c.pending) pendingValue += c.value;
+      else paidValue += c.value;
     }
     byPlan.set(key, row);
   }
 
-  return {
-    month,
-    collected,
-    pending,
-    projected: collected + pending,
-    paidCount,
-    pendingCount,
-    untariffed,
-    byService,
-    byPlan: [...byPlan.values()].sort((a, b) => b.collected + b.pending - (a.collected + a.pending) || b.count - a.count)
-  };
+  return { month, estimated, paidValue, pendingValue, paidCount, pendingCount, untariffed, contracts: list.length, byService, byPlan: [...byPlan.values()].sort((a, b) => b.value - a.value || b.count - a.count) };
 }
 
-// Variación del cobrado frente al mes anterior: null si el mes anterior no tiene datos con que comparar (no se inventa un %)
+// Variación del valor estimado frente al mes anterior: null si el mes anterior no tiene valor con que comparar (no se inventa un %)
 export function variation(current, previous) {
   if (!(previous > 0)) return null;
   return { amount: current - previous, percent: Math.round(((current - previous) / previous) * 1000) / 10 };
 }
 
+// Proyección ESTIMADA del mes siguiente: si los planes que terminan este mes y se renuevan, se renuevan como plan mensual al precio base.
+// Es un supuesto, no dinero: solo existe para el mes en curso y se identifica como tal.
+export function projectNextMonth(plans, month) {
+  const target = shiftMonth(month, 1);
+  const ending = plans.filter((p) => live(p) && !p.paymentPending && p.status === 'active' && p.renews !== false && monthKey(p.endDate) === month && (p.cycleNumber ?? 1) >= (p.cyclesTotal ?? 1));
+  // ya renovados (existe un ciclo del mes siguiente del mismo paciente y servicio) no se cuentan dos veces
+  const already = new Set(plans.filter((p) => live(p) && monthKey(p.startDate) === target).map((p) => `${p.patient}|${p.serviceType}`));
+  let value = 0;
+  let count = 0;
+  for (const p of ending) {
+    if (already.has(`${p.patient}|${p.serviceType}`)) continue;
+    const unit = priceOf(p);
+    if (unit === null) continue;
+    value += unit;
+    count += 1;
+  }
+  return { month: target, value, count };
+}
+
 export function buildFinance({ plans, patients, month, now = new Date() }) {
   const names = new Map(patients.map((p) => [String(p._id), p]));
-  const current = summarizeMonth(plans, month);
+  const contracts = toContracts(plans);
+  const current = summarizeMonth(contracts, month);
   const previousKey = shiftMonth(month, -1);
-  const previous = summarizeMonth(plans, previousKey);
+  const previous = summarizeMonth(contracts, previousKey);
   const series = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5)).map((m) => {
-    const s = summarizeMonth(plans, m);
-    return { month: m, collected: s.collected, projected: s.projected };
+    const s = summarizeMonth(contracts, m);
+    return { month: m, estimated: s.estimated, pendingValue: s.pendingValue, contracts: s.contracts };
   });
 
   // Pacientes con un plan vigente HOY (no depende del mes elegido)
   const t = new Date(now).getTime();
-  const active = new Set(plans.filter((p) => counts(p) && p.status === 'active' && new Date(p.startDate).getTime() <= t && new Date(p.endDate).getTime() >= t).map((p) => String(p.patient)));
+  const activeIds = [...new Set(plans.filter((p) => live(p) && p.status === 'active' && new Date(p.startDate).getTime() <= t && new Date(p.endDate).getTime() >= t).map((p) => String(p.patient)))];
+  const initials = (id) => {
+    const p = names.get(id);
+    return p ? `${(p.firstName ?? '').charAt(0)}${(p.lastName ?? '').charAt(0)}`.toUpperCase() || '·' : '·';
+  };
 
-  const list = plans
-    .filter((p) => counts(p) && monthKey(p.startDate) === month)
-    .map((p) => {
-      const patient = names.get(String(p.patient));
-      return {
-        patientId: String(p.patient),
-        patient: patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente',
-        serviceType: p.serviceType,
-        sessions: p.unlimited ? null : p.sessionsTotal,
-        unlimited: !!p.unlimited,
-        price: priceOf(p),
-        paid: !p.paymentPending,
-        startDate: p.startDate
-      };
+  const list = contracts
+    .filter((c) => c.month === month)
+    .map((c) => {
+      const patient = names.get(String(c.patient));
+      return { patientId: String(c.patient), patient: patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente', serviceType: c.serviceType, sessions: c.sessions, unlimited: c.unlimited, term: c.term, cycles: c.cycles, value: c.value, paid: !c.pending, startDate: c.startDate };
     })
     .sort((a, b) => Number(b.paid) - Number(a.paid) || String(a.patient).localeCompare(String(b.patient)));
 
+  const isCurrentMonth = month === monthKey(now);
   return {
     month,
     previousMonth: previousKey,
     current,
-    previous: { collected: previous.collected, projected: previous.projected, paidCount: previous.paidCount },
-    variation: variation(current.collected, previous.collected),
-    activePatients: active.size,
+    previous: { estimated: previous.estimated, contracts: previous.contracts },
+    variation: variation(current.estimated, previous.estimated),
+    activePatients: activeIds.length,
+    activePatientInitials: activeIds.slice(0, 6).map(initials),
     series,
+    projection: isCurrentMonth ? projectNextMonth(plans, month) : null,
     plans: list,
-    notes: {
-      cycleRule: 'Cada ciclo mensual cuenta en el mes en que empieza. Los planes trimestral y anual se cuentan por mes al precio del plan mensual.',
-      noTariff: current.untariffed > 0 ? `${current.untariffed} ${current.untariffed === 1 ? 'ciclo' : 'ciclos'} sin tarifa definida (no suman al ingreso).` : null
+    basis: {
+      kind: 'estimate',
+      tracksPayments: false,
+      notes: [
+        'Es una estimación según los planes registrados: PRIME F&H todavía no guarda el monto pagado ni la fecha de cada pago.',
+        'Cada contrato cuenta una sola vez, en el mes en que empieza, con su valor completo (un plan trimestral o anual no se reparte en cobros mensuales).',
+        'Descuentos en entrenamiento: trimestral 10 %, anual 20 % (semestral 15 % cuando exista ese plazo).'
+      ],
+      untariffed: current.untariffed
     }
   };
 }

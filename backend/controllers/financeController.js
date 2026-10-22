@@ -25,11 +25,17 @@ export const getFinanceSummary = async (req, res) => {
     // Ventana de datos: 6 meses hacia atrás desde el mes pedido (para el gráfico) más el siguiente (por ciclos de fecha a fecha)
     const [y, m] = shiftMonth(month, -6).split('-').map(Number);
     const from = new Date(Date.UTC(y, m - 1, 1));
-    const plans = ids.length
-      ? await ClientPlan.find({ patient: { $in: ids }, status: { $ne: 'cancelled' }, startDate: { $gte: from } })
-          .select('patient serviceType sessionsTotal unlimited status startDate endDate paymentPending')
-          .lean()
-      : [];
+    let plans = [];
+    if (ids.length) {
+      const fields = 'patient serviceType sessionsTotal unlimited status startDate endDate paymentPending term termId cyclesTotal cycleNumber renews';
+      plans = await ClientPlan.find({ patient: { $in: ids }, status: { $ne: 'cancelled' }, startDate: { $gte: from } }).select(fields).lean();
+      // Un trimestral o anual empezó antes de la ventana pero tiene ciclos dentro de ella: se traen TODOS sus ciclos para no atribuirle un mes equivocado
+      const termIds = [...new Set(plans.map((p) => p.termId).filter(Boolean).map(String))];
+      if (termIds.length) {
+        const rest = await ClientPlan.find({ patient: { $in: ids }, status: { $ne: 'cancelled' }, termId: { $in: termIds }, startDate: { $lt: from } }).select(fields).lean();
+        plans = plans.concat(rest);
+      }
+    }
 
     const data = buildFinance({ plans, patients, month, now });
     const professionals = isAdmin ? await User.find({ role: 'professional' }).select('firstName lastName').lean() : [];
