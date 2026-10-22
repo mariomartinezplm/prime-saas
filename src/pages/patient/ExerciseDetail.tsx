@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, Plus, Trophy } from 'lucide-react';
+import { ArrowUpRight, Calendar, Check, ChevronLeft, Plus, TrendingUp, Trophy } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import EmptyGuide from '@/components/premium/EmptyGuide';
 import SegmentedTabs from '@/components/premium/SegmentedTabs';
 import ExerciseChart from '@/components/workout/ExerciseChart';
 import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
-import { bestMark, filterPeriod, formatNumber, groupExercises, metricLabel, primaryMetric, progressPoints, sessionHistory, setLabel, type Period, type ProgressRecord } from '@/lib/exerciseProgress';
+import { bestMark, filterPeriod, insights, formatNumber, groupExercises, metricLabel, primaryMetric, progressPoints, sessionHistory, setLabel, type Period, type ProgressRecord } from '@/lib/exerciseProgress';
 import { longDate } from '@/lib/trend';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +52,7 @@ const ExerciseDetail = () => {
   const lbsCount = group ? group.records.filter((r) => (r.weightUnit ?? 'kg') !== 'kg' && r.weight).length : 0;
   const last = all[all.length - 1];
   const first = all[0];
+  const read = insights(all);
   const gain = last && first && all.length > 1 ? last.value - first.value : null;
 
   if (loading) {
@@ -94,6 +95,18 @@ const ExerciseDetail = () => {
               <p className="mt-1 text-[12.5px] text-[#cdc6b6]">{last.reps ? `× ${last.reps} rep · ` : ''}{longDate(last.date)}</p>
             </div>
             {gain !== null && <p className="col-span-2 border-t border-[#fff8e4]/10 pt-2.5 text-[13px] text-[#cdc6b6]">{gain === 0 ? 'Sin cambios' : `${gain > 0 ? '+' : '−'}${formatNumber(Math.abs(gain))} ${labels.unit}`} desde tu primer registro ({longDate(first.date)}).</p>}
+          </section>
+
+          <section aria-label="Lectura de tu progreso" className={cn(CARD, 'space-y-2 p-4')}>
+            <h2 className="text-[15px] font-bold text-[#fff8e4]">Tu progreso, en simple</h2>
+            <ul className="space-y-2 text-[14px] text-[#cdc6b6]">
+              <li className="flex items-start gap-2.5"><Trophy className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span><b className="text-[#fff8e4]">Mejor marca actual:</b> {formatNumber(best.value)} {labels.unit}{best.reps ? ` × ${best.reps} rep` : ''}</span></li>
+              <li className="flex items-start gap-2.5"><TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span><b className="text-[#fff8e4]">Última vez:</b> {formatNumber(last.value)} {labels.unit}{last.reps ? ` × ${last.reps} rep` : ''}
+                {read.changeFromPrevious !== null && (read.changeFromPrevious === 0 ? ' · igual que la sesión anterior' : ` · ${read.changeFromPrevious > 0 ? '+' : '−'}${formatNumber(Math.abs(read.changeFromPrevious))} ${labels.unit} respecto a la sesión anterior`)}</span></li>
+              {read.improvedOverPreviousBest !== null && <li className="flex items-start gap-2.5"><ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span>Has mejorado <b className="text-[#fff8e4]">{formatNumber(read.improvedOverPreviousBest)} {labels.unit}</b> desde tu mejor registro anterior.</span></li>}
+              {read.improvedOverPreviousBest === null && read.tie && <li className="flex items-start gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span>Igualaste tu mejor registro anterior.</span></li>}
+              <li className="flex items-start gap-2.5"><Calendar className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span>Llevas <b className="text-[#fff8e4]">{read.sessions} {read.sessions === 1 ? 'sesión' : 'sesiones'}</b> registrando este ejercicio.</span></li>
+            </ul>
           </section>
 
           <section aria-label="Gráfico" className={cn(CARD, 'p-4')}>

@@ -149,6 +149,9 @@ beforeEach(() => {
   hasActivePlan.mockResolvedValue(true);
   // Las series de la sesión (Incremento 2): aquí no hay ninguna
   vi.spyOn(ExerciseProgress, 'find').mockReturnValue(lean([]));
+  // Constancia del resumen final: entrenamientos finalizados y plan vigente (aquí no hay ninguno)
+  vi.spyOn(WorkoutSession, 'find').mockReturnValue(lean([]));
+  vi.spyOn(ClientPlan, 'findOne').mockReturnValue(lean(null));
 });
 
 describe('POST /start', () => {

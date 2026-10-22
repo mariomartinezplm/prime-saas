@@ -39,6 +39,7 @@ import PatientPhotosPage from "./pages/patient/Photos";
 
 // Admin/Staff pages
 import AdminDashboard from "./pages/admin/Dashboard";
+import Income from "./pages/admin/Income";
 import AdminCalendar from "./pages/admin/Calendar";
 import PatientList from "./pages/admin/PatientList";
 import PatientDetail from "./pages/admin/PatientDetail";
@@ -160,6 +161,10 @@ const App = () => (
                     <AdminDashboard />
                   </RoleRoute>
                 }
+              />
+              <Route
+                path="admin/ingresos"
+                element={<RoleRoute roles={['admin', 'professional']}><Income /></RoleRoute>}
               />
               <Route
                 path="admin/calendario"

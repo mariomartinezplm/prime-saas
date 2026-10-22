@@ -1,4 +1,6 @@
 import { exerciseKey } from './exerciseNames.js';
+import { dayOf, dayNumber, isoWeekOf } from './achievements/dates.js';
+import { defaultWeeklyTarget } from './achievements/weekly.js';
 
 /**
  * Entrenamiento en curso — bloques y series: reglas puras (sin base de datos).
@@ -119,4 +121,42 @@ export function sessionRecords(sets, previousRows, sessionDay, dayOf) {
     }
   }
   return records.sort((a, b) => b.improvement - a.improvement);
+}
+
+// Constancia a partir de los entrenamientos que la propia persona REGISTRÓ y finalizó (no es asistencia validada por el centro).
+// Semana = lunes a domingo, mes = mes calendario, ambos en hora de Chile. Racha = semanas seguidas con al menos 1 entrenamiento
+// registrado (la semana en curso cuenta si ya tiene uno; si aún no, se cuenta desde la anterior: no se «rompe» la racha a mitad de semana).
+export function engagementOf({ finishedAt, now = new Date(), weeklyTarget = null, monthlyTarget = null }) {
+  const today = dayOf(now);
+  const week = isoWeekOf(today);
+  const month = today.slice(0, 7);
+  const days = finishedAt.map((d) => dayOf(d));
+  const weekCount = days.filter((d) => isoWeekOf(d) === week).length;
+  const monthCount = days.filter((d) => d.slice(0, 7) === month).length;
+
+  const weeks = new Set(days.map((d) => isoWeekOf(d)));
+  const weekAgo = (n) => isoWeekOf(new Date(dayNumber(today) * 86400000 - n * 7 * 86400000).toISOString().slice(0, 10));
+  let streak = 0;
+  for (let i = weeks.has(week) ? 0 : 1; i < 60 && weeks.has(weekAgo(i)); i += 1) streak += 1;
+
+  const wt = Number.isInteger(weeklyTarget) && weeklyTarget > 0 ? weeklyTarget : null;
+  const mt = Number.isInteger(monthlyTarget) && monthlyTarget > 0 ? monthlyTarget : null;
+  return {
+    weekCount,
+    monthCount,
+    weeklyTarget: wt,
+    monthlyTarget: mt,
+    weekMet: wt !== null && weekCount >= wt,
+    monthMet: mt !== null && monthCount >= mt,
+    remainingWeek: wt !== null ? Math.max(0, wt - weekCount) : null,
+    remainingMonth: mt !== null ? Math.max(0, mt - monthCount) : null,
+    streakWeeks: streak
+  };
+}
+
+// Meta semanal: la que fijó el profesional o, si no, sesiones del plan ÷ 4. Meta mensual: las sesiones del plan de entrenamiento vigente.
+export function targetsOf({ weeklyOverride, plan }) {
+  const planned = plan && !plan.unlimited && plan.sessionsTotal > 0 ? plan.sessionsTotal : null;
+  const weekly = Number.isInteger(weeklyOverride) && weeklyOverride > 0 ? Math.min(weeklyOverride, planned ?? 7) : planned ? defaultWeeklyTarget(planned) : null;
+  return { weeklyTarget: weekly, monthlyTarget: planned };
 }

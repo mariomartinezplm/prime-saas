@@ -14,6 +14,7 @@ import { triggerAchievementEvaluation } from '../services/achievements/index.js'
 import { notify } from '../services/notificationService.js';
 import WorkoutSession from '../models/WorkoutSession.js';
 import ExerciseProgress from '../models/Exercise.js';
+import ClientPlan from '../models/ClientPlan.js';
 import { addBlock, saveSets, updateSet, deleteSet, searchExercises, finishWorkout, getSummary } from '../controllers/workoutController.js';
 import { exerciseKey, cleanExerciseName, searchExercises as searchHistory } from '../services/exerciseNames.js';
 import { validateBlockInput, validateSetInput, buildSummary, sessionRecords } from '../services/workoutSets.js';
@@ -231,6 +232,8 @@ beforeEach(() => {
   hasActivePlan.mockResolvedValue(true);
   triggerAchievementEvaluation.mockClear();
   notify.mockClear();
+  vi.spyOn(WorkoutSession, 'find').mockReturnValue(lean([]));
+  vi.spyOn(ClientPlan, 'findOne').mockReturnValue(lean(null));
 });
 
 describe('POST /:id/blocks', () => {

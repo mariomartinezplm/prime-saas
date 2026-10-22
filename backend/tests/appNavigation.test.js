@@ -33,7 +33,7 @@ describe('menú lateral: inventario de opciones por rol', () => {
     ]);
   });
 
-  it('personal (administrador y profesional): las mismas 7 opciones y rutas de siempre', () => {
+  it('personal (administrador y profesional): las mismas opciones de siempre más «Ingresos» (el panel es solo de personal)', () => {
     expect(itemsOf('staffNav')).toEqual([
       { label: 'Inicio', path: '/app/admin', exact: true },
       { label: 'Calendario', path: '/app/admin/calendario', exact: false },
@@ -41,6 +41,7 @@ describe('menú lateral: inventario de opciones por rol', () => {
       { label: 'Pacientes', path: '/app/admin/pacientes', exact: false },
       { label: 'Registrar paciente', path: '/app/admin/registro', exact: false },
       { label: 'Planes', path: '/app/admin/planes', exact: false },
+      { label: 'Ingresos', path: '/app/admin/ingresos', exact: false },
       { label: 'Configuración', path: '/app/configuracion', exact: false },
     ]);
   });

@@ -6,7 +6,8 @@ import { hasActivePlan } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 import { exerciseHistory, resolveCanonicalName, searchExercises as searchHistory } from '../services/exerciseNames.js';
-import { validateBlockInput, validateSetInput, buildSummary, sessionRecords, nextLabel, slotId, MAX_SETS_PER_BATCH } from '../services/workoutSets.js';
+import ClientPlan from '../models/ClientPlan.js';
+import { validateBlockInput, validateSetInput, buildSummary, sessionRecords, engagementOf, targetsOf, nextLabel, slotId, MAX_SETS_PER_BATCH } from '../services/workoutSets.js';
 import { dayOf } from '../services/achievements/dates.js';
 import { santiagoParts, santiagoToUtc } from '../utils/timezone.js';
 import { applyRestAction, settle, remainingSec, pickStartable, isStale, REST_ACTIONS } from '../services/workoutService.js';
@@ -69,13 +70,19 @@ const SET_FIELDS = '_id blockId slot exerciseName setNumber reps weight weightUn
 const loadSets = (session) => ExerciseProgress.find({ workoutSession: session._id }).sort({ createdAt: 1 }).select(SET_FIELDS).lean();
 // Vista completa de una sesión (con sus series)
 // Resumen completo: lo guardado + las marcas personales logradas hoy (comparadas con DÍAS anteriores, solo kg)
-async function summaryFor(session, sets) {
+async function summaryFor(session, sets, user) {
   const summary = buildSummary(session, sets);
   const withLoad = sets.some((s) => s.weight > 0);
   const previous = withLoad
     ? await ExerciseProgress.find({ patient: session.patient, workoutSession: { $ne: session._id }, weight: { $gt: 0 } }).sort({ date: -1 }).limit(3000).select('exerciseName weight weightUnit date').lean()
     : [];
-  return { ...summary, records: sessionRecords(sets, previous ?? [], dayOf(session.startedAt), dayOf) };
+  // Constancia: entrenamientos registrados y finalizados esta semana / este mes, frente a la meta del plan
+  const since = new Date(Date.now() - 400 * 86400000);
+  const finished = await WorkoutSession.find({ patient: session.patient, status: 'finished', endedAt: { $gte: since } }).select('endedAt').lean();
+  const plan = await ClientPlan.findOne({ patient: session.patient, serviceType: 'entrenamiento', status: 'active', endDate: { $gte: new Date() } }).select('sessionsTotal unlimited').lean();
+  const targets = targetsOf({ weeklyOverride: user?.preferences?.weeklyGoal?.sessions, plan });
+  const engagement = engagementOf({ finishedAt: (finished ?? []).map((f) => f.endedAt), ...targets });
+  return { ...summary, records: sessionRecords(sets, previous ?? [], dayOf(session.startedAt), dayOf), engagement };
 }
 
 const viewOf = async (session, now) => sessionView(session, now, await loadSets(session));
@@ -250,7 +257,7 @@ export const finishWorkout = async (req, res) => {
     }
     // Repetir «Finalizar» no cambia nada: devuelve lo ya cerrado
     const sets = await loadSets(session);
-    const summary = await summaryFor(session, sets);
+    const summary = await summaryFor(session, sets, req.user);
     // UN solo aviso al profesional por entrenamiento (no uno por serie), sin cifras de salud en el texto
     if (justClosed && sets.length > 0) notifyProfessional(req.user, sets.length);
     res.status(200).json({ success: true, data: { serverNow: now, session: sessionView(session, now, sets), summary } });
@@ -276,7 +283,7 @@ export const getSummary = async (req, res) => {
     const session = await ownSession(req, res);
     if (!session) return;
     const sets = await loadSets(session);
-    res.status(200).json({ success: true, data: { summary: await summaryFor(session, sets) } });
+    res.status(200).json({ success: true, data: { summary: await summaryFor(session, sets, req.user) } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'No se pudo obtener el resumen' });
   }

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, Check, Dumbbell, Info, Layers, Repeat, Timer, Trophy } from 'lucide-react';
+import { ArrowRight, Check, Dumbbell, Flame, Info, Layers, Repeat, Target, Timer, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BTN_FILL } from '@/components/dashboard/brand';
 import { formatClock, spokenDuration } from '@/lib/workoutClock';
@@ -26,7 +26,7 @@ const Tile = ({ icon, label, value, accent }: { icon: React.ReactNode; label: st
 // repeticiones, tiempo y las marcas personales logradas. Sin tonelaje ni cifras inventadas.
 const WorkoutFinished = ({ summary, firstName, onHome }: WorkoutFinishedProps) => {
   const reduce = useReducedMotion();
-  const { totals, exercises, records } = summary;
+  const { totals, exercises, records, engagement: eng } = summary;
   const hasSets = totals.sets > 0;
   const maxSets = Math.max(1, ...exercises.map((e) => e.sets));
   const rise = (delay: number) => ({ initial: reduce ? false : { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: reduce ? { duration: 0 } : { duration: 0.45, delay, ease: 'easeOut' as const } });
@@ -76,6 +76,33 @@ const WorkoutFinished = ({ summary, firstName, onHome }: WorkoutFinishedProps) =
               </div>
             </motion.div>
           ))}
+        </motion.section>
+      )}
+
+      {hasSets && eng && (
+        <motion.section aria-labelledby="constancia" className="mt-3 overflow-hidden rounded-[22px] border border-[#fff8e4]/10 bg-[linear-gradient(180deg,#272329,#1f1c21)] p-4" {...rise(0.54)}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="constancia" className="flex items-center gap-2 whitespace-nowrap text-[13px] font-bold uppercase tracking-[0.14em] text-[#8fd0e0]"><Target className="h-4 w-4" aria-hidden="true" /> Tu constancia</h2>
+            {eng.streakWeeks >= 2 && <span className="flex items-center gap-1 rounded-full border border-[#62b8cf]/40 bg-[#398ca2]/20 px-2.5 py-1 text-[12px] font-bold text-[#fff8e4]"><Flame className="h-3.5 w-3.5 text-[#8fd0e0]" aria-hidden="true" />{eng.streakWeeks} semanas seguidas</span>}
+          </div>
+          <div className="mt-3 grid gap-3.5">
+            <div>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-[13px] text-[#cdc6b6]">{eng.weeklyTarget ? 'Misión de la semana' : 'Esta semana'}</p>
+                <p className="text-[1.5rem] font-extrabold leading-none tabular-nums text-[#fff8e4]">{eng.weekCount}{eng.weeklyTarget ? <span className="text-[1rem] font-bold text-[#cdc6b6]"> de {eng.weeklyTarget}</span> : null}</p>
+              </div>
+              {eng.weeklyTarget && <div role="progressbar" aria-label="Misión de la semana" aria-valuemin={0} aria-valuemax={eng.weeklyTarget} aria-valuenow={Math.min(eng.weekCount, eng.weeklyTarget)} className="mt-2 h-2 overflow-hidden rounded-full bg-[#fff8e4]/10"><motion.div className="h-full rounded-full bg-[linear-gradient(90deg,#398ca2,#8fd0e0)]" initial={reduce ? false : { width: 0 }} animate={{ width: `${Math.min(100, (eng.weekCount / eng.weeklyTarget) * 100)}%` }} transition={reduce ? { duration: 0 } : { duration: 0.8, delay: 0.7, ease: 'easeOut' }} /></div>}
+              <p className="mt-1.5 text-[13px] text-[#cdc6b6]">{eng.weekMet ? <span className="flex items-center gap-1.5 font-semibold text-[#8fd0e0]"><Check className="h-4 w-4" aria-hidden="true" /> Meta semanal lograda</span> : eng.remainingWeek ? `Te ${eng.remainingWeek === 1 ? 'falta 1 entrenamiento' : `faltan ${eng.remainingWeek} entrenamientos`} para tu meta de la semana.` : `${eng.weekCount === 1 ? 'Primer entrenamiento' : `${eng.weekCount} entrenamientos`} registrados esta semana.`}</p>
+            </div>
+            <div className="border-t border-[#fff8e4]/10 pt-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-[13px] text-[#cdc6b6]">{eng.monthlyTarget ? 'Meta del mes' : 'Este mes'}</p>
+                <p className="text-[1.25rem] font-extrabold leading-none tabular-nums text-[#fff8e4]">{eng.monthCount}{eng.monthlyTarget ? <span className="text-[0.95rem] font-bold text-[#cdc6b6]"> de {eng.monthlyTarget}</span> : null}</p>
+              </div>
+              {eng.monthlyTarget && <div role="progressbar" aria-label="Meta del mes" aria-valuemin={0} aria-valuemax={eng.monthlyTarget} aria-valuenow={Math.min(eng.monthCount, eng.monthlyTarget)} className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#fff8e4]/10"><div className="h-full rounded-full bg-[#62b8cf]" style={{ width: `${Math.min(100, (eng.monthCount / eng.monthlyTarget) * 100)}%` }} /></div>}
+              <p className="mt-1.5 text-[13px] text-[#a8a295]">{eng.monthMet ? 'Meta del mes lograda.' : eng.remainingMonth ? `Te ${eng.remainingMonth === 1 ? 'falta 1 sesión' : `faltan ${eng.remainingMonth} sesiones`} para tu meta mensual.` : `${eng.monthCount} ${eng.monthCount === 1 ? 'entrenamiento registrado' : 'entrenamientos registrados'} este mes.`}</p>
+            </div>
+          </div>
         </motion.section>
       )}
 

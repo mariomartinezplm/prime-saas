@@ -68,6 +68,8 @@ export interface WorkoutSummary {
   exercises: { name: string; slots: string[]; sets: number; reps: number; bestWeight: number | null; unit: 'kg' | 'lbs' | null; timeSec: number; modality: Modality | null }[];
   totals: { exercises: number; sets: number; reps: number; timeSec: number };
   // Marcas personales logradas en esta sesión (carga en kg que supera la mejor de días anteriores)
+  // Constancia con los entrenamientos que la persona registró y finalizó (no es asistencia validada por el centro)
+  engagement: { weekCount: number; monthCount: number; weeklyTarget: number | null; monthlyTarget: number | null; weekMet: boolean; monthMet: boolean; remainingWeek: number | null; remainingMonth: number | null; streakWeeks: number };
   records: { name: string; previous: number; current: number; improvement: number; reps: number | null }[];
 }
 

@@ -160,3 +160,25 @@ export function setLabel(s: { reps: number | null; weight: number | null; unit: 
 }
 
 export const formatNumber = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
+
+// Lectura simple del progreso (sin diagnosticar ni exagerar): cambio frente a la sesión anterior, mejora sobre la mejor marca previa
+// y cuántas sesiones lleva registrando el ejercicio. Todo sale de los puntos reales; con un solo registro no hay comparación.
+export interface Insights {
+  sessions: number;
+  changeFromPrevious: number | null; // última − anterior (misma métrica)
+  improvedOverPreviousBest: number | null; // solo si la última sesión SUPERA la mejor marca anterior
+  tie: boolean; // igualó su mejor marca anterior
+}
+export function insights(points: ProgressPoint[]): Insights {
+  const n = points.length;
+  if (n === 0) return { sessions: 0, changeFromPrevious: null, improvedOverPreviousBest: null, tie: false };
+  const last = points[n - 1];
+  if (n === 1) return { sessions: 1, changeFromPrevious: null, improvedOverPreviousBest: null, tie: false };
+  const previousBest = Math.max(...points.slice(0, -1).map((p) => p.value));
+  return {
+    sessions: n,
+    changeFromPrevious: Math.round((last.value - points[n - 2].value) * 100) / 100,
+    improvedOverPreviousBest: last.value > previousBest ? Math.round((last.value - previousBest) * 100) / 100 : null,
+    tie: last.value === previousBest,
+  };
+}

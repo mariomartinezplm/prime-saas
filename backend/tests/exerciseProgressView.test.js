@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 const { groupExercises, normalizeNames, primaryMetric, progressPoints, filterPeriod, bestMark, sessionHistory, modalityOf } = await import('../../src/lib/exerciseProgress.ts');
 const { elapsedSec, formatClock, restRemainingSec, restDisplayState } = await import('../../src/lib/workoutClock.ts');
 const { allStrengthRecords } = await import('../services/achievements/strength.js');
+const { insights } = await import('../../src/lib/exerciseProgress.ts');
 
 let n = 0;
 const rec = (name, date, over = {}) => ({ _id: `r${n++}`, exerciseName: name, date: `${date}T15:00:00.000Z`, sets: 1, reps: 10, weight: 20, weightUnit: 'kg', ...over });
@@ -105,5 +106,21 @@ describe('cronómetros con la app cerrada (se reconstruyen con marcas de tiempo)
     const paused = { ...run, state: 'paused', dueAt: null, remainingSec: 95 };
     expect(restDisplayState(paused, t(23, 0, 0), 0)).toBe('paused');
     expect(restRemainingSec(paused, t(23, 0, 0), 0)).toBe(95);
+  });
+});
+
+describe('lectura inteligente del ejercicio', () => {
+  const p = (date, value) => ({ date, value, reps: 5, sets: 1 });
+  it('mejora sobre la mejor marca anterior y cambio frente a la sesión anterior', () => {
+    const r = insights([p('2026-10-01', 70), p('2026-10-08', 75), p('2026-10-15', 77.5)]);
+    expect(r).toEqual({ sessions: 3, changeFromPrevious: 2.5, improvedOverPreviousBest: 2.5, tie: false });
+  });
+  it('si bajó o igualó NO se inventa una mejora', () => {
+    expect(insights([p('2026-10-01', 80), p('2026-10-08', 75)])).toMatchObject({ changeFromPrevious: -5, improvedOverPreviousBest: null, tie: false });
+    expect(insights([p('2026-10-01', 80), p('2026-10-08', 75), p('2026-10-15', 80)])).toMatchObject({ improvedOverPreviousBest: null, tie: true });
+  });
+  it('con un solo registro no hay comparación; sin registros, nada', () => {
+    expect(insights([p('2026-10-01', 70)])).toEqual({ sessions: 1, changeFromPrevious: null, improvedOverPreviousBest: null, tie: false });
+    expect(insights([])).toEqual({ sessions: 0, changeFromPrevious: null, improvedOverPreviousBest: null, tie: false });
   });
 });
