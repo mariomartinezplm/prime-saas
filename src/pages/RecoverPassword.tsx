@@ -61,7 +61,7 @@ const RecoverPassword = () => {
               Si <strong className="break-all">{email.trim()}</strong> está registrado, te llegará un correo con instrucciones para
               restablecer tu contraseña.
             </p>
-            <p className="text-sm text-muted-foreground">El link es válido por 10 minutos. Revisa también spam o promociones.</p>
+            <p className="text-sm text-muted-foreground">El link es válido por 1 hora. Revisa también spam o promociones.</p>
           </div>
 
           <Button asChild variant="ghost" className="w-full">

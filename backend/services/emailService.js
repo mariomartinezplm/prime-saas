@@ -171,7 +171,7 @@ export async function sendPasswordResetEmail({ user, resetUrl }) {
         </a>
       </div>
       <p style="font-size: 13px; color: #94a3b8;">
-        Este link es válido por 10 minutos y solo se puede usar una vez. Si no fuiste tú,
+        Este link es válido por 1 hora y solo se puede usar una vez. Si no fuiste tú,
         ignora este correo — tu contraseña actual sigue siendo válida. Si no funciona, cópialo
         y pégalo en tu navegador:<br>
         <span style="word-break: break-all;">${escapeHtml(resetUrl)}</span>

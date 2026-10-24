@@ -256,7 +256,7 @@ const PatientDetail = () => {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => setInviteOpen(true)}>
                   <Send className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Reenviar invitación
+                  {patient.inviteStatus === 'activated' ? 'Enviar enlace para nueva contraseña' : 'Reenviar invitación'}
                 </DropdownMenuItem>
                 <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}>
                   <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -572,7 +572,7 @@ const PatientDetail = () => {
       <ConfirmDialog
         open={inviteOpen}
         onOpenChange={setInviteOpen}
-        title={`¿Reenviar invitación a ${patient.firstName}?`}
+        title={patient.inviteStatus === 'activated' ? `¿Enviar enlace de nueva contraseña a ${patient.firstName}?` : `¿Reenviar invitación a ${patient.firstName}?`}
         description="Se generará un link nuevo y el anterior dejará de funcionar. Si el paciente ya tenía acceso, esto también sirve para resetear su contraseña (por ejemplo, si la perdió)."
         confirmLabel="Reenviar"
         onConfirm={resendInvite}

@@ -322,13 +322,13 @@ export const forgotPassword = async (req, res) => {
     // Generar token de reseteo
     const resetToken = crypto.randomBytes(32).toString('hex');
 
-    // Hash del token y establecer fecha de expiración (10 minutos)
+    // Hash del token y establecer fecha de expiración (60 minutos: antes eran 10 y mucha gente abría el correo más tarde)
     user.resetPasswordToken = crypto
       .createHash('sha256')
       .update(resetToken)
       .digest('hex');
 
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutos
+    user.resetPasswordExpire = Date.now() + 60 * 60 * 1000; // 60 minutos
 
     await user.save({ validateBeforeSave: false });
 

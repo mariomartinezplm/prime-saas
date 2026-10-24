@@ -36,7 +36,7 @@ const ResetPassword = () => {
     return (
       <AuthLayout title="Link no válido" subtitle="Este link de recuperación ya se usó o venció">
         <LinkProblem
-          message="Los links de recuperación son de un solo uso y duran solo 10 minutos."
+          message="Los links de recuperación son de un solo uso y duran 1 hora."
           help="Solicita uno nuevo o escríbenos por WhatsApp."
           whatsappUrl={whatsappUrl}
         >
