@@ -68,17 +68,17 @@ const TargetSheet = ({ goal, category, mode, onClose, onSaved }: TargetSheetProp
             <p className="text-[14.5px] font-bold text-[#fff8e4]">{paramsText(i, category) || i.label}</p>
             <p className="text-[12.5px] text-[#a8a295]">{i.label} · inicio {i.baseline ? formatValue(i.baseline.value, i.unit) : 'sin registro todavía'}{i.target ? ` · meta actual ${formatValue(i.target.value, i.unit)}` : ''}</p>
             <FormField label={`Meta (${i.unit})`} required error={errors[i.seriesKey]}>
-              {(c) => <Input {...c} type="text" inputMode="decimal" value={values[i.seriesKey]} onChange={(e) => setValues({ ...values, [i.seriesKey]: e.target.value })} className="h-12 border-[#fff8e4]/20 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]" />}
+              {(c) => <Input {...c} type="text" inputMode="decimal" value={values[i.seriesKey]} onChange={(e) => setValues({ ...values, [i.seriesKey]: e.target.value })} className="h-12 border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]" />}
             </FormField>
             {i.direction === 'maintain' && (
               <FormField label={`Margen (± ${i.unit})`} required>
-                {(c) => <Input {...c} type="text" inputMode="decimal" value={tolerances[i.seriesKey]} onChange={(e) => setTolerances({ ...tolerances, [i.seriesKey]: e.target.value })} className="h-12 border-[#fff8e4]/20 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]" />}
+                {(c) => <Input {...c} type="text" inputMode="decimal" value={tolerances[i.seriesKey]} onChange={(e) => setTolerances({ ...tolerances, [i.seriesKey]: e.target.value })} className="h-12 border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]" />}
               </FormField>
             )}
           </div>
         ))}
         <FormField label={mode === 'validate' ? 'Nota (opcional)' : 'Motivo del cambio (queda en el historial)'}>
-          {(c) => <Textarea {...c} rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className="border-[#fff8e4]/20 bg-[#fff8e4]/[0.05] text-[#fff8e4]" />}
+          {(c) => <Textarea {...c} rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className="border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-[#fff8e4]" />}
         </FormField>
         <Button type="submit" disabled={saving} className={cn('min-h-[48px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>{saving ? 'Guardando…' : mode === 'validate' ? 'Validar y activar' : 'Guardar meta'}</Button>
       </form>

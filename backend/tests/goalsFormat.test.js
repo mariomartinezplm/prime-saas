@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-const { historyText, shouldPromptGoals, formatValue, decimalText, changeText, startingPoint, paramsText, statusLabel, activeGoals, exerciseLabel } = await import('../../src/lib/goals.ts');
+const { safetyNote, pendingCheckins, historyText, shouldPromptGoals, formatValue, decimalText, changeText, startingPoint, paramsText, statusLabel, activeGoals, exerciseLabel } = await import('../../src/lib/goals.ts');
 const { publicCatalog } = await import('../config/goalCatalog.js');
 
 const catalog = publicCatalog();
@@ -108,5 +108,38 @@ describe('historial de cambios y vista del profesional', () => {
     expect(statusLabel({ status: 'active', validated: false, createdByRole: 'professional' }, 'staff').text).toBe('Meta propuesta por el equipo');
     expect(statusLabel({ status: 'active', validated: true, createdByRole: 'patient' }, 'staff').text).toBe('Validado');
     expect(statusLabel({ status: 'pending_validation', validated: false, createdByRole: 'patient' }, 'staff').text).toBe('Por validar');
+  });
+});
+
+describe('check-in semanal', () => {
+  const catalog = publicCatalog();
+  const ind = (over) => ({ seriesKey: 's', indicatorId: 'stress_perceived', unit: '/10', manual: true, professionalEntryOnly: false, lastDay: null, ...over });
+  const goal = (indicators, over = {}) => ({ id: 'g1', categoryId: 'stress', categoryName: 'Manejar el estrés', status: 'active', reminders: true, progress: { indicators }, ...over });
+  it('pregunta lo manual que no se registró en 7 días', () => {
+    const r = pendingCheckins([goal([ind({ lastDay: '2026-10-10' })])], catalog, '2026-10-24');
+    expect(r).toHaveLength(1);
+    expect(r[0].question).toBe('¿Cómo estuvo tu nivel de estrés esta semana? (0 a 10)');
+    expect(pendingCheckins([goal([ind()])], catalog, '2026-10-24')).toHaveLength(1);
+  });
+  it('no pregunta si ya registró esta semana, ni lo que llega solo, ni lo del profesional, ni con recordatorios apagados, ni objetivos pausados', () => {
+    expect(pendingCheckins([goal([ind({ lastDay: '2026-10-20' })])], catalog, '2026-10-24')).toEqual([]);
+    expect(pendingCheckins([goal([ind({ manual: false, indicatorId: 'body_weight' })])], catalog, '2026-10-24')).toEqual([]);
+    expect(pendingCheckins([goal([ind({ professionalEntryOnly: true, indicatorId: 'rom_degrees' })])], catalog, '2026-10-24')).toEqual([]);
+    expect(pendingCheckins([goal([ind()], { reminders: false })], catalog, '2026-10-24')).toEqual([]);
+    expect(pendingCheckins([goal([ind()], { status: 'paused' })], catalog, '2026-10-24')).toEqual([]);
+  });
+  it('como máximo dos preguntas a la vez', () => {
+    const many = goal([ind({ seriesKey: 'a' }), ind({ seriesKey: 'b', indicatorId: 'sleep_hours', unit: 'h' }), ind({ seriesKey: 'c', indicatorId: 'weekly_activity_minutes', unit: 'min' })]);
+    expect(pendingCheckins([many], catalog, '2026-10-24')).toHaveLength(2);
+  });
+});
+
+describe('orientación prudente', () => {
+  it('dolor, movilidad, postura, corazón y estrés llevan una vía para contactar al equipo; fuerza no', () => {
+    for (const id of ['pain', 'mobility', 'posture', 'cardiometabolic', 'stress']) expect(safetyNote(id)).toBeTruthy();
+    expect(safetyNote('strength')).toBeNull();
+  });
+  it('no diagnostica ni da indicaciones terapéuticas', () => {
+    for (const id of ['pain', 'mobility', 'posture', 'cardiometabolic', 'stress']) expect(safetyNote(id)).not.toMatch(/tienes (ansiedad|depresi|diabetes|hipertens)|toma |debes tomar|ejercicio recomendado/i);
   });
 });

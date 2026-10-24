@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { BTN_FILL, Meter, CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
 import GoalIcon from '@/components/goals/GoalIcon';
 import GoalTrend from '@/components/goals/GoalTrend';
-import { changeText, dayLabel, directionText, evolutionLink, formatValue, historyText, paramsText, statusLabel } from '@/lib/goals';
+import { getWhatsAppUrl } from '@/config/contact';
+import { changeText, dayLabel, directionText, evolutionLink, formatValue, historyText, paramsText, safetyNote, statusLabel } from '@/lib/goals';
 import { cn } from '@/lib/utils';
 import type { CatalogCategory, GoalSources, GoalView, IndicatorProgress } from '@/services/goalService';
 
@@ -19,6 +20,7 @@ interface GoalCardProps {
   onCheckin?: (goal: GoalView, indicator: IndicatorProgress) => void;
   onPause?: (goal: GoalView) => void;
   onResume?: (goal: GoalView) => void;
+  onMakePrimary?: (goal: GoalView) => void;
   // Vista del profesional: textos en tercera persona, sin enlaces a las pantallas del paciente y con sus acciones
   staff?: { canValidate: boolean; onValidate: (goal: GoalView) => void; onEditTarget: (goal: GoalView) => void; onDiscard: (goal: GoalView) => void };
 }
@@ -109,7 +111,7 @@ const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, hero,
   );
 };
 
-const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, onPause, onResume, staff }: GoalCardProps) => {
+const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, onPause, onResume, onMakePrimary, staff }: GoalCardProps) => {
   const [open, setOpen] = useState(variant === 'primary');
   const [showHistory, setShowHistory] = useState(false);
   const hero = variant === 'primary';
@@ -154,6 +156,12 @@ const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, 
         {inds.map((ind) => (
           <IndicatorBlock key={ind.seriesKey} goal={goal} ind={ind} category={category} sources={sources} canAct={canAct} onCheckin={onCheckin} hero={hero && inds.length === 1} staff={!!staff} />
         ))}
+        {!staff && safetyNote(goal.categoryId) && (
+          <p className="text-[12.5px] text-[#a8a295]">
+            {safetyNote(goal.categoryId)}{' '}
+            <a href={getWhatsAppUrl('Hola, quiero consultar por un objetivo en PRIME F&H')} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#8fd0e0] underline">Escribir al equipo<span className="sr-only"> (se abre en otra pestaña)</span></a>
+          </p>
+        )}
         {goal.targetDay && <p className="text-[12.5px] text-[#a8a295]">{staff ? 'Fecha propuesta' : 'Fecha que te pusiste'}: {dayLabel(goal.targetDay)}</p>}
         {goal.history.length > 0 && (
           <div>
@@ -190,7 +198,12 @@ const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, 
             {goal.status === 'paused' ? (
               <Button type="button" variant="ghost" onClick={() => onResume?.(goal)} className="min-h-[44px] text-[#8fd0e0] hover:bg-[#fff8e4]/[0.06] hover:text-[#8fd0e0]"><Play aria-hidden="true" />Reanudar</Button>
             ) : goal.status === 'active' || goal.status === 'pending_validation' ? (
-              <Button type="button" variant="ghost" onClick={() => onPause?.(goal)} className="min-h-[44px] text-[#cdc6b6] hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4]"><Pause aria-hidden="true" />Pausar</Button>
+              <>
+                {goal.slot !== 1 && onMakePrimary && (
+                  <Button type="button" variant="ghost" onClick={() => onMakePrimary(goal)} className="min-h-[44px] text-[#8fd0e0] hover:bg-[#fff8e4]/[0.06] hover:text-[#8fd0e0]"><Star aria-hidden="true" />Hacer principal</Button>
+                )}
+                <Button type="button" variant="ghost" onClick={() => onPause?.(goal)} className="min-h-[44px] text-[#cdc6b6] hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4]"><Pause aria-hidden="true" />Pausar</Button>
+              </>
             ) : null}
           </div>
         )}

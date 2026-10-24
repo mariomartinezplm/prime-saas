@@ -257,6 +257,46 @@ export async function performAction(goal, actor, body, { reader = makeSourceRead
       return goal;
     }
 
+    case 'make_primary': {
+      if (!ACTIVE_STATUSES.includes(goal.status)) throw new GoalError(409, 'NOT_ACTIVE', 'Solo un objetivo activo puede ser el principal');
+      if (goal.slot === 1) throw new GoalError(409, 'ALREADY_PRIMARY', 'Este objetivo ya es el principal');
+      const rows = await takenSlots(goal.patient);
+      const current = rows.find((r) => r.slot === 1 && String(r._id) !== String(goal._id));
+      const previousSlot = goal.slot;
+      if (!current) {
+        goal.slot = 1;
+        goal.history.push(entry(actor, 'priority_changed', { note, changes: { from: previousSlot, to: 1 } }));
+        try {
+          await goal.save();
+        } catch (error) {
+          if (error?.code === 11000) throw slotConflict(await takenSlots(goal.patient), 'primary');
+          throw error;
+        }
+        return goal;
+      }
+      // Intercambio: el principal actual pasa al cupo de este objetivo (se libera uno y luego se ocupa el otro, en ese orden)
+      const other = await PatientGoal.findById(current._id);
+      if (!other) throw new GoalError(409, 'CONFLICT', 'Reintenta: los objetivos cambiaron');
+      other.slot = undefined;
+      await other.save();
+      try {
+        goal.slot = 1;
+        goal.history.push(entry(actor, 'priority_changed', { note, changes: { from: previousSlot, to: 1 } }));
+        await goal.save();
+        other.slot = previousSlot;
+        other.history.push(entry(actor, 'priority_changed', { note: 'Pasó a secundario al elegir otro principal', changes: { from: 1, to: previousSlot } }));
+        await other.save();
+      } catch (error) {
+        // Si algo falla, el principal anterior recupera su lugar
+        goal.slot = previousSlot;
+        await goal.save().catch(() => {});
+        other.slot = 1;
+        await other.save().catch(() => {});
+        throw error?.code === 11000 ? slotConflict(await takenSlots(goal.patient), 'primary') : error;
+      }
+      return goal;
+    }
+
     case 'update_settings': {
       if (typeof body.celebrate === 'boolean') goal.celebrate = body.celebrate;
       if (typeof body.reminders === 'boolean') goal.reminders = body.reminders;

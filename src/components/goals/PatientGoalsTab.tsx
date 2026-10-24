@@ -142,7 +142,7 @@ const PatientGoalsTab = ({ patientId }: { patientId: string }) => {
         <BottomSheet open onOpenChange={(open) => { if (!open) { setDiscard(null); setReason(''); } }} title="Descartar objetivo" description={`${discard.categoryName}: el historial se conserva`}>
           <div className="space-y-3 pb-2">
             <label htmlFor="discard-reason" className="text-[13.5px] font-medium text-[#fff8e4]">Motivo (obligatorio)</label>
-            <Textarea id="discard-reason" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} className="border-[#fff8e4]/20 bg-[#fff8e4]/[0.05] text-[#fff8e4]" />
+            <Textarea id="discard-reason" rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} className="border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-[#fff8e4]" />
             <Button type="button" onClick={confirmDiscard} disabled={busy} className={cn('min-h-[48px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>{busy ? 'Descartando…' : 'Descartar objetivo'}</Button>
           </div>
         </BottomSheet>

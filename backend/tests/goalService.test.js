@@ -132,6 +132,31 @@ describe('cupos: principal + 2 secundarios', () => {
   });
 });
 
+describe('hacer principal', () => {
+  const mk = (slot, status = 'active') => ({ _id: oid(), patient: patientId, status, slot, history: [], save: vi.fn(async function () { return this; }) });
+  it('con el cupo principal libre, el objetivo pasa a principal', async () => {
+    const g = mk(2);
+    taken = [{ _id: g._id, slot: 2 }];
+    await performAction(g, patient, { action: 'make_primary' });
+    expect(g.slot).toBe(1);
+    expect(g.history[0]).toMatchObject({ action: 'priority_changed', changes: { from: 2, to: 1 } });
+  });
+  it('con otro principal, se intercambian y los dos conservan su historial', async () => {
+    const a = mk(1);
+    const b = mk(3);
+    taken = [{ _id: a._id, slot: 1 }, { _id: b._id, slot: 3 }];
+    vi.spyOn(PatientGoal, 'findById').mockResolvedValue(a);
+    await performAction(b, patient, { action: 'make_primary' });
+    expect(b.slot).toBe(1);
+    expect(a.slot).toBe(3);
+    expect(a.history.at(-1).action).toBe('priority_changed');
+  });
+  it('un objetivo pausado o que ya es principal no se puede ascender', async () => {
+    await expect(performAction(mk(undefined, 'paused'), patient, { action: 'make_primary' })).rejects.toMatchObject({ code: 'NOT_ACTIVE' });
+    await expect(performAction(mk(1), patient, { action: 'make_primary' })).rejects.toMatchObject({ code: 'ALREADY_PRIMARY' });
+  });
+});
+
 describe('validación profesional y metas con historial', () => {
   const pending = () => ({
     _id: oid(), patient: patientId, status: 'pending_validation', slot: 1, requiresValidation: true, startedAt: new Date('2026-10-01T15:00:00Z'), history: [],

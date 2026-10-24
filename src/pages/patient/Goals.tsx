@@ -11,6 +11,7 @@ import { BTN_FILL, CARD } from '@/components/dashboard/brand';
 import GoalCard, { StatusPill } from '@/components/goals/GoalCard';
 import GoalIcon from '@/components/goals/GoalIcon';
 import CheckinSheet from '@/components/goals/CheckinSheet';
+import WeeklyCheckin from '@/components/goals/WeeklyCheckin';
 import { goalService, type GoalCatalog, type GoalSources, type GoalView, type IndicatorProgress } from '@/services/goalService';
 import { activeGoals, paramsText } from '@/lib/goals';
 import { notify } from '@/lib/notify';
@@ -54,11 +55,11 @@ const Goals = () => {
   const closed = useMemo(() => goals.filter((g) => g.status === 'paused' || g.status === 'achieved').sort((a, b) => b.startedAt.localeCompare(a.startedAt)), [goals]);
   const replace = (updated: GoalView) => setGoals((list) => list.map((g) => (g.id === updated.id ? updated : g)));
 
-  const act = async (goal: GoalView, action: 'pause' | 'resume') => {
+  const act = async (goal: GoalView, action: 'pause' | 'resume' | 'make_primary') => {
     try {
       replace(await goalService.act(goal.id, { action }));
-      notify.success(action === 'pause' ? 'Objetivo en pausa: tu progreso se conserva' : 'Objetivo reanudado');
-      if (action === 'resume') load();
+      notify.success(action === 'pause' ? 'Objetivo en pausa: tu progreso se conserva' : action === 'make_primary' ? 'Ahora es tu objetivo principal' : 'Objetivo reanudado');
+      if (action !== 'pause') load();
     } catch (err) {
       showApiError(err, 'No se pudo cambiar el objetivo');
       if (action === 'resume') notify.info('Si ya tienes 3 objetivos activos, pausa uno para reanudar este.');
@@ -92,8 +93,10 @@ const Goals = () => {
         />
       )}
 
+      {user && !failed && <WeeklyCheckin userId={user.id} goals={goals} catalog={catalog} onSaved={replace} />}
+
       {active.map((goal, i) => (
-        <GoalCard key={goal.id} goal={goal} category={category(goal)} sources={sources} variant={i === 0 && goal.slot === 1 ? 'primary' : 'secondary'} onCheckin={(g, ind) => setCheckin({ goal: g, indicator: ind })} onPause={(g) => act(g, 'pause')} />
+        <GoalCard key={goal.id} goal={goal} category={category(goal)} sources={sources} variant={i === 0 && goal.slot === 1 ? 'primary' : 'secondary'} onCheckin={(g, ind) => setCheckin({ goal: g, indicator: ind })} onPause={(g) => act(g, 'pause')} onMakePrimary={(g) => act(g, 'make_primary')} />
       ))}
 
       {!failed && catalog && (active.length > 0 || closed.length > 0) && (

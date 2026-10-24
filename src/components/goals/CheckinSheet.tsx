@@ -52,7 +52,7 @@ const CheckinSheet = ({ goal, indicator, category, onClose, onSaved, staff }: Ch
       <form onSubmit={submit} noValidate className="space-y-4 pb-2">
         <FormField label={`Valor (${indicator.unit === '/10' ? 'de 0 a 10' : indicator.unit})`} required error={error}>
           {(c) => (
-            <Input {...c} type="text" inputMode="decimal" autoComplete="off" value={text} onChange={(e) => { setText(e.target.value); setError(undefined); }} className="h-12 border-[#fff8e4]/20 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]" />
+            <Input {...c} type="text" inputMode="decimal" autoComplete="off" value={text} onChange={(e) => { setText(e.target.value); setError(undefined); }} className="h-12 border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]" />
           )}
         </FormField>
         <p className="text-[12.5px] text-[#a8a295]">

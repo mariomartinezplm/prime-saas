@@ -25,7 +25,7 @@ const historySchema = new mongoose.Schema({
   byRole: { type: String, enum: ['patient', 'professional', 'admin', 'system'] },
   action: {
     type: String,
-    enum: ['created', 'validated', 'target_changed', 'paused', 'resumed', 'discarded', 'achieved', 'submitted_for_validation', 'baseline_set'],
+    enum: ['created', 'validated', 'target_changed', 'paused', 'resumed', 'discarded', 'achieved', 'submitted_for_validation', 'baseline_set', 'priority_changed'],
     required: true
   },
   note: { type: String, trim: true, maxlength: 300 },

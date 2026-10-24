@@ -121,12 +121,14 @@ const IND = {
     note: 'Los test de salto los registra tu profesional.',
   },
   performance_test: {
+    checkinQuestion: '¿Cuál fue tu última marca en esta prueba?',
     id: 'performance_test', label: 'Marca en una prueba concreta', source: 'checkin', unitOptions: TEST_UNITS, range: { min: 0, max: 100000 },
     directions: ['increase', 'decrease'], defaultDirection: 'increase', params: [testName],
     confirmation: { records: 1, minDays: 0 }, origin: 'autorreporte',
     note: 'Elige tú si mejorar es subir (distancia, repeticiones) o bajar (tiempo). Solo se compara la misma prueba.',
   },
   blood_pressure_systolic: {
+    checkinQuestion: '¿Cuál fue tu última presión sistólica?',
     clinical: true,
     id: 'blood_pressure_systolic', label: 'Presión arterial sistólica', source: 'checkin', unit: 'mmHg', range: { min: 50, max: 260 },
     directions: ['decrease', 'maintain'], defaultDirection: 'maintain', params: [{ key: 'method', type: 'enum', label: 'Cómo se mide', required: true, options: [{ value: 'home', label: 'En casa' }, { value: 'clinic', label: 'En un centro de salud' }] }],
@@ -134,6 +136,7 @@ const IND = {
     note: 'La meta de presión la define tu profesional: no existen valores universales.',
   },
   blood_pressure_diastolic: {
+    checkinQuestion: '¿Cuál fue tu última presión diastólica?',
     clinical: true,
     id: 'blood_pressure_diastolic', label: 'Presión arterial diastólica', source: 'checkin', unit: 'mmHg', range: { min: 30, max: 160 },
     directions: ['decrease', 'maintain'], defaultDirection: 'maintain', params: [{ key: 'method', type: 'enum', label: 'Cómo se mide', required: true, options: [{ value: 'home', label: 'En casa' }, { value: 'clinic', label: 'En un centro de salud' }] }],
@@ -141,6 +144,7 @@ const IND = {
     note: 'La meta de presión la define tu profesional: no existen valores universales.',
   },
   glucose: {
+    checkinQuestion: '¿Cuál fue tu última glucosa?',
     clinical: true,
     id: 'glucose', label: 'Glucosa', source: 'checkin', unit: 'mg/dL', range: { min: 20, max: 700 },
     directions: ['decrease', 'maintain'], defaultDirection: 'maintain',
@@ -150,6 +154,7 @@ const IND = {
     note: 'La meta de glucosa la define tu profesional o tu médico.',
   },
   cholesterol: {
+    checkinQuestion: '¿Cuál fue tu último valor de colesterol?',
     clinical: true,
     id: 'cholesterol', label: 'Colesterol', source: 'checkin', unit: 'mg/dL', range: { min: 10, max: 1000 },
     directions: ['decrease', 'increase', 'maintain'], defaultDirection: 'maintain',
@@ -158,6 +163,7 @@ const IND = {
     note: 'Cada fracción se sigue por separado. La meta la define tu profesional o tu médico.',
   },
   resting_heart_rate: {
+    checkinQuestion: '¿Cuál fue tu pulso en reposo esta semana?',
     id: 'resting_heart_rate', label: 'Frecuencia cardíaca en reposo', source: 'checkin', unit: 'lpm', range: { min: 25, max: 220 },
     directions: ['decrease', 'maintain'], defaultDirection: 'decrease',
     params: [{ key: 'method', type: 'enum', label: 'Cómo se midió', required: true, options: [{ value: 'manual', label: 'Manual (contando el pulso)' }, { value: 'device', label: 'Con un dispositivo' }] }],
@@ -165,24 +171,28 @@ const IND = {
     note: 'Los valores los ingresas tú: son autorreporte, no una medición validada.',
   },
   weekly_activity_minutes: {
+    checkinQuestion: '¿Cuántos minutos de actividad física realizaste esta semana?',
     id: 'weekly_activity_minutes', label: 'Minutos de actividad física por semana', source: 'checkin', unit: 'min', range: { min: 0, max: 3000 },
     directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [],
     confirmation: { records: 2, minDays: 7 }, origin: 'autorreporte',
     note: 'Es lo que tú declaras: no reemplaza la asistencia validada de tus sesiones.',
   },
   stress_perceived: {
+    checkinQuestion: '¿Cómo estuvo tu nivel de estrés esta semana? (0 a 10)',
     id: 'stress_perceived', label: 'Estrés percibido (0 a 10)', source: 'checkin', unit: '/10', range: { min: 0, max: 10 },
     directions: ['decrease', 'maintain'], defaultDirection: 'decrease', params: [],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte',
     note: 'Es tu percepción. Tiene su propia escala y no se mezcla con el Readiness.',
   },
   sleep_hours: {
+    checkinQuestion: '¿Cuántas horas dormiste en promedio esta semana?',
     id: 'sleep_hours', label: 'Horas de sueño', source: 'checkin', unit: 'h', range: { min: 0, max: 24 },
     directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte',
     note: 'Es lo que tú declaras.',
   },
   posture_self_rating: {
+    checkinQuestion: '¿Cómo percibes tu postura esta semana? (0 a 10)',
     id: 'posture_self_rating', label: 'Cómo percibo mi postura (0 a 10)', source: 'checkin', unit: '/10', range: { min: 0, max: 10 },
     directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte', professionalTarget: true,
@@ -213,12 +223,14 @@ const IND = {
     note: 'Lo mide y registra tu kinesiólogo. Solo se compara la misma articulación, movimiento, lado y método.',
   },
   mobility_test: {
+    checkinQuestion: '¿Cuál fue tu último resultado en esta prueba?',
     id: 'mobility_test', label: 'Prueba funcional de movilidad', source: 'checkin', unitOptions: TEST_UNITS, range: { min: 0, max: 100000 },
     directions: ['increase', 'decrease'], defaultDirection: 'increase', params: [testName],
     confirmation: { records: 2, minDays: 7 }, origin: 'autorreporte', professionalTarget: true,
     note: 'Solo se compara la misma prueba.',
   },
   mobility_self_rating: {
+    checkinQuestion: '¿Cómo percibes tu movilidad esta semana? (0 a 10)',
     id: 'mobility_self_rating', label: 'Cómo percibo mi movilidad (0 a 10)', source: 'checkin', unit: '/10', range: { min: 0, max: 10 },
     directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte', professionalTarget: true,

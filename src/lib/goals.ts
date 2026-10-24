@@ -140,7 +140,46 @@ export function historyText(h: { action: string; byRole: string; note: string | 
     case 'paused': return 'Objetivo en pausa';
     case 'resumed': return 'Objetivo reanudado';
     case 'discarded': return `Objetivo descartado${h.note ? `: ${h.note}` : ''}`;
+    case 'priority_changed': return (h.changes as { to?: number } | null)?.to === 1 ? 'Pasó a ser el objetivo principal' : 'Pasó a ser un objetivo secundario';
     case 'achieved': return '¡Objetivo conseguido!';
     default: return 'Cambio registrado';
   }
 }
+
+// ── Check-in semanal (opcional, breve, dentro de la app) ──
+// Una pregunta por indicador de registro manual que el paciente puede ingresar y que no tiene registro en los últimos 7 días.
+// Nunca pregunta lo que ya llega solo (ejercicios, mediciones, EVA) ni lo que registra el profesional, y respeta
+// «recordatorios» desactivados. Como máximo 2 preguntas a la vez.
+export const CHECKIN_EVERY_DAYS = 7;
+export const MAX_CHECKIN_QUESTIONS = 2;
+
+export interface PendingCheckin { goalId: string; goalName: string; seriesKey: string; indicatorId: string; unit: string; question: string }
+
+export function pendingCheckins(goals: GoalView[], catalog: { categories: CatalogCategory[] } | null, todayIso: string): PendingCheckin[] {
+  const out: PendingCheckin[] = [];
+  const today = Date.parse(`${todayIso}T12:00:00Z`);
+  for (const goal of goals) {
+    if (goal.status !== 'active' || !goal.reminders) continue;
+    const category = catalog?.categories.find((c) => c.id === goal.categoryId);
+    for (const ind of goal.progress.indicators) {
+      if (!ind.manual || ind.professionalEntryOnly) continue;
+      const def = category?.indicators.find((i) => i.id === ind.indicatorId);
+      if (!def?.checkinQuestion) continue;
+      const days = ind.lastDay ? Math.floor((today - Date.parse(`${ind.lastDay}T12:00:00Z`)) / 86400000) : Infinity;
+      if (days < CHECKIN_EVERY_DAYS) continue;
+      out.push({ goalId: goal.id, goalName: goal.categoryName, seriesKey: ind.seriesKey, indicatorId: ind.indicatorId, unit: ind.unit, question: def.checkinQuestion });
+    }
+  }
+  return out.slice(0, MAX_CHECKIN_QUESTIONS);
+}
+
+// ── Orientación prudente y vía para contactar al equipo ──
+// No es un diagnóstico ni un triaje: solo un recordatorio claro de que el equipo está disponible para valorar.
+const SAFETY_NOTES: Record<string, string> = {
+  pain: 'Si tu dolor es intenso, nuevo o te preocupa, no esperes: escríbenos para una valoración.',
+  mobility: 'Si perdiste movimiento de forma repentina o con dolor, escríbenos para una valoración.',
+  posture: 'Este seguimiento no es un diagnóstico. Si algo te preocupa, escríbenos y lo revisamos contigo.',
+  cardiometabolic: 'Estos valores no reemplazan el control con tu médico. Si tienes síntomas o cifras que te preocupan, consúltalo.',
+  stress: 'Si te sientes sobrepasado/a o con malestar que no cede, conversa con un profesional de la salud. Puedes escribirnos.',
+};
+export const safetyNote = (categoryId: string): string | null => SAFETY_NOTES[categoryId] ?? null;

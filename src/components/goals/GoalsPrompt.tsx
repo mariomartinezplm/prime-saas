@@ -4,7 +4,6 @@ import { Target } from 'lucide-react';
 import BottomSheet from '@/components/premium/BottomSheet';
 import { Button } from '@/components/ui/button';
 import { BTN_FILL } from '@/components/dashboard/brand';
-import { goalService } from '@/services/goalService';
 import { GOALS_PROMPT_SNOOZE_DAYS, shouldPromptGoals, type GoalsPromptPref } from '@/lib/goals';
 import { cn } from '@/lib/utils';
 
@@ -25,23 +24,13 @@ const writePref = (userId: string, pref: GoalsPromptPref) => {
 };
 
 // Pregunta una sola vez, al ingresar, qué quiere mejorar la persona que todavía no definió ningún objetivo.
-const GoalsPrompt = ({ userId, enabled }: { userId: string; enabled: boolean }) => {
+const GoalsPrompt = ({ userId, enabled, loaded, goalCount }: { userId: string; enabled: boolean; loaded: boolean; goalCount: number }) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-    goalService
-      .list(userId)
-      .then((goals) => {
-        if (!cancelled && shouldPromptGoals({ hasPlan: true, goalsLoaded: true, goalCount: goals.length, pref: readPref(userId), now: Date.now() })) setOpen(true);
-      })
-      .catch(() => undefined); // si no carga, no se molesta a la persona
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, enabled]);
+    if (enabled && shouldPromptGoals({ hasPlan: true, goalsLoaded: loaded, goalCount, pref: readPref(userId), now: Date.now() })) setOpen(true);
+  }, [userId, enabled, loaded, goalCount]);
 
   const later = () => {
     writePref(userId, { snoozedUntil: Date.now() + GOALS_PROMPT_SNOOZE_DAYS * 86400000 });

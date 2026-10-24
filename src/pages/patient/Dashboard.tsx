@@ -25,6 +25,8 @@ import { usePlanHistory } from '@/components/dashboard/usePlanHistory';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 import GoalsPrompt from '@/components/goals/GoalsPrompt';
+import WeeklyCheckin from '@/components/goals/WeeklyCheckin';
+import { useMyGoals } from '@/hooks/useMyGoals';
 import { TriangleAlert } from 'lucide-react';
 import type { Appointment, SessionBalance } from '@/types';
 
@@ -116,6 +118,7 @@ const PatientDashboard = () => {
   const hasPlan = !!balance?.hasActivePlan;
   const showConstancy = hasPlan && (summary.status === 'loading' || !!consistency);
   // Sin plan vigente la tarjeta protagonista ya lo explica: «Mi plan» no repite el mensaje
+  const myGoals = useMyGoals(user?.id, hasPlan);
   const showPlanCard = planView.kind !== 'inactive' || planIsWaiting(states, planHistory.pending);
 
   return (
@@ -163,12 +166,13 @@ const PatientDashboard = () => {
             <PlanRingCard view={planView} loading={planIsWaiting(states, planHistory.pending)} wide={!showConstancy} />
             {showConstancy && <ConstancyRingCard consistency={consistency} loading={summary.status === 'loading'} />}
           </div>
+          {user && hasPlan && <WeeklyCheckin userId={user.id} goals={myGoals.goals} catalog={myGoals.catalog} onSaved={myGoals.replace} />}
           {summary.status === 'error' && <LoadErrorAlert message="No pudimos cargar tu constancia y tus logros." onRetry={summary.retry} />}
           {summary.status === 'ready' && summary.view && <NextAchievementCard view={summary.view} />}
         </div>
       </div>
 
-      {user && <GoalsPrompt userId={user.id} enabled={hasPlan} />}
+      {user && <GoalsPrompt userId={user.id} enabled={hasPlan} loaded={myGoals.loaded} goalCount={myGoals.goals.length} />}
 
       <QuickActions hide={hero.kind === 'session' ? ['/app/mis-citas'] : hero.kind === 'book' ? ['/app/reservar'] : []} />
     </div>

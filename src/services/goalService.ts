@@ -32,6 +32,7 @@ export interface CatalogIndicator {
   professionalEntryOnly?: boolean;
   field?: string;
   note?: string;
+  checkinQuestion?: string;
 }
 export interface CatalogCategory {
   id: string;
@@ -135,7 +136,7 @@ export interface CreateGoalInput {
 }
 
 export type GoalAction =
-  | { action: 'pause' | 'discard' | 'resume'; note?: string; priority?: 'primary' | 'secondary' }
+  | { action: 'pause' | 'discard' | 'resume' | 'make_primary'; note?: string; priority?: 'primary' | 'secondary' }
   | { action: 'validate' | 'update_target'; targets?: { seriesKey: string; value: number; tolerance?: number }[]; note?: string }
   | { action: 'update_settings'; celebrate?: boolean; reminders?: boolean; targetDay?: string | null };
 

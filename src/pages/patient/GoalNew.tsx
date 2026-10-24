@@ -14,7 +14,8 @@ import GoalIcon from '@/components/goals/GoalIcon';
 import { goalService, type CatalogCategory, type CatalogIndicator, type CreateGoalInput, type GoalCatalog, type GoalDirection, type GoalParamDef, type GoalSources, type GoalView } from '@/services/goalService';
 import { INVALID_NUMBER, parseDecimal } from '@/lib/decimal';
 import { exerciseKeyOf } from '@/lib/exerciseKey';
-import { activeGoals, dayLabel, decimalText, directionText, formatValue, paramsText, startingPoint } from '@/lib/goals';
+import { activeGoals, dayLabel, decimalText, directionText, formatValue, paramsText, safetyNote, startingPoint } from '@/lib/goals';
+import { getWhatsAppUrl } from '@/config/contact';
 import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
 import { cn } from '@/lib/utils';
@@ -35,14 +36,14 @@ const NUMBER_ERROR = 'Escribe un número; para decimales usa coma o punto (ej. 3
 const Chips = ({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value: string; onChange: (v: string) => void }) => (
   <div role="group" aria-label={label} className="flex flex-wrap gap-2">
     {options.map((o) => (
-      <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => onChange(o.value)} className={cn('min-h-[44px] rounded-full border px-4 text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', value === o.value ? 'border-[#398ca2] bg-[#398ca2] font-extrabold text-[#181619]' : 'border-[#fff8e4]/20 text-[#cdc6b6]')}>
+      <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => onChange(o.value)} className={cn('min-h-[44px] rounded-full border px-4 text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', value === o.value ? 'border-[#398ca2] bg-[#398ca2] font-extrabold text-[#181619]' : 'border-[#fff8e4]/40 text-[#cdc6b6]')}>
         {o.label}
       </button>
     ))}
   </div>
 );
 
-const fieldInput = 'h-12 border-[#fff8e4]/20 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]';
+const fieldInput = 'h-12 border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]';
 
 const GoalNew = () => {
   const { user } = useAuth();
@@ -312,7 +313,7 @@ const GoalNew = () => {
           <ul className="space-y-2">
             {catalog.categories.map((c) => (
               <li key={c.id}>
-                <button type="button" aria-pressed={categoryId === c.id} onClick={() => pickCategory(c)} className={cn(CARD, 'flex min-h-[64px] w-full items-center gap-3 p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', categoryId === c.id ? 'border-[#62b8cf] bg-[#398ca2]/20' : 'hover:bg-[#fff8e4]/[0.07]')}>
+                <button type="button" aria-pressed={categoryId === c.id} onClick={() => pickCategory(c)} className={cn(CARD, 'border-[#fff8e4]/35 flex min-h-[64px] w-full items-center gap-3 p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', categoryId === c.id ? 'border-[#62b8cf] bg-[#398ca2]/20' : 'hover:bg-[#fff8e4]/[0.07]')}>
                   <span aria-hidden="true" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border', categoryId === c.id ? 'border-[#62b8cf] bg-[#398ca2]/30 text-[#fff8e4]' : 'border-[#398ca2]/40 bg-[#398ca2]/12 text-[#8fd0e0]')}><GoalIcon name={c.icon} className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15.5px] font-bold text-[#fff8e4]">{c.name}</span>
@@ -333,13 +334,19 @@ const GoalNew = () => {
           {category.supervision === 'required' && (
             <p className={cn(CARD, 'flex items-start gap-2 p-3.5 text-[13.5px] text-[#cdc6b6]')}><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" />{staff ? 'Este tipo de objetivo requiere validación profesional.' : 'Este tipo de objetivo lo revisa y valida tu kinesiólogo antes de activarse.'}</p>
           )}
+          {!staff && safetyNote(category.id) && (
+            <p className={cn(CARD, 'space-y-2 p-3.5 text-[13.5px] text-[#cdc6b6]')}>
+              {safetyNote(category.id)}{' '}
+              <a href={getWhatsAppUrl('Hola, quiero consultar por un objetivo en PRIME F&H')} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#8fd0e0] underline">Escribir al equipo<span className="sr-only"> (se abre en otra pestaña)</span></a>
+            </p>
+          )}
           {errors.indicators && <p role="alert" className="text-[13px] font-medium text-[#ffb4a8]">{errors.indicators}</p>}
           <ul className="space-y-3">
             {category.indicators.map((d) => {
               const on = selected.includes(d.id);
               const s = stateOf(d);
               return (
-                <li key={d.id} className={cn(CARD, on && 'border-[#62b8cf]')}>
+                <li key={d.id} className={cn(CARD, 'border-[#fff8e4]/35', on && 'border-[#62b8cf]')}>
                   {category.indicators.length > 1 ? (
                     <button type="button" aria-pressed={on} onClick={() => toggleIndicator(category, d.id)} className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-[22px] p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
                       <span className="text-[15px] font-bold text-[#fff8e4]">{d.label}</span>
