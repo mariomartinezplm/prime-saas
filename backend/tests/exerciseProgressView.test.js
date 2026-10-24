@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 const { groupExercises, normalizeNames, primaryMetric, progressPoints, filterPeriod, bestMark, sessionHistory, modalityOf } = await import('../../src/lib/exerciseProgress.ts');
 const { elapsedSec, formatClock, restRemainingSec, restDisplayState } = await import('../../src/lib/workoutClock.ts');
 const { allStrengthRecords } = await import('../services/achievements/strength.js');
-const { insights } = await import('../../src/lib/exerciseProgress.ts');
+const { insights, loadOptions, defaultLoad, topLoads, repsAtLoadPoints } = await import('../../src/lib/exerciseProgress.ts');
 
 let n = 0;
 const rec = (name, date, over = {}) => ({ _id: `r${n++}`, exerciseName: name, date: `${date}T15:00:00.000Z`, sets: 1, reps: 10, weight: 20, weightUnit: 'kg', ...over });
@@ -122,5 +122,43 @@ describe('lectura inteligente del ejercicio', () => {
   it('con un solo registro no hay comparación; sin registros, nada', () => {
     expect(insights([p('2026-10-01', 70)])).toEqual({ sessions: 1, changeFromPrevious: null, improvedOverPreviousBest: null, tie: false });
     expect(insights([])).toEqual({ sessions: 0, changeFromPrevious: null, improvedOverPreviousBest: null, tie: false });
+  });
+});
+
+describe('repeticiones por carga (Incremento B)', () => {
+  const records = [
+    rec('Sentadilla', '2026-10-01', { weight: 40, reps: 8 }),
+    rec('Sentadilla', '2026-10-01', { weight: 40, reps: 10 }),
+    rec('Sentadilla', '2026-10-08', { weight: 40, reps: 12 }),
+    rec('Sentadilla', '2026-10-08', { weight: 60, reps: 5 }),
+    rec('Sentadilla', '2026-10-15', { weight: 60, reps: 6 }),
+    rec('Sentadilla', '2026-10-15', { weight: 100, weightUnit: 'lb', reps: 3 }),
+  ];
+  it('lista solo cargas en kg, de mayor a menor, sin mezclar libras', () => {
+    expect(loadOptions(records).map((o) => o.weight)).toEqual([60, 40]);
+    expect(loadOptions(records)[1]).toMatchObject({ weight: 40, sessions: 2, lastDate: '2026-10-08' });
+  });
+  it('propone la carga más reciente que ya tenga al menos dos sesiones', () => {
+    expect(defaultLoad(records)).toBe(60); // 40 kg y 60 kg tienen 2 sesiones: gana la más reciente
+    const newest = [...records, rec('Sentadilla', '2026-10-22', { weight: 70, reps: 3 })];
+    expect(defaultLoad(newest)).toBe(60); // 70 kg tiene un solo registro: no sirve para ver una evolución
+    expect(defaultLoad([rec('X', '2026-10-01', { weight: 70, reps: 3 })])).toBe(70);
+    expect(defaultLoad([])).toBeNull();
+  });
+  it('en pantalla se ven las 6 cargas más trabajadas y siempre la elegida', () => {
+    const opts = [10, 20, 30, 40, 50, 60, 70, 80].map((w, i) => ({ weight: w, sessions: 8 - i, lastDate: '2026-10-01' }));
+    expect(topLoads(opts, null).map((o) => o.weight)).toEqual([60, 50, 40, 30, 20, 10]);
+    expect(topLoads(opts, 80).map((o) => o.weight)).toContain(80);
+    expect(topLoads(opts, 80)).toHaveLength(6);
+  });
+  it('las repeticiones de una carga no se mezclan con las de otra', () => {
+    expect(repsAtLoadPoints(records, 40).map((p) => [p.date, p.value, p.sets])).toEqual([['2026-10-01', 10, 2], ['2026-10-08', 12, 1]]);
+    expect(repsAtLoadPoints(records, 60).map((p) => [p.date, p.value])).toEqual([['2026-10-08', 5], ['2026-10-15', 6]]);
+    expect(repsAtLoadPoints(records, 99)).toEqual([]);
+  });
+  it('cargas con decimales se reconocen (32,5 kg) y las series sin repeticiones se ignoran', () => {
+    const r = [rec('Press', '2026-10-01', { weight: 32.5, reps: 8 }), rec('Press', '2026-10-02', { weight: 32.5, reps: undefined })];
+    expect(repsAtLoadPoints(r, 32.5)).toHaveLength(1);
+    expect(loadOptions(r)).toHaveLength(1);
   });
 });

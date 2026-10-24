@@ -95,6 +95,56 @@ export function progressPoints(records: ProgressRecord[], metric: Metric): Progr
   return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Cargas (kg) con las que se ha entrenado el ejercicio, de la más alta a la más baja. Las libras no se mezclan con los kilos.
+export interface LoadOption {
+  weight: number;
+  sessions: number; // días distintos con esa carga
+  lastDate: string;
+}
+const sameLoad = (a: number, b: number) => Math.abs(a - b) < 0.001;
+export function loadOptions(records: ProgressRecord[]): LoadOption[] {
+  const map = new Map<number, { weight: number; days: Set<string>; lastDate: string }>();
+  for (const r of records) {
+    if (modalityOf(r) !== 'weight' || !isKg(r) || !(r.weight && r.weight > 0) || !(r.reps && r.reps > 0)) continue;
+    const key = Math.round(r.weight * 1000);
+    const cur = map.get(key) ?? { weight: r.weight, days: new Set<string>(), lastDate: '' };
+    cur.days.add(day(r));
+    if (day(r) > cur.lastDate) cur.lastDate = day(r);
+    map.set(key, cur);
+  }
+  return [...map.values()].map((c) => ({ weight: c.weight, sessions: c.days.size, lastDate: c.lastDate })).sort((a, b) => b.weight - a.weight);
+}
+
+// Carga que se propone al abrir «Repeticiones»: la más reciente entre las que ya tienen al menos dos sesiones (así el gráfico muestra
+// una evolución); si ninguna llega a dos, la del registro más reciente.
+export function defaultLoad(records: ProgressRecord[]): number | null {
+  const options = loadOptions(records);
+  if (options.length === 0) return null;
+  const recent = (list: LoadOption[]) => [...list].sort((a, b) => b.lastDate.localeCompare(a.lastDate) || b.weight - a.weight)[0].weight;
+  const repeated = options.filter((o) => o.sessions >= 2);
+  return recent(repeated.length > 0 ? repeated : options);
+}
+
+// Las cargas que se muestran como botones: las más trabajadas primero (empates: la más alta). La elegida siempre se ve.
+export function topLoads(options: LoadOption[], selected: number | null, max = 6): LoadOption[] {
+  const ranked = [...options].sort((a, b) => b.sessions - a.sessions || b.weight - a.weight);
+  const top = ranked.slice(0, max);
+  const picked = ranked.find((o) => o.weight === selected);
+  if (picked && !top.includes(picked)) top[top.length - 1] = picked;
+  return top.sort((a, b) => b.weight - a.weight);
+}
+
+// Repeticiones máximas en una serie por día, SOLO con la carga elegida (nunca se mezclan cargas distintas)
+export function repsAtLoadPoints(records: ProgressRecord[], weight: number): ProgressPoint[] {
+  const byDay = new Map<string, ProgressPoint>();
+  for (const r of records) {
+    if (modalityOf(r) !== 'weight' || !isKg(r) || !(r.weight && sameLoad(r.weight, weight)) || !(r.reps && r.reps > 0)) continue;
+    const cur = byDay.get(day(r));
+    byDay.set(day(r), { date: day(r), value: Math.max(cur?.value ?? 0, r.reps), reps: null, sets: (cur?.sets ?? 0) + Math.max(1, r.sets ?? 1) });
+  }
+  return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 // Recorta por período: últimos 30 o 90 días contados desde HOY (no desde el último registro), o todo
 export function filterPeriod(points: ProgressPoint[], period: Period, now: Date = new Date()): ProgressPoint[] {
   if (period === 'all') return points;

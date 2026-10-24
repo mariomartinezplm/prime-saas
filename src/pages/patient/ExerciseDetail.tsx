@@ -10,7 +10,7 @@ import EmptyGuide from '@/components/premium/EmptyGuide';
 import SegmentedTabs from '@/components/premium/SegmentedTabs';
 import ExerciseChart from '@/components/workout/ExerciseChart';
 import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
-import { bestMark, filterPeriod, insights, formatNumber, groupExercises, metricLabel, primaryMetric, progressPoints, sessionHistory, setLabel, type Period, type ProgressRecord } from '@/lib/exerciseProgress';
+import { bestMark, defaultLoad, filterPeriod, insights, formatNumber, groupExercises, loadOptions, metricLabel, primaryMetric, progressPoints, repsAtLoadPoints, sessionHistory, setLabel, topLoads, type Period, type ProgressRecord } from '@/lib/exerciseProgress';
 import { longDate } from '@/lib/trend';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,9 @@ const ExerciseDetail = () => {
   const [failed, setFailed] = useState(false);
   const [period, setPeriod] = useState<Period>('90');
   const [showAll, setShowAll] = useState(false);
+  const [tab, setTab] = useState<string | null>(null);
+  const [pickedLoad, setPickedLoad] = useState<number | null>(null);
+  const [allLoads, setAllLoads] = useState(false);
 
   const load = () => {
     if (!user) return;
@@ -49,6 +52,11 @@ const ExerciseDetail = () => {
   const shown = useMemo(() => filterPeriod(all, period), [all, period]);
   const best = bestMark(all);
   const history = useMemo(() => (group ? sessionHistory(group.records) : []), [group]);
+  const loads = useMemo(() => (group ? loadOptions(group.records) : []), [group]);
+  const selectedLoad = pickedLoad !== null && loads.some((l) => l.weight === pickedLoad) ? pickedLoad : group ? defaultLoad(group.records) : null;
+  const repsAll = useMemo(() => (group && selectedLoad !== null ? repsAtLoadPoints(group.records, selectedLoad) : []), [group, selectedLoad]);
+  const repsShown = useMemo(() => filterPeriod(repsAll, period), [repsAll, period]);
+  const repsBest = bestMark(repsAll);
   const lbsCount = group ? group.records.filter((r) => (r.weightUnit ?? 'kg') !== 'kg' && r.weight).length : 0;
   const last = all[all.length - 1];
   const first = all[0];
@@ -72,6 +80,93 @@ const ExerciseDetail = () => {
     );
   }
   const labels = metric ? metricLabel[metric] : null;
+
+  const periodToggle = (
+    <div role="group" aria-label="Período" className="flex overflow-hidden rounded-[12px] border border-[#fff8e4]/20">
+      {PERIODS.map((p) => (
+        <button key={p.value} type="button" aria-pressed={period === p.value} onClick={() => setPeriod(p.value)} className={cn('min-h-[44px] min-w-[64px] px-3 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]', period === p.value ? 'bg-[#398ca2] font-extrabold text-[#181619]' : 'text-[#cdc6b6]')}>
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
+  const emptyPeriod = <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 p-4 text-center text-sm text-[#a8a295]">No hay registros en los últimos {period} días. Prueba con «Todo» para ver tu historial completo.</p>;
+
+  const mainChartPanel = labels && metric ? (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[15px] font-bold text-[#fff8e4]">{labels.title} <span className="font-semibold text-[#a8a295]">({labels.axis})</span></h2>
+        {periodToggle}
+      </div>
+      {shown.length > 0 ? <ExerciseChart points={shown} metric={metric} name={group?.name ?? ''} /> : emptyPeriod}
+      {all.length === 1 && <p className="text-[12.5px] text-[#a8a295]">Con un segundo registro de este ejercicio verás aquí tu evolución.</p>}
+    </>
+  ) : null;
+
+  const repsPanel = (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[15px] font-bold text-[#fff8e4]">Repeticiones con la misma carga</h2>
+        {periodToggle}
+      </div>
+      {loads.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 p-4 text-center text-sm text-[#a8a295]">Para ver tus repeticiones por carga, registra una serie con peso (en kg) y repeticiones.</p>
+      ) : (
+        <>
+          <div role="group" aria-label="Carga a comparar" className="flex flex-wrap gap-2">
+            {(allLoads ? loads : topLoads(loads, selectedLoad)).map((l) => (
+              <button key={l.weight} type="button" aria-pressed={selectedLoad === l.weight} onClick={() => setPickedLoad(l.weight)} className={cn('min-h-[44px] rounded-full border px-4 text-[14px] font-semibold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', selectedLoad === l.weight ? 'border-[#398ca2] bg-[#398ca2] font-extrabold text-[#181619]' : 'border-[#fff8e4]/20 text-[#cdc6b6]')}>
+                {formatNumber(l.weight)} kg
+              </button>
+            ))}
+            {loads.length > 6 && (
+              <button type="button" onClick={() => setAllLoads((v) => !v)} className="min-h-[44px] rounded-full px-3 text-[14px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
+                {allLoads ? 'Ver menos' : `Ver las ${loads.length} cargas`}
+              </button>
+            )}
+          </div>
+          <p className="text-[12.5px] text-[#a8a295]">Solo se comparan series hechas con {selectedLoad !== null ? `${formatNumber(selectedLoad)} kg` : 'la misma carga'}: cada carga se ve por separado.</p>
+          {repsBest && selectedLoad !== null && (
+            <p className="text-[14px] text-[#cdc6b6]">Tu mejor serie con {formatNumber(selectedLoad)} kg: <b className="text-[#fff8e4]">{formatNumber(repsBest.value)} repeticiones</b> · {longDate(repsBest.date)}</p>
+          )}
+          {repsShown.length > 0 ? <ExerciseChart points={repsShown} metric="reps" name={`${group?.name ?? ''} con ${selectedLoad !== null ? formatNumber(selectedLoad) : ''} kg`} /> : emptyPeriod}
+          {repsAll.length === 1 && <p className="text-[12.5px] text-[#a8a295]">Con una segunda sesión con esta carga verás aquí tu evolución.</p>}
+        </>
+      )}
+    </>
+  );
+
+  const historyPanel = (
+    <>
+      <h2 className="text-[15px] font-bold text-[#fff8e4]">Historial de sesiones</h2>
+      <ul className="divide-y divide-[#fff8e4]/10 overflow-hidden rounded-2xl border border-[#fff8e4]/10">
+        {(showAll ? history : history.slice(0, 5)).map((x) => (
+          <li key={x.date} className="px-4 py-3">
+            <p className="text-[13px] font-semibold text-[#cdc6b6]">{longDate(x.date)} · {x.sets.length} {x.sets.length === 1 ? 'serie' : 'series'}</p>
+            <ul className="mt-1.5 flex flex-wrap gap-1.5">
+              {x.sets.map((st, i) => (
+                <li key={i} className="rounded-full border border-[#62b8cf]/30 bg-[#398ca2]/12 px-2.5 py-1 text-[12.5px] font-semibold tabular-nums text-[#fff8e4]">{setLabel(st)}</li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      {history.length > 5 && (
+        <Button variant="ghost" onClick={() => setShowAll((v) => !v)} className="min-h-[48px] w-full text-[#8fd0e0] hover:bg-[#fff8e4]/[0.06] hover:text-[#8fd0e0]">
+          {showAll ? 'Ver menos' : `Ver los ${history.length} días registrados`}
+        </Button>
+      )}
+    </>
+  );
+
+  // Pestañas según cómo se mide el ejercicio: con peso → Carga | Repeticiones | Historial; sin peso → su métrica | Historial
+  const tabItems = [
+    ...(metric === 'load' ? [{ value: 'carga', label: 'Carga' }, { value: 'reps-carga', label: 'Repeticiones' }] : []),
+    ...(metric === 'reps' ? [{ value: 'principal', label: 'Repeticiones' }] : []),
+    ...(metric === 'time' ? [{ value: 'principal', label: 'Duración' }] : []),
+    { value: 'historial', label: 'Historial' },
+  ];
+  const activeTab = tab && tabItems.some((t) => t.value === tab) ? tab : tabItems[0].value;
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 pb-6">
@@ -109,52 +204,20 @@ const ExerciseDetail = () => {
             </ul>
           </section>
 
-          <section aria-label="Gráfico" className={cn(CARD, 'p-4')}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-[15px] font-bold text-[#fff8e4]">{labels.title} <span className="font-semibold text-[#a8a295]">({labels.axis})</span></h2>
-              <div role="group" aria-label="Período" className="flex overflow-hidden rounded-[12px] border border-[#fff8e4]/20">
-                {PERIODS.map((p) => (
-                  <button key={p.value} type="button" aria-pressed={period === p.value} onClick={() => setPeriod(p.value)} className={cn('min-h-[44px] min-w-[64px] px-3 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]', period === p.value ? 'bg-[#398ca2] font-extrabold text-[#181619]' : 'text-[#cdc6b6]')}>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="mt-3">
-              {shown.length > 0 ? (
-                <ExerciseChart points={shown} metric={metric!} name={group.name} />
-              ) : (
-                <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 p-4 text-center text-sm text-[#a8a295]">No hay registros en los últimos {period} días. Prueba con «Todo» para ver tu historial completo.</p>
-              )}
-            </div>
-            {all.length === 1 && <p className="mt-2 text-[12.5px] text-[#a8a295]">Con un segundo registro de este ejercicio verás aquí tu evolución.</p>}
-            {lbsCount > 0 && <p className="mt-2 text-[12.5px] text-[#a8a295]">{lbsCount} {lbsCount === 1 ? 'registro está' : 'registros están'} en libras: se ven en el historial, pero no se mezclan con los kilos del gráfico.</p>}
+          <section aria-label="Evolución" className={cn(CARD, 'p-4')}>
+            <SegmentedTabs ariaLabel="Qué quieres ver de este ejercicio" value={activeTab} onValueChange={setTab} items={tabItems}>
+              {tabItems.map((t) => (
+                <div key={t.value} className="space-y-3">
+                  {t.value === 'historial' ? historyPanel : t.value === 'reps-carga' ? repsPanel : mainChartPanel}
+                </div>
+              ))}
+            </SegmentedTabs>
+            {lbsCount > 0 && <p className="mt-3 text-[12.5px] text-[#a8a295]">{lbsCount} {lbsCount === 1 ? 'registro está' : 'registros están'} en libras: se ven en el historial, pero no se mezclan con los kilos del gráfico.</p>}
           </section>
         </>
       ) : (
         <EmptyGuide icon={Trophy} title="Todavía no hay datos para graficar" description="Este ejercicio está registrado, pero sin carga, repeticiones ni tiempo. Cuando guardes una serie completa verás aquí su evolución." />
       )}
-
-      <section aria-labelledby="historial" className="space-y-2">
-        <h2 id="historial" className="px-1 text-lg font-bold tracking-tight text-[#fff8e4]">Historial de sesiones</h2>
-        <ul className={cn(CARD, 'divide-y divide-[#fff8e4]/10 overflow-hidden')}>
-          {(showAll ? history : history.slice(0, 5)).map((s) => (
-            <li key={s.date} className="px-4 py-3">
-              <p className="text-[13px] font-semibold text-[#cdc6b6]">{longDate(s.date)} · {s.sets.length} {s.sets.length === 1 ? 'serie' : 'series'}</p>
-              <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                {s.sets.map((x, i) => (
-                  <li key={i} className="rounded-full border border-[#62b8cf]/30 bg-[#398ca2]/12 px-2.5 py-1 text-[12.5px] font-semibold tabular-nums text-[#fff8e4]">{setLabel(x)}</li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
-        {history.length > 5 && (
-          <Button variant="ghost" onClick={() => setShowAll((v) => !v)} className="min-h-[48px] w-full text-[#8fd0e0] hover:bg-[#fff8e4]/[0.06] hover:text-[#8fd0e0]">
-            {showAll ? 'Ver menos' : `Ver los ${history.length} días registrados`}
-          </Button>
-        )}
-      </section>
 
       <Button asChild className="min-h-[52px] w-full rounded-2xl border-[#398ca2] bg-[#398ca2] text-base font-bold text-[#181619] hover:bg-[#398ca2]/90">
         <Link to="/app/entrenamiento"><Plus aria-hidden="true" />Registrar en un entrenamiento</Link>
