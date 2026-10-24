@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import mongoose from 'mongoose';
 import Availability from '../models/Availability.js';
+import User from '../models/User.js';
 import { getAvailableSlots } from '../controllers/availabilityController.js';
 import { createClientPlan } from '../controllers/clientPlanController.js';
 import { checkTypeBookableByPatient } from '../services/bookingGuards.js';
@@ -77,14 +78,16 @@ describe('tipos de cita que un paciente puede agendar', () => {
   });
 });
 
-describe('pago mensual y becas: solo el administrador', () => {
+describe('pago mensual y becas: los pueden dejar el profesional y el administrador', () => {
   const base = { patientId: String(id()), serviceType: 'entrenamiento', sessionsTotal: 8, term: 'trimestral' };
-  it('un profesional recibe 403 con paymentMode mensual o con beca', async () => {
-    for (const extra of [{ paymentMode: 'monthly' }, { scholarship: true }]) {
-      const res = fakeRes();
-      await createClientPlan({ user: { _id: id(), role: 'professional' }, body: { ...base, ...extra }, params: {} }, res);
-      expect(res.statusCode).toBe(403);
-      expect(res.body.message).toMatch(/administrador/);
+  it('no hay 403 por usar paymentMode mensual o beca (con profesional ni con admin)', async () => {
+    vi.spyOn(User, 'findById').mockResolvedValue(null);
+    for (const role of ['professional', 'admin']) {
+      for (const extra of [{ paymentMode: 'monthly' }, { scholarship: true }]) {
+        const res = fakeRes();
+        await createClientPlan({ user: { _id: id(), role }, body: { ...base, ...extra }, params: {} }, res);
+        expect(res.statusCode).toBe(404);
+      }
     }
   });
 });

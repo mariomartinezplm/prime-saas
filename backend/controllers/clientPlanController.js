@@ -73,10 +73,7 @@ export const createClientPlan = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Solo el administrador puede registrar un plan anual' });
     }
 
-    // Pago mes a mes sin renovar a mano y becas: decisiones del administrador
-    if ((paymentMode === 'monthly' || scholarship) && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Solo el administrador puede dejar un plan con pago mensual o con beca' });
-    }
+    // Pago mes a mes y beca: los puede dejar el personal (admin o profesional); el paciente nunca (la ruta ya es solo de staff)
 
     const patient = await User.findById(patientId);
     if (!patient || patient.role !== 'patient') {

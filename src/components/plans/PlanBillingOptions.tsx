@@ -16,14 +16,14 @@ interface PlanBillingOptionsProps {
   showPaymentMode?: boolean;
 }
 
-// Solo para el administrador: cómo se cobra el plan y si es una beca. No cambia las sesiones ni los horarios del paciente.
+// Para el personal (admin y profesionales): cómo se cobra el plan y si es una beca. No cambia las sesiones ni los horarios del paciente.
 const PlanBillingOptions = ({ term, paymentMode, scholarship, onPaymentModeChange, onScholarshipChange, showPaymentMode = true }: PlanBillingOptionsProps) => {
   const baseId = useId();
   const modeId = `${baseId}-mode`;
   const beca = `${baseId}-beca`;
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cobro (solo administrador)</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cobro</p>
       {showPaymentMode && term !== 'mensual' && (
         <div className="space-y-1.5">
           <Label htmlFor={modeId}>Forma de pago</Label>

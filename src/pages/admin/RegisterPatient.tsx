@@ -168,7 +168,8 @@ const RegisterPatient = () => {
             term,
             billingCycle,
             renews,
-            ...(isAdmin ? { paymentMode: term !== 'mensual' && !scholarship ? paymentMode : 'prepaid', scholarship } : {}),
+            paymentMode: term !== 'mensual' && !scholarship ? paymentMode : 'prepaid',
+            scholarship,
             graceDays: Number.isInteger(graceDays) ? graceDays : undefined,
             startDate: startDate || undefined,
           });
@@ -333,7 +334,7 @@ const RegisterPatient = () => {
                   <SessionsSelect serviceType={planInicial} value={choice} onChange={setChoice} />
                 </div>
                 <StartDateField id="register-start-date" value={startDate} onChange={setStartDate} />
-                {isAdmin && <PlanBillingOptions term={planInicial === 'kinesiologia' ? 'mensual' : term} showPaymentMode={planInicial !== 'kinesiologia'} paymentMode={paymentMode} scholarship={scholarship} onPaymentModeChange={setPaymentMode} onScholarshipChange={setScholarship} />}
+                <PlanBillingOptions term={planInicial === 'kinesiologia' ? 'mensual' : term} showPaymentMode={planInicial !== 'kinesiologia'} paymentMode={paymentMode} scholarship={scholarship} onPaymentModeChange={setPaymentMode} onScholarshipChange={setScholarship} />
                 {planInicial === 'kinesiologia' ? (
                   <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
                     Kinesiología se paga por sesiones: el plan dura hasta que se completen, sin fecha de término ni renovación mensual.

@@ -246,7 +246,8 @@ const Plans = () => {
         term,
         billingCycle,
         renews,
-        ...(isAdmin ? { paymentMode: serviceType !== 'kinesiologia' && term !== 'mensual' && !scholarship ? paymentMode : 'prepaid', scholarship } : {}),
+        paymentMode: serviceType !== 'kinesiologia' && term !== 'mensual' && !scholarship ? paymentMode : 'prepaid',
+        scholarship,
         graceDays: Number.isInteger(graceDays) ? graceDays : undefined,
         startDate: pendingOfSelected ? undefined : startDate || undefined,
         replaceExisting,
@@ -551,7 +552,7 @@ const Plans = () => {
                 onBillingCycleChange={setBillingCycle}
               />
             )}
-            {isAdmin && <PlanBillingOptions term={serviceType === 'kinesiologia' ? 'mensual' : term} showPaymentMode={serviceType !== 'kinesiologia'} paymentMode={paymentMode} scholarship={scholarship} onPaymentModeChange={setPaymentMode} onScholarshipChange={setScholarship} />}
+            <PlanBillingOptions term={serviceType === 'kinesiologia' ? 'mensual' : term} showPaymentMode={serviceType !== 'kinesiologia'} paymentMode={paymentMode} scholarship={scholarship} onPaymentModeChange={setPaymentMode} onScholarshipChange={setScholarship} />
             {serviceType !== 'kinesiologia' && <RenewsCheckbox id="plan-renews" checked={renews} onChange={setRenews} />}
             {serviceType !== 'kinesiologia' && renews && (
               <GraceDaysField id="plan-grace-days" value={graceDays} onChange={setGraceDays} billingCycle={billingCycle} />
