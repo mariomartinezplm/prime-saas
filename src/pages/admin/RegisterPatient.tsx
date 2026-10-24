@@ -14,6 +14,7 @@ import { FormField } from '@/components/forms/FormField';
 import FormSection from '@/components/forms/FormSection';
 import SubmitButton from '@/components/forms/SubmitButton';
 import SessionsSelect from '@/components/plans/SessionsSelect';
+import PlanBillingOptions, { type PaymentMode } from '@/components/plans/PlanBillingOptions';
 import PlanTermFields from '@/components/plans/PlanTermFields';
 import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
 import GraceDaysField, { DEFAULT_GRACE_DAYS } from '@/components/plans/GraceDaysField';
@@ -99,6 +100,8 @@ const RegisterPatient = () => {
   const [term, setTerm] = useState<PlanTerm>('mensual');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [renews, setRenews] = useState(true);
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('prepaid');
+  const [scholarship, setScholarship] = useState(false);
   const [graceDays, setGraceDays] = useState(DEFAULT_GRACE_DAYS);
   const [startDate, setStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -165,6 +168,7 @@ const RegisterPatient = () => {
             term,
             billingCycle,
             renews,
+            ...(isAdmin ? { paymentMode: term !== 'mensual' && !scholarship ? paymentMode : 'prepaid', scholarship } : {}),
             graceDays: Number.isInteger(graceDays) ? graceDays : undefined,
             startDate: startDate || undefined,
           });
@@ -329,6 +333,7 @@ const RegisterPatient = () => {
                   <SessionsSelect serviceType={planInicial} value={choice} onChange={setChoice} />
                 </div>
                 <StartDateField id="register-start-date" value={startDate} onChange={setStartDate} />
+                {isAdmin && <PlanBillingOptions term={planInicial === 'kinesiologia' ? 'mensual' : term} showPaymentMode={planInicial !== 'kinesiologia'} paymentMode={paymentMode} scholarship={scholarship} onPaymentModeChange={setPaymentMode} onScholarshipChange={setScholarship} />}
                 {planInicial === 'kinesiologia' ? (
                   <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
                     Kinesiología se paga por sesiones: el plan dura hasta que se completen, sin fecha de término ni renovación mensual.

@@ -27,6 +27,7 @@ import {
 import { clientPlanService } from '@/services/clientPlanService';
 import { userService } from '@/services/userService';
 import SessionsSelect from '@/components/plans/SessionsSelect';
+import PlanBillingOptions, { type PaymentMode } from '@/components/plans/PlanBillingOptions';
 import PlanTermFields from '@/components/plans/PlanTermFields';
 import FounderBadge from '@/components/plans/FounderBadge';
 import {
@@ -125,6 +126,8 @@ const Plans = () => {
   const [term, setTerm] = useState<PlanTerm>('mensual');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('calendar');
   const [renews, setRenews] = useState(true);
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('prepaid');
+  const [scholarship, setScholarship] = useState(false);
   const [graceDays, setGraceDays] = useState(DEFAULT_GRACE_DAYS);
   const [startDate, setStartDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [graceEditPlan, setGraceEditPlan] = useState<ClientPlan | null>(null);
@@ -177,6 +180,8 @@ const Plans = () => {
     setTerm('mensual');
     setBillingCycle('calendar');
     setRenews(true);
+    setPaymentMode('prepaid');
+    setScholarship(false);
     setGraceDays(DEFAULT_GRACE_DAYS);
     setStartDate(format(new Date(), 'yyyy-MM-dd'));
     setConflictPlan(null);
@@ -241,6 +246,7 @@ const Plans = () => {
         term,
         billingCycle,
         renews,
+        ...(isAdmin ? { paymentMode: serviceType !== 'kinesiologia' && term !== 'mensual' && !scholarship ? paymentMode : 'prepaid', scholarship } : {}),
         graceDays: Number.isInteger(graceDays) ? graceDays : undefined,
         startDate: pendingOfSelected ? undefined : startDate || undefined,
         replaceExisting,
@@ -282,6 +288,8 @@ const Plans = () => {
             <p className="font-medium flex items-center gap-2 flex-wrap">
               {patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente'}
               {patient?.isFounder && <FounderBadge compact />}
+              {plan.scholarship && <StatusBadge tone="neutral">Beca</StatusBadge>}
+              {plan.paymentMode === 'monthly' && (plan.cyclesTotal ?? 1) > 1 && <StatusBadge tone="neutral">Pago mensual</StatusBadge>}
             </p>
             <p className="text-sm text-muted-foreground">
               {SERVICE_TYPE_LABELS[plan.serviceType]} · {formatPlanUsage(plan)}
@@ -543,6 +551,7 @@ const Plans = () => {
                 onBillingCycleChange={setBillingCycle}
               />
             )}
+            {isAdmin && <PlanBillingOptions term={serviceType === 'kinesiologia' ? 'mensual' : term} showPaymentMode={serviceType !== 'kinesiologia'} paymentMode={paymentMode} scholarship={scholarship} onPaymentModeChange={setPaymentMode} onScholarshipChange={setScholarship} />}
             {serviceType !== 'kinesiologia' && <RenewsCheckbox id="plan-renews" checked={renews} onChange={setRenews} />}
             {serviceType !== 'kinesiologia' && renews && (
               <GraceDaysField id="plan-grace-days" value={graceDays} onChange={setGraceDays} billingCycle={billingCycle} />

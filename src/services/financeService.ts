@@ -10,6 +10,8 @@ export interface PlanLine {
   term: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   unitPrice: number | null;
   discount: number | null;
+  monthlyPay?: boolean;
+  scholarship?: boolean;
   count: number;
   value: number;
   paidCount: number;
@@ -28,6 +30,8 @@ export interface MonthlyRow {
   monthly: number;
   discount: number | null;
   contractValue: number | null;
+  monthlyPay?: boolean;
+  scholarship?: boolean;
 }
 
 // VALOR ESTIMADO de planes (no dinero cobrado): PRIME F&H todavía no guarda el monto pagado ni la fecha de cada pago.
@@ -44,6 +48,7 @@ export interface FinanceSummary {
     paidCount: number;
     pendingCount: number;
     untariffed: number;
+    scholarships: number;
     contracts: number;
     byService: { entrenamiento: number; kinesiologia: number };
     byPlan: PlanLine[];
@@ -55,7 +60,7 @@ export interface FinanceSummary {
   series: { month: string; estimated: number; pendingValue: number; contracts: number; monthlyBase: number }[];
   monthly: { month: string; total: number; untariffed: number; rows: MonthlyRow[] };
   projection: { month: string; value: number; count: number } | null;
-  plans: { patientId: string; patient: string; serviceType: ServiceType; sessions: number | null; unlimited: boolean; term: string; cycles: number; value: number | null; paid: boolean; startDate: string }[];
+  plans: { patientId: string; patient: string; serviceType: ServiceType; sessions: number | null; unlimited: boolean; term: string; cycles: number; value: number | null; paid: boolean; startDate: string; monthlyPay?: boolean; scholarship?: boolean }[];
   basis: { kind: 'estimate'; tracksPayments: boolean; notes: string[]; untariffed: number };
 }
 

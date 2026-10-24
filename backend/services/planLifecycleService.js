@@ -51,6 +51,8 @@ export async function createTermPlans({
   billingCycle = 'calendar',
   startDate = new Date(),
   renews = true,
+  paymentMode = 'prepaid',
+  scholarship = false,
   graceDays,
   registeredBy,
   notes
@@ -70,6 +72,7 @@ export async function createTermPlans({
       termId: new mongoose.Types.ObjectId(),
       renews: false,
       openEnded: true,
+      scholarship,
       registeredBy,
       notes,
       status: 'active'
@@ -95,6 +98,8 @@ export async function createTermPlans({
       cyclesTotal,
       termId,
       renews,
+      paymentMode: cyclesTotal > 1 ? paymentMode : 'prepaid',
+      scholarship,
       ...(graceDays !== undefined ? { graceDays } : {}),
       registeredBy,
       notes,
@@ -109,7 +114,7 @@ export async function createTermPlans({
 // queda pagado CONSERVANDO las sesiones ya usadas (así quien agendó en los
 // días de plazo no recibe un cupo nuevo por pagar), y si pagó un plan de
 // varios meses se crean los ciclos que faltan.
-export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false, term = 'mensual', renews = true, graceDays, registeredBy, notes }) {
+export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false, term = 'mensual', renews = true, paymentMode = 'prepaid', scholarship = false, graceDays, registeredBy, notes }) {
   // Una renovación pendiente de pago de kinesiología pasa a plan por sesiones: queda pagada, sin ciclos ni fecha, conservando lo ya usado
   if (plan.serviceType === 'kinesiologia') {
     plan.sessionsTotal = sessionsTotal;
@@ -119,6 +124,7 @@ export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false
     plan.cycleNumber = 1;
     plan.renews = false;
     plan.openEnded = true;
+    plan.scholarship = scholarship;
     plan.paymentPending = false;
     plan.paymentDueBy = undefined;
     plan.registeredBy = registeredBy;
@@ -137,6 +143,8 @@ export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false
   plan.cycleNumber = 1;
   plan.termId = termId;
   plan.renews = renews;
+  plan.paymentMode = cyclesTotal > 1 ? paymentMode : 'prepaid';
+  plan.scholarship = scholarship;
   if (graceDays !== undefined) plan.graceDays = graceDays;
   plan.paymentPending = false;
   plan.paymentDueBy = undefined;
@@ -158,6 +166,8 @@ export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false
       cyclesTotal,
       termId,
       renews,
+      paymentMode: plan.paymentMode,
+      scholarship,
       graceDays: plan.graceDays,
       registeredBy,
       notes,

@@ -126,7 +126,7 @@ const Income = () => {
         </>} />
         <Kpi icon={<TrendingUp className="h-[18px] w-[18px]" aria-hidden="true" />} label={projection ? `Proyección estimada · ${MONTHS[Number(projection.month.slice(5, 7)) - 1]}` : 'Pendiente de pago (estimado)'} value={projection ? clp(projection.value) : clp(current.pendingValue)} foot={projection ? <span>Supuesto: se renuevan los {projection.count} {projection.count === 1 ? 'plan vigente' : 'planes vigentes'} que terminan este mes. No es dinero recibido.</span> : <span>{current.pendingCount} {current.pendingCount === 1 ? 'plan' : 'planes'} con pago pendiente</span>} />
         <Kpi icon={<Users className="h-[18px] w-[18px]" aria-hidden="true" />} label="Pacientes activos" value={data.activePatients} foot={<span>Con un plan vigente hoy</span>} />
-        <Kpi icon={<WalletCards className="h-[18px] w-[18px]" aria-hidden="true" />} label="Planes con pago registrado" value={current.paidCount} foot={<span>{current.pendingCount} {current.pendingCount === 1 ? 'pendiente' : 'pendientes'} de {current.contracts}</span>} />
+        <Kpi icon={<WalletCards className="h-[18px] w-[18px]" aria-hidden="true" />} label="Planes con pago registrado" value={current.paidCount} foot={<span>{current.pendingCount} {current.pendingCount === 1 ? 'pendiente' : 'pendientes'} de {current.contracts - current.scholarships}{current.scholarships > 0 ? ` · ${current.scholarships} ${current.scholarships === 1 ? 'beca' : 'becas'}` : ''}</span>} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -192,7 +192,7 @@ const Income = () => {
               <li key={`${r.patientId}${i}`} className="flex items-center justify-between gap-3 border-[#fff8e4]/10 py-2.5 md:border-b">
                 <div className="min-w-0">
                   <p className="truncate text-[14.5px] font-semibold text-[#fff8e4]">{r.patient}</p>
-                  <p className="truncate text-[12.5px] text-[#a8a295]">{planName({ serviceType: r.serviceType, sessions: r.sessions, unlimited: false })}{r.cyclesTotal > 1 ? ` · ${TERM[r.term]} · mes ${r.cycleNumber} de ${r.cyclesTotal}` : ''}</p>
+                  <p className="truncate text-[12.5px] text-[#a8a295]">{planName({ serviceType: r.serviceType, sessions: r.sessions, unlimited: false })}{r.cyclesTotal > 1 ? ` · ${TERM[r.term]} · mes ${r.cycleNumber} de ${r.cyclesTotal}` : ''}{r.monthlyPay ? ' · pago mensual' : ''}{r.scholarship ? ' · beca' : ''}</p>
                   {r.contractValue !== null && <p className="truncate text-[11.5px] text-[#8fd0e0]">Contrato {clp(r.contractValue)}{r.discount ? ` (−${Math.round(r.discount * 100)} %)` : ''}</p>}
                 </div>
                 <p className="shrink-0 text-[14.5px] font-bold tabular-nums text-[#fff8e4]">{clp(r.monthly)}</p>
@@ -238,7 +238,7 @@ const Income = () => {
                   {current.byPlan.map((r) => (
                     <tr key={`${r.serviceType}${r.sessions}${r.unlimited}${r.term}`}>
                       <td className="py-3 pr-3 font-semibold text-[#fff8e4]">{planName(r)}</td>
-                      <td className="px-3 text-[#cdc6b6]">{TERM[r.term]}{r.discount ? <span className="ml-1.5 rounded-full border border-[#62b8cf]/40 bg-[#398ca2]/20 px-1.5 py-0.5 text-[11px] font-bold text-[#fff8e4]">−{Math.round(r.discount * 100)} %</span> : null}</td>
+                      <td className="px-3 text-[#cdc6b6]">{TERM[r.term]}{r.monthlyPay ? <span className="ml-1.5 rounded-full border border-[#fff8e4]/25 px-1.5 py-0.5 text-[11px] font-bold text-[#fff8e4]">Pago mensual</span> : null}{r.scholarship ? <span className="ml-1.5 rounded-full border border-[#fff8e4]/25 px-1.5 py-0.5 text-[11px] font-bold text-[#fff8e4]">Beca</span> : null}{r.discount ? <span className="ml-1.5 rounded-full border border-[#62b8cf]/40 bg-[#398ca2]/20 px-1.5 py-0.5 text-[11px] font-bold text-[#fff8e4]">−{Math.round(r.discount * 100)} %</span> : null}</td>
                       <td className="px-3 text-right tabular-nums text-[#cdc6b6]">{r.unitPrice === null ? 'Sin tarifa' : clp(r.unitPrice)}</td>
                       <td className="px-3 text-right tabular-nums text-[#fff8e4]">{r.count}</td>
                       <td className="pl-3 text-right font-extrabold tabular-nums text-[#fff8e4]">{r.untariffed === r.count ? '—' : clp(r.value)}</td>
@@ -250,7 +250,7 @@ const Income = () => {
             <ul className="mt-2 divide-y divide-[#fff8e4]/10 md:hidden">
               {current.byPlan.map((r) => (
                 <li key={`${r.serviceType}${r.sessions}${r.unlimited}${r.term}`} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0"><p className="text-[15px] font-semibold text-[#fff8e4]">{planName(r)}</p><p className="text-[12.5px] text-[#a8a295]">{TERM[r.term]}{r.discount ? ` · −${Math.round(r.discount * 100)} %` : ''} · {r.count} {r.count === 1 ? 'plan' : 'planes'} · {r.unitPrice === null ? 'sin tarifa definida' : `${clp(r.unitPrice)} base`}</p></div>
+                  <div className="min-w-0"><p className="text-[15px] font-semibold text-[#fff8e4]">{planName(r)}</p><p className="text-[12.5px] text-[#a8a295]">{TERM[r.term]}{r.monthlyPay ? ' · pago mensual' : ''}{r.scholarship ? ' · beca' : ''}{r.discount ? ` · −${Math.round(r.discount * 100)} %` : ''} · {r.count} {r.count === 1 ? 'plan' : 'planes'} · {r.unitPrice === null ? 'sin tarifa definida' : `${clp(r.unitPrice)} base`}</p></div>
                   <p className="shrink-0 text-[1.125rem] font-extrabold tabular-nums text-[#fff8e4]">{r.untariffed === r.count ? '—' : clp(r.value)}</p>
                 </li>
               ))}
@@ -259,7 +259,7 @@ const Income = () => {
               {data.plans.map((p, i) => (
                 <li key={`${p.patientId}${i}`} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0"><p className="truncate text-[14.5px] font-semibold text-[#fff8e4]">{p.patient}</p><p className="truncate text-[12.5px] text-[#a8a295]">{planName(p)} · {TERM[p.term as keyof typeof TERM] ?? p.term}</p></div>
-                  <div className="shrink-0 text-right"><p className="text-[14.5px] font-bold tabular-nums text-[#fff8e4]">{p.value === null ? 'Sin tarifa' : clp(p.value)}</p><span className={cn('mt-0.5 inline-block rounded-full border px-2 py-0.5 text-[11px] font-bold', p.paid ? 'border-[#8fd0e0]/50 bg-[#398ca2]/25 text-[#fff8e4]' : 'border-[#e8b4a0]/55 bg-[#e8b4a0]/10 text-[#fff8e4]')}>{p.paid ? 'Pago registrado' : 'Pago pendiente'}</span></div>
+                  <div className="shrink-0 text-right"><p className="text-[14.5px] font-bold tabular-nums text-[#fff8e4]">{p.value === null ? 'Sin tarifa' : clp(p.value)}</p><span className={cn('mt-0.5 inline-block rounded-full border px-2 py-0.5 text-[11px] font-bold', p.scholarship ? 'border-[#fff8e4]/30 bg-[#fff8e4]/5 text-[#fff8e4]' : p.paid ? 'border-[#8fd0e0]/50 bg-[#398ca2]/25 text-[#fff8e4]' : 'border-[#e8b4a0]/55 bg-[#e8b4a0]/10 text-[#fff8e4]')}>{p.scholarship ? 'Beca' : p.paid ? 'Pago registrado' : 'Pago pendiente'}</span></div>
                 </li>
               ))}
             </ul>

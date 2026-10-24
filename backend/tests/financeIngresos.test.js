@@ -205,3 +205,40 @@ describe('desglose mensual a tarifa base', async () => {
     expect(r.untariffed).toBe(1);
   });
 });
+
+describe('pago mensual sin renovación y becas', async () => {
+  const { toContracts, summarizeMonth, summarizeMonthly } = await import('../services/financeService.js');
+  const tid = 'anual-mensual';
+  const cycles = (extra = {}) => Array.from({ length: 12 }, (_, i) => plan({ patient: 'pm', termId: tid, term: 'anual', cyclesTotal: 12, cycleNumber: i + 1, sessionsTotal: 8, status: i === 0 ? 'active' : 'upcoming', startDate: santiagoToUtc(2026, 10 + i, 1), ...extra }));
+
+  it('anual con pago mensual: cada mes es un cobro de $90.000 sin descuento (no un solo contrato de 12 meses)', () => {
+    const contracts = toContracts(cycles({ paymentMode: 'monthly' }));
+    expect(contracts).toHaveLength(12);
+    for (const m of ['2026-10', '2026-11', '2027-02']) {
+      expect(summarizeMonth(contracts, m)).toMatchObject({ estimated: 90000, contracts: 1 });
+    }
+    expect(contracts[0]).toMatchObject({ monthlyPay: true, discount: 0, value: 90000 });
+  });
+
+  it('el mismo anual pagado por adelantado sigue siendo UN contrato con descuento en su mes de inicio', () => {
+    const contracts = toContracts(cycles());
+    expect(contracts).toHaveLength(1);
+    expect(summarizeMonth(contracts, '2026-10').estimated).toBe(864000); // 90.000 × 12 × 0,80
+    expect(summarizeMonth(contracts, '2026-11').estimated).toBe(0);
+  });
+
+  it('beca total: vale $0, se cuenta aparte y no suma a «con pago» ni «pendientes»', () => {
+    const contracts = toContracts(cycles({ scholarship: true }));
+    const oct = summarizeMonth(contracts, '2026-10');
+    expect(oct).toMatchObject({ estimated: 0, scholarships: 1, paidCount: 0, pendingCount: 0, untariffed: 0 });
+    expect(oct.byPlan[0]).toMatchObject({ scholarship: true, value: 0 });
+    const desglose = summarizeMonthly(cycles({ scholarship: true }), '2026-12');
+    expect(desglose.total).toBe(0);
+    expect(desglose.rows[0]).toMatchObject({ scholarship: true, monthly: 0 });
+  });
+
+  it('desglose mensual de un pago mensual: sin valor de contrato aparte', () => {
+    const [row] = summarizeMonthly(cycles({ paymentMode: 'monthly' }), '2026-12').rows;
+    expect(row).toMatchObject({ monthly: 90000, monthlyPay: true, contractValue: null });
+  });
+});

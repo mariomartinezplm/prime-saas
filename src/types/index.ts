@@ -191,6 +191,9 @@ export interface ClientPlan {
   cycleNumber?: number;
   cyclesTotal?: number;
   renews?: boolean;
+  // Cómo se paga un plan largo y si es una beca (solo lo ven y lo cambian el personal y el admin)
+  paymentMode?: 'prepaid' | 'monthly';
+  scholarship?: boolean;
   // Renovación abierta sin pago registrado: se puede agendar hasta paymentDueBy
   paymentPending?: boolean;
   paymentDueBy?: string;
@@ -210,6 +213,8 @@ export interface CreateClientPlanData {
   term?: 'mensual' | 'trimestral' | 'semestral' | 'anual';
   billingCycle?: 'calendar' | 'rolling';
   renews?: boolean;
+  paymentMode?: 'prepaid' | 'monthly';
+  scholarship?: boolean;
   graceDays?: number;
   startDate?: string;
   notes?: string;

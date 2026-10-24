@@ -33,9 +33,34 @@ export function toContracts(plans) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(p);
   }
-  return [...groups.values()].map((cycles) => {
-    const first = [...cycles].sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
-    return {
+  const contracts = [];
+  for (const cycles of groups.values()) {
+    const sorted = [...cycles].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    const first = sorted[0];
+    const scholarship = !!first.scholarship;
+    // Pago mensual (sin renovar a mano): el plan largo queda cargado, pero cada mes es su propio cobro a la tarifa mensual base, sin descuento
+    if (first.paymentMode === 'monthly' && sorted.length > 1) {
+      for (const c of sorted) {
+        contracts.push({
+          patient: c.patient,
+          serviceType: c.serviceType,
+          sessions: c.unlimited ? null : c.sessionsTotal,
+          unlimited: !!c.unlimited,
+          term: c.term ?? 'mensual',
+          cycles: 1,
+          startDate: c.startDate,
+          month: monthKey(c.startDate),
+          unitPrice: priceOf(c),
+          discount: 0,
+          value: scholarship ? 0 : priceOf(c),
+          pending: !!c.paymentPending,
+          monthlyPay: true,
+          scholarship
+        });
+      }
+      continue;
+    }
+    contracts.push({
       patient: first.patient,
       serviceType: first.serviceType,
       sessions: first.unlimited ? null : first.sessionsTotal,
@@ -45,12 +70,15 @@ export function toContracts(plans) {
       startDate: first.startDate,
       month: monthKey(first.startDate),
       unitPrice: priceOf(first),
-      discount: discountOf(first),
-      value: contractValue({ ...first, cyclesTotal: Math.max(cycles.length, first.cyclesTotal ?? 1) }),
+      discount: scholarship ? 0 : discountOf(first),
+      value: scholarship ? 0 : contractValue({ ...first, cyclesTotal: Math.max(cycles.length, first.cyclesTotal ?? 1) }),
       // Pago pendiente si algún ciclo del contrato sigue sin pago registrado
-      pending: cycles.some((c) => c.paymentPending)
-    };
-  });
+      pending: cycles.some((c) => c.paymentPending),
+      monthlyPay: false,
+      scholarship
+    });
+  }
+  return contracts;
 }
 
 export function summarizeMonth(contracts, month) {
@@ -61,14 +89,18 @@ export function summarizeMonth(contracts, month) {
   let paidCount = 0;
   let pendingCount = 0;
   let untariffed = 0;
+  let scholarships = 0;
   const byService = { entrenamiento: 0, kinesiologia: 0 };
   const byPlan = new Map();
 
   for (const c of list) {
-    const key = `${c.serviceType}|${c.unlimited ? 'ilimitado' : c.sessions}|${c.term}`;
-    const row = byPlan.get(key) ?? { serviceType: c.serviceType, sessions: c.sessions, unlimited: c.unlimited, term: c.term, unitPrice: c.unitPrice, discount: c.discount, count: 0, value: 0, paidCount: 0, pendingCount: 0, untariffed: 0 };
+    const key = `${c.serviceType}|${c.unlimited ? 'ilimitado' : c.sessions}|${c.term}|${c.monthlyPay ? 'mensual' : 'junto'}|${c.scholarship ? 'beca' : ''}`;
+    const row = byPlan.get(key) ?? { serviceType: c.serviceType, sessions: c.sessions, unlimited: c.unlimited, term: c.term, unitPrice: c.unitPrice, discount: c.discount, monthlyPay: !!c.monthlyPay, scholarship: !!c.scholarship, count: 0, value: 0, paidCount: 0, pendingCount: 0, untariffed: 0 };
     row.count += 1;
-    if (c.pending) {
+    if (c.scholarship) {
+      // Una beca no es un plan «con pago» ni «pendiente»: se cuenta aparte y vale $0
+      scholarships += 1;
+    } else if (c.pending) {
       pendingCount += 1;
       row.pendingCount += 1;
     } else {
@@ -88,7 +120,7 @@ export function summarizeMonth(contracts, month) {
     byPlan.set(key, row);
   }
 
-  return { month, estimated, paidValue, pendingValue, paidCount, pendingCount, untariffed, contracts: list.length, byService, byPlan: [...byPlan.values()].sort((a, b) => b.value - a.value || b.count - a.count) };
+  return { month, estimated, paidValue, pendingValue, paidCount, pendingCount, untariffed, scholarships, contracts: list.length, byService, byPlan: [...byPlan.values()].sort((a, b) => b.value - a.value || b.count - a.count) };
 }
 
 // Variación del valor estimado frente al mes anterior: null si el mes anterior no tiene valor con que comparar (no se inventa un %)
@@ -125,11 +157,12 @@ export function summarizeMonthly(plans, month, names = new Map()) {
   let total = 0;
   let untariffed = 0;
   for (const p of plans.filter((x) => live(x) && monthKey(x.startDate) === month)) {
-    const monthly = priceOf(p);
-    if (monthly === null) {
+    const base = priceOf(p);
+    if (base === null && !p.scholarship) {
       untariffed += 1;
       continue;
     }
+    const monthly = p.scholarship ? 0 : base;
     total += monthly;
     const patient = names.get(String(p.patient));
     const cyclesTotal = Math.max(1, p.cyclesTotal ?? 1);
@@ -143,7 +176,9 @@ export function summarizeMonthly(plans, month, names = new Map()) {
       cyclesTotal,
       monthly,
       discount: discountOf(p),
-      contractValue: cyclesTotal > 1 ? contractValue({ ...p, cyclesTotal }) : null
+      contractValue: cyclesTotal > 1 && !p.scholarship && p.paymentMode !== 'monthly' ? contractValue({ ...p, cyclesTotal }) : null,
+      monthlyPay: p.paymentMode === 'monthly',
+      scholarship: !!p.scholarship
     });
   }
   rows.sort((a, b) => b.cyclesTotal - a.cyclesTotal || String(a.patient).localeCompare(String(b.patient)));
@@ -173,7 +208,7 @@ export function buildFinance({ plans, patients, month, now = new Date() }) {
     .filter((c) => c.month === month)
     .map((c) => {
       const patient = names.get(String(c.patient));
-      return { patientId: String(c.patient), patient: patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente', serviceType: c.serviceType, sessions: c.sessions, unlimited: c.unlimited, term: c.term, cycles: c.cycles, value: c.value, paid: !c.pending, startDate: c.startDate };
+      return { patientId: String(c.patient), patient: patient ? `${patient.firstName} ${patient.lastName}` : 'Paciente', serviceType: c.serviceType, sessions: c.sessions, unlimited: c.unlimited, term: c.term, cycles: c.cycles, value: c.value, paid: !c.pending, startDate: c.startDate, monthlyPay: !!c.monthlyPay, scholarship: !!c.scholarship };
     })
     .sort((a, b) => Number(b.paid) - Number(a.paid) || String(a.patient).localeCompare(String(b.patient)));
 
@@ -197,6 +232,7 @@ export function buildFinance({ plans, patients, month, now = new Date() }) {
         'Es una estimación según los planes registrados: PRIME F&H todavía no guarda el monto pagado ni la fecha de cada pago.',
         'Cada contrato cuenta una sola vez, en el mes en que empieza, con su valor completo (un plan trimestral o anual no se reparte en cobros mensuales).',
         'Desglose mensual: cada mes de un plan largo se muestra a la tarifa mensual base ($90.000 por 2 veces por semana, $130.000 por 3), sin descuento; por eso la suma de los meses es mayor que lo que pagó el paciente.',
+        'Pago mensual: un plan largo marcado «pago mensual» cuenta cada mes a la tarifa mensual base, sin descuento. Una beca vale $0.',
         'Descuentos en entrenamiento: trimestral 10 %, semestral 15 %, anual 20 %.'
       ],
       untariffed: current.untariffed

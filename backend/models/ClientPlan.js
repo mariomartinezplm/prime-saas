@@ -5,7 +5,7 @@ import {
   isValidSessionsForServiceType,
   supportsUnlimited
 } from '../config/planCatalog.js';
-import { TERMS, BILLING_CYCLES, cycleBounds, OPEN_END_DATE } from '../services/planCycles.js';
+import { TERMS, BILLING_CYCLES, PAYMENT_MODES, cycleBounds, OPEN_END_DATE } from '../services/planCycles.js';
 
 const clientPlanSchema = new mongoose.Schema({
   patient: {
@@ -69,6 +69,15 @@ const clientPlanSchema = new mongoose.Schema({
     enum: BILLING_CYCLES,
     default: 'calendar'
   },
+  // Cómo se paga un plan de varios meses: 'prepaid' = de una vez (con su descuento); 'monthly' = mes a mes, sin renovar a mano
+  // (clientes que siempre pagan: el plan queda cargado por todo el plazo, pero en Ingresos cada mes vale su tarifa mensual).
+  paymentMode: {
+    type: String,
+    enum: PAYMENT_MODES,
+    default: 'prepaid'
+  },
+  // Beca total: plan sin costo. Cuenta como $0 en Ingresos y se identifica como beca.
+  scholarship: { type: Boolean, default: false },
   cycleNumber: { type: Number, default: 1, min: 1 },
   cyclesTotal: { type: Number, default: 1, min: 1 },
   // Une los ciclos de un mismo pago (se asigna al crear el plan)

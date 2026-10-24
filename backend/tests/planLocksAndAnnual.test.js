@@ -75,3 +75,15 @@ describe('tipos de cita que un paciente puede agendar', () => {
     expect(checkTypeBookableByPatient('evaluacion')).toMatchObject({ status: 403, body: { code: 'TYPE_NOT_ALLOWED' } });
   });
 });
+
+describe('pago mensual y becas: solo el administrador', () => {
+  const base = { patientId: String(id()), serviceType: 'entrenamiento', sessionsTotal: 8, term: 'trimestral' };
+  it('un profesional recibe 403 con paymentMode mensual o con beca', async () => {
+    for (const extra of [{ paymentMode: 'monthly' }, { scholarship: true }]) {
+      const res = fakeRes();
+      await createClientPlan({ user: { _id: id(), role: 'professional' }, body: { ...base, ...extra }, params: {} }, res);
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toMatch(/administrador/);
+    }
+  });
+});

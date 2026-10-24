@@ -23,6 +23,7 @@ export const isValidGraceDays = (n) => Number.isInteger(n) && n >= 0 && n <= MAX
 export const TERMS = ['mensual', 'trimestral', 'semestral', 'anual'];
 export const TERM_CYCLES = { mensual: 1, trimestral: 3, semestral: 6, anual: 12 };
 export const BILLING_CYCLES = ['calendar', 'rolling'];
+export const PAYMENT_MODES = ['prepaid', 'monthly'];
 // Fin de un plan «hasta completar las sesiones» (kinesiología): una fecha lejana, nunca alcanzable en la práctica
 export const OPEN_END_DATE = new Date('2099-12-31T23:59:59.000Z');
 

@@ -27,7 +27,7 @@ export const getFinanceSummary = async (req, res) => {
     const from = new Date(Date.UTC(y, m - 1, 1));
     let plans = [];
     if (ids.length) {
-      const fields = 'patient serviceType sessionsTotal unlimited status startDate endDate paymentPending term termId cyclesTotal cycleNumber renews';
+      const fields = 'patient serviceType sessionsTotal unlimited status startDate endDate paymentPending term termId cyclesTotal cycleNumber renews paymentMode scholarship';
       plans = await ClientPlan.find({ patient: { $in: ids }, status: { $ne: 'cancelled' }, startDate: { $gte: from } }).select(fields).lean();
       // Un trimestral o anual empezó antes de la ventana pero tiene ciclos dentro de ella: se traen TODOS sus ciclos para no atribuirle un mes equivocado
       const termIds = [...new Set(plans.map((p) => p.termId).filter(Boolean).map(String))];

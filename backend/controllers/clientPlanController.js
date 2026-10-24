@@ -35,6 +35,8 @@ export const createClientPlan = async (req, res) => {
     const term = req.body.term || 'mensual';
     const billingCycle = req.body.billingCycle || 'calendar';
     const renews = req.body.renews !== false;
+    const paymentMode = req.body.paymentMode === 'monthly' ? 'monthly' : 'prepaid';
+    const scholarship = req.body.scholarship === true;
     const isUnlimited = unlimited === true;
     // Fecha de ingreso: sin indicarla, hoy. Con indicarla ('YYYY-MM-DD') el plan parte ese día (para quienes pagan de fecha a fecha)
     let planStart = new Date();
@@ -71,6 +73,11 @@ export const createClientPlan = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Solo el administrador puede registrar un plan anual' });
     }
 
+    // Pago mes a mes sin renovar a mano y becas: decisiones del administrador
+    if ((paymentMode === 'monthly' || scholarship) && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Solo el administrador puede dejar un plan con pago mensual o con beca' });
+    }
+
     const patient = await User.findById(patientId);
     if (!patient || patient.role !== 'patient') {
       return res.status(404).json({
@@ -93,6 +100,8 @@ export const createClientPlan = async (req, res) => {
         unlimited: isUnlimited,
         term,
         renews,
+        paymentMode,
+        scholarship,
         graceDays,
         registeredBy: req.user._id,
         notes
@@ -124,6 +133,8 @@ export const createClientPlan = async (req, res) => {
         billingCycle,
         startDate: planStart,
         renews,
+        paymentMode,
+        scholarship,
         graceDays,
         registeredBy: req.user._id,
         notes
