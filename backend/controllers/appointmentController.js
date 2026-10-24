@@ -5,7 +5,7 @@ import { canAccessAppointment, canAccessPatient } from '../middleware/auth.js';
 import { parseISO, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail, sendAppointmentConfirmationToPatientEmail } from '../services/emailService.js';
 import { deductSession, refundSession } from '../services/clientPlanService.js';
-import { DEDUCTIBLE_TYPES, checkSessionBalanceForBooking, checkTypeBookableByPatient } from '../services/bookingGuards.js';
+import { DEDUCTIBLE_TYPES, planServiceOf, checkSessionBalanceForBooking, checkTypeBookableByPatient } from '../services/bookingGuards.js';
 import { notify } from '../services/notificationService.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 import { generateAppointmentICS } from '../services/icsService.js';
@@ -172,7 +172,7 @@ export const createAppointment = async (req, res) => {
   const mustDeduct = DEDUCTIBLE_TYPES.includes(sessionType);
 
   if (mustDeduct) {
-    deduction = await deductSession(patientId, sessionType, null);
+    deduction = await deductSession(patientId, planServiceOf(sessionType), null);
     if (!deduction && !isStaff(req.user)) {
       return res.status(409).json({
         success: false,
@@ -719,7 +719,7 @@ export const bulkCreateAppointments = async (req, res) => {
         let deduction = null;
         const mustDeduct = DEDUCTIBLE_TYPES.includes(sessionType);
         if (mustDeduct) {
-          deduction = await deductSession(patientId, sessionType, null);
+          deduction = await deductSession(patientId, planServiceOf(sessionType), null);
           if (!deduction && !isStaff(req.user)) {
             skipped.push({ fecha: date, motivo: 'Alguien más tomó tu último cupo disponible' });
             continue;

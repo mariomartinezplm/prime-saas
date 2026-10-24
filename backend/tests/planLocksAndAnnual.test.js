@@ -69,10 +69,11 @@ describe('plan anual: solo el administrador', () => {
 });
 
 describe('tipos de cita que un paciente puede agendar', () => {
-  it('solo kinesiología y entrenamiento; evaluación y otros los agenda el centro', () => {
+  it('kinesiología, entrenamiento y evaluación de kinesiología (con saldo); cualquier otro tipo lo agenda el centro', () => {
     expect(checkTypeBookableByPatient('kinesiologia')).toBeNull();
     expect(checkTypeBookableByPatient('entrenamiento')).toBeNull();
-    expect(checkTypeBookableByPatient('evaluacion')).toMatchObject({ status: 403, body: { code: 'TYPE_NOT_ALLOWED' } });
+    expect(checkTypeBookableByPatient('evaluacion')).toBeNull();
+    expect(checkTypeBookableByPatient('clase-prueba')).toMatchObject({ status: 403, body: { code: 'TYPE_NOT_ALLOWED' } });
   });
 });
 

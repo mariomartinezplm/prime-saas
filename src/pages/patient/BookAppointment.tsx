@@ -155,7 +155,11 @@ const BookAppointment = () => {
   }, [selectedDate, selectedProfessional, slotsRetry]);
 
   // Determine session type from plan
+  // La evaluación de kinesiología es la primera cita del plan de kinesiología: usa 1 de sus sesiones
+  const [isEvaluation, setIsEvaluation] = useState(false);
+  const canChooseEvaluation = balance?.plan?.serviceType === 'kinesiologia' && (balance.plan.sessionsUsed ?? 0) === 0;
   const getSessionType = (): 'kinesiologia' | 'entrenamiento' | 'evaluacion' => {
+    if (canChooseEvaluation && isEvaluation) return 'evaluacion';
     return balance?.plan?.serviceType || 'entrenamiento';
   };
 
@@ -529,6 +533,16 @@ const BookAppointment = () => {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {canChooseEvaluation && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#fff8e4]/12 bg-[#fff8e4]/[0.04] p-4 text-sm">
+          <input type="checkbox" checked={isEvaluation} onChange={(e) => setIsEvaluation(e.target.checked)} className="mt-1 h-5 w-5 accent-[#398ca2]" />
+          <span>
+            <strong className="block text-[#fff8e4]">Esta es mi evaluación de kinesiología</strong>
+            <span className="text-[#fff8e4]/75">Es tu primera cita. Usa 1 de las sesiones de tu plan y desde ahí empieza a correr tu tratamiento.</span>
+          </span>
+        </label>
       )}
 
       {/* Confirmation dialog */}

@@ -208,19 +208,46 @@ describe('POST /appointments — motor de descuento cableado', () => {
     expect(deductSpy).not.toHaveBeenCalled();
   });
 
-  it('un paciente no puede agendar una evaluación por su cuenta (se saltaba el saldo); la agenda el centro', async () => {
+  it('un paciente puede agendar su evaluación de kinesiología: descuenta 1 sesión del plan de KINESIOLOGÍA', async () => {
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue({ sessionsAvailable: () => 10 });
+    vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
+    const planId = nuevoId();
+    const deductSpy = vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue({ _id: planId });
+
+    const req = baseReq();
+    req.body.type = 'evaluacion';
+    const res = fakeRes();
+    await createAppointment(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(deductSpy.mock.calls[0][0]).toMatchObject({ serviceType: 'kinesiologia' });
+    const guardada = vi.mocked(Appointment.create).mock.calls.at(-1)[0];
+    expect(guardada).toMatchObject({ type: 'evaluacion', sessionDeducted: true, deduction: { source: 'clientPlan', refId: planId } });
+  });
+
+  it('sin plan de kinesiología con sesiones, el paciente no puede agendar la evaluación (403)', async () => {
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue(null);
+    vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
     const req = baseReq();
     req.body.type = 'evaluacion';
     const res = fakeRes();
     await createAppointment(req, res);
     expect(res.statusCode).toBe(403);
-    expect(res.body.code).toBe('TYPE_NOT_ALLOWED');
-    expect(Appointment.create).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'evaluacion' }));
+    expect(res.body.code).toBe('NO_ACTIVE_PLAN_SESSIONS');
   });
 
-  it('evaluación agendada por el personal: no descuenta nada, sin bloqueo de saldo', async () => {
-    const balanceSpy = vi.spyOn(ClientPlan, 'findOne');
-    const deductSpy = vi.spyOn(ClientPlan, 'findOneAndUpdate');
+  it('un paciente no puede agendar tipos de cita que no existen para él', async () => {
+    const req = baseReq();
+    req.body.type = 'otro-tipo';
+    const res = fakeRes();
+    await createAppointment(req, res);
+    expect(res.statusCode).toBe(403);
+    expect(res.body.code).toBe('TYPE_NOT_ALLOWED');
+  });
+
+  it('evaluación agendada por el personal a alguien SIN plan de kinesiología: se agenda igual, sin descuento (se le avisa al personal)', async () => {
+    vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue(null);
+    vi.spyOn(ExtraSession, 'findOneAndUpdate').mockResolvedValue(null);
 
     const req = { user: { _id: PROFESSIONAL_ID, role: 'professional' }, body: { ...baseReq().body, patient: PATIENT_ID.toString(), professional: PROFESSIONAL_ID.toString(), type: 'evaluacion' } };
     const res = fakeRes();
@@ -228,8 +255,6 @@ describe('POST /appointments — motor de descuento cableado', () => {
 
     expect(res.statusCode).toBe(201);
     expect(vi.mocked(Appointment.create).mock.calls.at(-1)[0].sessionDeducted).toBe(false);
-    expect(balanceSpy).not.toHaveBeenCalled(); // ni siquiera se consulta el balance
-    expect(deductSpy).not.toHaveBeenCalled();
   });
 
   it('el personal agendando para un paciente SÍ descuenta la sesión (igual que si la agenda el paciente)', async () => {
