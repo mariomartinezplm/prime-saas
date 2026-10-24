@@ -7,6 +7,8 @@ export const PERIMETER_LABELS: Record<string, string> = {
   neck: 'Cuello',
   bicepLeft: 'Bícep Izq',
   bicepRight: 'Bícep Der',
+  bicepFlexedLeft: 'Bícep contraído Izq',
+  bicepFlexedRight: 'Bícep contraído Der',
   forearmLeft: 'Antebrazo Izq',
   forearmRight: 'Antebrazo Der',
   waist: 'Cintura',

@@ -13,6 +13,7 @@ import { showApiError } from '@/lib/apiError';
 import api from '@/lib/api';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
 import { numberRangeError } from '@/lib/validation';
+import { formatDecimalInput, toNumber } from '@/lib/decimal';
 import type { Measurement } from '@/types';
 
 interface MeasurementFormProps {
@@ -40,6 +41,8 @@ const PERIMETER_FIELDS = [
   { key: 'hips', label: 'Cadera' },
   { key: 'bicepLeft', label: 'Bícep izq.' },
   { key: 'bicepRight', label: 'Bícep der.' },
+  { key: 'bicepFlexedLeft', label: 'Bícep contraído izq.' },
+  { key: 'bicepFlexedRight', label: 'Bícep contraído der.' },
   { key: 'thighLeft', label: 'Muslo izq.' },
   { key: 'thighRight', label: 'Muslo der.' },
   { key: 'calfLeft', label: 'Pantorrilla izq.' },
@@ -64,7 +67,7 @@ const emptyForm = () => ({
   date: todayLocal(),
   weight: '', height: '', bodyFatPercentage: '', muscleMassPercentage: '',
   shoulders: '', neck: '', chest: '', waist: '', hips: '',
-  bicepLeft: '', bicepRight: '', thighLeft: '', thighRight: '', calfLeft: '', calfRight: '',
+  bicepLeft: '', bicepRight: '', bicepFlexedLeft: '', bicepFlexedRight: '', thighLeft: '', thighRight: '', calfLeft: '', calfRight: '',
   forearmLeft: '', forearmRight: '', notes: '',
   cmj: '', sj: '', cmjLeftLeg: '', cmjRightLeg: '',
   sjLeftLeg: '', sjRightLeg: '', dropJump: '', abalakov: '', horizontalJump: '',
@@ -72,7 +75,7 @@ const emptyForm = () => ({
 type FormState = ReturnType<typeof emptyForm>;
 type Errors = Partial<Record<keyof FormState | 'general', string>>;
 
-const text = (value?: number | null) => (value === undefined || value === null ? '' : String(value));
+const text = (value?: number | null) => formatDecimalInput(value);
 
 const formFromRecord = (m: Measurement): FormState => {
   const form = emptyForm();
@@ -144,7 +147,7 @@ const MeasurementForm = ({ patientId, onSuccess, embedded = false, record }: Mea
     try {
       // Al corregir, un campo vaciado se envía como null para borrarlo de verdad;
       // al crear, simplemente no se envía.
-      const num = (v: string) => (v ? parseFloat(v.replace(',', '.')) : isEdit ? null : undefined);
+      const num = (v: string) => toNumber(v) ?? (isEdit ? null : undefined);
 
       const perimeters: Record<string, number | null> = {};
       PERIMETER_FIELDS.forEach(({ key }) => {

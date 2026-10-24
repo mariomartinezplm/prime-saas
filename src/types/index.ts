@@ -253,6 +253,8 @@ export interface CreateExtraSessionData {
 // Tipos de Mediciones
 export interface Perimeters {
   bicepLeft?: number;
+  bicepFlexedLeft?: number;
+  bicepFlexedRight?: number;
   bicepRight?: number;
   forearmLeft?: number;
   forearmRight?: number;

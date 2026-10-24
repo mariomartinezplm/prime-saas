@@ -12,6 +12,7 @@ import { showApiError } from '@/lib/apiError';
 import api from '@/lib/api';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
 import { numberRangeError } from '@/lib/validation';
+import { toNumber } from '@/lib/decimal';
 import type { ExerciseProgress } from '@/types';
 
 interface ExerciseFormProps {
@@ -116,7 +117,7 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: Exerci
         category: form.category,
         sets: form.sets ? parseInt(form.sets, 10) : empty,
         reps: form.reps ? parseInt(form.reps, 10) : empty,
-        weight: form.weight ? parseFloat(form.weight.replace(',', '.')) : empty,
+        weight: toNumber(form.weight) ?? empty,
         rpe: form.rpe ? parseInt(form.rpe, 10) : empty,
         notes: form.notes.trim() || (isEdit ? '' : undefined),
       };

@@ -1,3 +1,5 @@
+import { DECIMAL_HELP, INVALID_NUMBER, parseDecimal } from './decimal';
+
 // Validaciones de formularios. El servidor vuelve a validar todo: esto solo evita el viaje de ida
 // y vuelta y permite señalar el campo exacto.
 
@@ -35,9 +37,9 @@ export const birthDateError = (value: string, today: string): string | undefined
 
 // Número opcional dentro de un rango: devuelve el mensaje de error o undefined
 export const numberRangeError = (value: string, min: number, max: number, unit = ''): string | undefined => {
-  if (value.trim() === '') return undefined;
-  const n = Number(value.replace(',', '.'));
-  if (!Number.isFinite(n)) return 'Ingresa un número';
+  const n = parseDecimal(value);
+  if (n === null) return undefined;
+  if (n === INVALID_NUMBER) return DECIMAL_HELP;
   if (n < min || n > max) return `Debe estar entre ${min} y ${max}${unit}`;
   return undefined;
 };

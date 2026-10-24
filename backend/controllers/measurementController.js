@@ -396,7 +396,7 @@ export const getPerimeterProgress = async (req, res) => {
     }
 
     // Validar que el perímetro existe
-    const validPerimeters = ['bicepLeft', 'bicepRight', 'chest', 'waist', 'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'forearmLeft', 'forearmRight'];
+    const validPerimeters = ['bicepLeft', 'bicepRight', 'bicepFlexedLeft', 'bicepFlexedRight', 'chest', 'waist', 'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'forearmLeft', 'forearmRight'];
 
     if (!validPerimeters.includes(perimeter)) {
       return res.status(400).json({

@@ -34,6 +34,15 @@ const measurementSchema = new mongoose.Schema({
       type: Number,
       min: [0, 'El valor debe ser positivo']
     },
+    // Bíceps CONTRAÍDO (flexionado). `bicepLeft`/`bicepRight` conservan su significado histórico (relajado o sin especificar): no se mezclan.
+    bicepFlexedLeft: {
+      type: Number,
+      min: [0, 'El valor debe ser positivo']
+    },
+    bicepFlexedRight: {
+      type: Number,
+      min: [0, 'El valor debe ser positivo']
+    },
     chest: {
       type: Number,
       min: [0, 'El valor debe ser positivo']

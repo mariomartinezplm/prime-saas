@@ -1,3 +1,4 @@
+import { toNumber } from '@/lib/decimal';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -47,8 +48,8 @@ const ClinicalBaselineFields = ({ medicalInfo, dateOfBirth, onSave }: ClinicalBa
     try {
       await onSave({
         ...medicalInfo,
-        heightCm: heightCm ? Number(heightCm.replace(',', '.')) : undefined,
-        baseWeightKg: baseWeightKg ? Number(baseWeightKg.replace(',', '.')) : undefined,
+        heightCm: toNumber(heightCm),
+        baseWeightKg: toNumber(baseWeightKg),
         smoker,
       });
       notify.success('Datos actualizados');
