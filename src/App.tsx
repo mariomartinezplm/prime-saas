@@ -206,6 +206,14 @@ const App = () => (
                 }
               />
               <Route
+                path="admin/pacientes/:id/objetivos/nuevo"
+                element={
+                  <RoleRoute roles={['admin', 'professional']}>
+                    <GoalNew />
+                  </RoleRoute>
+                }
+              />
+              <Route
                 path="admin/registro"
                 element={
                   <RoleRoute roles={['admin', 'professional']}>

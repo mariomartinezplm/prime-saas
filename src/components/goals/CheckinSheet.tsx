@@ -17,10 +17,11 @@ interface CheckinSheetProps {
   category?: CatalogCategory;
   onClose: () => void;
   onSaved: (goal: GoalView) => void;
+  staff?: boolean;
 }
 
 // Registro manual de un indicador que el centro todavía no mide por otro lado. Queda guardado como AUTORREPORTE.
-const CheckinSheet = ({ goal, indicator, category, onClose, onSaved }: CheckinSheetProps) => {
+const CheckinSheet = ({ goal, indicator, category, onClose, onSaved, staff }: CheckinSheetProps) => {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
@@ -55,7 +56,7 @@ const CheckinSheet = ({ goal, indicator, category, onClose, onSaved }: CheckinSh
           )}
         </FormField>
         <p className="text-[12.5px] text-[#a8a295]">
-          {indicator.origin === 'autorreporte' ? 'Lo que registres aquí queda marcado como autorreporte: es tu declaración, no una medición validada.' : 'Queda guardado con la fecha de hoy.'}
+          {staff ? 'Queda guardado con la fecha de hoy como registro del profesional.' : indicator.origin === 'autorreporte' ? 'Lo que registres aquí queda marcado como autorreporte: es tu declaración, no una medición validada.' : 'Queda guardado con la fecha de hoy.'}
         </p>
         <Button type="submit" disabled={saving} className={`min-h-[48px] w-full rounded-2xl text-base font-bold ${BTN_FILL}`}>
           {saving ? 'Guardando…' : 'Guardar registro'}

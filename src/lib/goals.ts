@@ -81,12 +81,12 @@ export function changeText(p: IndicatorProgress): string | null {
   return `${SUBJECT(p.indicatorId)} ${verb} ${formatValue(Math.abs(p.change), p.unit)} desde el inicio`;
 }
 
-export function statusLabel(goal: GoalView): { text: string; tone: 'pending' | 'validated' | 'own' | 'paused' | 'done' } {
+export function statusLabel(goal: Pick<GoalView, 'status' | 'validated' | 'createdByRole'>, audience: 'patient' | 'staff' = 'patient'): { text: string; tone: 'pending' | 'validated' | 'own' | 'paused' | 'done' } {
   if (goal.status === 'achieved') return { text: 'Objetivo conseguido', tone: 'done' };
   if (goal.status === 'paused') return { text: 'En pausa', tone: 'paused' };
-  if (goal.status === 'pending_validation') return { text: 'Pendiente de validación', tone: 'pending' };
-  if (goal.validated) return { text: 'Validada por tu kinesiólogo', tone: 'validated' };
-  return { text: 'Meta propia', tone: 'own' };
+  if (goal.status === 'pending_validation') return { text: audience === 'staff' ? 'Por validar' : 'Pendiente de validación', tone: 'pending' };
+  if (goal.validated) return { text: audience === 'staff' ? 'Validado' : 'Validada por tu kinesiólogo', tone: 'validated' };
+  return { text: audience === 'staff' ? (goal.createdByRole === 'patient' ? 'Meta del paciente' : 'Meta propuesta por el equipo') : 'Meta propia', tone: 'own' };
 }
 
 export const directionText = (d: 'increase' | 'decrease' | 'maintain'): string => (d === 'increase' ? 'Subir' : d === 'decrease' ? 'Bajar' : 'Mantener');
@@ -119,4 +119,28 @@ export function shouldPromptGoals(input: { hasPlan: boolean; goalsLoaded: boolea
   if (!input.hasPlan || !input.goalsLoaded || input.goalCount > 0) return false;
   if (input.pref.optOut) return false;
   return !(input.pref.snoozedUntil && input.pref.snoozedUntil > input.now);
+}
+
+// ── Historial de cambios (se muestra al paciente y al profesional; nada se pisa en silencio) ──
+const ROLE_TEXT: Record<string, string> = { patient: 'el paciente', professional: 'el profesional', admin: 'administración', system: 'el sistema' };
+
+export function historyText(h: { action: string; byRole: string; note: string | null; changes: unknown }, indicators: Pick<IndicatorProgress, 'seriesKey' | 'label' | 'unit'>[] = []): string {
+  const who = ROLE_TEXT[h.byRole] ?? 'el equipo';
+  const c = (h.changes ?? {}) as { seriesKey?: string; from?: { value: number } | null; to?: { value: number } | null };
+  switch (h.action) {
+    case 'created': return `Objetivo creado por ${who}`;
+    case 'submitted_for_validation': return h.note ?? 'Enviado a tu kinesiólogo para validarlo';
+    case 'validated': return `Validado por ${who}`;
+    case 'target_changed': {
+      const ind = indicators.find((i) => i.seriesKey === c.seriesKey);
+      const unit = ind?.unit ?? '';
+      const to = c.to ? formatValue(c.to.value, unit) : '—';
+      return c.from ? `Meta cambiada por ${who}: de ${formatValue(c.from.value, unit)} a ${to}` : `Meta definida por ${who}: ${to}`;
+    }
+    case 'paused': return 'Objetivo en pausa';
+    case 'resumed': return 'Objetivo reanudado';
+    case 'discarded': return `Objetivo descartado${h.note ? `: ${h.note}` : ''}`;
+    case 'achieved': return '¡Objetivo conseguido!';
+    default: return 'Cambio registrado';
+  }
 }

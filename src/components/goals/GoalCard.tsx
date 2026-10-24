@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Clock, Pause, Play, Plus, ShieldCheck, Star, UserRound } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, History, Pause, Pencil, Play, Plus, ShieldCheck, Star, Trash2, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Meter, CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
+import { BTN_FILL, Meter, CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
 import GoalIcon from '@/components/goals/GoalIcon';
 import GoalTrend from '@/components/goals/GoalTrend';
-import { changeText, dayLabel, directionText, evolutionLink, formatValue, paramsText, statusLabel } from '@/lib/goals';
+import { changeText, dayLabel, directionText, evolutionLink, formatValue, historyText, paramsText, statusLabel } from '@/lib/goals';
 import { cn } from '@/lib/utils';
 import type { CatalogCategory, GoalSources, GoalView, IndicatorProgress } from '@/services/goalService';
 
@@ -19,6 +19,8 @@ interface GoalCardProps {
   onCheckin?: (goal: GoalView, indicator: IndicatorProgress) => void;
   onPause?: (goal: GoalView) => void;
   onResume?: (goal: GoalView) => void;
+  // Vista del profesional: textos en tercera persona, sin enlaces a las pantallas del paciente y con sus acciones
+  staff?: { canValidate: boolean; onValidate: (goal: GoalView) => void; onEditTarget: (goal: GoalView) => void; onDiscard: (goal: GoalView) => void };
 }
 
 const TONE: Record<string, string> = {
@@ -29,8 +31,8 @@ const TONE: Record<string, string> = {
   done: 'border-[#62b8cf]/60 bg-[#398ca2]/25 text-[#fff8e4]',
 };
 
-export const StatusPill = ({ goal }: { goal: GoalView }) => {
-  const s = statusLabel(goal);
+export const StatusPill = ({ goal, audience = 'patient' }: { goal: GoalView; audience?: 'patient' | 'staff' }) => {
+  const s = statusLabel(goal, audience);
   const Icon = s.tone === 'validated' ? ShieldCheck : s.tone === 'pending' ? Clock : s.tone === 'done' ? Star : UserRound;
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', TONE[s.tone])}>
@@ -48,18 +50,18 @@ const Stat = ({ label, value, big }: { label: string; value: string; big?: boole
 );
 
 // Un indicador del objetivo: de dónde partió, dónde está, su meta y cuánto falta
-const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, hero }: { goal: GoalView; ind: IndicatorProgress; category?: CatalogCategory; sources?: GoalSources | null; canAct?: boolean; onCheckin?: GoalCardProps['onCheckin']; hero: boolean }) => {
+const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, hero, staff }: { goal: GoalView; ind: IndicatorProgress; category?: CatalogCategory; sources?: GoalSources | null; canAct?: boolean; onCheckin?: GoalCardProps['onCheckin']; hero: boolean; staff: boolean }) => {
   const detail = paramsText(ind, category, sources);
-  const link = evolutionLink(ind);
+  const link = staff ? null : evolutionLink(ind);
   const ratio = (ind.percent ?? 0) / 100;
   const change = changeText(ind);
-  const awaiting = ind.state === 'needs_target' ? 'Tu kinesiólogo definirá la meta.' : ind.state === 'needs_baseline' ? (ind.manual ? 'Registra tu primer valor para fijar tu punto de partida.' : 'Primero necesitamos registrar tu punto de partida.') : null;
+  const awaiting = ind.state === 'needs_target' ? (staff ? 'Falta definir la meta.' : 'Tu kinesiólogo definirá la meta.') : ind.state === 'needs_baseline' ? (ind.manual ? (staff ? 'Aún no hay un primer valor registrado.' : 'Registra tu primer valor para fijar tu punto de partida.') : (staff ? 'Aún no hay registros para fijar el punto de partida.' : 'Primero necesitamos registrar tu punto de partida.')) : null;
   return (
     <div className="space-y-3">
       <div>
         <h3 className={cn('font-extrabold leading-tight tracking-tight text-[#fff8e4]', hero ? 'text-[1.35rem]' : 'text-[1.05rem]')}>{detail || ind.label}</h3>
         <p className="mt-0.5 text-[12.5px] text-[#a8a295]">
-          {detail ? `${ind.label} · ` : ''}{directionText(ind.direction)}{ind.origin === 'autorreporte' ? ' · Autorreporte' : ind.origin === 'profesional' ? ' · Evaluación de tu kinesiólogo' : ''}
+          {detail ? `${ind.label} · ` : ''}{directionText(ind.direction)}{ind.origin === 'autorreporte' ? ' · Autorreporte' : ind.origin === 'profesional' ? (staff ? ' · Evaluación del profesional' : ' · Evaluación de tu kinesiólogo') : ''}
         </p>
       </div>
       <dl className="grid grid-cols-3 gap-3">
@@ -90,19 +92,20 @@ const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, hero 
             <Link to={link}>Ver evolución<ChevronRight aria-hidden="true" /></Link>
           </Button>
         )}
-        {canAct && ind.manual && !ind.professionalEntryOnly && goal.status === 'active' && (
+        {canAct && ind.manual && (staff || !ind.professionalEntryOnly) && goal.status === 'active' && (
           <Button type="button" onClick={() => onCheckin?.(goal, ind)} variant="outline" className="min-h-[44px] rounded-xl border-[#398ca2] bg-transparent text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]">
             <Plus aria-hidden="true" />Registrar valor
           </Button>
         )}
       </div>
-      {ind.professionalEntryOnly && <p className="text-[12.5px] text-[#a8a295]">Este valor lo registra tu kinesiólogo.</p>}
+      {ind.professionalEntryOnly && !staff && <p className="text-[12.5px] text-[#a8a295]">Este valor lo registra tu kinesiólogo.</p>}
     </div>
   );
 };
 
-const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, onPause, onResume }: GoalCardProps) => {
+const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, onPause, onResume, staff }: GoalCardProps) => {
   const [open, setOpen] = useState(variant === 'primary');
+  const [showHistory, setShowHistory] = useState(false);
   const hero = variant === 'primary';
   const inds = goal.progress.indicators;
   const first = inds[0];
@@ -120,7 +123,7 @@ const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, 
           <p className="text-[15.5px] font-bold leading-snug text-[#fff8e4]">{goal.categoryName}</p>
         </div>
       </div>
-      <div className="mt-2.5"><StatusPill goal={goal} /></div>
+      <div className="mt-2.5"><StatusPill goal={goal} audience={staff ? 'staff' : 'patient'} /></div>
 
       {!hero && (
         <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((v) => !v)} className="mt-3 flex min-h-[44px] w-full items-center justify-between gap-2 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
@@ -137,15 +140,45 @@ const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, 
 
       {goal.status === 'pending_validation' && (
         <p className="mt-3 rounded-xl border border-[#fff8e4]/20 bg-[#fff8e4]/[0.05] p-3 text-[13px] text-[#cdc6b6]">
-          Tu kinesiólogo revisará este objetivo y definirá o validará la meta antes de activarlo.
+          {staff ? 'El paciente propuso este objetivo: define o valida la meta para activarlo.' : 'Tu kinesiólogo revisará este objetivo y definirá o validará la meta antes de activarlo.'}
         </p>
       )}
 
       <div id={panelId} hidden={!open} className={cn('mt-4 space-y-5', !hero && 'border-t border-[#fff8e4]/10 pt-4')}>
         {inds.map((ind) => (
-          <IndicatorBlock key={ind.seriesKey} goal={goal} ind={ind} category={category} sources={sources} canAct={canAct} onCheckin={onCheckin} hero={hero && inds.length === 1} />
+          <IndicatorBlock key={ind.seriesKey} goal={goal} ind={ind} category={category} sources={sources} canAct={canAct} onCheckin={onCheckin} hero={hero && inds.length === 1} staff={!!staff} />
         ))}
-        {goal.targetDay && <p className="text-[12.5px] text-[#a8a295]">Fecha que te pusiste: {dayLabel(goal.targetDay)}</p>}
+        {goal.targetDay && <p className="text-[12.5px] text-[#a8a295]">{staff ? 'Fecha propuesta' : 'Fecha que te pusiste'}: {dayLabel(goal.targetDay)}</p>}
+        {goal.history.length > 0 && (
+          <div>
+            <button type="button" aria-expanded={showHistory} onClick={() => setShowHistory((v) => !v)} className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl text-[13.5px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
+              <History aria-hidden="true" className="h-4 w-4" />Historial de cambios ({goal.history.length})
+            </button>
+            {showHistory && (
+              <ol className="mt-1 space-y-2 border-l border-[#fff8e4]/15 pl-3">
+                {[...goal.history].reverse().map((h, i) => (
+                  <li key={`${h.at}-${i}`} className="text-[13px] text-[#cdc6b6]">
+                    {historyText(h, inds)}
+                    <span className="block text-[12px] text-[#a8a295]">{new Date(h.at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}{h.note && h.action !== 'discarded' && h.action !== 'submitted_for_validation' ? ` · ${h.note}` : ''}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+        {staff && (goal.status === 'pending_validation' || goal.status === 'active') && (
+          <div className="flex flex-wrap gap-2 border-t border-[#fff8e4]/10 pt-3">
+            {goal.status === 'pending_validation' && (
+              staff.canValidate
+                ? <Button type="button" onClick={() => staff.onValidate(goal)} className={cn('min-h-[44px] rounded-xl font-bold', BTN_FILL)}><ShieldCheck aria-hidden="true" />Validar y activar</Button>
+                : <p className="text-[12.5px] text-[#a8a295]">Solo un profesional puede validar este objetivo.</p>
+            )}
+            {(staff.canValidate || !goal.requiresValidation) && (
+              <Button type="button" variant="outline" onClick={() => staff.onEditTarget(goal)} className="min-h-[44px] rounded-xl border-[#398ca2] bg-transparent text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]"><Pencil aria-hidden="true" />Cambiar meta</Button>
+            )}
+            <Button type="button" variant="ghost" onClick={() => staff.onDiscard(goal)} className="min-h-[44px] text-[#cdc6b6] hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4]"><Trash2 aria-hidden="true" />Descartar</Button>
+          </div>
+        )}
         {canAct && (
           <div className="flex flex-wrap gap-2 border-t border-[#fff8e4]/10 pt-3">
             {goal.status === 'paused' ? (

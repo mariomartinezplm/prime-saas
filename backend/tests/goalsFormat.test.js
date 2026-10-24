@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-const { shouldPromptGoals, formatValue, decimalText, changeText, startingPoint, paramsText, statusLabel, activeGoals, exerciseLabel } = await import('../../src/lib/goals.ts');
+const { historyText, shouldPromptGoals, formatValue, decimalText, changeText, startingPoint, paramsText, statusLabel, activeGoals, exerciseLabel } = await import('../../src/lib/goals.ts');
 const { publicCatalog } = await import('../config/goalCatalog.js');
 
 const catalog = publicCatalog();
@@ -91,5 +91,22 @@ describe('pregunta de objetivos al ingresar', () => {
     expect(shouldPromptGoals({ ...base, pref: { snoozedUntil: base.now + 1000 } })).toBe(false);
     expect(shouldPromptGoals({ ...base, pref: { snoozedUntil: base.now - 1 } })).toBe(true);
     expect(shouldPromptGoals({ ...base, pref: { optOut: true } })).toBe(false);
+  });
+});
+
+describe('historial de cambios y vista del profesional', () => {
+  const inds = [{ seriesKey: 'k', label: 'Dolor', unit: '/10' }];
+  it('describe cada cambio con el valor anterior (nada se pisa en silencio)', () => {
+    expect(historyText({ action: 'target_changed', byRole: 'professional', note: null, changes: { seriesKey: 'k', from: { value: 3 }, to: { value: 2 } } }, inds)).toBe('Meta cambiada por el profesional: de 3 de 10 a 2 de 10');
+    expect(historyText({ action: 'target_changed', byRole: 'professional', note: null, changes: { seriesKey: 'k', from: null, to: { value: 2 } } }, inds)).toBe('Meta definida por el profesional: 2 de 10');
+    expect(historyText({ action: 'created', byRole: 'patient', note: null, changes: null })).toBe('Objetivo creado por el paciente');
+    expect(historyText({ action: 'discarded', byRole: 'professional', note: 'No corresponde', changes: null })).toBe('Objetivo descartado: No corresponde');
+    expect(historyText({ action: 'validated', byRole: 'professional', note: null, changes: null })).toBe('Validado por el profesional');
+  });
+  it('el profesional distingue la meta del paciente de la validada', () => {
+    expect(statusLabel({ status: 'active', validated: false, createdByRole: 'patient' }, 'staff').text).toBe('Meta del paciente');
+    expect(statusLabel({ status: 'active', validated: false, createdByRole: 'professional' }, 'staff').text).toBe('Meta propuesta por el equipo');
+    expect(statusLabel({ status: 'active', validated: true, createdByRole: 'patient' }, 'staff').text).toBe('Validado');
+    expect(statusLabel({ status: 'pending_validation', validated: false, createdByRole: 'patient' }, 'staff').text).toBe('Por validar');
   });
 });

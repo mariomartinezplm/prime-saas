@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, ChevronRight, Info, Pause, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,11 @@ const fieldInput = 'h-12 border-[#fff8e4]/20 bg-[#fff8e4]/[0.05] text-base text-
 const GoalNew = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  // Con un id en la ruta es el profesional proponiendo un objetivo a SU paciente; sin id, la persona crea el suyo
+  const { id: routePatientId } = useParams<{ id: string }>();
+  const staff = !!routePatientId;
+  const patientId = routePatientId ?? user?.id;
+  const homePath = staff ? `/app/admin/pacientes/${patientId}?tab=goals` : '/app/objetivos';
   const [catalog, setCatalog] = useState<GoalCatalog | null>(null);
   const [sources, setSources] = useState<GoalSources | null>(null);
   const [existing, setExisting] = useState<GoalView[]>([]);
@@ -64,19 +69,19 @@ const GoalNew = () => {
   const [saving, setSaving] = useState(false);
 
   const load = () => {
-    if (!user) return;
+    if (!patientId) return;
     setLoading(true);
     setFailed(false);
-    Promise.all([goalService.getCatalog(), goalService.list(user.id)])
+    Promise.all([goalService.getCatalog(), goalService.list(patientId)])
       .then(([c, g]) => {
         setCatalog(c);
         setExisting(g);
-        goalService.sources(user.id).then(setSources).catch(() => setSources(null));
+        goalService.sources(patientId).then(setSources).catch(() => setSources(null));
       })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   };
-  useEffect(load, [user]);
+  useEffect(load, [patientId]);
 
   const active = useMemo(() => activeGoals(existing), [existing]);
   const primaryTaken = active.some((g) => g.slot === 1);
@@ -158,7 +163,7 @@ const GoalNew = () => {
       const t = parseDecimal(s.target);
       if (t === INVALID_NUMBER) next[`${id}.target`] = NUMBER_ERROR;
       else if (t === null) {
-        if (!d.professionalTarget) next[`${id}.target`] = 'Escribe tu meta';
+        if (!d.professionalTarget || staff) next[`${id}.target`] = staff ? 'Define la meta' : 'Escribe tu meta';
       } else if (t < d.range.min || t > d.range.max) next[`${id}.target`] = `La meta debe estar entre ${decimalText(d.range.min)} y ${decimalText(d.range.max)}`;
       else {
         const base = baselineOf(d);
@@ -182,9 +187,10 @@ const GoalNew = () => {
   };
 
   const needsPro = !!category && (category.supervision === 'required' || selected.some((id) => def(id)?.clinical));
+  const pendingForPro = needsPro && user?.role !== 'professional'; // el profesional lo deja validado; el paciente y administración, pendiente
 
   const submit = async () => {
-    if (!user || !category || saving || !validateStep3()) return;
+    if (!patientId || !category || saving || !validateStep3()) return;
     setSaving(true);
     try {
       const input: CreateGoalInput = {
@@ -206,7 +212,7 @@ const GoalNew = () => {
           };
         }),
       };
-      const goal = await goalService.create(user.id, input);
+      const goal = await goalService.create(patientId, input);
       // Valores de partida declarados en indicadores manuales: se guardan como autorreporte
       for (const view of goal.progress.indicators) {
         const d = def(view.indicatorId);
@@ -215,8 +221,8 @@ const GoalNew = () => {
           await goalService.checkin(goal.id, { seriesKey: view.seriesKey, value: start }).catch(() => undefined);
         }
       }
-      notify.success(goal.status === 'pending_validation' ? 'Objetivo enviado a tu kinesiólogo para validarlo' : 'Objetivo creado');
-      navigate('/app/objetivos');
+      notify.success(goal.status === 'pending_validation' ? (staff ? 'Objetivo creado: queda por validar por un profesional' : 'Objetivo enviado a tu kinesiólogo para validarlo') : 'Objetivo creado');
+      navigate(homePath);
     } catch (err) {
       showApiError(err, 'No se pudo crear el objetivo');
       load();
@@ -228,7 +234,7 @@ const GoalNew = () => {
   if (loading) return <PageSkeleton label="Cargando…"><CardsSkeleton count={3} bodyHeight="h-16" /></PageSkeleton>;
   if (failed || !catalog) return <LoadErrorAlert message="No se pudo cargar el catálogo de objetivos." onRetry={load} />;
 
-  const back = () => (step === 1 ? navigate('/app/objetivos') : setStep(step - 1));
+  const back = () => (step === 1 ? navigate(homePath) : setStep(step - 1));
 
   const renderParam = (d: CatalogIndicator, p: GoalParamDef) => {
     const s = stateOf(d);
@@ -267,7 +273,7 @@ const GoalNew = () => {
               {(list.length === 0 || typed) && (
                 <>
                   <Input {...c} className={fieldInput} placeholder="Ej. Press banca" value={value.trim() === '' ? '' : value} onChange={(e) => setParam(d, p.key, e.target.value)} />
-                  {list.length === 0 && <p className="text-[12.5px] text-[#a8a295]">Aún no tienes ejercicios registrados. Puedes escribir el ejercicio y registrar tu primera marca en <Link to="/app/entrenamiento" className="font-semibold text-[#8fd0e0] underline">Entrenamiento</Link>.</p>}
+                  {list.length === 0 && <p className="text-[12.5px] text-[#a8a295]">{staff ? 'El paciente aún no tiene ejercicios registrados. Puedes escribir el ejercicio; su primera marca será el punto de partida.' : <>Aún no tienes ejercicios registrados. Puedes escribir el ejercicio y registrar tu primera marca en <Link to="/app/entrenamiento" className="font-semibold text-[#8fd0e0] underline">Entrenamiento</Link>.</>}</p>}
                 </>
               )}
             </div>
@@ -293,7 +299,7 @@ const GoalNew = () => {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5 pb-10">
       <div className="space-y-3">
-        <button type="button" onClick={back} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl text-[15px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]"><ArrowLeft className="h-5 w-5" aria-hidden="true" />{step === 1 ? 'Mis objetivos' : 'Atrás'}</button>
+        <button type="button" onClick={back} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl text-[15px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]"><ArrowLeft className="h-5 w-5" aria-hidden="true" />{step === 1 ? (staff ? 'Objetivos del paciente' : 'Mis objetivos') : 'Atrás'}</button>
         <div role="progressbar" aria-label={`Paso ${step} de 3`} aria-valuemin={1} aria-valuemax={3} aria-valuenow={step} className="flex gap-1.5">
           {[1, 2, 3].map((n) => <span key={n} className={cn('h-1.5 flex-1 rounded-full', n <= step ? 'bg-[#398ca2]' : 'bg-[#fff8e4]/15')} />)}
         </div>
@@ -302,7 +308,7 @@ const GoalNew = () => {
 
       {step === 1 && (
         <>
-          <PageTitle title="¿Qué te gustaría mejorar?" description="Elige una opción. Si cambias de idea, puedes pausarla después." serif />
+          <PageTitle title={staff ? '¿Qué quiere mejorar el paciente?' : '¿Qué te gustaría mejorar?'} description={staff ? 'Elige la categoría. El objetivo se sigue con los registros del paciente.' : 'Elige una opción. Si cambias de idea, puedes pausarla después.'} serif />
           <ul className="space-y-2">
             {catalog.categories.map((c) => (
               <li key={c.id}>
@@ -323,9 +329,9 @@ const GoalNew = () => {
 
       {step === 2 && category && (
         <>
-          <PageTitle eyebrow={category.name} title="¿Cómo mediremos tu avance?" description={category.multiIndicator ? 'Puedes elegir varios indicadores dentro de este mismo objetivo.' : 'Usamos los registros que ya tienes en PRIME.'} serif />
+          <PageTitle eyebrow={category.name} title={staff ? '¿Cómo mediremos su avance?' : '¿Cómo mediremos tu avance?'} description={category.multiIndicator ? 'Puedes elegir varios indicadores dentro de este mismo objetivo.' : staff ? 'Se usan los registros que el paciente ya tiene en PRIME.' : 'Usamos los registros que ya tienes en PRIME.'} serif />
           {category.supervision === 'required' && (
-            <p className={cn(CARD, 'flex items-start gap-2 p-3.5 text-[13.5px] text-[#cdc6b6]')}><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" />Este tipo de objetivo lo revisa y valida tu kinesiólogo antes de activarse.</p>
+            <p className={cn(CARD, 'flex items-start gap-2 p-3.5 text-[13.5px] text-[#cdc6b6]')}><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" />{staff ? 'Este tipo de objetivo requiere validación profesional.' : 'Este tipo de objetivo lo revisa y valida tu kinesiólogo antes de activarse.'}</p>
           )}
           {errors.indicators && <p role="alert" className="text-[13px] font-medium text-[#ffb4a8]">{errors.indicators}</p>}
           <ul className="space-y-3">
@@ -369,9 +375,9 @@ const GoalNew = () => {
 
       {step === 3 && category && (
         <>
-          <PageTitle eyebrow={category.name} title="Define tu meta" description="Dónde estás hoy y hasta dónde quieres llegar." serif />
+          <PageTitle eyebrow={category.name} title={staff ? 'Define la meta' : 'Define tu meta'} description={staff ? 'Dónde está hoy el paciente y hasta dónde quiere llegar.' : 'Dónde estás hoy y hasta dónde quieres llegar.'} serif />
           {needsPro && (
-            <p className={cn('flex items-start gap-2 rounded-[22px] border p-3.5 text-[13.5px] text-[#cdc6b6]', HERO_SURFACE)}><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" />Tu kinesiólogo revisará este objetivo y definirá o validará la meta antes de activarlo. Puedes proponer la tuya.</p>
+            <p className={cn('flex items-start gap-2 rounded-[22px] border p-3.5 text-[13.5px] text-[#cdc6b6]', HERO_SURFACE)}><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" />{staff ? (pendingForPro ? 'Un profesional deberá validar este objetivo antes de activarlo.' : 'Al crearlo como profesional, queda validado y activo.') : 'Tu kinesiólogo revisará este objetivo y definirá o validará la meta antes de activarlo. Puedes proponer la tuya.'}</p>
           )}
           <div className="space-y-4">
             {selected.map((id) => {
@@ -387,7 +393,7 @@ const GoalNew = () => {
                     <p className="text-[12.5px] text-[#a8a295]">{d.label} · {directionText(s.direction)}</p>
                   </div>
                   <div className="rounded-xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.03] p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#a8a295]">Tu punto de partida</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#a8a295]">{staff ? 'Punto de partida' : 'Tu punto de partida'}</p>
                     {known ? (
                       <p className="mt-0.5 text-[1.3rem] font-extrabold tabular-nums text-[#fff8e4]">{formatValue(known.value, unit)} <span className="text-[13px] font-medium text-[#a8a295]">· {dayLabel(known.day)}</span></p>
                     ) : d.source === 'checkin' && !d.professionalEntryOnly ? (
@@ -401,8 +407,8 @@ const GoalNew = () => {
                       <p className="mt-0.5 text-[14px] text-[#cdc6b6]">Primero necesitamos registrar tu punto de partida. Cuando lo tengas, lo verás aquí.</p>
                     )}
                   </div>
-                  <FormField label={`Tu meta (${unit})`} required={!d.professionalTarget} error={errors[`${id}.target`]}>
-                    {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" placeholder={d.professionalTarget ? 'Opcional: la define tu kinesiólogo' : ''} value={s.target} onChange={(e) => patchInd(d, { target: e.target.value })} />}
+                  <FormField label={`${staff ? 'Meta' : 'Tu meta'} (${unit})`} required={!d.professionalTarget || staff} error={errors[`${id}.target`]}>
+                    {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" placeholder={d.professionalTarget && !staff ? 'Opcional: la define tu kinesiólogo' : ''} value={s.target} onChange={(e) => patchInd(d, { target: e.target.value })} />}
                   </FormField>
                   {s.direction === 'maintain' && (
                     <FormField label={`Margen que aceptas (± ${unit})`} required error={errors[`${id}.tolerance`]}>
@@ -429,7 +435,7 @@ const GoalNew = () => {
             </FormField>
           </section>
 
-          <Button type="button" onClick={submit} disabled={saving} className={cn('min-h-[52px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>{saving ? 'Guardando…' : needsPro ? 'Enviar a mi kinesiólogo' : 'Crear objetivo'}</Button>
+          <Button type="button" onClick={submit} disabled={saving} className={cn('min-h-[52px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>{saving ? 'Guardando…' : needsPro && !staff ? 'Enviar a mi kinesiólogo' : 'Crear objetivo'}</Button>
         </>
       )}
     </div>

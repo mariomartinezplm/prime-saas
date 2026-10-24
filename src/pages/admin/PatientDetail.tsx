@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -38,6 +38,7 @@ import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
 import PatientPhotos from '@/components/photos/PatientPhotos';
 import PatientAchievementsTab from '@/components/achievements/PatientAchievementsTab';
+import PatientGoalsTab from '@/components/goals/PatientGoalsTab';
 import { MeasurementHistory, ExerciseHistory } from '@/components/records/PatientRecordHistory';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import EditPatientDialog from '@/components/forms/EditPatientDialog';
@@ -72,6 +73,7 @@ const SECTIONS = [
   { value: 'files', label: 'Archivos' },
   { value: 'photos', label: 'Fotos' },
   { value: 'wellness', label: 'Bienestar' },
+  { value: 'goals', label: 'Objetivos' },
   { value: 'achievements', label: 'Logros' },
   { value: 'plan', label: 'Plan' },
 ] as const;
@@ -88,7 +90,8 @@ const PatientDetail = () => {
   // Próximas = agendadas que aún no empiezan (la más cercana primero); historial = el resto (la más reciente primero)
   const upcomingApts = appointments.filter((a) => a.status === 'scheduled' && appointmentStart(a) > new Date()).sort((a, b) => appointmentStart(a).getTime() - appointmentStart(b).getTime());
   const pastApts = appointments.filter((a) => !upcomingApts.includes(a)).sort((a, b) => appointmentStart(b).getTime() - appointmentStart(a).getTime());
-  const [tab, setTab] = useState('profile');
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => (SECTIONS.some((x) => x.value === searchParams.get('tab')) ? (searchParams.get('tab') as string) : 'profile'));
   // Cambiar de sección descarta lo escrito en la anterior: si hay un formulario a medias, se pregunta
   const { confirmLeave } = useUnsavedChangesApi();
   const changeTab = (next: string) => {
@@ -479,6 +482,10 @@ const PatientDetail = () => {
 
         <TabsContent value="wellness" className="mt-4">
           <WellnessHistoryTab patientId={id!} />
+        </TabsContent>
+
+        <TabsContent value="goals" className="mt-4">
+          <PatientGoalsTab patientId={id!} />
         </TabsContent>
 
         <TabsContent value="achievements" className="mt-4">
