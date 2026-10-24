@@ -301,6 +301,10 @@ export const getMyUnseen = async (req, res) => {
         // Solo para «Nueva marca personal»: lo que se muestra en la celebración (ejercicio, marca anterior y nueva)
         record: a.key === 'strength_pr' && a.evidence?.values?.exercise
           ? { exercise: a.evidence.values.exercise, previous: a.evidence.values.previousBest ?? null, current: a.evidence.values.weight ?? null, unit: a.evidence.values.unit ?? 'kg' }
+          : undefined,
+        // Solo para «¡Objetivo conseguido!»: la frase y la meta alcanzada
+        goal: a.key === 'goal_achieved' && a.evidence?.values?.headline
+          ? { headline: a.evidence.values.headline, value: a.evidence.values.value ?? null, unit: a.evidence.values.unit ?? null }
           : undefined
       }));
     res.status(200).json({ success: true, data: { unseen } });

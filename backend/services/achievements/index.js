@@ -17,6 +17,10 @@ import { computeBodyCandidates, bodyGoalStillMet } from './body.js';
 import { buildOverview } from './overview.js';
 import { buildMonthlySummary, monthRange } from './monthly.js';
 import { computeFirstsCandidates, firstsStillMet } from './firsts.js';
+import { evaluateGoalAchievements } from '../goals/goalAchievements.js';
+import PatientGoal from '../../models/PatientGoal.js';
+import EVA from '../../models/EVA.js';
+import GoalCheckin from '../../models/GoalCheckin.js';
 import { computeStrengthCandidates, strengthRecordStillValid, PR_NOTIFY_CAP_PER_WEEK } from './strength.js';
 
 /**
@@ -147,6 +151,12 @@ export async function triggerAchievementEvaluation(patientId) {
   } catch (error) {
     console.error('Error evaluando logros:', error.message);
   }
+  // Objetivos PRIME: cada pasada es independiente (un fallo en una no impide la otra)
+  try {
+    await evaluateGoalAchievements(patientId);
+  } catch (error) {
+    console.error('Error evaluando objetivos:', error.message);
+  }
 }
 
 // Pasada del programador: revisa a los pacientes con citas tocadas hace poco. Recupera lo que se haya perdido
@@ -154,13 +164,16 @@ export async function triggerAchievementEvaluation(patientId) {
 export async function runAchievementSweep({ now = new Date(), windowDays = 3, limit = 500 } = {}) {
   const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
   // Pacientes con citas tocadas o con un check-in nuevo en la ventana
-  const [fromAppointments, fromCheckins, fromMeasurements, fromExercises] = await Promise.all([
+  const [fromAppointments, fromCheckins, fromMeasurements, fromExercises, fromEva, fromGoalCheckins, withActiveGoals] = await Promise.all([
     Appointment.distinct('patient', { updatedAt: { $gte: since } }),
     WellnessCheckin.distinct('patient', { createdAt: { $gte: since } }),
     Measurement.distinct('patient', { updatedAt: { $gte: since } }),
-    ExerciseProgress.distinct('patient', { updatedAt: { $gte: since } })
+    ExerciseProgress.distinct('patient', { updatedAt: { $gte: since } }),
+    EVA.distinct('patient', { updatedAt: { $gte: since } }),
+    GoalCheckin.distinct('patient', { createdAt: { $gte: since } }),
+    PatientGoal.distinct('patient', { status: 'active' })
   ]);
-  const patientIds = [...new Map([...fromAppointments, ...fromCheckins, ...fromMeasurements, ...fromExercises].map((id) => [String(id), id])).values()];
+  const patientIds = [...new Map([...fromAppointments, ...fromCheckins, ...fromMeasurements, ...fromExercises, ...fromEva, ...fromGoalCheckins, ...withActiveGoals].map((id) => [String(id), id])).values()];
 
   const summary = { patients: 0, granted: 0, flagged: 0, restored: 0, failed: 0, skipped: Math.max(0, patientIds.length - limit) };
   if (summary.skipped > 0) console.warn(`Pasada de logros: ${summary.skipped} pacientes quedaron fuera por el tope de ${limit}`);
@@ -176,6 +189,12 @@ export async function runAchievementSweep({ now = new Date(), windowDays = 3, li
     } catch (error) {
       summary.failed += 1;
       console.error('Error en la pasada de logros:', error.message);
+    }
+    try {
+      summary.granted += (await evaluateGoalAchievements(patientId)).length;
+    } catch (error) {
+      summary.failed += 1;
+      console.error('Error en la pasada de objetivos:', error.message);
     }
   }
   return summary;

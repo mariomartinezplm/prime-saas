@@ -1,4 +1,4 @@
-import { Activity, CalendarCheck, Dumbbell, Flag, Leaf, Moon, Route, Scale, Sparkles, type LucideIcon } from 'lucide-react';
+import { Activity, CalendarCheck, Dumbbell, Flag, Leaf, Moon, Route, Scale, Sparkles, Target, type LucideIcon } from 'lucide-react';
 import type { AchievementCategoryKey } from '@/services/achievementService';
 
 // Un icono por categoría: la insignia se reconoce sin leer
@@ -12,4 +12,5 @@ export const CATEGORY_ICONS: Record<AchievementCategoryKey, LucideIcon> = {
   trayectoria: Route,
   cuerpo: Scale,
   fuerza: Dumbbell,
+  objetivos: Target,
 };

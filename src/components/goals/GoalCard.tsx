@@ -80,6 +80,12 @@ const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, hero,
       ) : (
         awaiting && <p className="rounded-xl border border-dashed border-[#fff8e4]/20 p-3 text-[13px] text-[#cdc6b6]">{awaiting}</p>
       )}
+      {ind.reached && !ind.confirmed && ind.confirmation.records > 1 && (
+        <p className="rounded-xl border border-[#62b8cf]/30 bg-[#398ca2]/10 p-3 text-[13px] text-[#cdc6b6]">
+          {staff ? 'Llegó a la meta. Se confirma con otro registro que la mantenga' : 'Llegaste a tu meta. La confirmamos con otro registro que la mantenga'}
+          {ind.confirmation.minDays > 0 ? ` (al menos ${ind.confirmation.minDays} días después del primero)` : ''}: así celebramos un avance real y no una variación de un día.
+        </p>
+      )}
       {hero && ind.points.length > 0 && <GoalTrend progress={ind} />}
       {change && <p className="text-[13px] text-[#cdc6b6]">{change}.</p>}
       {ind.indirect && ind.note && <p className="text-[12.5px] text-[#a8a295]">{ind.note}</p>}

@@ -5,6 +5,10 @@ import { hasActivePlan } from '../services/clientPlanService.js';
 import { GoalError, addCheckin, createGoal, listGoals, performAction, viewGoals } from '../services/goals/goalService.js';
 import { makeSourceReader } from '../services/goals/goalSources.js';
 import mongoose from 'mongoose';
+import { evaluateGoalAchievements } from '../services/goals/goalAchievements.js';
+
+// Tras cambiar una meta o registrar un valor puede completarse un objetivo: se evalúa sin frenar la respuesta (la pasada periódica lo recupera)
+const reevaluate = (patientId) => evaluateGoalAchievements(patientId).catch((e) => console.error('Error evaluando objetivos:', e.message));
 
 // Los errores de negocio (GoalError) llevan su propio código y mensaje en español; cualquier otro es un 500 sin detalles internos
 function fail(res, error) {
@@ -33,6 +37,7 @@ export const getCatalog = (_req, res) => res.status(200).json({ success: true, d
 export const getPatientGoals = async (req, res) => {
   try {
     const { patientId } = req.params;
+    await reevaluate(patientId); // idempotente: deja el estado al día si un registro llegó por otro camino
     const goals = await listGoals(patientId);
     const data = await viewGoals(goals, patientId);
     res.status(200).json({ success: true, data: { goals: data, catalogVersion: publicCatalog().version } });
@@ -85,7 +90,8 @@ export const actOnGoal = async (req, res) => {
     if (!goal) return;
     if (await patientWriteBlocked(req, goal.patient, res)) return;
     await performAction(goal, req.user, req.body ?? {});
-    const [view] = await viewGoals([goal], goal.patient);
+    if (['validate', 'update_target', 'resume'].includes(req.body?.action)) await reevaluate(goal.patient);
+    const [view] = await viewGoals([(await PatientGoal.findById(goal._id)) ?? goal], goal.patient);
     res.status(200).json({ success: true, data: { goal: view } });
   } catch (error) {
     fail(res, error);
@@ -99,7 +105,8 @@ export const createGoalCheckin = async (req, res) => {
     if (!goal) return;
     if (await patientWriteBlocked(req, goal.patient, res)) return;
     await addCheckin(goal, req.user, req.body ?? {});
-    const [view] = await viewGoals([goal], goal.patient);
+    await reevaluate(goal.patient);
+    const [view] = await viewGoals([(await PatientGoal.findById(goal._id)) ?? goal], goal.patient);
     res.status(201).json({ success: true, data: { goal: view } });
   } catch (error) {
     fail(res, error);

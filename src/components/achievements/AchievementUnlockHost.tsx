@@ -7,10 +7,11 @@ import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 import { achievementApi, type UnseenAchievement } from '@/services/achievementService';
 import AchievementBadge from './AchievementBadge';
 import { formatDay } from './format';
+import { formatValue } from '@/lib/goals';
 
 // Solo en pantallas tranquilas: nunca durante una reserva, una cita o un formulario. Un logro se concede igual aunque
 // no se vea la animación: queda en el historial de "Mis logros".
-const SAFE_ROUTES = ['/app/dashboard', '/app/logros'];
+const SAFE_ROUTES = ['/app/dashboard', '/app/logros', '/app/objetivos'];
 // Espera para no encimarse con la pantalla de bienvenida del logo
 const AFTER_SPLASH_MS = 2600;
 const RETRY_MS = 4000;
@@ -87,7 +88,8 @@ const AchievementUnlockHost = () => {
     const key = current?.key;
     setOpen(false);
     setQueue([]);
-    if (key) navigate(`/app/logros#logro-${key}`);
+    if (key === 'goal_achieved') navigate('/app/objetivos');
+    else if (key) navigate(`/app/logros#logro-${key}`);
   };
 
   if (!current) return null;
@@ -102,7 +104,7 @@ const AchievementUnlockHost = () => {
             </p>
           )}
 
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8fd0e0]">Nuevo logro · {current.categoryLabel}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8fd0e0]">{current.goal ? 'Mis objetivos PRIME' : `Nuevo logro · ${current.categoryLabel}`}</p>
 
           {/* La insignia aparece con opacidad y escala y se asienta con un leve rebote; un halo suave se expande UNA vez.
               Con "menos movimiento" no hay animación alguna. */}
@@ -135,8 +137,15 @@ const AchievementUnlockHost = () => {
             transition={reduceMotion ? { duration: 0 } : { duration: 0.4, delay: 0.35 }}
           >
             <DialogTitle className="font-serif text-[1.875rem] font-medium leading-tight text-[#fff8e4]">{current.record ? 'Nueva marca personal' : current.title}</DialogTitle>
-            <DialogDescription className="text-base text-[#cdc6b6]">{current.record ? current.record.exercise : current.message}</DialogDescription>
+            <DialogDescription className="text-base text-[#cdc6b6]">{current.goal ? current.goal.headline : current.record ? current.record.exercise : current.message}</DialogDescription>
           </motion.div>
+
+          {current.goal && current.goal.value !== null && current.goal.unit && (
+            <div className="w-full rounded-2xl border border-[#62b8cf]/40 bg-[#398ca2]/15 px-3 py-4">
+              <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#8fd0e0]">Tu meta</p>
+              <p className="mt-1 text-[2.4rem] font-extrabold leading-none tabular-nums text-[#fff8e4]">{formatValue(current.goal.value, current.goal.unit)}</p>
+            </div>
+          )}
 
           {current.record && current.record.current !== null && (
             <div className="flex w-full items-end justify-center gap-4 rounded-2xl border border-[#62b8cf]/40 bg-[#398ca2]/15 px-3 py-3">
@@ -160,12 +169,25 @@ const AchievementUnlockHost = () => {
           </dl>
 
           <div className="flex w-full flex-col gap-1 pt-1">
-            <Button onClick={next} autoFocus className="min-h-[52px] rounded-2xl border-[#398ca2] bg-[#398ca2] text-base font-bold text-[#181619] hover:bg-[#398ca2]/90">
-              {position + 1 < queue.length ? 'Siguiente' : 'Seguir mi camino'}
-            </Button>
-            <Button variant="ghost" onClick={goToDetails} className="min-h-[48px] text-[#8fd0e0] hover:bg-[#fff8e4]/[0.06] hover:text-[#8fd0e0]">
-              Ver detalles del progreso
-            </Button>
+            {current.goal && position + 1 >= queue.length ? (
+              <>
+                <Button onClick={goToDetails} autoFocus className="min-h-[52px] rounded-2xl border-[#398ca2] bg-[#398ca2] text-base font-bold text-[#181619] hover:bg-[#398ca2]/90">
+                  Ver mi progreso
+                </Button>
+                <Button variant="ghost" onClick={next} className="min-h-[48px] text-[#8fd0e0] hover:bg-[#fff8e4]/[0.06] hover:text-[#8fd0e0]">
+                  Cerrar
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={next} autoFocus className="min-h-[52px] rounded-2xl border-[#398ca2] bg-[#398ca2] text-base font-bold text-[#181619] hover:bg-[#398ca2]/90">
+                  {position + 1 < queue.length ? 'Siguiente' : 'Seguir mi camino'}
+                </Button>
+                <Button variant="ghost" onClick={goToDetails} className="min-h-[48px] text-[#8fd0e0] hover:bg-[#fff8e4]/[0.06] hover:text-[#8fd0e0]">
+                  Ver detalles del progreso
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>

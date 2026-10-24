@@ -21,11 +21,12 @@ export const CATEGORIES = {
   estres: { label: 'Estrés y recuperación' },
   trayectoria: { label: 'Trayectoria en PRIME' },
   cuerpo: { label: 'Evolución corporal' },
-  fuerza: { label: 'Fuerza y rendimiento' }
+  fuerza: { label: 'Fuerza y rendimiento' },
+  objetivos: { label: 'Mis objetivos PRIME' }
 };
 
 // Orden en que se muestran las categorías en "Mis logros"
-export const CATEGORY_ORDER = ['primeros', 'kinesiologia', 'constancia', 'readiness', 'descanso', 'estres', 'trayectoria', 'cuerpo', 'fuerza'];
+export const CATEGORY_ORDER = ['primeros', 'kinesiologia', 'constancia', 'readiness', 'descanso', 'estres', 'trayectoria', 'cuerpo', 'fuerza', 'objetivos'];
 
 // Retos que se mencionan pero TODAVÍA NO funcionan: se muestran como "pendientes", nunca como si ya existieran.
 // `note` es lo que ve la persona (sin tecnicismos); no concede nada y no tiene progreso.
@@ -188,6 +189,21 @@ export const ACHIEVEMENTS = {
     periodKind: 'goal'
   },
 
+  // ── Mis objetivos PRIME ─────────────────────────────────────────────────────
+  // Se concede cuando un objetivo activo llega a la meta que la persona (o su profesional) definió, CONFIRMADO con los
+  // registros que pide cada indicador (ver backend/services/goals). Uno por objetivo (periodKey = su id): reintentos y
+  // recargas no repiten nada, y corregir un registro después NO borra un reconocimiento ya concedido.
+  goal_achieved: {
+    key: 'goal_achieved',
+    category: 'objetivos',
+    title: '¡Objetivo conseguido!',
+    description: 'Llegaste a la meta de uno de tus objetivos PRIME.',
+    criteria: 'Llegar a la meta de un objetivo activo, confirmada con tus propios registros. Si el objetivo necesita validación de tu kinesiólogo, solo cuenta una vez validado.',
+    message: 'Llegaste a la meta que te propusiste. Es fruto de tu constancia: felicitaciones.',
+    ruleVersion: 1,
+    periodKind: 'objective'
+  },
+
   // ── Fuerza y rendimiento ────────────────────────────────────────────────────
   // Récord personal de CARGA: mayor peso en el mismo ejercicio (mismo nombre normalizado y misma unidad), con al
   // menos 3 registros previos, superando el mejor anterior en 2,5 % o más. Un aviso por ejercicio y por semana.
@@ -264,6 +280,7 @@ export const isValidPeriodKeyForKind = (kind, periodKey) => {
   if (kind === 'once') return periodKey === ONCE;
   if (kind === 'month') return /^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey);
   if (kind === 'goal') return /^goal@\d{9,11}$/.test(periodKey);
+  if (kind === 'objective') return /^obj@[a-f0-9]{24}$/.test(periodKey);
   if (kind === 'exercise-week') return /^[a-z0-9-]{1,40}@\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/.test(periodKey);
   return false;
 };

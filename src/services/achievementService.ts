@@ -35,7 +35,8 @@ export type AchievementCategoryKey =
   | 'primeros'
   | 'trayectoria'
   | 'cuerpo'
-  | 'fuerza';
+  | 'fuerza'
+  | 'objetivos';
 
 export interface AchievementProgress {
   current: number;
@@ -88,8 +89,16 @@ export interface RecordDetail {
   unit: string;
 }
 
+// Solo en «¡Objetivo conseguido!»: la frase y la meta alcanzada
+export interface GoalCelebration {
+  headline: string;
+  value: number | null;
+  unit: string | null;
+}
+
 export interface UnseenAchievement {
   record?: RecordDetail;
+  goal?: GoalCelebration;
   id: string;
   key: string;
   title: string;

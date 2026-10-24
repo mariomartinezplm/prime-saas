@@ -68,6 +68,7 @@ export interface IndicatorProgress {
   params: Record<string, string | number>;
   source: string;
   manual: boolean;
+  confirmation: { records: number; minDays: number };
   professionalEntryOnly: boolean;
   targetSetByRole: 'patient' | 'professional' | 'admin' | null;
   label: string;

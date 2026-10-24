@@ -25,7 +25,7 @@ export async function grantAchievement(
   if (!definition) throw new Error(`Logro desconocido: "${key}"`);
   const kind = periodKindOf(definition);
   if (!isValidPeriodKeyForKind(kind, periodKey)) {
-    const need = { once: 'se concede una sola vez', month: 'requiere un periodo mensual', 'exercise-week': 'requiere un periodo de ejercicio y semana', goal: 'requiere un periodo de meta de peso' }[kind];
+    const need = { once: 'se concede una sola vez', month: 'requiere un periodo mensual', 'exercise-week': 'requiere un periodo de ejercicio y semana', goal: 'requiere un periodo de meta de peso', objective: 'requiere el identificador de un objetivo' }[kind];
     throw new Error(`El logro "${key}" ${need} (periodo recibido: "${periodKey}")`);
   }
   if (source === 'manual' && (!grantedBy || !reason?.trim())) {

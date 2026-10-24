@@ -71,6 +71,7 @@ export function computeIndicatorProgress(indicator, series, startedDay) {
     params: indicator.params ?? {},
     source: indicator.source,
     manual: indicator.source === 'checkin',
+    confirmation: def?.confirmation ?? { records: 1, minDays: 0 },
     professionalEntryOnly: def?.professionalEntryOnly === true,
     targetSetByRole: indicator.targetSetByRole ?? null,
     label: indicator.label,

@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import mongoose from 'mongoose';
 import { canAccessPatient } from '../middleware/auth.js';
 import { evolutionDateError } from '../utils/evolutionDate.js';
+import { evaluateGoalAchievements } from '../services/goals/goalAchievements.js';
 
 // @desc    Crear nuevo registro EVA
 // @route   POST /api/eva
@@ -71,6 +72,9 @@ export const createEVARecord = async (req, res) => {
 
     await evaRecord.populate('patient', 'firstName lastName email');
     await evaRecord.populate('recordedBy', 'firstName lastName');
+
+    // Un registro nuevo de dolor puede completar un objetivo: se evalúa sin frenar la respuesta
+    evaluateGoalAchievements(evaRecord.patient?._id ?? evaRecord.patient).catch(() => {});
 
     res.status(201).json({
       success: true,
@@ -220,6 +224,8 @@ export const updateEVARecord = async (req, res) => {
 
     await evaRecord.populate('patient', 'firstName lastName email');
     await evaRecord.populate('recordedBy', 'firstName lastName');
+
+    evaluateGoalAchievements(evaRecord.patient?._id ?? evaRecord.patient).catch(() => {});
 
     res.status(200).json({
       success: true,

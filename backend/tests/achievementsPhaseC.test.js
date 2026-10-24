@@ -18,6 +18,9 @@ import Measurement from '../models/Measurement.js';
 import ExerciseProgress from '../models/Exercise.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import PatientGoal from '../models/PatientGoal.js';
+import EVA from '../models/EVA.js';
+import GoalCheckin from '../models/GoalCheckin.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 import {
   computeKinesiologyCandidates,
@@ -404,6 +407,7 @@ describe('reconcilePatientAchievements: correcciones', () => {
 describe('triggerAchievementEvaluation y programador', () => {
   it('nunca lanza error: lo registra para no tumbar la operación que lo disparó', async () => {
     vi.spyOn(Appointment, 'find').mockImplementation(() => { throw new Error('base caída'); });
+    vi.spyOn(PatientGoal, 'find').mockResolvedValue([]);
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await expect(triggerAchievementEvaluation(nuevoId())).resolves.toBeUndefined();
@@ -432,6 +436,10 @@ describe('triggerAchievementEvaluation y programador', () => {
     vi.spyOn(User, 'findById').mockImplementation(() => query(null));
     vi.spyOn(Measurement, 'distinct').mockResolvedValue([]);
     vi.spyOn(ExerciseProgress, 'distinct').mockResolvedValue([]);
+    vi.spyOn(EVA, 'distinct').mockResolvedValue([]);
+    vi.spyOn(GoalCheckin, 'distinct').mockResolvedValue([]);
+    vi.spyOn(PatientGoal, 'distinct').mockResolvedValue([]);
+    vi.spyOn(PatientGoal, 'find').mockResolvedValue([]);
     almacen();
     avisos();
 
