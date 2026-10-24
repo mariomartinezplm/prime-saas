@@ -42,6 +42,7 @@ describe('menú lateral: inventario de opciones por rol', () => {
       { label: 'Registrar paciente', path: '/app/admin/registro', exact: false },
       { label: 'Planes', path: '/app/admin/planes', exact: false },
       { label: 'Ingresos', path: '/app/admin/ingresos', exact: false },
+      { label: 'Cronómetro', path: '/app/admin/cronometro', exact: false },
       { label: 'Configuración', path: '/app/configuracion', exact: false },
     ]);
   });
