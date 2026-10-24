@@ -5,7 +5,7 @@ import { canAccessAppointment, canAccessPatient } from '../middleware/auth.js';
 import { parseISO, isBefore, addHours } from 'date-fns';
 import { sendAppointmentCreatedEmail, sendAppointmentCancelledEmail, sendAppointmentUpdatedEmail, sendAppointmentConfirmationToPatientEmail } from '../services/emailService.js';
 import { deductSession, refundSession } from '../services/clientPlanService.js';
-import { DEDUCTIBLE_TYPES, checkSessionBalanceForBooking } from '../services/bookingGuards.js';
+import { DEDUCTIBLE_TYPES, checkSessionBalanceForBooking, checkTypeBookableByPatient } from '../services/bookingGuards.js';
 import { notify } from '../services/notificationService.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 import { generateAppointmentICS } from '../services/icsService.js';
@@ -116,6 +116,9 @@ export const createAppointment = async (req, res) => {
         message: `Las citas deben agendarse con al menos ${PATIENT_BOOK_AHEAD_HOURS} horas de anticipación`
       });
     }
+
+    const typeCheck = checkTypeBookableByPatient(sessionType);
+    if (typeCheck) return res.status(typeCheck.status).json(typeCheck.body);
 
     // ──── REGLA 1b: Bloqueo por ClientPlan vencido o sin sesiones DE ESE TIPO ────
     // Esto reemplaza la vieja validación cruzada (Regla 3/4 legacy): si no hay
@@ -672,6 +675,12 @@ export const bulkCreateAppointments = async (req, res) => {
           const minBookingTime = addHours(now, PATIENT_BOOK_AHEAD_HOURS);
           if (isBefore(appointmentDateTime, minBookingTime)) {
             skipped.push({ fecha: date, motivo: `Debe ser con al menos ${PATIENT_BOOK_AHEAD_HOURS} horas de anticipación` });
+            continue;
+          }
+
+          const typeCheck = checkTypeBookableByPatient(sessionType);
+          if (typeCheck) {
+            skipped.push({ fecha: date, motivo: typeCheck.body.message });
             continue;
           }
 

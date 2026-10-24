@@ -258,6 +258,7 @@ const ClassifyPlans = () => {
                     <>
                       <PlanTermFields
                         compact
+                        allowAnnual={user?.role === 'admin'}
                         term={row.term}
                         billingCycle={row.billingCycle}
                         onTermChange={(t) => handleTermChange(patient.id, t)}

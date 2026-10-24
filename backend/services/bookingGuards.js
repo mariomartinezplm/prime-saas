@@ -9,6 +9,28 @@ import { santiagoToUtc, formatDayMonthSantiago } from '../utils/timezone.js';
 // del bono (decisión de Mario).
 export const DEDUCTIBLE_TYPES = ['kinesiologia', 'entrenamiento'];
 
+// Un paciente solo puede agendar por sí mismo los tipos que consumen una sesión de su plan. 'evaluacion' (y la clase de prueba) las
+// agenda el centro: antes un paciente podía pedir type:'evaluacion' y saltarse el chequeo de saldo (cita gratis).
+export function checkTypeBookableByPatient(type) {
+  if (DEDUCTIBLE_TYPES.includes(type)) return null;
+  return {
+    status: 403,
+    body: { success: false, message: 'Ese tipo de cita lo agenda el centro. Contacta a Prime F&H.', code: 'TYPE_NOT_ALLOWED' }
+  };
+}
+
+// ¿Tiene el paciente algún plan con sesiones para agendar? Si no, no ve los horarios (decisión de Mario): solo se le muestra
+// que debe renovar. Un plan con renovación pendiente de pago sigue contando dentro de su plazo (la regla de fecha límite se exige al agendar).
+export async function patientHasBookablePlan(patientId) {
+  for (const type of DEDUCTIBLE_TYPES) {
+    const balance = await getSessionBalanceByType(patientId, type);
+    if (balance.totalAvailable > 0) return true;
+  }
+  return false;
+}
+
+export const PLAN_LOCKED_MESSAGE = 'Para ver los horarios necesitas un plan vigente con sesiones disponibles. Contacta a Prime F&H para renovar.';
+
 // Bloqueo por plan (ClientPlan) vencido o sin sesiones disponibles DE ESE TIPO.
 // Consciente del tipo de cita: un paciente con plan de kinesiología no debe
 // pasar este chequeo para agendar entrenamiento, aunque tenga saldo de kine.

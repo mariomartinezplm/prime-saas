@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { addHours, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarClock, CalendarPlus, TriangleAlert, X } from 'lucide-react';
+import { CalendarClock, CalendarPlus, Info, TriangleAlert, X } from 'lucide-react';
 import { appointmentService } from '@/services/appointmentService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -182,6 +182,11 @@ const MyAppointments = () => {
           </Button>
         }
       />
+
+      <p className="flex items-start gap-2 rounded-2xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] px-4 py-3 text-[13.5px] leading-snug text-[#fff8e4]/80">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#62b8cf]" aria-hidden="true" />
+        <span>Todas las sesiones agendadas se pueden cancelar hasta <strong className="text-[#fff8e4]">{PATIENT_CANCEL_AHEAD_HOURS} horas antes</strong> de la hora. Si cancelas con menos tiempo, esa sesión se pierde.</span>
+      </p>
 
       {failed && (
         <Alert variant="warning">

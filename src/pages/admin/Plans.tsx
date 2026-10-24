@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -105,6 +106,8 @@ function statusBadge(plan: ClientPlan) {
 }
 
 const Plans = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [clientPlans, setClientPlans] = useState<ClientPlan[]>([]);
@@ -533,6 +536,7 @@ const Plans = () => {
               </p>
             ) : (
               <PlanTermFields
+                allowAnnual={isAdmin}
                 term={term}
                 billingCycle={billingCycle}
                 onTermChange={setTerm}

@@ -208,12 +208,21 @@ describe('POST /appointments — motor de descuento cableado', () => {
     expect(deductSpy).not.toHaveBeenCalled();
   });
 
-  it('evaluación: no descuenta nada, sin bloqueo de saldo', async () => {
+  it('un paciente no puede agendar una evaluación por su cuenta (se saltaba el saldo); la agenda el centro', async () => {
+    const req = baseReq();
+    req.body.type = 'evaluacion';
+    const res = fakeRes();
+    await createAppointment(req, res);
+    expect(res.statusCode).toBe(403);
+    expect(res.body.code).toBe('TYPE_NOT_ALLOWED');
+    expect(Appointment.create).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'evaluacion' }));
+  });
+
+  it('evaluación agendada por el personal: no descuenta nada, sin bloqueo de saldo', async () => {
     const balanceSpy = vi.spyOn(ClientPlan, 'findOne');
     const deductSpy = vi.spyOn(ClientPlan, 'findOneAndUpdate');
 
-    const req = baseReq();
-    req.body.type = 'evaluacion';
+    const req = { user: { _id: PROFESSIONAL_ID, role: 'professional' }, body: { ...baseReq().body, patient: PATIENT_ID.toString(), professional: PROFESSIONAL_ID.toString(), type: 'evaluacion' } };
     const res = fakeRes();
     await createAppointment(req, res);
 

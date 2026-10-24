@@ -1,5 +1,6 @@
 import Availability from '../models/Availability.js';
 import { parseISO, getDay } from 'date-fns';
+import { patientHasBookablePlan, PLAN_LOCKED_MESSAGE } from '../services/bookingGuards.js';
 import { MAX_PATIENTS_PER_SLOT, MAX_PATIENTS_WITH_OVERBOOK, countOverlappingAppointments, isExemptFromCapacity } from '../services/bookingRulesService.js';
 
 // @desc    Obtener disponibilidad de un profesional
@@ -149,6 +150,14 @@ export const getAvailableSlots = async (req, res) => {
     const { professionalId, date } = req.params;
     const targetDate = parseISO(date);
     const dayOfWeek = getDay(targetDate);
+
+    // Un paciente sin plan vigente con sesiones no ve los horarios (el centro, sí). No se filtra nada: la respuesta va vacía.
+    if (req.user?.role === 'patient' && !(await patientHasBookablePlan(req.user._id))) {
+      return res.status(200).json({
+        success: true,
+        data: { date, availableSlots: [], bookedSlots: [], blockedSlots: [], planLocked: true, message: PLAN_LOCKED_MESSAGE }
+      });
+    }
 
     const availability = await Availability.findOne({ professional: professionalId });
 

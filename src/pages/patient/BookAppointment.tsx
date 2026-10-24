@@ -26,6 +26,7 @@ import PageTitle from '@/components/premium/PageTitle';
 import { HERO_SURFACE } from '@/components/dashboard/brand';
 import { cn } from '@/lib/utils';
 import type { User, SessionBalance, AvailableSlots } from '@/types';
+import { getWhatsAppUrl } from '@/config/contact';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 
 type BookingMode = 'single' | 'recurring';
@@ -460,6 +461,13 @@ const BookAppointment = () => {
                         Reintentar
                       </Button>
                     </div>
+                  ) : slots?.planLocked ? (
+                    <div className="flex flex-col items-center gap-3 py-8 text-center">
+                      <p className="max-w-sm text-sm text-muted-foreground">{slots.message}</p>
+                      <Button variant="outline" size="sm" onClick={() => window.open(getWhatsAppUrl('Hola, quiero renovar mi plan en Prime F&H'), '_blank')}>
+                        Renovar por WhatsApp
+                      </Button>
+                    </div>
                   ) : slots ? (
                     <SlotGrid
                       slots={{
@@ -507,7 +515,7 @@ const BookAppointment = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Ban className="w-3.5 h-3.5" />
-                      <span>Cancela hasta <strong>{PATIENT_CANCEL_AHEAD_HOURS} horas antes</strong> y la sesión vuelve a tu plan</span>
+                      <span>Puedes cancelar hasta <strong>{PATIENT_CANCEL_AHEAD_HOURS} horas antes</strong> y la sesión vuelve a tu plan. Si cancelas con menos tiempo, <strong>esa sesión se pierde</strong></span>
                     </div>
                     {balance?.plan && !balance.plan.unlimited && (
                       <div className="flex items-center gap-2">

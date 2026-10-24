@@ -17,6 +17,7 @@ const notificationSchema = new mongoose.Schema({
       'wellness_alert',
       'achievement_unlocked',
       'readiness_reminder',
+      'weekly_booking_reminder',
       'recurring_booked',
       'recurring_skipped'
     ],

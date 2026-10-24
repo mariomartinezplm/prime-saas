@@ -166,6 +166,9 @@ export interface AvailableSlots {
   availableSlots: string[];
   bookedSlots: string[];
   blockedSlots?: string[];
+  // Un paciente sin plan vigente con sesiones no recibe horarios: llega este aviso
+  planLocked?: boolean;
+  message?: string;
   // Solo para el personal: horarios que ya tienen 5 pacientes (ni el sobrecupo cabe)
   overbookFullSlots?: string[];
 }
@@ -439,7 +442,8 @@ export type NotificationType =
   | 'appointment_cancelled'
   | 'wellness_alert'
   | 'achievement_unlocked'
-  | 'readiness_reminder';
+  | 'readiness_reminder'
+  | 'weekly_booking_reminder';
 
 export interface Notification {
   _id: string;

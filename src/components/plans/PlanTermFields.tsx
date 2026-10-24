@@ -18,9 +18,11 @@ interface PlanTermFieldsProps {
   onBillingCycleChange: (cycle: BillingCycle) => void;
   // Versión corta para filas de listas: sin la explicación de abajo
   compact?: boolean;
+  // El plan anual (Miembro Fundador) lo deja solo el administrador
+  allowAnnual?: boolean;
 }
 
-const PlanTermFields = ({ term, billingCycle, onTermChange, onBillingCycleChange, compact }: PlanTermFieldsProps) => {
+const PlanTermFields = ({ term, billingCycle, onTermChange, onBillingCycleChange, compact, allowAnnual = true }: PlanTermFieldsProps) => {
   const baseId = useId();
   const termId = `${baseId}-term`;
   const cycleId = `${baseId}-cycle`;
@@ -32,7 +34,7 @@ const PlanTermFields = ({ term, billingCycle, onTermChange, onBillingCycleChange
         <Select value={term} onValueChange={(v) => onTermChange(v as PlanTerm)}>
           <SelectTrigger id={termId} aria-label={compact ? 'Duración del plan' : undefined} className={compact ? 'sm:w-44' : undefined}><SelectValue /></SelectTrigger>
           <SelectContent>
-            {PLAN_TERMS.map((t) => (
+            {PLAN_TERMS.filter((t) => allowAnnual || t !== 'anual').map((t) => (
               <SelectItem key={t} value={t}>{TERM_LABELS[t]}</SelectItem>
             ))}
           </SelectContent>

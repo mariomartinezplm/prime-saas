@@ -66,6 +66,11 @@ export const createClientPlan = async (req, res) => {
       });
     }
 
+    // Los planes anuales (Miembro Fundador) los deja solo el administrador
+    if (term === 'anual' && serviceType !== 'kinesiologia' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Solo el administrador puede registrar un plan anual' });
+    }
+
     const patient = await User.findById(patientId);
     if (!patient || patient.role !== 'patient') {
       return res.status(404).json({

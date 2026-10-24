@@ -335,7 +335,7 @@ const RegisterPatient = () => {
                   </p>
                 ) : (
                   <>
-                    <PlanTermFields term={term} billingCycle={billingCycle} onTermChange={setTerm} onBillingCycleChange={setBillingCycle} />
+                    <PlanTermFields allowAnnual={isAdmin} term={term} billingCycle={billingCycle} onTermChange={setTerm} onBillingCycleChange={setBillingCycle} />
                     <RenewsCheckbox id="register-renews" checked={renews} onChange={setRenews} />
                     {renews && <GraceDaysField id="register-grace-days" value={graceDays} onChange={setGraceDays} billingCycle={billingCycle} from={startDate ? new Date(`${startDate}T12:00:00`) : undefined} />}
                   </>

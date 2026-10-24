@@ -83,7 +83,7 @@ const BookingConfirmation = ({
           )}
 
           <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-            Puedes cancelar hasta {PATIENT_CANCEL_AHEAD_HOURS} horas antes y la sesión vuelve a tu plan.
+            Puedes cancelar hasta {PATIENT_CANCEL_AHEAD_HOURS} horas antes y la sesión vuelve a tu plan. Si cancelas con menos tiempo, esa sesión se pierde.
           </p>
         </div>
 
