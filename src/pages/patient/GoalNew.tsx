@@ -11,6 +11,7 @@ import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import { BTN_FILL, CARD, HERO_SURFACE } from '@/components/dashboard/brand';
 import GoalIcon from '@/components/goals/GoalIcon';
+import { measurementService } from '@/services/measurementService';
 import { goalService, type CatalogCategory, type CatalogIndicator, type CreateGoalInput, type GoalCatalog, type GoalDirection, type GoalParamDef, type GoalSources, type GoalView } from '@/services/goalService';
 import { INVALID_NUMBER, parseDecimal } from '@/lib/decimal';
 import { exerciseKeyOf } from '@/lib/exerciseKey';
@@ -27,7 +28,7 @@ interface IndState {
   direction: GoalDirection;
   target: string;
   tolerance: string;
-  start: string; // solo indicadores manuales: valor de partida opcional
+  start: string; // valor de partida opcional que se escribe ahí mismo (autorreporte o medición); si queda vacío, se registra después
 }
 
 const OTHER = '__other__';
@@ -68,6 +69,7 @@ const GoalNew = () => {
   const [pauseId, setPauseId] = useState('');
   const [targetDay, setTargetDay] = useState('');
   const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState<GoalView | null>(null); // objetivo recién creado: pantalla de «¿agregar otro?»
 
   const load = () => {
     if (!patientId) return;
@@ -145,10 +147,13 @@ const GoalNew = () => {
   };
 
   // ── Paso 3: metas ──
+  // El punto de partida se puede escribir ahí mismo cuando el valor lo anota la persona (autorreporte) o es una medición
+  // corporal; el de ejercicios, dolor y saltos sale de sus propios registros y se hace después.
+  const canEnterStart = (d: CatalogIndicator) => !d.professionalEntryOnly && (d.source === 'checkin' || d.source === 'measurement_field' || d.source === 'measurement_perimeter');
   const baselineOf = (d: CatalogIndicator): number | null => {
     const known = startingPoint(d, paramsOf(d), sources);
     if (known) return known.value;
-    if (d.source === 'checkin') {
+    if (canEnterStart(d)) {
       const n = parseDecimal(stateOf(d).start);
       return n !== null && n !== INVALID_NUMBER ? n : null;
     }
@@ -164,7 +169,7 @@ const GoalNew = () => {
       const t = parseDecimal(s.target);
       if (t === INVALID_NUMBER) next[`${id}.target`] = NUMBER_ERROR;
       else if (t === null) {
-        if (!d.professionalTarget || staff) next[`${id}.target`] = staff ? 'Define la meta' : 'Escribe tu meta';
+        // Sin meta todavía es válido: el objetivo queda «por definir» y se completa después desde su tarjeta
       } else if (t < d.range.min || t > d.range.max) next[`${id}.target`] = `La meta debe estar entre ${decimalText(d.range.min)} y ${decimalText(d.range.max)}`;
       else {
         const base = baselineOf(d);
@@ -172,13 +177,14 @@ const GoalNew = () => {
           next[`${id}.target`] = `Tu meta debe estar ${s.direction === 'increase' ? 'por encima' : 'por debajo'} de tu punto de partida (${formatValue(base, s.unit || d.unit || '')})`;
         }
       }
-      if (s.direction === 'maintain') {
+      if (s.direction === 'maintain' && t !== null && t !== INVALID_NUMBER) {
         const tol = parseDecimal(s.tolerance);
         if (tol === null || tol === INVALID_NUMBER || tol <= 0) next[`${id}.tolerance`] = 'Indica cuánto margen aceptas (mayor que 0)';
       }
       if (s.start.trim()) {
         const st = parseDecimal(s.start);
         if (st === INVALID_NUMBER) next[`${id}.start`] = NUMBER_ERROR;
+        else if (st !== null && (st < d.range.min || st > d.range.max)) next[`${id}.start`] = `El valor debe estar entre ${decimalText(d.range.min)} y ${decimalText(d.range.max)}`;
       }
     }
     const needPause = (priority === 'primary' && primaryTaken) || (priority === 'secondary' && !freeSecondary);
@@ -194,6 +200,28 @@ const GoalNew = () => {
     if (!patientId || !category || saving || !validateStep3()) return;
     setSaving(true);
     try {
+      // Valores de partida de mediciones corporales escritos ahí mismo: se guardan como una medición real (de hoy) ANTES de crear
+      // el objetivo, así el punto de partida queda fijado con un registro con fecha. Si no se pudo guardar, el objetivo se crea igual.
+      const fields: Record<string, number> = {};
+      const perimeters: Record<string, number> = {};
+      for (const id of selected) {
+        const d = def(id);
+        if (!d || (d.source !== 'measurement_field' && d.source !== 'measurement_perimeter') || startingPoint(d, paramsOf(d), sources)) continue;
+        const v = parseDecimal(stateOf(d).start);
+        if (v === null || v === INVALID_NUMBER) continue;
+        if (d.source === 'measurement_field' && d.field) fields[d.field] = v;
+        else {
+          const key = d.field ?? String(paramsOf(d).field ?? '');
+          if (key) perimeters[key] = v;
+        }
+      }
+      if (Object.keys(fields).length > 0 || Object.keys(perimeters).length > 0) {
+        try {
+          await measurementService.create({ patient: patientId, date: new Date().toISOString(), perimeters, ...fields });
+        } catch (err) {
+          showApiError(err, 'No se pudo guardar tu valor de hoy. Puedes registrarlo después en Mediciones');
+        }
+      }
       const input: CreateGoalInput = {
         categoryId: category.id,
         priority,
@@ -223,7 +251,8 @@ const GoalNew = () => {
         }
       }
       notify.success(goal.status === 'pending_validation' ? (staff ? 'Objetivo creado: queda por validar por un profesional' : 'Objetivo enviado a tu kinesiólogo para validarlo') : 'Objetivo creado');
-      navigate(homePath);
+      setDone(goal);
+      goalService.list(patientId).then(setExisting).catch(() => undefined); // refresca los cupos para decidir si se puede agregar otro
     } catch (err) {
       showApiError(err, 'No se pudo crear el objetivo');
       load();
@@ -236,6 +265,45 @@ const GoalNew = () => {
   if (failed || !catalog) return <LoadErrorAlert message="No se pudo cargar el catálogo de objetivos." onRetry={load} />;
 
   const back = () => (step === 1 ? navigate(homePath) : setStep(step - 1));
+
+  const addAnother = () => {
+    setDone(null);
+    setStep(1);
+    setCategoryId('');
+    setSelected([]);
+    setInd({});
+    setErrors({});
+    setPauseId('');
+    setTargetDay('');
+    window.scrollTo?.({ top: 0 });
+  };
+
+  if (done) {
+    const maxActive = catalog.maxActiveGoals;
+    const used = active.length;
+    const left = Math.max(0, maxActive - used);
+    const pending = done.status === 'pending_validation';
+    const missing = done.progress.indicators.some((i) => i.state === 'needs_target')
+      ? (staff ? 'Falta definir la meta: se puede completar desde la tarjeta del objetivo.' : 'Aún falta tu meta: puedes definirla cuando quieras desde Mis objetivos.')
+      : done.progress.indicators.some((i) => i.state === 'needs_baseline')
+        ? (staff ? 'Falta un primer registro para fijar el punto de partida.' : 'Aún falta tu punto de partida: apenas lo registres quedará fijado.')
+        : null;
+    return (
+      <div className="mx-auto w-full max-w-3xl space-y-5 pb-10">
+        <PageTitle eyebrow={done.categoryName} title={pending ? (staff ? 'Objetivo creado' : 'Enviado a tu kinesiólogo') : '¡Objetivo creado!'} description={pending ? (staff ? 'Queda por validar por un profesional antes de activarse.' : 'Tu kinesiólogo lo revisará y validará la meta antes de activarlo.') : 'Ya lo estamos siguiendo con tus registros.'} serif />
+        {missing && <p className={cn(CARD, 'p-4 text-[14px] text-[#cdc6b6]')}>{missing}</p>}
+        <p className={cn(CARD, 'p-4 text-[14px] text-[#cdc6b6]')}>
+          {left > 0
+            ? <>Llevas <b className="text-[#fff8e4]">{used} de {maxActive}</b> objetivos. {staff ? 'Se puede agregar otro.' : 'Puedes agregar otro ahora o cuando quieras.'}</>
+            : <>{staff ? 'Ya tiene' : 'Ya tienes'} sus <b className="text-[#fff8e4]">{maxActive} objetivos</b>. Para agregar otro, hay que pausar uno: su progreso se conserva.</>}
+        </p>
+        {left > 0 && (
+          <Button type="button" onClick={addAnother} className={cn('min-h-[52px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>Agregar otro objetivo<ChevronRight aria-hidden="true" /></Button>
+        )}
+        <Button type="button" variant="outline" onClick={() => navigate(homePath)} className="min-h-[52px] w-full rounded-2xl border-[#398ca2] bg-transparent text-base font-bold text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]">{staff ? 'Volver a los objetivos del paciente' : 'Ver mis objetivos'}</Button>
+      </div>
+    );
+  }
 
   const renderParam = (d: CatalogIndicator, p: GoalParamDef) => {
     const s = stateOf(d);
@@ -309,7 +377,7 @@ const GoalNew = () => {
 
       {step === 1 && (
         <>
-          <PageTitle title={staff ? '¿Qué quiere mejorar el paciente?' : '¿Qué te gustaría mejorar?'} description={staff ? 'Elige la categoría. El objetivo se sigue con los registros del paciente.' : 'Elige una opción. Si cambias de idea, puedes pausarla después.'} serif />
+          <PageTitle title={staff ? '¿Qué quiere mejorar el paciente?' : '¿Qué te gustaría mejorar?'} description={staff ? `Elige la categoría. Puede tener hasta ${catalog.maxActiveGoals} objetivos a la vez (hoy tiene ${active.length}).` : `Elige una opción. Puedes tener hasta ${catalog.maxActiveGoals} objetivos a la vez (hoy tienes ${active.length}): agrega uno ahora y los otros cuando quieras.`} serif />
           <ul className="space-y-2">
             {catalog.categories.map((c) => (
               <li key={c.id}>
@@ -403,21 +471,21 @@ const GoalNew = () => {
                     <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#a8a295]">{staff ? 'Punto de partida' : 'Tu punto de partida'}</p>
                     {known ? (
                       <p className="mt-0.5 text-[1.3rem] font-extrabold tabular-nums text-[#fff8e4]">{formatValue(known.value, unit)} <span className="text-[13px] font-medium text-[#a8a295]">· {dayLabel(known.day)}</span></p>
-                    ) : d.source === 'checkin' && !d.professionalEntryOnly ? (
+                    ) : canEnterStart(d) ? (
                       <div className="mt-1 space-y-1">
-                        <p className="text-[13px] text-[#cdc6b6]">Si quieres, escribe tu valor de hoy (queda como autorreporte).</p>
+                        <p className="text-[13px] text-[#cdc6b6]">{d.source === 'checkin' ? 'Si quieres, escribe tu valor de hoy (queda como autorreporte).' : 'Si quieres, escribe tu valor de hoy (se guarda como una medición).'} Si lo dejas en blanco, lo registras después y ese será tu punto de partida.</p>
                         <FormField label={`Valor de hoy (${unit})`} error={errors[`${id}.start`]}>
                           {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" value={s.start} onChange={(e) => patchInd(d, { start: e.target.value })} />}
                         </FormField>
                       </div>
                     ) : (
-                      <p className="mt-0.5 text-[14px] text-[#cdc6b6]">Primero necesitamos registrar tu punto de partida. Cuando lo tengas, lo verás aquí.</p>
+                      <p className="mt-0.5 text-[14px] text-[#cdc6b6]">Aún no hay un registro. Puedes seguir y registrarlo después{d.source === 'eva' ? ' en Dolor (EVA)' : d.source.startsWith('exercise') ? ' en Entrenamiento' : ' en Mediciones'}: ese será tu punto de partida.</p>
                     )}
                   </div>
-                  <FormField label={`${staff ? 'Meta' : 'Tu meta'} (${unit})`} required={!d.professionalTarget || staff} error={errors[`${id}.target`]}>
-                    {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" placeholder={d.professionalTarget && !staff ? 'Opcional: la define tu kinesiólogo' : ''} value={s.target} onChange={(e) => patchInd(d, { target: e.target.value })} />}
+                  <FormField label={`${staff ? 'Meta' : 'Tu meta'} (${unit}) · opcional`} error={errors[`${id}.target`]}>
+                    {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" placeholder={d.professionalTarget && !staff ? 'Opcional: la define tu kinesiólogo' : 'Puedes dejarla para después'} value={s.target} onChange={(e) => patchInd(d, { target: e.target.value })} />}
                   </FormField>
-                  {s.direction === 'maintain' && (
+                  {s.direction === 'maintain' && s.target.trim() !== '' && (
                     <FormField label={`Margen que aceptas (± ${unit})`} required error={errors[`${id}.tolerance`]}>
                       {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" value={s.tolerance} onChange={(e) => patchInd(d, { tolerance: e.target.value })} />}
                     </FormField>

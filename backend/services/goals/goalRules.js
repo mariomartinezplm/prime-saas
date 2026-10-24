@@ -98,9 +98,9 @@ export function validateIndicatorInput(categoryId, input, position = 1) {
         else target.tolerance = tolerance;
       }
     }
-  } else if (!def.professionalTarget) {
-    errors.push(`${prefix}: falta la meta`);
   }
+  // Sin meta todavía es válido para cualquier indicador: el objetivo queda «por definir la meta» y la persona (o su
+  // kinesiólogo) la pone después. Un objetivo que exige validación clínica no se activa sin metas (ver createGoal).
 
   if (errors.length) return { ok: false, errors };
   return {

@@ -18,6 +18,8 @@ interface GoalCardProps {
   // Solo el paciente dueño registra valores y cambia el estado; la vista del profesional los ve sin esas acciones
   canAct?: boolean;
   onCheckin?: (goal: GoalView, indicator: IndicatorProgress) => void;
+  // El paciente define después la meta de un indicador no clínico que dejó sin meta al crear el objetivo
+  onSetTarget?: (goal: GoalView) => void;
   onPause?: (goal: GoalView) => void;
   onResume?: (goal: GoalView) => void;
   onMakePrimary?: (goal: GoalView) => void;
@@ -52,12 +54,15 @@ const Stat = ({ label, value, big }: { label: string; value: string; big?: boole
 );
 
 // Un indicador del objetivo: de dónde partió, dónde está, su meta y cuánto falta
-const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, hero, staff }: { goal: GoalView; ind: IndicatorProgress; category?: CatalogCategory; sources?: GoalSources | null; canAct?: boolean; onCheckin?: GoalCardProps['onCheckin']; hero: boolean; staff: boolean }) => {
+const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, onSetTarget, hero, staff }: { goal: GoalView; ind: IndicatorProgress; category?: CatalogCategory; sources?: GoalSources | null; canAct?: boolean; onCheckin?: GoalCardProps['onCheckin']; onSetTarget?: GoalCardProps['onSetTarget']; hero: boolean; staff: boolean }) => {
   const detail = paramsText(ind, category, sources);
   const link = staff ? null : evolutionLink(ind);
   const ratio = (ind.percent ?? 0) / 100;
   const change = changeText(ind);
-  const awaiting = ind.state === 'needs_target' ? (staff ? 'Falta definir la meta.' : 'Tu kinesiólogo definirá la meta.') : ind.state === 'needs_baseline' ? (ind.manual ? (staff ? 'Aún no hay un primer valor registrado.' : 'Registra tu primer valor para fijar tu punto de partida.') : (staff ? 'Aún no hay registros para fijar el punto de partida.' : 'Primero necesitamos registrar tu punto de partida.')) : null;
+  const def = category?.indicators.find((i) => i.id === ind.indicatorId);
+  // La persona puede poner ella misma la meta cuando el objetivo no es clínico; si lo es, la define o valida el kinesiólogo
+  const ownTarget = !staff && ind.state === 'needs_target' && !!def && !def.professionalTarget && !def.clinical && category?.supervision !== 'required' && (goal.status === 'active' || goal.status === 'pending_validation');
+  const awaiting = ind.state === 'needs_target' ? (staff ? 'Falta definir la meta.' : ownTarget ? 'Aún no definiste tu meta. Puedes ponerla cuando quieras.' : 'Tu kinesiólogo definirá la meta.') : ind.state === 'needs_baseline' ? (ind.manual ? (staff ? 'Aún no hay un primer valor registrado.' : 'Registra tu primer valor para fijar tu punto de partida.') : (staff ? 'Aún no hay registros para fijar el punto de partida.' : 'Primero necesitamos registrar tu punto de partida.')) : null;
   return (
     <div className="space-y-3">
       <div>
@@ -100,6 +105,11 @@ const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, hero,
             <Link to={link}>Ver evolución<ChevronRight aria-hidden="true" /></Link>
           </Button>
         )}
+        {canAct && ownTarget && (
+          <Button type="button" onClick={() => onSetTarget?.(goal)} className={cn('min-h-[44px] rounded-xl font-bold', BTN_FILL)}>
+            <Pencil aria-hidden="true" />Definir mi meta
+          </Button>
+        )}
         {canAct && ind.manual && (staff || !ind.professionalEntryOnly) && goal.status === 'active' && (
           <Button type="button" onClick={() => onCheckin?.(goal, ind)} variant="outline" className="min-h-[44px] rounded-xl border-[#398ca2] bg-transparent text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]">
             <Plus aria-hidden="true" />Registrar valor
@@ -111,7 +121,7 @@ const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, hero,
   );
 };
 
-const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, onPause, onResume, onMakePrimary, staff }: GoalCardProps) => {
+const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, onSetTarget, onPause, onResume, onMakePrimary, staff }: GoalCardProps) => {
   const [open, setOpen] = useState(variant === 'primary');
   const [showHistory, setShowHistory] = useState(false);
   const hero = variant === 'primary';
@@ -154,7 +164,7 @@ const GoalCard = ({ goal, category, sources, variant, canAct = true, onCheckin, 
 
       <div id={panelId} hidden={!open} className={cn('mt-4 space-y-5', !hero && 'border-t border-[#fff8e4]/10 pt-4')}>
         {inds.map((ind) => (
-          <IndicatorBlock key={ind.seriesKey} goal={goal} ind={ind} category={category} sources={sources} canAct={canAct} onCheckin={onCheckin} hero={hero && inds.length === 1} staff={!!staff} />
+          <IndicatorBlock key={ind.seriesKey} goal={goal} ind={ind} category={category} sources={sources} canAct={canAct} onCheckin={onCheckin} onSetTarget={onSetTarget} hero={hero && inds.length === 1} staff={!!staff} />
         ))}
         {!staff && safetyNote(goal.categoryId) && (
           <p className="text-[12.5px] text-[#a8a295]">

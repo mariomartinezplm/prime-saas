@@ -11,6 +11,7 @@ import { BTN_FILL, CARD } from '@/components/dashboard/brand';
 import GoalCard, { StatusPill } from '@/components/goals/GoalCard';
 import GoalIcon from '@/components/goals/GoalIcon';
 import CheckinSheet from '@/components/goals/CheckinSheet';
+import TargetSheet from '@/components/goals/TargetSheet';
 import WeeklyCheckin from '@/components/goals/WeeklyCheckin';
 import { goalService, type GoalCatalog, type GoalSources, type GoalView, type IndicatorProgress } from '@/services/goalService';
 import { activeGoals, paramsText } from '@/lib/goals';
@@ -28,6 +29,7 @@ const Goals = () => {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [checkin, setCheckin] = useState<{ goal: GoalView; indicator: IndicatorProgress } | null>(null);
+  const [targetGoal, setTargetGoal] = useState<GoalView | null>(null);
   const [showClosed, setShowClosed] = useState(false);
 
   const load = useCallback(async () => {
@@ -96,7 +98,7 @@ const Goals = () => {
       {user && !failed && <WeeklyCheckin userId={user.id} goals={goals} catalog={catalog} onSaved={replace} />}
 
       {active.map((goal, i) => (
-        <GoalCard key={goal.id} goal={goal} category={category(goal)} sources={sources} variant={i === 0 && goal.slot === 1 ? 'primary' : 'secondary'} onCheckin={(g, ind) => setCheckin({ goal: g, indicator: ind })} onPause={(g) => act(g, 'pause')} onMakePrimary={(g) => act(g, 'make_primary')} />
+        <GoalCard key={goal.id} goal={goal} category={category(goal)} sources={sources} variant={i === 0 && goal.slot === 1 ? 'primary' : 'secondary'} onCheckin={(g, ind) => setCheckin({ goal: g, indicator: ind })} onSetTarget={setTargetGoal} onPause={(g) => act(g, 'pause')} onMakePrimary={(g) => act(g, 'make_primary')} />
       ))}
 
       {!failed && catalog && (active.length > 0 || closed.length > 0) && (
@@ -133,6 +135,8 @@ const Goals = () => {
           )}
         </section>
       )}
+
+      {targetGoal && <TargetSheet goal={targetGoal} category={category(targetGoal)} mode="update_target" onClose={() => setTargetGoal(null)} onSaved={replace} />}
 
       {checkin && (
         <CheckinSheet goal={checkin.goal} indicator={checkin.indicator} category={category(checkin.goal)} onClose={() => setCheckin(null)} onSaved={replace} />

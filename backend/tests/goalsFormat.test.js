@@ -71,6 +71,12 @@ describe('textos', () => {
     expect(statusLabel({ status: 'pending_validation', validated: false }).tone).toBe('pending');
     expect(statusLabel({ status: 'paused' }).tone).toBe('paused');
   });
+  it('un objetivo sin meta todavía se muestra como «Meta por definir», no como meta propia', () => {
+    const sinMeta = { status: 'active', validated: false, createdByRole: 'patient', progress: { indicators: [{ target: null }] } };
+    expect(statusLabel(sinMeta).text).toBe('Meta por definir');
+    expect(statusLabel(sinMeta, 'staff').text).toBe('Falta definir la meta');
+    expect(statusLabel({ ...sinMeta, progress: { indicators: [{ target: { value: 70 } }] } }).text).toBe('Meta propia');
+  });
   it('los activos van del principal a los secundarios y excluyen pausados', () => {
     const goals = [{ status: 'paused', slot: null }, { status: 'active', slot: 3 }, { status: 'pending_validation', slot: 1 }, { status: 'active', slot: 2 }];
     expect(activeGoals(goals).map((g) => g.slot)).toEqual([1, 2, 3]);

@@ -54,6 +54,16 @@ describe('crear un objetivo', () => {
     expect(goal.indicators[0].baseline?.value).toBeUndefined();
   });
 
+  it('sin meta (la define después): se crea activo, sin meta y sin inventar nada; la persona la puede poner luego', async () => {
+    const sinMeta = { indicatorId: 'exercise_max_load', params: { exerciseKey: 'press banca' } };
+    const goal = await createGoal(patientId, patient, { categoryId: 'strength', priority: 'primary', indicators: [sinMeta] }, { reader: fakeReader() });
+    expect(goal).toMatchObject({ status: 'active', slot: 1 });
+    expect(goal.indicators[0].target?.value).toBeUndefined();
+    expect(goal.indicators[0].baseline?.value).toBeUndefined();
+    // una meta clínica sin meta, creada por un profesional, sigue pidiéndose antes de activar (no cambia)
+    await expect(createGoal(patientId, pro, painInput(null), { reader: fakeReader() })).rejects.toMatchObject({ code: 'TARGET_REQUIRED' });
+  });
+
   it('la meta debe quedar por delante del punto de partida', async () => {
     const reader = fakeReader({ exercise_max_load: [{ day: '2026-10-01', value: 80, refId: 'r1' }] });
     await expect(createGoal(patientId, patient, { categoryId: 'strength', priority: 'primary', indicators: [press] }, { reader })).rejects.toMatchObject({ status: 400, code: 'TARGET_NOT_AHEAD' });

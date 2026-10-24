@@ -28,9 +28,11 @@ describe('validar un indicador', () => {
     expect(validateIndicatorInput('strength', { ...press, params: {} }).errors[0]).toMatch(/falta/);
     expect(validateIndicatorInput('strength', { ...press, params: { exerciseKey: 'x', extra: 1 } }).ok).toBe(false);
   });
-  it('rechaza metas fuera de rango, sin meta y direcciones que no corresponden', () => {
+  it('rechaza metas fuera de rango y direcciones que no corresponden; sin meta es válido (se define después)', () => {
     expect(validateIndicatorInput('strength', { ...press, target: { value: 5000 } }).ok).toBe(false);
-    expect(validateIndicatorInput('strength', { ...press, target: undefined }).errors[0]).toMatch(/falta la meta/);
+    const sinMeta = validateIndicatorInput('strength', { ...press, target: undefined });
+    expect(sinMeta.ok).toBe(true);
+    expect(sinMeta.indicator.target).toBeNull();
     expect(validateIndicatorInput('strength', { ...press, direction: 'decrease' }).ok).toBe(false);
     expect(validateIndicatorInput('nope', press).ok).toBe(false);
   });

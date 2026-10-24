@@ -81,11 +81,12 @@ export function changeText(p: IndicatorProgress): string | null {
   return `${SUBJECT(p.indicatorId)} ${verb} ${formatValue(Math.abs(p.change), p.unit)} desde el inicio`;
 }
 
-export function statusLabel(goal: Pick<GoalView, 'status' | 'validated' | 'createdByRole'>, audience: 'patient' | 'staff' = 'patient'): { text: string; tone: 'pending' | 'validated' | 'own' | 'paused' | 'done' } {
+export function statusLabel(goal: Pick<GoalView, 'status' | 'validated' | 'createdByRole'> & { progress?: { indicators: Pick<IndicatorProgress, 'target'>[] } }, audience: 'patient' | 'staff' = 'patient'): { text: string; tone: 'pending' | 'validated' | 'own' | 'paused' | 'done' } {
   if (goal.status === 'achieved') return { text: 'Objetivo conseguido', tone: 'done' };
   if (goal.status === 'paused') return { text: 'En pausa', tone: 'paused' };
   if (goal.status === 'pending_validation') return { text: audience === 'staff' ? 'Por validar' : 'Pendiente de validación', tone: 'pending' };
   if (goal.validated) return { text: audience === 'staff' ? 'Validado' : 'Validada por tu kinesiólogo', tone: 'validated' };
+  if (goal.progress && goal.progress.indicators.length > 0 && goal.progress.indicators.every((i) => !i.target)) return { text: audience === 'staff' ? 'Falta definir la meta' : 'Meta por definir', tone: 'pending' };
   return { text: audience === 'staff' ? (goal.createdByRole === 'patient' ? 'Meta del paciente' : 'Meta propuesta por el equipo') : 'Meta propia', tone: 'own' };
 }
 

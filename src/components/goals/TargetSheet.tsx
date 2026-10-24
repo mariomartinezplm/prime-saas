@@ -24,6 +24,7 @@ interface TargetSheetProps {
 // del valor anterior en el historial.
 const TargetSheet = ({ goal, category, mode, onClose, onSaved }: TargetSheetProps) => {
   const inds = goal.progress.indicators;
+  const firstTime = mode === 'update_target' && inds.every((i) => !i.target); // todavía no había meta: se define por primera vez
   const [values, setValues] = useState<Record<string, string>>(Object.fromEntries(inds.map((i) => [i.seriesKey, formatDecimalInput(i.target?.value)])));
   const [tolerances, setTolerances] = useState<Record<string, string>>(Object.fromEntries(inds.map((i) => [i.seriesKey, formatDecimalInput(i.target?.tolerance)])));
   const [note, setNote] = useState('');
@@ -50,7 +51,7 @@ const TargetSheet = ({ goal, category, mode, onClose, onSaved }: TargetSheetProp
     setSaving(true);
     try {
       const updated = await goalService.act(goal.id, { action: mode, targets, note: note.trim() || undefined });
-      notify.success(mode === 'validate' ? 'Objetivo validado y activado' : 'Meta actualizada');
+      notify.success(mode === 'validate' ? 'Objetivo validado y activado' : firstTime ? 'Meta guardada' : 'Meta actualizada');
       onSaved(updated);
       onClose();
     } catch (err) {
@@ -61,7 +62,7 @@ const TargetSheet = ({ goal, category, mode, onClose, onSaved }: TargetSheetProp
   };
 
   return (
-    <BottomSheet open onOpenChange={(open) => !open && onClose()} title={mode === 'validate' ? 'Validar objetivo' : 'Cambiar la meta'} description={goal.categoryName}>
+    <BottomSheet open onOpenChange={(open) => !open && onClose()} title={mode === 'validate' ? 'Validar objetivo' : firstTime ? 'Define la meta' : 'Cambiar la meta'} description={goal.categoryName}>
       <form onSubmit={submit} noValidate className="space-y-4 pb-2">
         {inds.map((i) => (
           <div key={i.seriesKey} className="space-y-2 rounded-xl border border-[#fff8e4]/10 p-3">
@@ -77,9 +78,11 @@ const TargetSheet = ({ goal, category, mode, onClose, onSaved }: TargetSheetProp
             )}
           </div>
         ))}
-        <FormField label={mode === 'validate' ? 'Nota (opcional)' : 'Motivo del cambio (queda en el historial)'}>
-          {(c) => <Textarea {...c} rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className="border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-[#fff8e4]" />}
-        </FormField>
+        {!firstTime && (
+          <FormField label={mode === 'validate' ? 'Nota (opcional)' : 'Motivo del cambio (queda en el historial)'}>
+            {(c) => <Textarea {...c} rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className="border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-[#fff8e4]" />}
+          </FormField>
+        )}
         <Button type="submit" disabled={saving} className={cn('min-h-[48px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>{saving ? 'Guardando…' : mode === 'validate' ? 'Validar y activar' : 'Guardar meta'}</Button>
       </form>
     </BottomSheet>
