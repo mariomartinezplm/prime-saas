@@ -28,6 +28,8 @@ import BookAppointment from "./pages/patient/BookAppointment";
 import MyAppointments from "./pages/patient/MyAppointments";
 import MyProfile from "./pages/patient/MyProfile";
 import MyAchievements from "./pages/patient/MyAchievements";
+import Goals from "./pages/patient/Goals";
+import GoalNew from "./pages/patient/GoalNew";
 import MonthlySummary from "./pages/patient/MonthlySummary";
 import Workout from "./pages/patient/Workout";
 import ExerciseDetail from "./pages/patient/ExerciseDetail";
@@ -121,6 +123,14 @@ const App = () => (
               <Route
                 path="logros"
                 element={<RoleRoute roles={['patient']}><MyAchievements /></RoleRoute>}
+              />
+              <Route
+                path="objetivos"
+                element={<RoleRoute roles={['patient']}><Goals /></RoleRoute>}
+              />
+              <Route
+                path="objetivos/nuevo"
+                element={<RoleRoute roles={['patient']}><GoalNew /></RoleRoute>}
               />
               <Route
                 path="resumen-mensual"

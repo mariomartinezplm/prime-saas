@@ -26,6 +26,15 @@ function reduceDaily(points, mode) {
   return [...map.values()].sort(byDay);
 }
 
+// Fuerza: lo que cuenta es la MEJOR marca lograda hasta cada día (una sesión liviana no hace «retroceder» tu carga máxima)
+function runningBest(points) {
+  let best = -Infinity;
+  return points.map((p) => {
+    best = Math.max(best, p.value);
+    return { ...p, value: best };
+  });
+}
+
 export function makeSourceReader(patientId, deps = {}) {
   const models = { Exercise, Measurement, EVA, GoalCheckin, ...deps };
   const cache = {};
@@ -46,11 +55,11 @@ export function makeSourceReader(patientId, deps = {}) {
     switch (indicator.source) {
       case 'exercise_load': {
         const rows = (await exercises()).filter((e) => validSet(e) && keyOf(e) === p.exerciseKey);
-        return reduceDaily(rows.map((e) => ({ day: dayOf(e.date), value: e.weight, refId: String(e._id), refModel: 'ExerciseProgress' })), 'max');
+        return runningBest(reduceDaily(rows.map((e) => ({ day: dayOf(e.date), value: e.weight, refId: String(e._id), refModel: 'ExerciseProgress' })), 'max'));
       }
       case 'exercise_reps': {
         const rows = (await exercises()).filter((e) => validSet(e) && keyOf(e) === p.exerciseKey && sameLoad(e.weight, p.loadKg));
-        return reduceDaily(rows.map((e) => ({ day: dayOf(e.date), value: e.reps, refId: String(e._id), refModel: 'ExerciseProgress' })), 'max');
+        return runningBest(reduceDaily(rows.map((e) => ({ day: dayOf(e.date), value: e.reps, refId: String(e._id), refModel: 'ExerciseProgress' })), 'max'));
       }
       case 'measurement_perimeter': {
         const field = def?.field ?? p.field;

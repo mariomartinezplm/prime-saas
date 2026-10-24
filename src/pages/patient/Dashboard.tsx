@@ -24,6 +24,7 @@ import { useNow } from '@/components/dashboard/useNow';
 import { usePlanHistory } from '@/components/dashboard/usePlanHistory';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
+import GoalsPrompt from '@/components/goals/GoalsPrompt';
 import { TriangleAlert } from 'lucide-react';
 import type { Appointment, SessionBalance } from '@/types';
 
@@ -166,6 +167,8 @@ const PatientDashboard = () => {
           {summary.status === 'ready' && summary.view && <NextAchievementCard view={summary.view} />}
         </div>
       </div>
+
+      {user && <GoalsPrompt userId={user.id} enabled={hasPlan} />}
 
       <QuickActions hide={hero.kind === 'session' ? ['/app/mis-citas'] : hero.kind === 'book' ? ['/app/reservar'] : []} />
     </div>

@@ -56,6 +56,19 @@ describe('Press banca alimenta el objetivo de fuerza', () => {
   });
 });
 
+describe('fuerza = mejor marca acumulada', () => {
+  it('una sesión más liviana no hace retroceder tu carga máxima', async () => {
+    const rows = [
+      { _id: 'a', exerciseName: 'Sentadilla', weight: 80, weightUnit: 'kg', reps: 5, date: d('2026-09-01') },
+      { _id: 'b', exerciseName: 'Sentadilla', weight: 60, weightUnit: 'kg', reps: 8, date: d('2026-09-10') },
+      { _id: 'c', exerciseName: 'Sentadilla', weight: 85, weightUnit: 'kg', reps: 3, date: d('2026-09-20') },
+    ];
+    const r = makeSourceReader('p1', { Exercise: model(rows) });
+    const s = await r.series(ind({ source: 'exercise_load', params: { exerciseKey: 'sentadilla' } }));
+    expect(s.map((x) => [x.day, x.value])).toEqual([['2026-09-01', 80], ['2026-09-10', 80], ['2026-09-20', 85]]);
+  });
+});
+
 describe('Mediciones alimentan masa muscular, cintura y peso', () => {
   it('bíceps contraído DERECHO: no mezcla el izquierdo ni el relajado', async () => {
     const right = await reader().series(ind({ source: 'measurement_perimeter', params: { field: 'bicepFlexedRight' } }));

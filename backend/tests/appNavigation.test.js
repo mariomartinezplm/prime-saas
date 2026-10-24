@@ -17,7 +17,7 @@ const itemsOf = (name) => {
 };
 
 describe('menú lateral: inventario de opciones por rol', () => {
-  it('paciente: las 10 opciones de siempre más «Resumen» de progreso (nueva pantalla)', () => {
+  it('paciente: las opciones de siempre más «Resumen» de progreso y «Mis objetivos» (pantallas nuevas)', () => {
     expect(itemsOf('patientNav')).toEqual([
       { label: 'Inicio', path: '/app/dashboard', exact: true },
       { label: 'Reservar hora', path: '/app/reservar', exact: false },
@@ -27,6 +27,7 @@ describe('menú lateral: inventario de opciones por rol', () => {
       { label: 'Ejercicios', path: '/app/ejercicios', exact: false },
       { label: 'Fotos', path: '/app/fotos', exact: false },
       { label: 'Dolor (EVA)', path: '/app/dolor', exact: false },
+      { label: 'Mis objetivos', path: '/app/objetivos', exact: false },
       { label: 'Mis logros', path: '/app/logros', exact: false },
       { label: 'Mi perfil', path: '/app/mi-perfil', exact: false },
       { label: 'Configuración', path: '/app/configuracion', exact: false },
