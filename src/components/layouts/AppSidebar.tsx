@@ -21,6 +21,7 @@ import {
   Timer,
   LogOut,
   X,
+  ChevronRight,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -41,6 +42,8 @@ import {
 } from '@/components/ui/sidebar';
 import logoImage from '@/assets/prime-fh-logo.png';
 import FounderBadge from '@/components/plans/FounderBadge';
+import UserAvatar from '@/components/profile/UserAvatar';
+import AvatarEditor, { AvatarButton } from '@/components/profile/AvatarEditor';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -114,20 +117,18 @@ const isItemActive = (pathname: string, item: NavItem) =>
 
 const ROLE_LABEL = (role?: string) => (role === 'admin' ? 'Administrador' : role === 'professional' ? 'Profesional' : 'Paciente');
 
-const initialsOf = (firstName?: string, lastName?: string) =>
-  `${(firstName ?? '').trim().charAt(0)}${(lastName ?? '').trim().charAt(0)}`.toUpperCase();
-
 // Fila de navegación: identidad PRIME (#181619 / #398ca2 / #fff8e4). Altura táctil de 44 px solo en pantallas táctiles.
 // El estado activo se distingue por TRES señales (barra turquesa, fondo suave y texto en negrita), no solo por el color.
 const ROW = cn(
-  'relative h-9 gap-3 rounded-xl px-3 text-[15px] font-normal text-[#fff8e4]/80 transition-colors duration-150 [@media(pointer:coarse)]:h-11 [&>svg]:size-[18px]',
+  'relative h-10 gap-3.5 rounded-xl border border-transparent px-3 text-[15px] font-normal text-[#fff8e4]/80 transition-colors duration-150 [@media(pointer:coarse)]:h-11 [&>svg]:size-5',
   'hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4] active:bg-[#fff8e4]/10 active:text-[#fff8e4]',
   'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]',
-  'data-[active=true]:bg-[#398ca2]/15 data-[active=true]:font-semibold data-[active=true]:text-[#fff8e4]'
+  'data-[active=true]:border-[#398ca2]/30 data-[active=true]:bg-[#398ca2]/15 data-[active=true]:font-semibold data-[active=true]:text-[#fff8e4]'
 );
 
+// Etiqueta de grupo con una línea fina que se extiende hacia la derecha
 const LABEL =
-  'h-6 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#fff8e4]/60';
+  'h-7 gap-3 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#fff8e4]/60 flex items-center after:h-px after:flex-1 after:bg-[#fff8e4]/[0.12]';
 
 const AppSidebar = () => {
   const { user, logout } = useAuth();
@@ -135,6 +136,7 @@ const AppSidebar = () => {
   const navigate = useNavigate();
   const { setOpenMobile, isMobile } = useSidebar();
   const [pendingLogout, setPendingLogout] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
 
   const isStaff = user?.role === 'admin' || user?.role === 'professional';
   const groups = isStaff ? staffNav : patientNav;
@@ -175,47 +177,43 @@ const AppSidebar = () => {
 
   return (
     <>
+    {user && <AvatarEditor open={avatarOpen} onOpenChange={setAvatarOpen} />}
     {user && <PendingLogoutDialog open={pendingLogout} userId={user.id} onCancel={() => setPendingLogout(false)} onLeave={leaveAnyway} />}
     <Sidebar>
       {/* Un solo contenedor con el fondo de la marca: cubre igual el panel del celular y la barra de escritorio */}
       <div className="flex h-full min-h-0 w-full flex-col bg-[#181619] text-[#fff8e4] [padding-left:env(safe-area-inset-left)]">
-        <SidebarHeader className="gap-0 border-b border-[#fff8e4]/10 p-0 px-3 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))]">
-          <div className="flex items-center justify-between gap-2">
+        <SidebarHeader className="gap-0 border-b border-[#fff8e4]/10 p-0 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="flex items-start justify-between gap-2">
             <Link
               to={homePath}
               onClick={goTo(homePath)}
               aria-label="Prime F&H, ir al inicio"
-              className="-ml-1 inline-flex h-11 items-center rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]"
+              className="-ml-1 inline-flex h-12 items-center rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]"
             >
-              <img src={logoImage} alt="" className="h-8 w-auto" />
+              <img src={logoImage} alt="" className="h-10 w-auto" />
             </Link>
             {isMobile && (
               <button
                 type="button"
                 onClick={closeMobileMenu}
                 aria-label="Cerrar menú"
-                className="-mr-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#fff8e4]/80 transition-colors hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4] active:bg-[#fff8e4]/10"
+                className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#fff8e4]/80 transition-colors hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4] active:bg-[#fff8e4]/10"
               >
-                <X className="h-5 w-5" aria-hidden="true" />
+                <X className="h-6 w-6" aria-hidden="true" />
               </button>
             )}
           </div>
           {user && (
-            <div className="mt-1.5 flex min-w-0 items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#398ca2]/60 bg-[#398ca2]/15 text-[13px] font-semibold tracking-wide text-[#fff8e4]"
-              >
-                {initialsOf(user.firstName, user.lastName)}
-              </span>
+            <div className="mt-3 flex min-w-0 items-center gap-3.5">
+              <AvatarButton onClick={() => setAvatarOpen(true)}>
+                <UserAvatar user={user} size="lg" className="h-[68px] w-[68px] text-2xl" />
+              </AvatarButton>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-semibold leading-tight text-[#fff8e4]">
+                <p className="break-words text-[18px] font-bold leading-tight text-[#fff8e4]">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs leading-tight text-[#fff8e4]/70">
-                  <span>{ROLE_LABEL(user.role)}</span>
-                  {user.isFounder && <FounderBadge compact tone="brand" className="px-1.5 py-0" />}
-                </p>
+                <p className="mt-1 text-[13.5px] leading-tight text-[#fff8e4]/65">{ROLE_LABEL(user.role)}</p>
+                {user.isFounder && <FounderBadge tone="brand" className="mt-2 border-[#398ca2]/60 bg-[#398ca2]/10 px-2.5 py-1 text-[12.5px]" />}
               </div>
             </div>
           )}
@@ -245,7 +243,8 @@ const AppSidebar = () => {
                             <Link to={item.path} onClick={goTo(item.path)} aria-current={active ? 'page' : undefined}>
                               {active && <span aria-hidden="true" className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#398ca2]" />}
                               <item.icon className={cn('shrink-0', active ? 'text-[#398ca2]' : 'text-[#fff8e4]/65')} aria-hidden="true" />
-                              <span>{item.label}</span>
+                              <span className="flex-1 truncate">{item.label}</span>
+                              {active && <ChevronRight className="!size-4 shrink-0 text-[#398ca2]" aria-hidden="true" />}
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>

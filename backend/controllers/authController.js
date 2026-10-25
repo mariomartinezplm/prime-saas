@@ -130,6 +130,8 @@ export const login = async (req, res) => {
           role: user.role,
           phone: user.phone,
           profileImage: user.profileImage,
+          avatarUpdatedAt: user.avatarUpdatedAt,
+          isFounder: user.isFounder === true,
           assignedProfessionalId: user.assignedProfessionalId
         },
         token
@@ -171,6 +173,8 @@ export const getMe = async (req, res) => {
           rut: user.rut,
           address: user.address,
           profileImage: user.profileImage,
+          avatarUpdatedAt: user.avatarUpdatedAt,
+          isFounder: user.isFounder === true,
           emergencyContact: user.emergencyContact,
           medicalInfo: user.medicalInfo,
           assignedProfessionalId: user.assignedProfessionalId,
@@ -198,8 +202,7 @@ export const updateProfile = async (req, res) => {
       dateOfBirth: req.body.dateOfBirth,
       address: req.body.address,
       emergencyContact: req.body.emergencyContact,
-      medicalInfo: req.body.medicalInfo,
-      profileImage: req.body.profileImage
+      medicalInfo: req.body.medicalInfo
     };
 
     // Remover campos undefined
@@ -415,7 +418,9 @@ export const resetPassword = async (req, res) => {
           email: user.email,
           role: user.role,
           phone: user.phone,
-          profileImage: user.profileImage
+          profileImage: user.profileImage,
+          avatarUpdatedAt: user.avatarUpdatedAt,
+          isFounder: user.isFounder === true
         },
         token
       }
@@ -494,7 +499,9 @@ export const acceptInvite = async (req, res) => {
           email: user.email,
           role: user.role,
           phone: user.phone,
-          profileImage: user.profileImage
+          profileImage: user.profileImage,
+          avatarUpdatedAt: user.avatarUpdatedAt,
+          isFounder: user.isFounder === true
         },
         token
       }

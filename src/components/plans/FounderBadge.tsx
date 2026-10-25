@@ -12,7 +12,7 @@ interface FounderBadgeProps {
 // Miembro Fundador: pacientes con plan anual
 const FounderBadge = ({ compact, tone = 'default', className }: FounderBadgeProps) => (
   <span
-    title="Miembro Fundador"
+    title="Miembro fundador"
     className={cn(
       'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium align-middle',
       tone === 'brand' ? 'border-[#fff8e4]/40 bg-[#fff8e4]/10 text-[#fff8e4]' : 'border-coral/40 bg-coral/15 text-coral',
@@ -20,7 +20,7 @@ const FounderBadge = ({ compact, tone = 'default', className }: FounderBadgeProp
     )}
   >
     <Star className={cn('h-3 w-3', tone === 'brand' ? 'fill-[#398ca2] text-[#398ca2]' : 'fill-coral')} aria-hidden="true" />
-    {!compact && 'Miembro Fundador'}
+    {!compact && 'Miembro fundador'}
   </span>
 );
 

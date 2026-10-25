@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
-const SIDEBAR_WIDTH_MOBILE = "18rem";
+const SIDEBAR_WIDTH_MOBILE = "20rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
@@ -163,7 +163,7 @@ const Sidebar = React.forwardRef<
             (event.currentTarget as HTMLElement).querySelector<HTMLElement>("a[href], button")?.focus();
           }}
           // Apertura de 300 ms y cierre de 200 ms (la base de las hojas es 500/300: se sentía lenta para un menú)
-          className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground data-[state=closed]:duration-200 data-[state=open]:duration-300 [&>button]:hidden"
+          className="w-[--sidebar-width] max-w-[88vw] bg-sidebar p-0 text-sidebar-foreground data-[state=closed]:duration-200 data-[state=open]:duration-300 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,

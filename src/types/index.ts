@@ -19,6 +19,8 @@ export interface User {
   // Puede agendar aunque el horario esté lleno y no cuenta en el máximo de 4 (solo lo cambia el admin)
   exemptFromCapacity?: boolean;
   profileImage?: string;
+  // Cuándo se cambió la foto de perfil (si no hay, la persona usa sus iniciales); también evita mostrar una foto antigua
+  avatarUpdatedAt?: string;
   specialty?: string;
   emergencyContact?: EmergencyContact;
   medicalInfo?: MedicalInfo;

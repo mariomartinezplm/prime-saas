@@ -111,6 +111,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Foto de perfil (la sube la propia persona desde su menú). El archivo vive en R2, privado; aquí solo su clave, que NUNCA sale por
+  // la API (ver toJSON). `avatarUpdatedAt` sí: sirve para saber si hay foto y para no mostrar una antigua guardada en caché.
+  avatarKey: { type: String, select: false },
+  avatarUpdatedAt: { type: Date },
   airtableId: {
     type: String,
     unique: true,
@@ -223,6 +227,7 @@ userSchema.set('toJSON', {
     delete ret.resetPasswordToken;
     delete ret.resetPasswordExpire;
     delete ret.invite; // token de invitación (Paso 12)
+    delete ret.avatarKey; // ruta interna de la foto de perfil en R2
     delete ret.googleTokens; // Google Calendar (Paso 28) — nunca sale por la API
     return ret;
   }
