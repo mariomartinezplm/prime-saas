@@ -450,7 +450,8 @@ export type NotificationType =
   | 'wellness_alert'
   | 'achievement_unlocked'
   | 'readiness_reminder'
-  | 'weekly_booking_reminder';
+  | 'weekly_booking_reminder'
+  | 'midweek_booking_reminder';
 
 export interface Notification {
   _id: string;

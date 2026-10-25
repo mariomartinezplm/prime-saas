@@ -3,6 +3,7 @@ import { runPlanLifecycleJob } from './planLifecycleService.js';
 import { runAchievementSweep } from './achievements/index.js';
 import { sendReadinessReminders } from './readinessReminderService.js';
 import { sendWeeklyBookingReminders } from './weeklyBookingReminderService.js';
+import { sendMidweekBookingReminders } from './midweekBookingReminderService.js';
 import { syncAllRecurringSlots } from './recurringSlotService.js';
 import { importNewPatients, isAirtableConfigured, AUTO_IMPORT_FROM } from '../utils/airtableSync.js';
 
@@ -54,6 +55,15 @@ async function tick() {
     }
   } catch (error) {
     console.error('Error en el recordatorio semanal para agendar:', error.message);
+  }
+
+  try {
+    const midweek = await sendMidweekBookingReminders();
+    if (midweek.sent || midweek.failed) {
+      console.log(`📅 Aviso del miércoles: ${midweek.sent} recordatorios para completar la semana, ${midweek.failed} con error`);
+    }
+  } catch (error) {
+    console.error('Error en el recordatorio de mitad de semana:', error.message);
   }
 
   try {

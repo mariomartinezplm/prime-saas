@@ -41,6 +41,7 @@ const TYPE_META: Record<string, { icon: LucideIcon; tone: string }> = {
   achievement_unlocked: { icon: Trophy, tone: 'bg-primary/15 text-primary' },
   readiness_reminder: { icon: Sparkles, tone: 'bg-primary/15 text-primary' },
   weekly_booking_reminder: { icon: CalendarCheck, tone: 'bg-info/15 text-info' },
+  midweek_booking_reminder: { icon: CalendarCheck, tone: 'bg-info/15 text-info' },
   recurring_booked: { icon: Repeat, tone: 'bg-info/15 text-info' },
   recurring_skipped: { icon: CalendarX, tone: 'bg-warning/15 text-warning' },
 };
