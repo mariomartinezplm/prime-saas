@@ -21,7 +21,7 @@ describe('catálogo de objetivos', () => {
       expect(c.name && c.description && c.icon).toBeTruthy();
       expect(['none', 'recommended', 'required']).toContain(c.supervision);
       expect(c.indicators.length).toBeGreaterThan(0);
-      for (const id of c.indicators) expect(INDICATORS[id], `${c.id} → ${id}`).toBeTruthy();
+      for (const id of [...c.indicators, ...(c.legacyIndicators ?? [])]) expect(INDICATORS[id], `${c.id} → ${id}`).toBeTruthy();
     }
   });
 
@@ -38,7 +38,7 @@ describe('catálogo de objetivos', () => {
   });
 
   it('todo indicador pertenece a alguna categoría y los ids no se repiten', () => {
-    const used = GOAL_CATEGORIES.flatMap((c) => c.indicators);
+    const used = GOAL_CATEGORIES.flatMap((c) => [...c.indicators, ...(c.legacyIndicators ?? [])]);
     expect(new Set(used).size).toBe(used.length);
     for (const id of Object.keys(INDICATORS)) expect(used).toContain(id);
   });
@@ -46,17 +46,20 @@ describe('catálogo de objetivos', () => {
   it('corazón y metabolismo es UNA categoría con varios indicadores; presión distingue sistólica y diastólica', () => {
     const cardio = getCategory('cardiometabolic');
     expect(cardio.multiIndicator).toBe(true);
-    expect(cardio.indicators).toEqual(expect.arrayContaining(['blood_pressure_systolic', 'blood_pressure_diastolic', 'glucose', 'cholesterol', 'resting_heart_rate', 'weekly_activity_minutes']));
+    // Lo que Mario pidió: presión, glucosa, colesterol y triglicéridos (el pulso y los minutos de actividad ya no se ofrecen)
+    expect(cardio.indicators).toEqual(['blood_pressure_systolic', 'blood_pressure_diastolic', 'glucose', 'cholesterol', 'triglycerides']);
+    expect(cardio.legacyIndicators).toEqual(['weekly_activity_minutes', 'resting_heart_rate']);
     expect(GOAL_CATEGORIES.filter((c) => c.indicators.includes('glucose'))).toHaveLength(1);
   });
 
   it('los indicadores clínicos no traen metas universales y el colesterol obliga a elegir la fracción', () => {
-    for (const id of ['blood_pressure_systolic', 'blood_pressure_diastolic', 'glucose', 'cholesterol']) {
+    for (const id of ['blood_pressure_systolic', 'blood_pressure_diastolic', 'glucose', 'cholesterol', 'triglycerides']) {
       expect(INDICATORS[id].clinical).toBe(true);
       expect(INDICATORS[id].professionalTarget).toBe(true);
       expect(INDICATORS[id].target).toBeUndefined();
     }
-    expect(INDICATORS.cholesterol.params.find((p) => p.key === 'analyte').options.map((o) => o.value)).toEqual(['total', 'ldl', 'hdl', 'triglycerides']);
+    expect(INDICATORS.cholesterol.params.find((p) => p.key === 'analyte').options.map((o) => o.value)).toEqual(['total', 'ldl', 'hdl']);
+    expect(INDICATORS.triglycerides.params).toEqual([]);
     expect(INDICATORS.glucose.params.map((p) => p.key)).toEqual(['context', 'method']);
   });
 
@@ -67,8 +70,51 @@ describe('catálogo de objetivos', () => {
 
   it('la cintura avisa que es un indicador indirecto y el bíceps contraído está separado del relajado', () => {
     expect(INDICATORS.perimeter_waist.indirect).toBe(true);
-    const fields = INDICATORS.perimeter_muscle.params[0].options.map((o) => o.value);
-    expect(fields).toEqual(expect.arrayContaining(['bicepFlexedLeft', 'bicepFlexedRight', 'bicepLeft', 'bicepRight']));
+    // Lo que se ofrece para masa muscular: bíceps contraído, muslo y glúteos (el bíceps relajado ya no)
+    expect(getCategory('muscle_mass').indicators).toEqual(['perimeter_bicep_flexed', 'perimeter_thigh', 'perimeter_glute']);
+    expect(INDICATORS.perimeter_bicep_flexed.params[0].options.map((o) => o.value)).toEqual(['bicepFlexedLeft', 'bicepFlexedRight']);
+    expect(INDICATORS.perimeter_thigh.params[0].options.map((o) => o.value)).toEqual(['thighLeft', 'thighRight']);
+    expect(INDICATORS.perimeter_glute.field).toBe('hips');
+    // El indicador anterior sigue definido para los objetivos que ya lo usan
+    expect(INDICATORS.perimeter_muscle.params[0].options.map((o) => o.value)).toEqual(expect.arrayContaining(['bicepLeft', 'bicepRight']));
+  });
+
+  it('postura y movilidad se anotan de 1 a 10, el estrés de 0 a 10, y cada escala dice qué significa cada extremo', () => {
+    expect(INDICATORS.posture_self_rating).toMatchObject({ range: { min: 1, max: 10 }, unit: '/10' });
+    expect(INDICATORS.mobility_self_rating).toMatchObject({ range: { min: 1, max: 10 }, unit: '/10' });
+    expect(INDICATORS.stress_perceived).toMatchObject({ range: { min: 0, max: 10 }, unit: '/10' });
+    expect(INDICATORS.sport_self_rating).toMatchObject({ range: { min: 1, max: 10 } });
+    expect(INDICATORS.posture_self_rating.scaleHint).toMatch(/10 = .*perfecta.*1 = .*muy mala/);
+    expect(INDICATORS.mobility_self_rating.scaleHint).toMatch(/10 = .*perfecta.*1 = rigidez máxima/);
+    expect(INDICATORS.stress_perceived.scaleHint).toMatch(/0 = nada.*10 = .*máximo/);
+    expect(INDICATORS.pain_eva.scaleHint).toMatch(/0 = nada de dolor.*10 = /);
+  });
+
+  it('postura, movilidad y estrés se ofrecen solo como escala; lo clínico del kinesiólogo queda para lo que ya existe', () => {
+    expect(getCategory('posture').indicators).toEqual(['posture_self_rating']);
+    expect(getCategory('mobility').indicators).toEqual(['mobility_self_rating']);
+    expect(getCategory('stress').indicators).toEqual(['stress_perceived']);
+    expect(getCategory('posture').legacyIndicators).toContain('posture_functional_test');
+    expect(getCategory('mobility').legacyIndicators).toEqual(expect.arrayContaining(['rom_degrees', 'mobility_test']));
+  });
+
+  it('rendimiento deportivo: test de salto, una marca, ritmo por kilómetro y cómo me siento en mi deporte', () => {
+    expect(getCategory('sport_performance').indicators).toEqual(['jump_test', 'performance_test', 'running_pace', 'sport_self_rating']);
+    expect(INDICATORS.running_pace).toMatchObject({ unit: 'min/km', defaultDirection: 'decrease' });
+    expect(getCategory('sport_performance').multiIndicator).toBe(true);
+  });
+
+  it('los exámenes (presión, glucosa, colesterol, triglicéridos) piden la fecha en que se tomaron', () => {
+    for (const id of ['blood_pressure_systolic', 'blood_pressure_diastolic', 'glucose', 'cholesterol', 'triglycerides']) expect(INDICATORS[id].datedEntry, id).toBe(true);
+    expect(INDICATORS.stress_perceived.datedEntry).toBeUndefined();
+  });
+
+  it('el catálogo público ofrece lo nuevo en `indicators` y conserva lo antiguo en `allIndicators`', () => {
+    const pub = publicCatalog();
+    const mass = pub.categories.find((c) => c.id === 'muscle_mass');
+    expect(mass.indicators.map((i) => i.id)).toEqual(['perimeter_bicep_flexed', 'perimeter_thigh', 'perimeter_glute']);
+    expect(mass.allIndicators.map((i) => i.id)).toEqual(expect.arrayContaining(['perimeter_muscle', 'muscle_mass_pct', 'body_weight_complement']));
+    for (const c of pub.categories) for (const i of c.indicators) expect(c.allIndicators.map((x) => x.id)).toContain(i.id);
   });
 
   it('postura, dolor y movilidad exigen validación del profesional; lo que mide el profesional solo lo ingresa él', () => {

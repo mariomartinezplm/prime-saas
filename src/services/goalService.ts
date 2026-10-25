@@ -33,6 +33,9 @@ export interface CatalogIndicator {
   field?: string;
   note?: string;
   checkinQuestion?: string;
+  scaleHint?: string;
+  datedEntry?: boolean;
+  showLabelWithParams?: boolean;
 }
 export interface CatalogCategory {
   id: string;
@@ -42,7 +45,10 @@ export interface CatalogCategory {
   description: string;
   supervision: 'none' | 'recommended' | 'required';
   multiIndicator?: boolean;
+  // Lo que se ofrece al crear un objetivo nuevo
   indicators: CatalogIndicator[];
+  // Además, lo que ya no se ofrece pero objetivos anteriores todavía usan (para seguir mostrándolos bien)
+  allIndicators?: CatalogIndicator[];
 }
 export interface GoalCatalog {
   version: number;

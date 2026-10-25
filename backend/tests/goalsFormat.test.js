@@ -8,7 +8,7 @@ const { publicCatalog } = await import('../config/goalCatalog.js');
 
 const catalog = publicCatalog();
 const cat = (id) => catalog.categories.find((c) => c.id === id);
-const ind = (id) => catalog.categories.flatMap((c) => c.indicators).find((i) => i.id === id);
+const ind = (id) => catalog.categories.flatMap((c) => c.allIndicators).find((i) => i.id === id);
 
 describe('cómo se escribe un valor', () => {
   it('coma decimal y unidad legible', () => {
@@ -61,6 +61,8 @@ describe('punto de partida que ya existe', () => {
 describe('textos', () => {
   it('nombra el indicador con lo elegido: lado y zona, no solo «perímetro»', () => {
     expect(paramsText({ indicatorId: 'perimeter_muscle', params: { field: 'bicepFlexedRight' } }, cat('muscle_mass'))).toBe('Bíceps contraído derecho');
+    expect(paramsText({ indicatorId: 'perimeter_bicep_flexed', params: { field: 'bicepFlexedLeft' } }, cat('muscle_mass'))).toBe('Bíceps contraído · Izquierdo');
+    expect(paramsText({ indicatorId: 'perimeter_thigh', params: { field: 'thighRight' } }, cat('muscle_mass'))).toBe('Muslo · Derecho');
     expect(paramsText({ indicatorId: 'pain_eva', params: { bodyArea: 'rodilla-derecha' } }, cat('pain'))).toBe('Rodilla derecha');
     expect(paramsText({ indicatorId: 'exercise_reps_at_load', params: { exerciseKey: 'press banca', loadKg: 40 } }, cat('strength'))).toBe('Press banca · con 40 kg');
     expect(exerciseLabel('press banca')).toBe('Press banca');
@@ -124,7 +126,7 @@ describe('check-in semanal', () => {
   it('pregunta lo manual que no se registró en 7 días', () => {
     const r = pendingCheckins([goal([ind({ lastDay: '2026-10-10' })])], catalog, '2026-10-24');
     expect(r).toHaveLength(1);
-    expect(r[0].question).toBe('¿Cómo estuvo tu nivel de estrés esta semana? (0 a 10)');
+    expect(r[0].question).toBe('¿Cuál fue tu nivel de estrés promedio estos días? (0 a 10)');
     expect(pendingCheckins([goal([ind()])], catalog, '2026-10-24')).toHaveLength(1);
   });
   it('no pregunta si ya registró esta semana, ni lo que llega solo, ni lo del profesional, ni con recordatorios apagados, ni objetivos pausados', () => {
@@ -135,8 +137,22 @@ describe('check-in semanal', () => {
     expect(pendingCheckins([goal([ind()], { status: 'paused' })], catalog, '2026-10-24')).toEqual([]);
   });
   it('como máximo dos preguntas a la vez', () => {
-    const many = goal([ind({ seriesKey: 'a' }), ind({ seriesKey: 'b', indicatorId: 'sleep_hours', unit: 'h' }), ind({ seriesKey: 'c', indicatorId: 'weekly_activity_minutes', unit: 'min' })]);
+    const many = goal([ind({ seriesKey: 'a', indicatorId: 'running_pace', unit: 'min/km' }), ind({ seriesKey: 'b', indicatorId: 'sport_self_rating', unit: '/10' }), ind({ seriesKey: 'c', indicatorId: 'performance_test', unit: 'km' })], { categoryId: 'sport_performance' });
     expect(pendingCheckins([many], catalog, '2026-10-24')).toHaveLength(2);
+  });
+  it('los exámenes (presión, glucosa, colesterol, triglicéridos) no se preguntan cada semana: se registran con la fecha en que se tomaron', () => {
+    const exams = goal([ind({ seriesKey: 'a', indicatorId: 'glucose', unit: 'mg/dL' }), ind({ seriesKey: 'b', indicatorId: 'triglycerides', unit: 'mg/dL' }), ind({ seriesKey: 'c', indicatorId: 'blood_pressure_systolic', unit: 'mmHg' })], { categoryId: 'cardiometabolic' });
+    expect(pendingCheckins([exams], catalog, '2026-10-24')).toEqual([]);
+  });
+  it('la pregunta de una escala lleva qué significa cada extremo y su rango', () => {
+    const [q] = pendingCheckins([goal([ind({ indicatorId: 'posture_self_rating' })], { categoryId: 'posture' })], catalog, '2026-10-24');
+    expect(q.scaleHint).toMatch(/10 = .*perfecta.*1 = .*muy mala/);
+    expect(q.range).toEqual({ min: 1, max: 10 });
+  });
+  it('un objetivo que ya existía con un indicador que dejó de ofrecerse sigue preguntándose y mostrándose bien', () => {
+    const viejo = goal([ind({ indicatorId: 'sleep_hours', unit: 'h' })]);
+    expect(pendingCheckins([viejo], catalog, '2026-10-24')).toHaveLength(1);
+    expect(paramsText({ indicatorId: 'perimeter_muscle', params: { field: 'bicepFlexedRight' } }, cat('muscle_mass'))).toBe('Bíceps contraído derecho');
   });
 });
 

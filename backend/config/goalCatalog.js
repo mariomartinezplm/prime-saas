@@ -21,13 +21,16 @@
  *   checkin              registro manual (autorreporte o profesional)        ← GoalCheckin
  */
 
-export const GOAL_CATALOG_VERSION = 1;
+export const GOAL_CATALOG_VERSION = 2;
 
 export const DIRECTIONS = ['increase', 'decrease', 'maintain'];
 export const SUPERVISION = ['none', 'recommended', 'required'];
 export const MAX_ACTIVE_GOALS = 3; // 1 principal + 2 secundarios
 export const MAX_INDICATORS_PER_GOAL = 5;
 
+// Versión 2 (2026-10): se redujo lo que se OFRECE a lo que el centro realmente puede medir y seguir. Los indicadores que dejaron de
+// ofrecerse siguen definidos aquí (`legacyIndicators` de cada categoría): los objetivos que ya los usan conservan sus registros,
+// su progreso y sus gráficos; solo no se pueden elegir al crear un objetivo nuevo.
 const side = { key: 'side', type: 'enum', label: 'Lado', required: true, options: [{ value: 'left', label: 'Izquierdo' }, { value: 'right', label: 'Derecho' }] };
 const testName = { key: 'testName', type: 'text', label: 'Nombre de la prueba', required: true, max: 60 };
 
@@ -50,6 +53,9 @@ const MUSCLE_PERIMETERS = [
   ['chest', 'Pecho'], ['shoulders', 'Hombros'], ['hips', 'Glúteos / cadera'],
 ].map(([value, label]) => ({ value, label }));
 
+const BICEP_SIDES = [{ value: 'bicepFlexedLeft', label: 'Izquierdo' }, { value: 'bicepFlexedRight', label: 'Derecho' }];
+const THIGH_SIDES = [{ value: 'thighLeft', label: 'Izquierdo' }, { value: 'thighRight', label: 'Derecho' }];
+
 const JUMP_TESTS = [
   ['cmj', 'Salto con contramovimiento (CMJ)'], ['sj', 'Salto desde sentadilla (SJ)'], ['abalakov', 'Salto Abalakov'],
   ['dropJump', 'Drop jump'], ['horizontalJump', 'Salto horizontal'],
@@ -68,7 +74,10 @@ const TEST_UNITS = ['s', 'min', 'm', 'km', 'cm', 'rep', 'kg', 'puntos'];
  *   professionalEntryOnly: solo el profesional ingresa los valores,
  *   professionalTarget: la meta puede quedar en blanco al crear el objetivo: la define el profesional,
  *   clinical: indicador clínico (presión, glucosa, colesterol): el objetivo siempre pasa por validación profesional,
- *   indirect / note: aviso que se muestra junto al indicador.
+ *   indirect / note: aviso que se muestra junto al indicador,
+ *   scaleHint: qué significa cada extremo de una escala (ej. «0 = nada de estrés · 10 = estrés máximo»),
+ *   datedEntry: el valor viene de un examen y se pregunta la fecha en que se tomó,
+ *   showLabelWithParams: al nombrarlo se antepone el indicador a sus parámetros («Bíceps contraído · Izquierdo»).
  */
 const IND = {
   exercise_max_load: {
@@ -89,6 +98,26 @@ const IND = {
     directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [{ key: 'field', type: 'enum', label: 'Zona medida', required: true, options: MUSCLE_PERIMETERS }],
     confirmation: { records: 2, minDays: 14 }, origin: 'registro', indirect: true,
     note: 'Un perímetro mayor no significa necesariamente más músculo: es un indicador de cambio de tu medida.',
+  },
+  perimeter_bicep_flexed: {
+    showLabelWithParams: true,
+    id: 'perimeter_bicep_flexed', label: 'Bíceps contraído', source: 'measurement_perimeter', unit: 'cm', range: { min: 1, max: 300 },
+    directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [{ key: 'field', type: 'enum', label: 'Brazo', required: true, options: BICEP_SIDES }],
+    confirmation: { records: 2, minDays: 14 }, origin: 'registro', indirect: true,
+    note: 'Un perímetro mayor no significa necesariamente más músculo: es un indicador de cambio de tu medida.',
+  },
+  perimeter_thigh: {
+    showLabelWithParams: true,
+    id: 'perimeter_thigh', label: 'Muslo', source: 'measurement_perimeter', unit: 'cm', range: { min: 1, max: 300 },
+    directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [{ key: 'field', type: 'enum', label: 'Pierna', required: true, options: THIGH_SIDES }],
+    confirmation: { records: 2, minDays: 14 }, origin: 'registro', indirect: true,
+    note: 'Un perímetro mayor no significa necesariamente más músculo: es un indicador de cambio de tu medida.',
+  },
+  perimeter_glute: {
+    id: 'perimeter_glute', label: 'Glúteos', source: 'measurement_perimeter', field: 'hips', unit: 'cm', range: { min: 20, max: 300 },
+    directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [],
+    confirmation: { records: 2, minDays: 14 }, origin: 'registro', indirect: true,
+    note: 'Es el perímetro de glúteos (cadera). Un perímetro mayor no significa necesariamente más músculo.',
   },
   muscle_mass_pct: {
     id: 'muscle_mass_pct', label: 'Porcentaje de masa muscular', source: 'measurement_field', field: 'muscleMassPercentage', unit: '%', range: { min: 1, max: 100 },
@@ -127,9 +156,24 @@ const IND = {
     confirmation: { records: 1, minDays: 0 }, origin: 'autorreporte',
     note: 'Elige tú si mejorar es subir (distancia, repeticiones) o bajar (tiempo). Solo se compara la misma prueba.',
   },
+  running_pace: {
+    checkinQuestion: '¿Cuál fue tu ritmo promedio por kilómetro en tu última salida?',
+    id: 'running_pace', label: 'Ritmo promedio por kilómetro', source: 'checkin', unit: 'min/km', range: { min: 2, max: 20 },
+    directions: ['decrease', 'maintain'], defaultDirection: 'decrease', params: [],
+    confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte',
+    note: 'Escribe los minutos con decimales: 5,5 es 5 minutos 30 segundos por kilómetro. Bajar el ritmo es ir más rápido.',
+  },
+  sport_self_rating: {
+    checkinQuestion: '¿Cómo te sentiste esta semana en la cancha o en tu deporte? (1 a 10)',
+    id: 'sport_self_rating', label: 'Cómo me siento en mi deporte (1 a 10)', source: 'checkin', unit: '/10', range: { min: 1, max: 10 },
+    scaleHint: '10 = me siento excelente · 1 = me siento muy mal',
+    directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [],
+    confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte',
+    note: 'Es tu percepción: se muestra como tal.',
+  },
   blood_pressure_systolic: {
     checkinQuestion: '¿Cuál fue tu última presión sistólica?',
-    clinical: true,
+    clinical: true, datedEntry: true,
     id: 'blood_pressure_systolic', label: 'Presión arterial sistólica', source: 'checkin', unit: 'mmHg', range: { min: 50, max: 260 },
     directions: ['decrease', 'maintain'], defaultDirection: 'maintain', params: [{ key: 'method', type: 'enum', label: 'Cómo se mide', required: true, options: [{ value: 'home', label: 'En casa' }, { value: 'clinic', label: 'En un centro de salud' }] }],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte', professionalTarget: true,
@@ -137,7 +181,7 @@ const IND = {
   },
   blood_pressure_diastolic: {
     checkinQuestion: '¿Cuál fue tu última presión diastólica?',
-    clinical: true,
+    clinical: true, datedEntry: true,
     id: 'blood_pressure_diastolic', label: 'Presión arterial diastólica', source: 'checkin', unit: 'mmHg', range: { min: 30, max: 160 },
     directions: ['decrease', 'maintain'], defaultDirection: 'maintain', params: [{ key: 'method', type: 'enum', label: 'Cómo se mide', required: true, options: [{ value: 'home', label: 'En casa' }, { value: 'clinic', label: 'En un centro de salud' }] }],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte', professionalTarget: true,
@@ -145,7 +189,7 @@ const IND = {
   },
   glucose: {
     checkinQuestion: '¿Cuál fue tu última glucosa?',
-    clinical: true,
+    clinical: true, datedEntry: true,
     id: 'glucose', label: 'Glucosa', source: 'checkin', unit: 'mg/dL', range: { min: 20, max: 700 },
     directions: ['decrease', 'maintain'], defaultDirection: 'maintain',
     params: [{ key: 'context', type: 'enum', label: 'Cuándo se mide', required: true, options: [{ value: 'fasting', label: 'En ayunas' }, { value: 'postprandial', label: 'Después de comer' }, { value: 'random', label: 'En cualquier momento' }] },
@@ -155,12 +199,20 @@ const IND = {
   },
   cholesterol: {
     checkinQuestion: '¿Cuál fue tu último valor de colesterol?',
-    clinical: true,
+    clinical: true, datedEntry: true,
     id: 'cholesterol', label: 'Colesterol', source: 'checkin', unit: 'mg/dL', range: { min: 10, max: 1000 },
     directions: ['decrease', 'increase', 'maintain'], defaultDirection: 'maintain',
-    params: [{ key: 'analyte', type: 'enum', label: 'Qué fracción', required: true, options: [{ value: 'total', label: 'Colesterol total' }, { value: 'ldl', label: 'LDL' }, { value: 'hdl', label: 'HDL' }, { value: 'triglycerides', label: 'Triglicéridos' }] }],
+    params: [{ key: 'analyte', type: 'enum', label: 'Qué fracción', required: true, options: [{ value: 'total', label: 'Colesterol total' }, { value: 'ldl', label: 'LDL' }, { value: 'hdl', label: 'HDL' }] }],
     confirmation: { records: 1, minDays: 0 }, origin: 'autorreporte', professionalTarget: true,
     note: 'Cada fracción se sigue por separado. La meta la define tu profesional o tu médico.',
+  },
+  triglycerides: {
+    checkinQuestion: '¿Cuál fue tu último valor de triglicéridos?',
+    clinical: true, datedEntry: true,
+    id: 'triglycerides', label: 'Triglicéridos', source: 'checkin', unit: 'mg/dL', range: { min: 10, max: 3000 },
+    directions: ['decrease', 'maintain'], defaultDirection: 'maintain', params: [],
+    confirmation: { records: 1, minDays: 0 }, origin: 'autorreporte', professionalTarget: true,
+    note: 'Escribe el valor de tu examen y la fecha en que te lo tomaste. La meta la define tu profesional o tu médico.',
   },
   resting_heart_rate: {
     checkinQuestion: '¿Cuál fue tu pulso en reposo esta semana?',
@@ -178,8 +230,9 @@ const IND = {
     note: 'Es lo que tú declaras: no reemplaza la asistencia validada de tus sesiones.',
   },
   stress_perceived: {
-    checkinQuestion: '¿Cómo estuvo tu nivel de estrés esta semana? (0 a 10)',
-    id: 'stress_perceived', label: 'Estrés percibido (0 a 10)', source: 'checkin', unit: '/10', range: { min: 0, max: 10 },
+    checkinQuestion: '¿Cuál fue tu nivel de estrés promedio estos días? (0 a 10)',
+    id: 'stress_perceived', label: 'Estrés promedio (0 a 10)', source: 'checkin', unit: '/10', range: { min: 0, max: 10 },
+    scaleHint: '0 = nada de estrés · 10 = estrés máximo',
     directions: ['decrease', 'maintain'], defaultDirection: 'decrease', params: [],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte',
     note: 'Es tu percepción. Tiene su propia escala y no se mezcla con el Readiness.',
@@ -192,8 +245,9 @@ const IND = {
     note: 'Es lo que tú declaras.',
   },
   posture_self_rating: {
-    checkinQuestion: '¿Cómo percibes tu postura esta semana? (0 a 10)',
-    id: 'posture_self_rating', label: 'Cómo percibo mi postura (0 a 10)', source: 'checkin', unit: '/10', range: { min: 0, max: 10 },
+    checkinQuestion: '¿Cómo sientes que es tu postura? (1 a 10)',
+    id: 'posture_self_rating', label: 'Cómo percibo mi postura (1 a 10)', source: 'checkin', unit: '/10', range: { min: 1, max: 10 },
+    scaleHint: '10 = mi postura es perfecta · 1 = mi postura es muy mala',
     directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte', professionalTarget: true,
     note: 'Es una percepción tuya: se muestra como tal y no es un diagnóstico.',
@@ -206,6 +260,7 @@ const IND = {
   },
   pain_eva: {
     id: 'pain_eva', label: 'Dolor de una zona (EVA 0 a 10)', source: 'eva', unit: '/10', range: { min: 0, max: 10 },
+    scaleHint: '0 = nada de dolor · 10 = el dolor más grande que has sentido',
     directions: ['decrease', 'maintain'], defaultDirection: 'decrease', params: [{ key: 'bodyArea', type: 'enum', label: 'Zona del cuerpo', required: true, options: EVA_AREAS }],
     confirmation: { records: 2, minDays: 7 }, origin: 'registro', professionalTarget: true,
     note: 'Usa tus registros de dolor de esa zona. Que el dolor baje no significa por sí solo que la función esté recuperada.',
@@ -230,8 +285,9 @@ const IND = {
     note: 'Solo se compara la misma prueba.',
   },
   mobility_self_rating: {
-    checkinQuestion: '¿Cómo percibes tu movilidad esta semana? (0 a 10)',
-    id: 'mobility_self_rating', label: 'Cómo percibo mi movilidad (0 a 10)', source: 'checkin', unit: '/10', range: { min: 0, max: 10 },
+    checkinQuestion: '¿Cómo sientes tu movilidad? (1 a 10)',
+    id: 'mobility_self_rating', label: 'Cómo percibo mi movilidad (1 a 10)', source: 'checkin', unit: '/10', range: { min: 1, max: 10 },
+    scaleHint: '10 = movilidad perfecta · 1 = rigidez máxima',
     directions: ['increase', 'maintain'], defaultDirection: 'increase', params: [],
     confirmation: { records: 2, minDays: 14 }, origin: 'autorreporte', professionalTarget: true,
     note: 'Es una percepción tuya: se muestra como tal.',
@@ -240,16 +296,16 @@ const IND = {
 
 // Exactamente diez categorías visibles. `icon` es el nombre de un icono de lucide-react.
 export const GOAL_CATEGORIES = [
-  { id: 'strength', order: 1, active: true, icon: 'Dumbbell', name: 'Aumentar fuerza', description: 'Quiero mejorar mi fuerza en uno o más ejercicios', supervision: 'none', indicators: ['exercise_max_load', 'exercise_reps_at_load'] },
-  { id: 'muscle_mass', order: 2, active: true, icon: 'Activity', name: 'Ganar masa muscular', description: 'Quiero seguir cambios en mis medidas o composición corporal', supervision: 'none', indicators: ['perimeter_muscle', 'muscle_mass_pct', 'body_weight_complement'] },
-  { id: 'weight', order: 3, active: true, icon: 'Scale', name: 'Bajar de peso', description: 'Quiero seguir mi peso corporal hacia una meta personal', supervision: 'recommended', indicators: ['body_weight'] },
-  { id: 'body_fat', order: 4, active: true, icon: 'Flame', name: 'Bajar grasa corporal', description: 'Quiero seguir cambios en grasa corporal o cintura', supervision: 'recommended', indicators: ['body_fat_pct', 'perimeter_waist'] },
-  { id: 'sport_performance', order: 5, active: true, icon: 'Timer', name: 'Mejorar rendimiento deportivo', description: 'Quiero mejorar una marca o prueba de mi deporte', supervision: 'none', indicators: ['jump_test', 'performance_test'] },
-  { id: 'cardiometabolic', order: 6, active: true, icon: 'HeartPulse', name: 'Cuidar mi corazón y metabolismo', description: 'Quiero seguir hábitos o indicadores de salud cardiometabólica', supervision: 'recommended', multiIndicator: true, indicators: ['weekly_activity_minutes', 'resting_heart_rate', 'blood_pressure_systolic', 'blood_pressure_diastolic', 'glucose', 'cholesterol'] },
-  { id: 'stress', order: 7, active: true, icon: 'Brain', name: 'Manejar el estrés', description: 'Quiero observar mi estrés y mis hábitos de descanso', supervision: 'none', multiIndicator: true, indicators: ['stress_perceived', 'sleep_hours'] },
-  { id: 'posture', order: 8, active: true, icon: 'PersonStanding', name: 'Mejorar postura', description: 'Quiero mejorar una función o percepción de mi postura', supervision: 'required', indicators: ['posture_self_rating', 'posture_functional_test'] },
-  { id: 'pain', order: 9, active: true, icon: 'Crosshair', name: 'Reducir dolor', description: 'Quiero seguir la evolución del dolor en una zona', supervision: 'required', indicators: ['pain_eva'] },
-  { id: 'mobility', order: 10, active: true, icon: 'Move', name: 'Mejorar movilidad', description: 'Quiero mejorar una amplitud de movimiento o una prueba funcional', supervision: 'required', indicators: ['rom_degrees', 'mobility_test', 'mobility_self_rating'] },
+  { id: 'strength', order: 1, active: true, icon: 'Dumbbell', name: 'Aumentar fuerza', description: 'Quiero subir las cargas que muevo en mis ejercicios', supervision: 'none', multiIndicator: false, indicators: ['exercise_max_load', 'exercise_reps_at_load'], legacyIndicators: [] },
+  { id: 'muscle_mass', order: 2, active: true, icon: 'Activity', name: 'Ganar masa muscular', description: 'Quiero seguir el crecimiento de mi bíceps, muslo o glúteos', supervision: 'none', multiIndicator: true, indicators: ['perimeter_bicep_flexed', 'perimeter_thigh', 'perimeter_glute'], legacyIndicators: ['perimeter_muscle', 'muscle_mass_pct', 'body_weight_complement'] },
+  { id: 'weight', order: 3, active: true, icon: 'Scale', name: 'Bajar de peso', description: 'Quiero seguir mi peso corporal hacia una meta personal', supervision: 'recommended', multiIndicator: false, indicators: ['body_weight'], legacyIndicators: [] },
+  { id: 'body_fat', order: 4, active: true, icon: 'Flame', name: 'Bajar grasa corporal', description: 'Quiero seguir mi porcentaje de grasa o mi cintura', supervision: 'recommended', multiIndicator: false, indicators: ['body_fat_pct', 'perimeter_waist'], legacyIndicators: [] },
+  { id: 'sport_performance', order: 5, active: true, icon: 'Timer', name: 'Mejorar rendimiento deportivo', description: 'Quiero mejorar un test de salto, una marca, mi ritmo o cómo me siento en mi deporte', supervision: 'none', multiIndicator: true, indicators: ['jump_test', 'performance_test', 'running_pace', 'sport_self_rating'], legacyIndicators: [] },
+  { id: 'cardiometabolic', order: 6, active: true, icon: 'HeartPulse', name: 'Cuidar mi corazón y metabolismo', description: 'Quiero seguir mi presión, glucosa, colesterol o triglicéridos', supervision: 'recommended', multiIndicator: true, indicators: ['blood_pressure_systolic', 'blood_pressure_diastolic', 'glucose', 'cholesterol', 'triglycerides'], legacyIndicators: ['weekly_activity_minutes', 'resting_heart_rate'] },
+  { id: 'stress', order: 7, active: true, icon: 'Brain', name: 'Manejar el estrés', description: 'Quiero bajar mi nivel de estrés', supervision: 'none', multiIndicator: false, indicators: ['stress_perceived'], legacyIndicators: ['sleep_hours'] },
+  { id: 'posture', order: 8, active: true, icon: 'PersonStanding', name: 'Mejorar postura', description: 'Quiero sentir que mi postura mejora', supervision: 'required', multiIndicator: false, indicators: ['posture_self_rating'], legacyIndicators: ['posture_functional_test'] },
+  { id: 'pain', order: 9, active: true, icon: 'Crosshair', name: 'Reducir dolor', description: 'Quiero seguir el dolor de una zona de mi cuerpo', supervision: 'required', multiIndicator: false, indicators: ['pain_eva'], legacyIndicators: [] },
+  { id: 'mobility', order: 10, active: true, icon: 'Move', name: 'Mejorar movilidad', description: 'Quiero sentir que me muevo mejor', supervision: 'required', multiIndicator: false, indicators: ['mobility_self_rating'], legacyIndicators: ['rom_degrees', 'mobility_test'] },
 ];
 
 export const INDICATORS = IND;
@@ -265,6 +321,11 @@ export function publicCatalog() {
     maxIndicatorsPerGoal: MAX_INDICATORS_PER_GOAL,
     categories: GOAL_CATEGORIES.filter((c) => c.active)
       .sort((a, b) => a.order - b.order)
-      .map((c) => ({ ...c, indicators: c.indicators.map((id) => IND[id]) })),
+      .map((c) => ({
+        ...c,
+        indicators: c.indicators.map((id) => IND[id]),
+        // Todo lo que esta categoría ha tenido: sirve para mostrar objetivos que ya existían con indicadores que ya no se ofrecen
+        allIndicators: [...c.indicators, ...(c.legacyIndicators ?? [])].map((id) => IND[id]),
+      })),
   };
 }

@@ -14,6 +14,7 @@ import GoalIcon from '@/components/goals/GoalIcon';
 import { measurementService } from '@/services/measurementService';
 import { goalService, type CatalogCategory, type CatalogIndicator, type CreateGoalInput, type GoalCatalog, type GoalDirection, type GoalParamDef, type GoalSources, type GoalView } from '@/services/goalService';
 import { INVALID_NUMBER, parseDecimal } from '@/lib/decimal';
+import { todayLocal } from '@/lib/evolutionDate';
 import { exerciseKeyOf } from '@/lib/exerciseKey';
 import { activeGoals, dayLabel, decimalText, directionText, formatValue, paramsText, safetyNote, startingPoint } from '@/lib/goals';
 import { getWhatsAppUrl } from '@/config/contact';
@@ -29,6 +30,7 @@ interface IndState {
   target: string;
   tolerance: string;
   start: string; // valor de partida opcional que se escribe ahí mismo (autorreporte o medición); si queda vacío, se registra después
+  startDay: string; // fecha en que se tomó ese valor (solo exámenes: presión, glucosa…); vacío = hoy
 }
 
 const OTHER = '__other__';
@@ -61,7 +63,10 @@ const GoalNew = () => {
   const [failed, setFailed] = useState(false);
 
   const [step, setStep] = useState(1);
-  const [categoryId, setCategoryId] = useState('');
+  // Se pueden elegir hasta 3 objetivos de una vez: se configuran uno tras otro (`queueIndex` es el que se está armando)
+  const [picked, setPicked] = useState<string[]>([]);
+  const [queueIndex, setQueueIndex] = useState(0);
+  const categoryId = picked[queueIndex] ?? '';
   const [selected, setSelected] = useState<string[]>([]);
   const [ind, setInd] = useState<Record<string, IndState>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -69,7 +74,8 @@ const GoalNew = () => {
   const [pauseId, setPauseId] = useState('');
   const [targetDay, setTargetDay] = useState('');
   const [saving, setSaving] = useState(false);
-  const [done, setDone] = useState<GoalView | null>(null); // objetivo recién creado: pantalla de «¿agregar otro?»
+  const [created, setCreated] = useState<GoalView[]>([]); // objetivos creados en esta tanda
+  const [done, setDone] = useState(false); // terminó la tanda: pantalla de resumen y «¿agregar otro?»
 
   const load = () => {
     if (!patientId) return;
@@ -96,16 +102,44 @@ const GoalNew = () => {
   const category: CatalogCategory | undefined = catalog?.categories.find((c) => c.id === categoryId);
   const def = (id: string): CatalogIndicator | undefined => category?.indicators.find((i) => i.id === id);
 
-  const pickCategory = (c: CatalogCategory) => {
-    setCategoryId(c.id);
+  // Cupos: hasta 3 objetivos activos en total. Sin cupos libres se puede elegir uno y pausar otro (se pide en el paso 3).
+  const maxActive = catalog?.maxActiveGoals ?? 3;
+  const slotsLeft = Math.max(0, maxActive - active.length);
+  const maxPick = Math.max(1, slotsLeft);
+  const togglePick = (c: CatalogCategory) =>
+    setPicked((cur) => (cur.includes(c.id) ? cur.filter((x) => x !== c.id) : cur.length < maxPick ? [...cur, c.id] : cur));
+
+  // Deja el asistente limpio para configurar la categoría `cid` (con un solo indicador posible ya está elegido)
+  const prepareFor = (cid: string) => {
+    const c = catalog?.categories.find((x) => x.id === cid);
     setErrors({});
-    // Con un solo indicador posible ya está elegido
-    setSelected(c.indicators.length === 1 ? [c.indicators[0].id] : []);
+    setSelected(c && c.indicators.length === 1 ? [c.indicators[0].id] : []);
     setInd({});
+    setPauseId('');
+    setTargetDay('');
+    window.scrollTo?.({ top: 0 });
+  };
+  const startQueue = () => {
+    setQueueIndex(0);
+    setCreated([]);
+    prepareFor(picked[0]);
+    setStep(2);
+  };
+  // Pasa al siguiente objetivo de la tanda, o termina si era el último
+  const advance = () => {
+    const next = queueIndex + 1;
+    if (next < picked.length) {
+      setQueueIndex(next);
+      prepareFor(picked[next]);
+      setStep(2);
+    } else {
+      setDone(true);
+      window.scrollTo?.({ top: 0 });
+    }
   };
 
   const stateOf = (d: CatalogIndicator): IndState =>
-    ind[d.id] ?? { params: {}, unit: d.unit ?? d.unitOptions?.[0] ?? '', direction: d.defaultDirection, target: '', tolerance: '', start: '' };
+    ind[d.id] ?? { params: {}, unit: d.unit ?? d.unitOptions?.[0] ?? '', direction: d.defaultDirection, target: '', tolerance: '', start: '', startDay: '' };
   const patchInd = (d: CatalogIndicator, patch: Partial<IndState>) => setInd((cur) => ({ ...cur, [d.id]: { ...stateOf(d), ...patch } }));
   const setParam = (d: CatalogIndicator, key: string, value: string) => patchInd(d, { params: { ...stateOf(d).params, [key]: value } });
 
@@ -185,6 +219,7 @@ const GoalNew = () => {
         const st = parseDecimal(s.start);
         if (st === INVALID_NUMBER) next[`${id}.start`] = NUMBER_ERROR;
         else if (st !== null && (st < d.range.min || st > d.range.max)) next[`${id}.start`] = `El valor debe estar entre ${decimalText(d.range.min)} y ${decimalText(d.range.max)}`;
+        if (d.datedEntry && s.startDay && s.startDay > todayLocal()) next[`${id}.startDay`] = 'La fecha no puede ser futura';
       }
     }
     const needPause = (priority === 'primary' && primaryTaken) || (priority === 'secondary' && !freeSecondary);
@@ -247,12 +282,14 @@ const GoalNew = () => {
         const d = def(view.indicatorId);
         const start = d ? parseDecimal(stateOf(d).start) : null;
         if (view.manual && start !== null && start !== INVALID_NUMBER && !view.professionalEntryOnly && goal.status === 'active') {
-          await goalService.checkin(goal.id, { seriesKey: view.seriesKey, value: start }).catch(() => undefined);
+          await goalService.checkin(goal.id, { seriesKey: view.seriesKey, value: start, ...(d?.datedEntry && stateOf(d).startDay ? { day: stateOf(d).startDay } : {}) }).catch(() => undefined);
         }
       }
       notify.success(goal.status === 'pending_validation' ? (staff ? 'Objetivo creado: queda por validar por un profesional' : 'Objetivo enviado a tu kinesiólogo para validarlo') : 'Objetivo creado');
-      setDone(goal);
-      goalService.list(patientId).then(setExisting).catch(() => undefined); // refresca los cupos para decidir si se puede agregar otro
+      // Se refrescan los cupos ANTES de seguir: el siguiente objetivo de la tanda ya no puede ser el principal si este lo fue
+      await goalService.list(patientId).then(setExisting).catch(() => undefined);
+      setCreated((cur) => [...cur, goal]);
+      advance();
     } catch (err) {
       showApiError(err, 'No se pudo crear el objetivo');
       load();
@@ -264,12 +301,16 @@ const GoalNew = () => {
   if (loading) return <PageSkeleton label="Cargando…"><CardsSkeleton count={3} bodyHeight="h-16" /></PageSkeleton>;
   if (failed || !catalog) return <LoadErrorAlert message="No se pudo cargar el catálogo de objetivos." onRetry={load} />;
 
+  // Mientras se arma el primero se puede volver atrás; los siguientes de la tanda se pueden saltar (los anteriores ya quedaron creados)
+  const canGoBack = !(step === 2 && queueIndex > 0);
   const back = () => (step === 1 ? navigate(homePath) : setStep(step - 1));
 
   const addAnother = () => {
-    setDone(null);
+    setDone(false);
     setStep(1);
-    setCategoryId('');
+    setPicked([]);
+    setQueueIndex(0);
+    setCreated([]);
     setSelected([]);
     setInd({});
     setErrors({});
@@ -279,18 +320,33 @@ const GoalNew = () => {
   };
 
   if (done) {
-    const maxActive = catalog.maxActiveGoals;
     const used = active.length;
     const left = Math.max(0, maxActive - used);
-    const pending = done.status === 'pending_validation';
-    const missing = done.progress.indicators.some((i) => i.state === 'needs_target')
-      ? (staff ? 'Falta definir la meta: se puede completar desde la tarjeta del objetivo.' : 'Aún falta tu meta: puedes definirla cuando quieras desde Mis objetivos.')
-      : done.progress.indicators.some((i) => i.state === 'needs_baseline')
-        ? (staff ? 'Falta un primer registro para fijar el punto de partida.' : 'Aún falta tu punto de partida: apenas lo registres quedará fijado.')
+    const anyPending = created.some((g) => g.status === 'pending_validation');
+    const plural = created.length > 1;
+    const missing = created.some((g) => g.progress.indicators.some((i) => i.state === 'needs_target'))
+      ? (staff ? 'Falta definir alguna meta: se puede completar desde la tarjeta del objetivo.' : 'Aún falta alguna meta: puedes definirla cuando quieras desde Mis objetivos.')
+      : created.some((g) => g.progress.indicators.some((i) => i.state === 'needs_baseline'))
+        ? (staff ? 'Falta un primer registro para fijar algún punto de partida.' : 'Aún falta algún punto de partida: apenas lo registres quedará fijado.')
         : null;
     return (
       <div className="mx-auto w-full max-w-3xl space-y-5 pb-10">
-        <PageTitle eyebrow={done.categoryName} title={pending ? (staff ? 'Objetivo creado' : 'Enviado a tu kinesiólogo') : '¡Objetivo creado!'} description={pending ? (staff ? 'Queda por validar por un profesional antes de activarse.' : 'Tu kinesiólogo lo revisará y validará la meta antes de activarlo.') : 'Ya lo estamos siguiendo con tus registros.'} serif />
+        <PageTitle
+          eyebrow={plural ? `${created.length} objetivos` : created[0]?.categoryName}
+          title={anyPending ? (staff ? (plural ? 'Objetivos creados' : 'Objetivo creado') : plural ? 'Enviados a tu kinesiólogo' : 'Enviado a tu kinesiólogo') : plural ? '¡Objetivos creados!' : '¡Objetivo creado!'}
+          description={anyPending ? (staff ? 'Los clínicos quedan por validar por un profesional antes de activarse.' : 'Tu kinesiólogo revisará y validará la meta de los que lo necesiten antes de activarlos.') : 'Ya los estamos siguiendo con tus registros.'}
+          serif
+        />
+        {plural && (
+          <ul className={cn(CARD, 'divide-y divide-[#fff8e4]/10 overflow-hidden')}>
+            {created.map((g) => (
+              <li key={g.id} className="flex items-center justify-between gap-3 p-3.5">
+                <span className="text-[14.5px] font-semibold text-[#fff8e4]">{g.categoryName}</span>
+                <span className="text-[12.5px] text-[#a8a295]">{g.status === 'pending_validation' ? (staff ? 'Por validar' : 'Pendiente de validación') : 'Activo'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {missing && <p className={cn(CARD, 'p-4 text-[14px] text-[#cdc6b6]')}>{missing}</p>}
         <p className={cn(CARD, 'p-4 text-[14px] text-[#cdc6b6]')}>
           {left > 0
@@ -368,31 +424,48 @@ const GoalNew = () => {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5 pb-10">
       <div className="space-y-3">
-        <button type="button" onClick={back} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl text-[15px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]"><ArrowLeft className="h-5 w-5" aria-hidden="true" />{step === 1 ? (staff ? 'Objetivos del paciente' : 'Mis objetivos') : 'Atrás'}</button>
+        {canGoBack ? (
+          <button type="button" onClick={back} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl text-[15px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]"><ArrowLeft className="h-5 w-5" aria-hidden="true" />{step === 1 ? (staff ? 'Objetivos del paciente' : 'Mis objetivos') : 'Atrás'}</button>
+        ) : (
+          <button type="button" onClick={advance} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl text-[15px] font-semibold text-[#cdc6b6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">Saltar este objetivo<ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+        )}
         <div role="progressbar" aria-label={`Paso ${step} de 3`} aria-valuemin={1} aria-valuemax={3} aria-valuenow={step} className="flex gap-1.5">
           {[1, 2, 3].map((n) => <span key={n} className={cn('h-1.5 flex-1 rounded-full', n <= step ? 'bg-[#398ca2]' : 'bg-[#fff8e4]/15')} />)}
         </div>
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#fff8e4]/60">Paso {step} de 3</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#fff8e4]/60">{step > 1 && picked.length > 1 ? `Objetivo ${queueIndex + 1} de ${picked.length} · ` : ''}Paso {step} de 3</p>
       </div>
 
       {step === 1 && (
         <>
-          <PageTitle title={staff ? '¿Qué quiere mejorar el paciente?' : '¿Qué te gustaría mejorar?'} description={staff ? `Elige la categoría. Puede tener hasta ${catalog.maxActiveGoals} objetivos a la vez (hoy tiene ${active.length}).` : `Elige una opción. Puedes tener hasta ${catalog.maxActiveGoals} objetivos a la vez (hoy tienes ${active.length}): agrega uno ahora y los otros cuando quieras.`} serif />
+          <PageTitle
+            title={staff ? '¿Qué quiere mejorar el paciente?' : '¿Qué te gustaría mejorar?'}
+            description={staff
+              ? `Elige entre 1 y ${maxActive} objetivos. El primero que elijas será el principal. Hoy tiene ${active.length}${slotsLeft === 0 ? ': para agregar otro hay que pausar uno' : slotsLeft < maxActive ? `, puede elegir hasta ${slotsLeft} más` : ''}.`
+              : `Elige entre 1 y ${maxActive} objetivos. El primero que elijas será tu principal. Hoy tienes ${active.length}${slotsLeft === 0 ? ': para agregar otro tendrás que pausar uno' : slotsLeft < maxActive ? `, puedes elegir hasta ${slotsLeft} más` : ''}.`}
+            serif
+          />
           <ul className="space-y-2">
-            {catalog.categories.map((c) => (
-              <li key={c.id}>
-                <button type="button" aria-pressed={categoryId === c.id} onClick={() => pickCategory(c)} className={cn(CARD, 'border-[#fff8e4]/35 flex min-h-[64px] w-full items-center gap-3 p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', categoryId === c.id ? 'border-[#62b8cf] bg-[#398ca2]/20' : 'hover:bg-[#fff8e4]/[0.07]')}>
-                  <span aria-hidden="true" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border', categoryId === c.id ? 'border-[#62b8cf] bg-[#398ca2]/30 text-[#fff8e4]' : 'border-[#398ca2]/40 bg-[#398ca2]/12 text-[#8fd0e0]')}><GoalIcon name={c.icon} className="h-5 w-5" /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15.5px] font-bold text-[#fff8e4]">{c.name}</span>
-                    <span className="block text-[13px] leading-snug text-[#a8a295]">{c.description}</span>
-                  </span>
-                  {categoryId === c.id && <Check aria-hidden="true" className="h-5 w-5 shrink-0 text-[#8fd0e0]" />}
-                </button>
-              </li>
-            ))}
+            {catalog.categories.map((c) => {
+              const order = picked.indexOf(c.id);
+              const on = order >= 0;
+              const full = !on && picked.length >= maxPick;
+              return (
+                <li key={c.id}>
+                  <button type="button" aria-pressed={on} disabled={full} onClick={() => togglePick(c)} className={cn(CARD, 'border-[#fff8e4]/35 flex min-h-[64px] w-full items-center gap-3 p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4] disabled:opacity-45', on ? 'border-[#62b8cf] bg-[#398ca2]/20' : 'hover:bg-[#fff8e4]/[0.07]')}>
+                    <span aria-hidden="true" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border', on ? 'border-[#62b8cf] bg-[#398ca2]/30 text-[#fff8e4]' : 'border-[#398ca2]/40 bg-[#398ca2]/12 text-[#8fd0e0]')}><GoalIcon name={c.icon} className="h-5 w-5" /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15.5px] font-bold text-[#fff8e4]">{c.name}</span>
+                      <span className="block text-[13px] leading-snug text-[#a8a295]">{c.description}</span>
+                    </span>
+                    <span aria-hidden="true" className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-[13px] font-extrabold', on ? 'border-[#398ca2] bg-[#398ca2] text-[#181619]' : 'border-[#fff8e4]/30')}>{on ? order + 1 : ''}</span>
+                    {on && <span className="sr-only">Elegido, número {order + 1}</span>}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
-          <Button type="button" disabled={!categoryId} onClick={() => setStep(2)} className={cn('min-h-[52px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>Siguiente<ChevronRight aria-hidden="true" /></Button>
+          <p role="status" className="text-center text-[13px] text-[#a8a295]">{picked.length === 0 ? `Elige al menos 1 (hasta ${maxPick})` : `Elegiste ${picked.length} de ${maxPick}`}</p>
+          <Button type="button" disabled={picked.length === 0} onClick={startQueue} className={cn('min-h-[52px] w-full rounded-2xl text-base font-bold', BTN_FILL)}>{picked.length > 1 ? `Configurar ${picked.length} objetivos` : 'Siguiente'}<ChevronRight aria-hidden="true" /></Button>
         </>
       )}
 
@@ -460,12 +533,14 @@ const GoalNew = () => {
               if (!d) return null;
               const s = stateOf(d);
               const unit = s.unit || d.unit || '';
+              const unitLabel = unit === '/10' ? `${d.range.min} a ${d.range.max}` : unit;
               const known = startingPoint(d, paramsOf(d), sources);
               return (
                 <section key={id} aria-label={d.label} className={cn(CARD, 'space-y-3 p-4')}>
                   <div>
                     <h2 className="text-[15.5px] font-bold text-[#fff8e4]">{paramsText({ indicatorId: id, params: paramsOf(d) }, category, sources) || d.label}</h2>
                     <p className="text-[12.5px] text-[#a8a295]">{d.label} · {directionText(s.direction)}</p>
+                    {d.scaleHint && <p className="mt-0.5 text-[12.5px] font-medium text-[#cdc6b6]">{d.scaleHint}</p>}
                   </div>
                   <div className="rounded-xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.03] p-3">
                     <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#a8a295]">{staff ? 'Punto de partida' : 'Tu punto de partida'}</p>
@@ -474,19 +549,24 @@ const GoalNew = () => {
                     ) : canEnterStart(d) ? (
                       <div className="mt-1 space-y-1">
                         <p className="text-[13px] text-[#cdc6b6]">{d.source === 'checkin' ? 'Si quieres, escribe tu valor de hoy (queda como autorreporte).' : 'Si quieres, escribe tu valor de hoy (se guarda como una medición).'} Si lo dejas en blanco, lo registras después y ese será tu punto de partida.</p>
-                        <FormField label={`Valor de hoy (${unit})`} error={errors[`${id}.start`]}>
+                        <FormField label={`${d.datedEntry ? 'Valor de tu último examen' : 'Valor de hoy'} (${unitLabel})`} error={errors[`${id}.start`]}>
                           {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" value={s.start} onChange={(e) => patchInd(d, { start: e.target.value })} />}
                         </FormField>
+                        {d.datedEntry && s.start.trim() !== '' && (
+                          <FormField label="Fecha en que te tomaste el examen" error={errors[`${id}.startDay`]}>
+                            {(c) => <Input {...c} className={fieldInput} type="date" max={todayLocal()} value={s.startDay || todayLocal()} onChange={(e) => patchInd(d, { startDay: e.target.value })} />}
+                          </FormField>
+                        )}
                       </div>
                     ) : (
                       <p className="mt-0.5 text-[14px] text-[#cdc6b6]">Aún no hay un registro. Puedes seguir y registrarlo después{d.source === 'eva' ? ' en Dolor (EVA)' : d.source.startsWith('exercise') ? ' en Entrenamiento' : ' en Mediciones'}: ese será tu punto de partida.</p>
                     )}
                   </div>
-                  <FormField label={`${staff ? 'Meta' : 'Tu meta'} (${unit}) · opcional`} error={errors[`${id}.target`]}>
+                  <FormField label={`${staff ? 'Meta' : 'Tu meta'} (${unitLabel}) · opcional`} error={errors[`${id}.target`]}>
                     {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" placeholder={d.professionalTarget && !staff ? 'Opcional: la define tu kinesiólogo' : 'Puedes dejarla para después'} value={s.target} onChange={(e) => patchInd(d, { target: e.target.value })} />}
                   </FormField>
                   {s.direction === 'maintain' && s.target.trim() !== '' && (
-                    <FormField label={`Margen que aceptas (± ${unit})`} required error={errors[`${id}.tolerance`]}>
+                    <FormField label={`Margen que aceptas (± ${unitLabel})`} required error={errors[`${id}.tolerance`]}>
                       {(c) => <Input {...c} className={fieldInput} type="text" inputMode="decimal" value={s.tolerance} onChange={(e) => patchInd(d, { tolerance: e.target.value })} />}
                     </FormField>
                   )}

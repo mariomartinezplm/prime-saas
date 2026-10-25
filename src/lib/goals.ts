@@ -23,10 +23,14 @@ export const exerciseLabel = (key: string, sources?: GoalSources | null): string
   return key ? key.charAt(0).toUpperCase() + key.slice(1) : '';
 };
 
+// Definición de un indicador, incluso uno que ya no se ofrece pero un objetivo anterior todavía usa
+export const indicatorDefOf = (category: CatalogCategory | undefined, id: string): CatalogIndicator | undefined =>
+  (category?.allIndicators ?? category?.indicators)?.find((i) => i.id === id);
+
 // Texto legible de lo que se mide, con sus parámetros: «Bíceps contraído derecho», «Press banca», «Rodilla derecha»
 export function paramsText(ind: Pick<IndicatorProgress, 'indicatorId' | 'params'>, category: CatalogCategory | undefined, sources?: GoalSources | null): string {
-  const def = category?.indicators.find((i) => i.id === ind.indicatorId);
-  const parts: string[] = [];
+  const def = indicatorDefOf(category, ind.indicatorId);
+  const parts: string[] = def?.showLabelWithParams ? [def.label] : [];
   for (const p of def?.params ?? []) {
     const raw = ind.params?.[p.key];
     if (raw === undefined || raw === '') continue;
@@ -154,7 +158,7 @@ export function historyText(h: { action: string; byRole: string; note: string | 
 export const CHECKIN_EVERY_DAYS = 7;
 export const MAX_CHECKIN_QUESTIONS = 2;
 
-export interface PendingCheckin { goalId: string; goalName: string; seriesKey: string; indicatorId: string; unit: string; question: string }
+export interface PendingCheckin { goalId: string; goalName: string; seriesKey: string; indicatorId: string; unit: string; question: string; scaleHint?: string; range: { min: number; max: number } }
 
 export function pendingCheckins(goals: GoalView[], catalog: { categories: CatalogCategory[] } | null, todayIso: string): PendingCheckin[] {
   const out: PendingCheckin[] = [];
@@ -164,11 +168,12 @@ export function pendingCheckins(goals: GoalView[], catalog: { categories: Catalo
     const category = catalog?.categories.find((c) => c.id === goal.categoryId);
     for (const ind of goal.progress.indicators) {
       if (!ind.manual || ind.professionalEntryOnly) continue;
-      const def = category?.indicators.find((i) => i.id === ind.indicatorId);
-      if (!def?.checkinQuestion) continue;
+      const def = indicatorDefOf(category, ind.indicatorId);
+      // Un examen (presión, glucosa…) no se pregunta cada semana: se registra cuando hay un resultado nuevo, con la fecha en que se tomó
+      if (!def?.checkinQuestion || def.datedEntry) continue;
       const days = ind.lastDay ? Math.floor((today - Date.parse(`${ind.lastDay}T12:00:00Z`)) / 86400000) : Infinity;
       if (days < CHECKIN_EVERY_DAYS) continue;
-      out.push({ goalId: goal.id, goalName: goal.categoryName, seriesKey: ind.seriesKey, indicatorId: ind.indicatorId, unit: ind.unit, question: def.checkinQuestion });
+      out.push({ goalId: goal.id, goalName: goal.categoryName, seriesKey: ind.seriesKey, indicatorId: ind.indicatorId, unit: ind.unit, question: def.checkinQuestion, scaleHint: def.scaleHint, range: def.range });
     }
   }
   return out.slice(0, MAX_CHECKIN_QUESTIONS);
