@@ -13,6 +13,7 @@ import {
   clearRefreshCookie
 } from '../utils/refreshTokens.js';
 import crypto from 'crypto';
+import { parseBirthDate } from '../utils/birthDate.js';
 
 // Crea una familia de refresh token nueva y la deja en la cookie de la
 // respuesta. Se usa en login y en cambio/reseteo de contraseña — en ambos
@@ -206,6 +207,17 @@ export const updateProfile = async (req, res) => {
     Object.keys(fieldsToUpdate).forEach(key =>
       fieldsToUpdate[key] === undefined && delete fieldsToUpdate[key]
     );
+
+    // La fecha de nacimiento se puede corregir, pero nunca borrar (de ella salen los avisos de cumpleaños)
+    if ('dateOfBirth' in fieldsToUpdate) {
+      if (!fieldsToUpdate.dateOfBirth) {
+        delete fieldsToUpdate.dateOfBirth;
+      } else {
+        const parsed = parseBirthDate(fieldsToUpdate.dateOfBirth);
+        if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+        fieldsToUpdate.dateOfBirth = parsed.date;
+      }
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user._id,

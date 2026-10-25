@@ -26,6 +26,7 @@ import { deleteObject, isStorageConfigured } from '../services/storageService.js
 import { toCSV } from '../utils/csv.js';
 import { SERVICE_TYPE_LABELS } from '../config/planCatalog.js';
 import { todayInSantiago } from '../utils/timezone.js';
+import { parseBirthDate } from '../utils/birthDate.js';
 
 // @desc    Obtener todos los usuarios (solo admin)
 // @route   GET /api/users
@@ -263,6 +264,14 @@ export const createUser = async (req, res) => {
       assignedProfessionalId = req.user._id;
     }
 
+    // Todo paciente nace con su fecha de nacimiento (de ahí salen los avisos de cumpleaños al profesional)
+    let birthDate = dateOfBirth;
+    if (role === 'patient') {
+      const parsed = parseBirthDate(dateOfBirth);
+      if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+      birthDate = parsed.date;
+    }
+
     // Crear usuario con una contraseña que nadie conoce — la única forma de
     // entrar es aceptando la invitación que se manda a continuación.
     const user = await User.create({
@@ -272,7 +281,7 @@ export const createUser = async (req, res) => {
       password: generateUnusablePassword(),
       role,
       phone,
-      dateOfBirth,
+      dateOfBirth: birthDate,
       rut,
       address,
       emergencyContact,
@@ -372,7 +381,11 @@ export const updateUser = async (req, res) => {
     if (lastName) user.lastName = lastName;
     if (email) user.email = email.toLowerCase();
     if (phone !== undefined) user.phone = phone;
-    if (dateOfBirth) user.dateOfBirth = dateOfBirth;
+    if (dateOfBirth) {
+      const parsed = parseBirthDate(dateOfBirth);
+      if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+      user.dateOfBirth = parsed.date;
+    }
     if (rut !== undefined) user.rut = rut;
     if (address !== undefined) user.address = address;
     if (emergencyContact) user.emergencyContact = emergencyContact;

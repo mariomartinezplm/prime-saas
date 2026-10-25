@@ -256,6 +256,39 @@ export async function sendNotificationEmail({ user, title, body, link }) {
   });
 }
 
+// Lista de cumpleaños para el profesional (semana o día). `items`: [{ name, when, age }] — todo se escapa.
+export async function sendBirthdayDigestEmail({ user, title, intro, items, showAge = true }) {
+  const appUrl = process.env.FRONTEND_URL || 'https://app.primefh.cl';
+  const rows = items.map((item) => `
+    <tr>
+      <td style="padding: 8px 0; font-weight: 600; color: #1e293b;">${escapeHtml(item.name)}</td>
+      <td style="padding: 8px 0; color: #64748b; text-align: right;">${escapeHtml(item.when)}${showAge && Number.isFinite(item.age) ? ` · cumple ${escapeHtml(String(item.age))} años` : ''}</td>
+    </tr>
+  `).join('');
+
+  const html = baseTemplate({
+    headerColor: BRAND_TEAL,
+    headerEmoji: '🎂',
+    headerTitle: escapeHtml(title),
+    bodyHtml: `
+      <p style="font-size: 16px; color: #334155; margin-bottom: 20px;">
+        Hola <strong>${escapeHtml(user.firstName)}</strong>,
+      </p>
+      <p style="font-size: 15px; color: #334155; margin-bottom: 12px;">${escapeHtml(intro)}</p>
+      <table style="width: 100%; border-collapse: collapse; border-top: 1px solid #e2e8f0;">${rows}</table>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${appUrl}/app/admin/pacientes"
+           style="display: inline-block; background: ${BRAND_TEAL}; color: white; text-decoration: none;
+                  padding: 14px 28px; border-radius: 8px; font-weight: 600;">
+          Ver mis pacientes
+        </a>
+      </div>
+    `
+  });
+
+  return sendEmail({ to: user.email, subject: `🎂 ${title} — Prime F&H`, html });
+}
+
 export async function sendAppointmentUpdatedEmail({ patient, professional, date, startTime, endTime, changes }) {
   const patientName = `${patient.firstName} ${patient.lastName}`;
 
