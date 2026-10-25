@@ -55,6 +55,7 @@ const buildForm = (patient: User) => ({
   injuries: joinLines(patient.medicalInfo?.injuries),
   assignedProfessionalId: idOf(patient.assignedProfessionalId) || NO_PROFESSIONAL,
   exemptFromCapacity: patient.exemptFromCapacity === true,
+  isFounder: patient.isFounder === true,
 });
 type FormState = ReturnType<typeof buildForm>;
 type Errors = Partial<Record<keyof FormState, string>>;
@@ -163,6 +164,7 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, canChangePr
           ? {
               assignedProfessionalId: form.assignedProfessionalId === NO_PROFESSIONAL ? '' : form.assignedProfessionalId,
               exemptFromCapacity: form.exemptFromCapacity,
+              isFounder: form.isFounder,
             }
           : canChangeProfessional && form.assignedProfessionalId !== NO_PROFESSIONAL
             ? { assignedProfessionalId: form.assignedProfessionalId }
@@ -297,6 +299,18 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, canChangePr
                         </p>
                       </div>
                       <Switch id="exempt-capacity" checked={form.exemptFromCapacity} onCheckedChange={(v) => set('exemptFromCapacity', v)} />
+                    </div>
+                  )}
+                  {canAssign && (
+                    <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-3 sm:col-span-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="is-founder">Miembro fundador</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Lleva la estrella junto a su nombre y no la pierde si cambia de plan. Su plan se renueva solo cada mes: no queda pendiente de
+                          pago, se le recuerda pagar por transferencia y tú recibes un aviso para revisar que haya transferido.
+                        </p>
+                      </div>
+                      <Switch id="is-founder" checked={form.isFounder} onCheckedChange={(v) => set('isFounder', v)} />
                     </div>
                   )}
                 </div>

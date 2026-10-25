@@ -396,6 +396,13 @@ export const updateUser = async (req, res) => {
         }
         if (user.role === 'patient') user.exemptFromCapacity = req.body.exemptFromCapacity;
       }
+      // «Miembro Fundador»: solo el administrador lo marca o lo quita; el plan no lo cambia
+      if (req.body.isFounder !== undefined) {
+        if (typeof req.body.isFounder !== 'boolean') {
+          return res.status(400).json({ success: false, message: 'isFounder debe ser verdadero o falso' });
+        }
+        if (user.role === 'patient') user.isFounder = req.body.isFounder;
+      }
     }
     // Un profesional puede cambiar quién atiende a SU paciente (solo a personal activo; no puede dejarlo sin asignar).
     if (req.user.role === 'professional' && req.body.assignedProfessionalId) {

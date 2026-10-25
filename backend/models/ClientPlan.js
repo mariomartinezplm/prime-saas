@@ -115,6 +115,8 @@ const clientPlanSchema = new mongoose.Schema({
   renewalNotifiedAt: {
     type: Date
   },
+  // Ciclo que se abrió solo, ya activo y sin pago pendiente (beca o miembro fundador): nadie tuvo que registrar un pago para renovarlo
+  autoRenewed: { type: Boolean, default: false },
   expiringTomorrowNotifiedAt: {
     type: Date
   },

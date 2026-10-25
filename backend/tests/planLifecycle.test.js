@@ -394,50 +394,148 @@ describe('avisos de vencimiento (campanita + correo)', () => {
   });
 });
 
-describe('insignia de Miembro Fundador (plan anual)', () => {
-  const flagUpdates = () => vi.mocked(User.updateOne).mock.calls.map(([filter, update]) => ({
-    patient: String(filter._id),
-    isFounder: update.$set.isFounder
-  }));
-
-  it('al registrar un plan anual se enciende', async () => {
-    await buy({ term: 'anual', startDate: at(2026, 10, 1) });
-    expect(flagUpdates()).toEqual([{ patient: String(patientId), isFounder: true }]);
-  });
-
-  it('un plan mensual o trimestral no la enciende', async () => {
-    await buy({ term: 'trimestral', startDate: at(2026, 10, 1) });
-    expect(flagUpdates()).toEqual([{ patient: String(patientId), isFounder: false }]);
-  });
-
-  it('al cancelar el plan anual se apaga', async () => {
+describe('Miembro Fundador: marca manual que ningún plan cambia', () => {
+  it('registrar, cancelar o pagar planes (mensual, trimestral, anual) nunca toca la estrella', async () => {
     const first = await buy({ term: 'anual', startDate: at(2026, 10, 1) });
-    vi.mocked(User.updateOne).mockClear();
+    await buy({ term: 'trimestral', startDate: at(2025, 1, 1) });
     await cancelPlanAndFutureCycles(first);
-    expect(flagUpdates()).toEqual([{ patient: String(patientId), isFounder: false }]);
-  });
-
-  it('pagar la renovación pendiente de un anual la mantiene encendida', async () => {
-    await buy({ term: 'anual', startDate: at(2026, 10, 1) });
-    await advancePlans({ patientId, now: at(2027, 10, 1, 1) }); // pasa el año completo
+    await advancePlans({ patientId, now: at(2027, 10, 1, 1) });
     const pending = byStatus('active')[0];
-    expect(pending.paymentPending).toBe(true);
-    expect(pending.term).toBe('anual');
-
-    vi.mocked(User.updateOne).mockClear();
-    await settlePendingPlan(pending, { sessionsTotal: 8, term: 'anual', registeredBy: adminId });
-    expect(flagUpdates()).toEqual([{ patient: String(patientId), isFounder: true }]);
+    if (pending) await settlePendingPlan(pending, { sessionsTotal: 8, term: 'mensual', registeredBy: adminId });
+    expect(User.updateOne).not.toHaveBeenCalled();
   });
 
-  it('el programador la recalcula para todos: enciende a los anuales y apaga al resto', async () => {
+  it('el programador no enciende ni apaga la estrella de nadie', async () => {
     await buy({ term: 'anual', startDate: at(2026, 10, 1) });
     await runPlanLifecycleJob(at(2026, 10, 10));
+    expect(User.updateMany).not.toHaveBeenCalled();
+    expect(User.updateOne).not.toHaveBeenCalled();
+  });
+});
 
-    const [turnOn, turnOff] = vi.mocked(User.updateMany).mock.calls;
-    expect(turnOn[0]._id.$in.map(String)).toEqual([String(patientId)]);
-    expect(turnOn[1]).toEqual({ $set: { isFounder: true } });
-    expect(turnOff[0]).toMatchObject({ role: 'patient', isFounder: true });
-    expect(turnOff[1]).toEqual({ $set: { isFounder: false } });
+describe('beca y Miembro Fundador: el plan se renueva solo', () => {
+  const asFounder = (is = true) => vi.mocked(User.find).mockImplementation((filter) => ({
+    select: async () => (filter?.isFounder === true ? (is ? [{ _id: patientId }] : []) : [{ _id: 'admin-1' }])
+  }));
+  const lastActive = () => byStatus('active').at(-1);
+
+  it('un fundador: el 1 de noviembre el ciclo nuevo nace activo y pagado, sin plazo ni vencimiento', async () => {
+    asFounder();
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    const renewal = lastActive();
+    expect(renewal).toMatchObject({ paymentPending: false, autoRenewed: true, status: 'active', renews: true, cycleNumber: 1 });
+    expect(wall(renewal.startDate)).toBe('2026-11-01 00:00:00');
+    expect(byStatus('expired')).toHaveLength(1); // el ciclo de octubre cerró
+
+    // Pasado el plazo de 5 días sigue activo: nunca vence por falta de pago registrado
+    await advancePlans({ patientId, now: at(2026, 11, 10, 1) });
+    expect(byStatus('active')).toHaveLength(1);
+    expect(byStatus('active')[0]).toMatchObject({ paymentPending: false, autoRenewed: true });
+  });
+
+  it('si el servidor estuvo apagado y ya pasó el plazo de 5 días, el fundador igual queda con su plan renovado', async () => {
+    asFounder();
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 20, 1) });
+    expect(lastActive()).toMatchObject({ paymentPending: false, autoRenewed: true, status: 'active' });
+    expect(wall(lastActive().startDate)).toBe('2026-11-01 00:00:00');
+  });
+
+  it('una beca (aunque su dueño no sea fundador): se renueva sola y conserva la beca', async () => {
+    asFounder(false);
+    await buy({ scholarship: true, startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    expect(lastActive()).toMatchObject({ paymentPending: false, autoRenewed: true, scholarship: true });
+    await advancePlans({ patientId, now: at(2026, 12, 1, 1) });
+    expect(lastActive()).toMatchObject({ paymentPending: false, autoRenewed: true, scholarship: true });
+  });
+
+  it('una beca siempre se renueva: la casilla «se renueva» no la deja sin renovación', async () => {
+    asFounder(false);
+    const plan = await buy({ scholarship: true, renews: false });
+    expect(plan.renews).toBe(true);
+  });
+
+  it('un paciente común sigue igual: renovación pendiente de pago con su plazo', async () => {
+    asFounder(false);
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    expect(lastActive()).toMatchObject({ paymentPending: true });
+    expect(lastActive().autoRenewed).toBeUndefined();
+  });
+
+  it('un fundador con plan trimestral: al terminar el tercer mes se abren los tres meses siguientes ya pagados', async () => {
+    asFounder();
+    await buy({ term: 'trimestral', startDate: at(2026, 10, 1) });
+    await advancePlans({ patientId, now: at(2027, 1, 1, 1) });
+    const cycles = store.docs.filter((d) => d.autoRenewed || d.status === 'upcoming');
+    expect(cycles).toHaveLength(3);
+    expect(byStatus('active')[0]).toMatchObject({ paymentPending: false, term: 'trimestral', cyclesTotal: 3, cycleNumber: 1 });
+    expect(byStatus('upcoming').map((d) => d.cycleNumber)).toEqual([2, 3]);
+  });
+
+  it('repetir el proceso no abre dos ciclos', async () => {
+    asFounder();
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 2) });
+    expect(store.docs.filter((d) => d.autoRenewed)).toHaveLength(1);
+  });
+
+  it('una renovación que ya estaba pendiente (antes de esta regla) de un fundador se da por pagada y no vence', async () => {
+    asFounder(false);
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    const pending = lastActive();
+    expect(pending.paymentPending).toBe(true);
+    pending.sessionsUsed = 2;
+
+    asFounder(true);
+    await advancePlans({ patientId, now: at(2026, 11, 3, 1) });
+    expect(pending).toMatchObject({ paymentPending: false, autoRenewed: true, status: 'active', sessionsUsed: 2 });
+    await advancePlans({ patientId, now: at(2026, 11, 20, 1) });
+    expect(pending.status).toBe('active');
+  });
+
+  it('un plan puntual (renews: false) de un fundador no se renueva', async () => {
+    asFounder();
+    await buy({ renews: false, startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    expect(byStatus('active')).toHaveLength(0);
+    expect(store.docs.some((d) => d.autoRenewed)).toBe(false);
+  });
+
+  it('avisos: el fundador recibe «tu plan se renovó» (con la fecha para pagar) y los administradores, uno solo; una sola vez', async () => {
+    asFounder();
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await runPlanLifecycleJob(at(2026, 11, 1, 1));
+    const renewed = vi.mocked(notify).mock.calls.filter(([, type]) => type === 'plan_auto_renewed');
+    expect(renewed.map(([to]) => String(to)).sort()).toEqual([String(patientId), 'admin-1'].sort());
+    const toPatient = renewed.find(([to]) => String(to) === String(patientId))[2];
+    expect(toPatient.body).toMatch(/antes del 5 de noviembre/);
+    expect(toPatient.body).not.toMatch(/\$/); // nunca se muestran precios
+    expect(vi.mocked(notify).mock.calls.some(([, type]) => type === 'plan_expiring')).toBe(false);
+
+    vi.mocked(notify).mockClear();
+    await runPlanLifecycleJob(at(2026, 11, 2, 1));
+    expect(vi.mocked(notify).mock.calls.filter(([, type]) => type === 'plan_auto_renewed')).toHaveLength(0);
+  });
+
+  it('avisos: una beca no recibe ningún aviso de pago ni de renovación, ni los administradores', async () => {
+    asFounder(false);
+    await buy({ scholarship: true, startDate: at(2026, 10, 20, 15) });
+    await runPlanLifecycleJob(at(2026, 10, 28, 1)); // faltan días para vencer: no hay «por vencer»
+    await runPlanLifecycleJob(at(2026, 11, 1, 1));
+    await runPlanLifecycleJob(at(2026, 11, 7, 1));
+    expect(vi.mocked(notify)).not.toHaveBeenCalled();
+  });
+
+  it('avisos: un fundador tampoco recibe «tu plan está por vencer»', async () => {
+    asFounder();
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await runPlanLifecycleJob(at(2026, 10, 28, 1));
+    expect(vi.mocked(notify).mock.calls.some(([, type]) => type === 'plan_expiring')).toBe(false);
   });
 });
 
