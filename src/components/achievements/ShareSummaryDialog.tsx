@@ -3,6 +3,7 @@ import { Download, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildShareCardModel, renderShareCard } from '@/lib/shareCard';
+import { blobToDataUrl } from '@/lib/achievementCard';
 import { notify } from '@/lib/notify';
 import type { MonthlySummary } from '@/services/achievementService';
 
@@ -23,21 +24,20 @@ const ShareSummaryDialog = ({ summary, open, onOpenChange }: ShareSummaryDialogP
   useEffect(() => {
     if (!open || !model) return;
     let cancelled = false;
-    let objectUrl: string | null = null;
     setBlob(null);
     setUrl(null);
     setFailed(false);
+    // La vista previa va como data: (la política de seguridad de la app no deja mostrar imágenes desde blob:)
     renderShareCard(model)
-      .then((b) => {
+      .then(async (b) => {
+        const dataUrl = await blobToDataUrl(b);
         if (cancelled) return;
-        objectUrl = URL.createObjectURL(b);
         setBlob(b);
-        setUrl(objectUrl);
+        setUrl(dataUrl);
       })
       .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [open, model]);
 
