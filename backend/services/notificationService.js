@@ -13,8 +13,10 @@ const EMAIL_MIRRORED_TYPES = ['plan_expiring', 'plan_expired', 'wellness_alert',
 
 // Tipos que además se envían como push al dispositivo (si la persona activó las notificaciones en él).
 // El recordatorio del Readiness vence en 6 horas: si el teléfono estuvo apagado, no llega al día siguiente.
+// El aviso del domingo (20:00 a 22:00) vence en 3 horas: si el teléfono estuvo apagado, no llega el lunes con un «mañana empieza tu semana» ya viejo.
 export const PUSH_TYPES = {
   readiness_reminder: { ttlSeconds: 6 * 60 * 60 },
+  sunday_booking_reminder: { ttlSeconds: 3 * 60 * 60 },
   achievement_unlocked: { ttlSeconds: 24 * 60 * 60 }
 };
 

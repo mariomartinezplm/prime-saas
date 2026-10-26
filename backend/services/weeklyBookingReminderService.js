@@ -1,6 +1,8 @@
 import User from '../models/User.js';
 import ClientPlan from '../models/ClientPlan.js';
 import Appointment from '../models/Appointment.js';
+import Notification from '../models/Notification.js';
+import { sundayKey } from './sundayBookingReminderService.js';
 import { notifyOnce } from './notificationService.js';
 import { sendNotificationEmail } from './emailService.js';
 import { santiagoParts } from '../utils/timezone.js';
@@ -13,6 +15,8 @@ import { santiagoParts } from '../utils/timezone.js';
  *  - Solo a pacientes activos con un plan vigente que todavía tenga sesiones disponibles.
  *  - Si ya tiene una cita agendada esa semana (lunes a domingo), no se le avisa: ya agendó.
  *  - Un solo aviso por paciente por semana (clave `weekly-booking:<paciente>:<lunes>`): reintentos o varias pasadas no duplican.
+ *  - Quien ya recibió el aviso del domingo por la noche (planes de 2 o 3 veces por semana) no recibe este además: sería el mismo
+ *    recordatorio dos veces con 12 horas de diferencia.
  *  - Texto genérico y amable: sin datos de salud.
  */
 
@@ -46,7 +50,14 @@ export async function sendWeeklyBookingReminders({ now = new Date(), limit = 100
   const alreadyBooked = new Set(
     (await Appointment.distinct('patient', { patient: { $in: withSessions }, status: 'scheduled', date: { $gte: weekStart, $lt: weekEnd } })).map(String)
   );
-  const candidates = [...new Set(withSessions)].filter((id) => !alreadyBooked.has(id));
+  const notBooked = [...new Set(withSessions)].filter((id) => !alreadyBooked.has(id));
+  if (notBooked.length === 0) return summary;
+
+  // Los que ya recibieron el aviso del domingo para esta misma semana
+  const sundayNotified = new Set(
+    (await Notification.find({ dedupeKey: { $in: notBooked.map((id) => sundayKey(id, monday)) } }).select('user').lean()).map((n) => String(n.user))
+  );
+  const candidates = notBooked.filter((id) => !sundayNotified.has(id));
   if (candidates.length === 0) return summary;
 
   const patients = await User.find({ _id: { $in: candidates }, role: 'patient', isActive: true }).select('_id email firstName').lean();

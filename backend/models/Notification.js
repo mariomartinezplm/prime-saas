@@ -18,7 +18,7 @@ const notificationSchema = new mongoose.Schema({
       'achievement_unlocked',
       'readiness_reminder',
       'weekly_booking_reminder',
-      'midweek_booking_reminder',
+      'sunday_booking_reminder',
       'recurring_booked',
       'recurring_skipped',
       'goal_pending_validation',

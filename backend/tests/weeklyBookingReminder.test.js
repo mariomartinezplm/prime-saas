@@ -6,9 +6,11 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import ClientPlan from '../models/ClientPlan.js';
 import Appointment from '../models/Appointment.js';
+import Notification from '../models/Notification.js';
 import * as notifications from '../services/notificationService.js';
 import * as emails from '../services/emailService.js';
 import { sendWeeklyBookingReminders, weeklyKey } from '../services/weeklyBookingReminderService.js';
+import { sundayKey } from '../services/sundayBookingReminderService.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 
 vi.mock('../services/notificationService.js', () => ({ notifyOnce: vi.fn() }));
@@ -34,6 +36,7 @@ describe('recordatorio semanal para agendar', () => {
     ]));
     vi.spyOn(Appointment, 'distinct').mockResolvedValue([luis]); // Luis ya agendó esta semana
     vi.spyOn(User, 'find').mockReturnValue(chain([{ _id: ana, email: 'ana@ejemplo.invalid', firstName: 'Ana' }]));
+    vi.spyOn(Notification, 'find').mockReturnValue(chain([])); // nadie recibió el aviso del domingo
     notifications.notifyOnce.mockResolvedValue({ _id: id() });
   });
 
@@ -46,6 +49,15 @@ describe('recordatorio semanal para agendar', () => {
     expect(emails.sendNotificationEmail).toHaveBeenCalledTimes(1);
     // Luis (ya agendó) y quien no tiene sesiones no entran a la consulta de usuarios
     expect(User.find.mock.calls[0][0]._id.$in.map(String)).toEqual([String(ana)]);
+  });
+
+  it('quien ya recibió el aviso del domingo por la noche no recibe también el del lunes', async () => {
+    vi.mocked(Notification.find).mockReturnValue(chain([{ user: ana }]));
+    const summary = await sendWeeklyBookingReminders({ now: MONDAY_9 });
+    expect(summary.sent).toBe(0);
+    expect(notifications.notifyOnce).not.toHaveBeenCalled();
+    // Se buscó con la clave del domingo de ESA misma semana (lunes 26)
+    expect(Notification.find.mock.calls[0][0].dedupeKey.$in).toEqual([sundayKey(String(ana), '2026-10-26')]);
   });
 
   it('no avisa antes de las 08:00 ni cualquier otro día', async () => {
