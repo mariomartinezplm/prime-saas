@@ -4,12 +4,22 @@ import mongoose from 'mongoose';
 import { canAccessPatient } from '../middleware/auth.js';
 import { evolutionDateError } from '../utils/evolutionDate.js';
 import { evaluateGoalAchievements } from '../services/goals/goalAchievements.js';
+import { hasActivePlan } from '../services/clientPlanService.js';
+import { notify } from '../services/notificationService.js';
+
+const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
 
 // @desc    Crear nuevo registro EVA
 // @route   POST /api/eva
-// @access  Private/Admin
+// @access  Private (personal para sus pacientes; el paciente, solo el suyo y con plan activo)
 export const createEVARecord = async (req, res) => {
   try {
+    const isPatient = req.user.role === 'patient';
+    // El paciente solo anota SU dolor: el id que mande el cliente se ignora. Los campos clínicos (plan de tratamiento, pruebas
+    // funcionales, medicación…) son del profesional y se descartan.
+    const body = isPatient
+      ? { patient: req.user._id, date: req.body.date, painLevel: req.body.painLevel, bodyArea: req.body.bodyArea, painType: req.body.painType, observations: req.body.observations }
+      : req.body;
     const {
       patient,
       date,
@@ -26,7 +36,12 @@ export const createEVARecord = async (req, res) => {
       observations,
       treatmentPlan,
       followUp
-    } = req.body;
+    } = body;
+
+    // Bloqueo: el paciente solo puede registrar evolución con plan activo. El profesional/admin siempre puede.
+    if (isPatient && !(await hasActivePlan(patient))) {
+      return res.status(403).json({ success: false, message: PLAN_EXPIRED_MESSAGE, code: 'NO_ACTIVE_PLAN_SESSIONS' });
+    }
 
     // Pertenencia: el profesional solo registra para pacientes a los que tiene acceso
     if (!(await canAccessPatient(req.user, patient))) {
@@ -75,6 +90,15 @@ export const createEVARecord = async (req, res) => {
 
     // Un registro nuevo de dolor puede completar un objetivo: se evalúa sin frenar la respuesta
     evaluateGoalAchievements(evaRecord.patient?._id ?? evaRecord.patient).catch(() => {});
+
+    // Si lo anotó el propio paciente, su profesional asignado se entera (campanita + correo, como el resto de la evolución)
+    if (isPatient && patientUser.assignedProfessionalId) {
+      notify(patientUser.assignedProfessionalId, 'evolution_updated', {
+        title: 'Nuevo registro de dolor',
+        body: `${patientUser.firstName} ${patientUser.lastName} registró un nuevo dolor.`,
+        link: `/app/admin/pacientes/${patientUser._id}`
+      }).catch((error) => console.error('Error al notificar dolor al profesional:', error.message));
+    }
 
     res.status(201).json({
       success: true,

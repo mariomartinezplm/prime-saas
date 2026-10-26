@@ -18,7 +18,7 @@ router.use(protect);
 
 // Rutas de EVA
 router.route('/')
-  .post(authorize('admin', 'professional'), createEVARecord);
+  .post(authorize('admin', 'professional', 'patient'), createEVARecord);
 
 // Pertenencia verificada en la ruta (Paso 04 de BLUEPRINT.md)
 router.get('/patient/:patientId', authorizePatientAccess('patientId'), getPatientEVARecords);

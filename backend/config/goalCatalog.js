@@ -21,6 +21,8 @@
  *   checkin              registro manual (autorreporte o profesional)        ← GoalCheckin
  */
 
+import { ALL_BODY_ZONES } from './bodyZones.js';
+
 export const GOAL_CATALOG_VERSION = 2;
 
 export const DIRECTIONS = ['increase', 'decrease', 'maintain'];
@@ -35,14 +37,7 @@ const side = { key: 'side', type: 'enum', label: 'Lado', required: true, options
 const testName = { key: 'testName', type: 'text', label: 'Nombre de la prueba', required: true, max: 60 };
 
 // Zonas de dolor: son las mismas que usa el registro de EVA
-export const EVA_AREAS = [
-  ['cabeza', 'Cabeza'], ['cuello', 'Cuello'], ['hombro-izquierdo', 'Hombro izquierdo'], ['hombro-derecho', 'Hombro derecho'],
-  ['codo-izquierdo', 'Codo izquierdo'], ['codo-derecho', 'Codo derecho'], ['muneca-izquierda', 'Muñeca izquierda'], ['muneca-derecha', 'Muñeca derecha'],
-  ['espalda-alta', 'Espalda alta'], ['espalda-media', 'Espalda media'], ['espalda-baja', 'Espalda baja'], ['lumbar', 'Lumbar'],
-  ['cadera-izquierda', 'Cadera izquierda'], ['cadera-derecha', 'Cadera derecha'], ['rodilla-izquierda', 'Rodilla izquierda'], ['rodilla-derecha', 'Rodilla derecha'],
-  ['tobillo-izquierdo', 'Tobillo izquierdo'], ['tobillo-derecho', 'Tobillo derecho'], ['pie-izquierdo', 'Pie izquierdo'], ['pie-derecho', 'Pie derecho'],
-  ['pecho', 'Pecho'], ['abdomen', 'Abdomen'], ['otro', 'Otra zona'],
-].map(([value, label]) => ({ value, label }));
+export const EVA_AREAS = ALL_BODY_ZONES.map(({ id, label }) => ({ value: id, label }));
 
 const MUSCLE_PERIMETERS = [
   ['bicepFlexedLeft', 'Bíceps contraído izquierdo'], ['bicepFlexedRight', 'Bíceps contraído derecho'],

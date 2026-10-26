@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { BODY_ZONE_IDS } from '../config/bodyZones.js';
 
 const evaSchema = new mongoose.Schema({
   patient: {
@@ -27,31 +28,7 @@ const evaSchema = new mongoose.Schema({
   bodyArea: {
     type: String,
     required: [true, 'La zona corporal es requerida'],
-    enum: [
-      'cabeza',
-      'cuello',
-      'hombro-izquierdo',
-      'hombro-derecho',
-      'codo-izquierdo',
-      'codo-derecho',
-      'muneca-izquierda',
-      'muneca-derecha',
-      'espalda-alta',
-      'espalda-media',
-      'espalda-baja',
-      'lumbar',
-      'cadera-izquierda',
-      'cadera-derecha',
-      'rodilla-izquierda',
-      'rodilla-derecha',
-      'tobillo-izquierdo',
-      'tobillo-derecho',
-      'pie-izquierdo',
-      'pie-derecho',
-      'pecho',
-      'abdomen',
-      'otro'
-    ]
+    enum: BODY_ZONE_IDS
   },
   // Descripción del dolor
   painType: {

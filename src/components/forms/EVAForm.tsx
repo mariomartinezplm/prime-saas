@@ -13,20 +13,15 @@ import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import PainBodyDiagram from '@/components/body/PainBodyDiagram';
 import { Input } from '@/components/ui/input';
 import { todayLocal, localNoonISO } from '@/lib/evolutionDate';
+import { BODY_ZONE_GEOMETRY } from '@/lib/bodyZones';
 
 interface EVAFormProps {
   patientId: string;
   onSuccess: () => void;
 }
 
-const BODY_AREAS = [
-  'cabeza', 'cuello', 'hombro-izquierdo', 'hombro-derecho',
-  'brazo-izquierdo', 'brazo-derecho', 'codo-izquierdo', 'codo-derecho',
-  'muneca-izquierda', 'muneca-derecha', 'mano-izquierda', 'mano-derecha',
-  'columna-cervical', 'columna-dorsal', 'columna-lumbar',
-  'cadera-izquierda', 'cadera-derecha', 'rodilla-izquierda', 'rodilla-derecha',
-  'tobillo-izquierdo', 'tobillo-derecho', 'pie-izquierdo', 'pie-derecho',
-];
+// Zonas elegibles: las mismas del mapa (y del servidor)
+const BODY_AREAS = BODY_ZONE_GEOMETRY.map((z) => ({ id: z.id, label: z.label }));
 
 const PAIN_TYPES = [
   'punzante', 'quemante', 'opresivo', 'pulsátil',
@@ -47,21 +42,16 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
   const [duration, setDuration] = useState('');
   const [observations, setObservations] = useState('');
   const [treatmentPlan, setTreatmentPlan] = useState('');
-  const [selectedPoint, setSelectedPoint] = useState<{ x: number, y: number, gender: 'male' | 'female' } | null>(null);
-
-  const handleMapClick = (x: number, y: number) => {
-    setSelectedPoint({ x, y, gender: 'male' }); // The gender is handled by local state inside PainBodyDiagram now, but we can pass it later if needed.
-  };
 
   // Hay datos escritos que todavía no se guardaron
-  const dirty = !!(bodyArea || painType || duration || observations || treatmentPlan || selectedPoint || painLevel > 0 || date !== todayLocal());
+  const dirty = !!(bodyArea || painType || duration || observations || treatmentPlan || painLevel > 0 || date !== todayLocal());
   useUnsavedChangesWarning(dirty && !loading);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submittingRef.current) return;
 
-    const zone = !bodyArea && !selectedPoint ? 'Selecciona una zona del cuerpo o pincha el punto en el mapa' : undefined;
+    const zone = !bodyArea ? 'Elige una zona del cuerpo: tócala en el mapa o búscala en la lista' : undefined;
     const when = !date ? 'Indica la fecha del registro' : date > todayLocal() ? 'La fecha no puede ser futura' : undefined;
     setZoneError(zone);
     setDateError(when);
@@ -82,7 +72,6 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
         duration: duration || undefined,
         observations: observations || undefined,
         treatmentPlan: treatmentPlan || undefined,
-        point: selectedPoint || undefined,
       });
 
       notify.success('Registro de dolor guardado');
@@ -93,7 +82,6 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
       setDuration('');
       setObservations('');
       setTreatmentPlan('');
-      setSelectedPoint(null);
       onSuccess();
     } catch (err: unknown) {
       // Si falla se conserva todo lo escrito para reintentar
@@ -145,14 +133,12 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
             <FormField label="Zona del cuerpo" required error={zoneError}>
               {(c) => (
               <Select value={bodyArea} onValueChange={(v) => { setBodyArea(v); setZoneError(undefined); }}>
-                <SelectTrigger id={c.id} aria-invalid={c['aria-invalid']} aria-describedby={c['aria-describedby']}><SelectValue placeholder="Seleccionar zona (o pincha el mapa)" /></SelectTrigger>
+                <SelectTrigger id={c.id} aria-invalid={c['aria-invalid']} aria-describedby={c['aria-describedby']}><SelectValue placeholder="Elegir de la lista (o tócala en el mapa)" /></SelectTrigger>
                 <SelectContent>
                   {BODY_AREAS.map((area) => (
-                    <SelectItem key={area} value={area}>
-                      {area.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </SelectItem>
+                    <SelectItem key={area.id} value={area.id}>{area.label}</SelectItem>
                   ))}
-                  <SelectItem value="otro">Otro (punto en el mapa)</SelectItem>
+                  <SelectItem value="otro">Otra zona</SelectItem>
                 </SelectContent>
               </Select>
               )}
@@ -188,18 +174,9 @@ const EVAForm = ({ patientId, onSuccess }: EVAFormProps) => {
           </FormField>
 
           <div className="space-y-4 border-t pt-4">
-            <Label>Mapa de dolor (opcional: toca el punto exacto)</Label>
+            <Label>Mapa del cuerpo (toca la zona del dolor)</Label>
             <div className="border border-border rounded-xl p-4 bg-muted/20">
-              <PainBodyDiagram
-                selectedZone={bodyArea !== 'otro' ? bodyArea : null}
-                onZoneClick={setBodyArea}
-                onMapClick={handleMapClick}
-                selectedPoint={selectedPoint}
-                gender={selectedPoint?.gender || 'male'}
-                onGenderChange={(g) => {
-                  if (selectedPoint) setSelectedPoint({ ...selectedPoint, gender: g });
-                }}
-              />
+              <PainBodyDiagram selectedZone={bodyArea !== 'otro' ? bodyArea : null} onZoneClick={(z) => { setBodyArea(z); setZoneError(undefined); }} />
             </div>
           </div>
 
