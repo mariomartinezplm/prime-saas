@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, ChevronRight, Info, Pause, ShieldCheck } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Check, ChevronRight, Info, PersonStanding, Pause, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,9 @@ import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import { BTN_FILL, CARD, HERO_SURFACE } from '@/components/dashboard/brand';
 import GoalIcon from '@/components/goals/GoalIcon';
+import BodyMap from '@/components/body/BodyMap';
+import { clientPlanService } from '@/services/clientPlanService';
+import { goalOptionsForZone, viewOfZone, zoneLabel, type BodyView, type ZoneGoalOption } from '@/lib/bodyZones';
 import { measurementService } from '@/services/measurementService';
 import { goalService, type CatalogCategory, type CatalogIndicator, type CreateGoalInput, type GoalCatalog, type GoalDirection, type GoalParamDef, type GoalSources, type GoalView } from '@/services/goalService';
 import { INVALID_NUMBER, parseDecimal } from '@/lib/decimal';
@@ -48,6 +51,12 @@ const Chips = ({ label, options, value, onChange }: { label: string; options: { 
 
 const fieldInput = 'h-12 border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]';
 
+// Elegir la zona del dolor tocando el cuerpo (de frente y de espalda)
+const ZonePicker = ({ value, onChange }: { value: string; onChange: (zoneId: string) => void }) => {
+  const [view, setView] = useState<BodyView>(() => viewOfZone(value, 'front'));
+  return <BodyMap view={view} onViewChange={setView} selected={value || null} onSelect={(z) => { onChange(z); setView((cur) => viewOfZone(z, cur)); }} />;
+};
+
 const GoalNew = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -66,6 +75,13 @@ const GoalNew = () => {
   // Se pueden elegir hasta 3 objetivos de una vez: se configuran uno tras otro (`queueIndex` es el que se está armando)
   const [picked, setPicked] = useState<string[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);
+  // Lo elegido tocando el cuerpo: por categoría, qué indicador y qué zona/lado ya quedaron escogidos (se salta ese paso)
+  const [presets, setPresets] = useState<Record<string, ZoneGoalOption>>({});
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapZone, setMapZone] = useState<string | null>(null);
+  const [mapView, setMapView] = useState<BodyView>('front');
+  const [isKine, setIsKine] = useState(false);
+  const [searchParams] = useSearchParams();
   const categoryId = picked[queueIndex] ?? '';
   const [selected, setSelected] = useState<string[]>([]);
   const [ind, setInd] = useState<Record<string, IndState>>({});
@@ -86,6 +102,8 @@ const GoalNew = () => {
         setCatalog(c);
         setExisting(g);
         goalService.sources(patientId).then(setSources).catch(() => setSources(null));
+        // Quien viene por kinesiología siempre sigue su dolor: el objetivo de dolor es parte de su seguimiento
+        clientPlanService.getBalance(patientId).then((b) => setIsKine(b.plan?.serviceType === 'kinesiologia')).catch(() => setIsKine(false));
       })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
@@ -102,36 +120,68 @@ const GoalNew = () => {
   const category: CatalogCategory | undefined = catalog?.categories.find((c) => c.id === categoryId);
   const def = (id: string): CatalogIndicator | undefined => category?.indicators.find((i) => i.id === id);
 
+  // Para quien viene por kinesiología el dolor es obligatorio mientras no tenga un objetivo de dolor en curso
+  const hasPainGoal = active.some((g) => g.categoryId === 'pain');
+  const painRequired = isKine && !hasPainGoal;
+  useEffect(() => {
+    if (painRequired && catalog?.categories.some((c) => c.id === 'pain')) setPicked((cur) => (cur.includes('pain') ? cur : ['pain', ...cur]));
+  }, [painRequired, catalog]);
+
+  // Llegar desde el mapa del cuerpo («Crear un objetivo con esta zona»): la zona ya viene elegida
+  const zonaParam = searchParams.get('zona');
+  useEffect(() => {
+    if (!zonaParam || !catalog) return;
+    setMapOpen(true);
+    setMapZone(zonaParam);
+    setMapView((cur) => viewOfZone(zonaParam, cur));
+  }, [zonaParam, catalog]);
+
   // Cupos: hasta 3 objetivos activos en total. Sin cupos libres se puede elegir uno y pausar otro (se pide en el paso 3).
   const maxActive = catalog?.maxActiveGoals ?? 3;
   const slotsLeft = Math.max(0, maxActive - active.length);
   const maxPick = Math.max(1, slotsLeft);
-  const togglePick = (c: CatalogCategory) =>
+  const togglePick = (c: CatalogCategory) => {
+    if (c.id === 'pain' && painRequired && picked.includes('pain')) return; // el dolor no se puede quitar
+    if (picked.includes(c.id)) setPresets((cur) => Object.fromEntries(Object.entries(cur).filter(([k]) => k !== c.id)));
     setPicked((cur) => (cur.includes(c.id) ? cur.filter((x) => x !== c.id) : cur.length < maxPick ? [...cur, c.id] : cur));
+  };
+
+  // Agrega a la tanda lo que se eligió tocando el cuerpo (con su indicador y zona ya definidos)
+  const pickFromMap = (option: ZoneGoalOption) => {
+    setPresets((cur) => ({ ...cur, [option.categoryId]: option }));
+    setPicked((cur) => (cur.includes(option.categoryId) ? cur : cur.length < maxPick ? [...cur, option.categoryId] : cur));
+  };
 
   // Deja el asistente limpio para configurar la categoría `cid` (con un solo indicador posible ya está elegido)
-  const prepareFor = (cid: string) => {
+  // Devuelve el paso al que ir: con lo elegido en el mapa ya está el indicador y la zona, así que se salta directo a la meta (paso 3)
+  const prepareFor = (cid: string): number => {
     const c = catalog?.categories.find((x) => x.id === cid);
+    const preset = presets[cid];
+    const presetDef = preset ? c?.indicators.find((i) => i.id === preset.indicatorId) : undefined;
     setErrors({});
-    setSelected(c && c.indicators.length === 1 ? [c.indicators[0].id] : []);
-    setInd({});
     setPauseId('');
     setTargetDay('');
     window.scrollTo?.({ top: 0 });
+    if (preset && presetDef) {
+      setSelected([presetDef.id]);
+      setInd({ [presetDef.id]: { params: preset.params, unit: presetDef.unit ?? presetDef.unitOptions?.[0] ?? '', direction: presetDef.defaultDirection, target: '', tolerance: '', start: '', startDay: '' } });
+      return 3;
+    }
+    setSelected(c && c.indicators.length === 1 ? [c.indicators[0].id] : []);
+    setInd({});
+    return 2;
   };
   const startQueue = () => {
     setQueueIndex(0);
     setCreated([]);
-    prepareFor(picked[0]);
-    setStep(2);
+    setStep(prepareFor(picked[0]));
   };
   // Pasa al siguiente objetivo de la tanda, o termina si era el último
   const advance = () => {
     const next = queueIndex + 1;
     if (next < picked.length) {
       setQueueIndex(next);
-      prepareFor(picked[next]);
-      setStep(2);
+      setStep(prepareFor(picked[next]));
     } else {
       setDone(true);
       window.scrollTo?.({ top: 0 });
@@ -302,13 +352,14 @@ const GoalNew = () => {
   if (failed || !catalog) return <LoadErrorAlert message="No se pudo cargar el catálogo de objetivos." onRetry={load} />;
 
   // Mientras se arma el primero se puede volver atrás; los siguientes de la tanda se pueden saltar (los anteriores ya quedaron creados)
-  const canGoBack = !(step === 2 && queueIndex > 0);
-  const back = () => (step === 1 ? navigate(homePath) : setStep(step - 1));
+  const canGoBack = !((step === 2 || (step === 3 && !!presets[categoryId])) && queueIndex > 0);
+  const back = () => (step === 1 ? navigate(homePath) : step === 3 && presets[categoryId] && queueIndex === 0 ? setStep(1) : setStep(step - 1));
 
   const addAnother = () => {
     setDone(false);
     setStep(1);
-    setPicked([]);
+    setPicked(painRequired ? ['pain'] : []);
+    setPresets({});
     setQueueIndex(0);
     setCreated([]);
     setSelected([]);
@@ -365,6 +416,13 @@ const GoalNew = () => {
     const s = stateOf(d);
     const value = s.params[p.key] ?? '';
     const error = errors[`${d.id}.${p.key}`];
+    if (d.id === 'pain_eva' && p.key === 'bodyArea') {
+      return (
+        <FormField key={p.key} label="Toca la zona del dolor" required error={error}>
+          {() => <ZonePicker value={value} onChange={(z) => setParam(d, p.key, z)} />}
+        </FormField>
+      );
+    }
     if (p.type === 'enum' && p.options) {
       return (
         <FormField key={p.key} label={p.label} required={p.required} error={error}>
@@ -444,6 +502,40 @@ const GoalNew = () => {
               : `Elige entre 1 y ${maxActive} objetivos. El primero que elijas será tu principal. Hoy tienes ${active.length}${slotsLeft === 0 ? ': para agregar otro tendrás que pausar uno' : slotsLeft < maxActive ? `, puedes elegir hasta ${slotsLeft} más` : ''}.`}
             serif
           />
+          {painRequired && (
+            <p className={cn(CARD, 'flex items-start gap-2 p-3.5 text-[13.5px] text-[#cdc6b6]')}><ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" />{staff ? 'Viene por kinesiología: el dolor es parte de su seguimiento y queda incluido.' : 'Como vienes por kinesiología, tu dolor es parte de tu seguimiento: queda incluido.'}</p>
+          )}
+          <section aria-label="Elegir tocando el cuerpo" className={cn(CARD, 'space-y-3 p-4')}>
+            <button type="button" aria-expanded={mapOpen} onClick={() => setMapOpen((o) => !o)} className="flex min-h-[48px] w-full items-center justify-between gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
+              <span className="flex items-center gap-3">
+                <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#398ca2]/40 bg-[#398ca2]/12 text-[#8fd0e0]"><PersonStanding className="h-5 w-5" /></span>
+                <span>
+                  <span className="block text-[15.5px] font-bold text-[#fff8e4]">Elegir tocando el cuerpo</span>
+                  <span className="block text-[13px] text-[#a8a295]">Toca la parte que quieres mejorar</span>
+                </span>
+              </span>
+              <ChevronRight aria-hidden="true" className={cn('h-5 w-5 shrink-0 text-[#cdc6b6] transition-transform motion-reduce:transition-none', mapOpen && 'rotate-90')} />
+            </button>
+            {mapOpen && (
+              <div className="space-y-3 border-t border-[#fff8e4]/10 pt-3">
+                <BodyMap view={mapView} onViewChange={setMapView} selected={mapZone} onSelect={(z) => { setMapZone(z); setMapView((cur) => viewOfZone(z, cur)); }} />
+                {mapZone && (
+                  <div role="group" aria-label={`Objetivos para ${zoneLabel(mapZone)}`} className="space-y-2">
+                    {goalOptionsForZone(mapZone).map((o) => {
+                      const chosen = presets[o.categoryId]?.indicatorId === o.indicatorId && JSON.stringify(presets[o.categoryId]?.params) === JSON.stringify(o.params);
+                      const blocked = !chosen && !picked.includes(o.categoryId) && picked.length >= maxPick;
+                      return (
+                        <button key={`${o.indicatorId}-${JSON.stringify(o.params)}`} type="button" aria-pressed={chosen} disabled={blocked} onClick={() => pickFromMap(o)} className={cn('flex min-h-[48px] w-full items-center justify-between gap-3 rounded-xl border px-3.5 text-left text-[14.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4] disabled:opacity-45', chosen ? 'border-[#62b8cf] bg-[#398ca2]/20 text-[#fff8e4]' : 'border-[#fff8e4]/25 text-[#cdc6b6]')}>
+                          <span>{o.label}</span>
+                          {chosen && <Check aria-hidden="true" className="h-4 w-4 shrink-0 text-[#8fd0e0]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
           <ul className="space-y-2">
             {catalog.categories.map((c) => {
               const order = picked.indexOf(c.id);
@@ -455,7 +547,7 @@ const GoalNew = () => {
                     <span aria-hidden="true" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border', on ? 'border-[#62b8cf] bg-[#398ca2]/30 text-[#fff8e4]' : 'border-[#398ca2]/40 bg-[#398ca2]/12 text-[#8fd0e0]')}><GoalIcon name={c.icon} className="h-5 w-5" /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[15.5px] font-bold text-[#fff8e4]">{c.name}</span>
-                      <span className="block text-[13px] leading-snug text-[#a8a295]">{c.description}</span>
+                      <span className="block text-[13px] leading-snug text-[#a8a295]">{on && presets[c.id] ? presets[c.id].label : c.description}</span>
                     </span>
                     <span aria-hidden="true" className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-[13px] font-extrabold', on ? 'border-[#398ca2] bg-[#398ca2] text-[#181619]' : 'border-[#fff8e4]/30')}>{on ? order + 1 : ''}</span>
                     {on && <span className="sr-only">Elegido, número {order + 1}</span>}

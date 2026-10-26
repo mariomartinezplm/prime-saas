@@ -15,7 +15,8 @@ vi.mock('../services/clientPlanService.js', () => ({ hasActivePlan: vi.fn() }));
 vi.mock('../services/notificationService.js', () => ({ notify: vi.fn(async () => ({})) }));
 vi.mock('../services/goals/goalAchievements.js', () => ({ evaluateGoalAchievements: vi.fn(async () => {}) }));
 
-const { BODY_ZONE_GEOMETRY, zoneShape, zonesInView, zoneLabel } = await import('../../src/lib/bodyZones.ts');
+const { BODY_ZONE_GEOMETRY, zoneShape, zonesInView, zoneLabel, goalOptionsForZone } = await import('../../src/lib/bodyZones.ts');
+const { validateIndicatorInput } = await import('../services/goals/goalRules.js');
 
 describe('lista única de zonas', () => {
   it('los ids no se repiten y cubren lo que Mario pidió: codo, antebrazo, muñeca, rodilla, tibia, tobillo, planta y dorso del pie', () => {
@@ -76,6 +77,27 @@ describe('lista única de zonas', () => {
     const { default: Measurement } = await import('../models/Measurement.js');
     const fields = Object.keys(Measurement.schema.paths).filter((p) => p.startsWith('perimeters.')).map((p) => p.split('.').pop());
     for (const zone of ALL_BODY_ZONES) for (const f of zone.perimeter ?? []) expect(fields, `${zone.id} → ${f}`).toContain(f);
+  });
+});
+
+describe('objetivos que se arman tocando una zona', () => {
+  it('el codo solo ofrece dolor; el brazo, masa muscular de ese lado y dolor; el abdomen, cintura y dolor', () => {
+    expect(goalOptionsForZone('codo-derecho').map((o) => o.indicatorId)).toEqual(['pain_eva']);
+    const brazo = goalOptionsForZone('brazo-izquierdo');
+    expect(brazo.map((o) => [o.indicatorId, o.params])).toEqual([['perimeter_bicep_flexed', { field: 'bicepFlexedLeft' }], ['pain_eva', { bodyArea: 'brazo-izquierdo' }]]);
+    expect(goalOptionsForZone('abdomen').map((o) => o.indicatorId)).toEqual(['perimeter_waist', 'pain_eva']);
+    expect(goalOptionsForZone('gluteo-derecho').map((o) => o.indicatorId)).toEqual(['perimeter_glute', 'pain_eva']);
+    expect(goalOptionsForZone('muslo-posterior-derecho')[0]).toMatchObject({ indicatorId: 'perimeter_thigh', params: { field: 'thighRight' } });
+    expect(goalOptionsForZone('zona-inventada')).toEqual([]);
+  });
+
+  it('toda opción que ofrece el mapa es un objetivo válido para el servidor (categoría, indicador y zona existen)', () => {
+    for (const zone of BODY_ZONE_GEOMETRY) {
+      for (const o of goalOptionsForZone(zone.id)) {
+        const r = validateIndicatorInput(o.categoryId, { indicatorId: o.indicatorId, params: o.params });
+        expect(r.ok, `${zone.id} → ${o.label}: ${r.errors}`).toBe(true);
+      }
+    }
   });
 });
 

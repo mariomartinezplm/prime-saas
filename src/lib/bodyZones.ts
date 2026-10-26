@@ -91,3 +91,51 @@ export const viewOfZone = (id: string, current: BodyView): BodyView => {
   if (z[current]) return current;
   return current === 'front' ? 'back' : 'front';
 };
+
+// Nombre de cada medida con cinta que se puede tomar desde el mapa (campos de Mediciones)
+export const PERIMETER_LABELS: Record<string, string> = {
+  bicepFlexedLeft: 'Bíceps contraído izquierdo',
+  bicepFlexedRight: 'Bíceps contraído derecho',
+  forearmLeft: 'Antebrazo izquierdo',
+  forearmRight: 'Antebrazo derecho',
+  thighLeft: 'Muslo izquierdo',
+  thighRight: 'Muslo derecho',
+  calfLeft: 'Pantorrilla izquierda',
+  calfRight: 'Pantorrilla derecha',
+  chest: 'Pecho',
+  waist: 'Cintura',
+  hips: 'Glúteos (cadera)',
+};
+
+// ── Objetivos que se pueden armar tocando una zona del cuerpo ──
+export interface ZoneGoalOption {
+  categoryId: string;
+  indicatorId: string;
+  params: Record<string, string>;
+  label: string;
+}
+
+// Medida con cinta → objetivo de medida que la sigue (nombre del indicador y de su categoría en el catálogo de objetivos)
+const PERIMETER_GOALS: Record<string, { categoryId: string; indicatorId: string; withField: boolean; verb: string }> = {
+  bicepFlexedLeft: { categoryId: 'muscle_mass', indicatorId: 'perimeter_bicep_flexed', withField: true, verb: 'Ganar masa' },
+  bicepFlexedRight: { categoryId: 'muscle_mass', indicatorId: 'perimeter_bicep_flexed', withField: true, verb: 'Ganar masa' },
+  thighLeft: { categoryId: 'muscle_mass', indicatorId: 'perimeter_thigh', withField: true, verb: 'Ganar masa' },
+  thighRight: { categoryId: 'muscle_mass', indicatorId: 'perimeter_thigh', withField: true, verb: 'Ganar masa' },
+  hips: { categoryId: 'muscle_mass', indicatorId: 'perimeter_glute', withField: false, verb: 'Ganar masa' },
+  waist: { categoryId: 'body_fat', indicatorId: 'perimeter_waist', withField: false, verb: 'Bajar grasa' },
+};
+
+// Qué objetivos tienen sentido para una zona: siempre el dolor de esa zona y, si es un músculo que se mide con cinta, su medida
+export function goalOptionsForZone(zoneId: string): ZoneGoalOption[] {
+  const zone = zoneById(zoneId);
+  if (!zone) return [];
+  const options: ZoneGoalOption[] = [];
+  for (const field of zone.perimeter ?? []) {
+    const goal = PERIMETER_GOALS[field];
+    if (goal && !options.some((o) => o.indicatorId === goal.indicatorId && o.params.field === (goal.withField ? field : undefined))) {
+      options.push({ categoryId: goal.categoryId, indicatorId: goal.indicatorId, params: goal.withField ? { field } : {}, label: `${goal.verb}: ${PERIMETER_LABELS[field] ?? zone.label}` });
+    }
+  }
+  options.push({ categoryId: 'pain', indicatorId: 'pain_eva', params: { bodyArea: zone.id }, label: `Reducir el dolor: ${zone.label}` });
+  return options;
+}

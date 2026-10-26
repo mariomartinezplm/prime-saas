@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Activity, ChevronDown, Ruler, Scale, TriangleAlert, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Activity, ChevronDown, PersonStanding, Ruler, Scale, TriangleAlert, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -162,7 +163,14 @@ const MeasurementsPage = () => {
         eyebrow="Mediciones y progreso"
         title={<>Tu evolución,<br />en perspectiva</>}
         description={measurements.length > 0 ? `Última medición: ${longDate(measurements[0].date)}` : undefined}
-        actions={measurements.length > 0 ? registerButton : undefined}
+        actions={measurements.length > 0 ? (
+          <>
+            {registerButton}
+            <Button asChild variant="outline" className="min-h-[44px] rounded-xl border-[#398ca2] bg-transparent font-semibold text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]">
+              <Link to="/app/mapa-corporal"><PersonStanding aria-hidden="true" />Anotar tocando el cuerpo</Link>
+            </Button>
+          </>
+        ) : undefined}
       />
 
       {failed && (

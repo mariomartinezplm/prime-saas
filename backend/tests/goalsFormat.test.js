@@ -165,3 +165,23 @@ describe('orientación prudente', () => {
     for (const id of ['pain', 'mobility', 'posture', 'cardiometabolic', 'stress']) expect(safetyNote(id)).not.toMatch(/tienes (ansiedad|depresi|diabetes|hipertens)|toma |debes tomar|ejercicio recomendado/i);
   });
 });
+
+describe('dolor obligatorio para quien viene por kinesiología', async () => {
+  const { shouldPromptPain } = await import('../../src/lib/goals.ts');
+  const now = 1_000_000_000_000;
+  const base = { isKine: true, goalsLoaded: true, hasPainGoal: false, pref: {}, now };
+
+  it('se le pide el dolor si todavía no tiene un objetivo de dolor, aunque tenga otros objetivos', () => {
+    expect(shouldPromptPain(base)).toBe(true);
+  });
+  it('no se le pide si no viene por kinesiología, si ya tiene el de dolor o si los objetivos no cargaron', () => {
+    expect(shouldPromptPain({ ...base, isKine: false })).toBe(false);
+    expect(shouldPromptPain({ ...base, hasPainGoal: true })).toBe(false);
+    expect(shouldPromptPain({ ...base, goalsLoaded: false })).toBe(false);
+  });
+  it('«Más tarde» lo deja para después, pero no existe «no quiero»: vuelve a aparecer', () => {
+    expect(shouldPromptPain({ ...base, pref: { painSnoozedUntil: now + 1000 } })).toBe(false);
+    expect(shouldPromptPain({ ...base, pref: { painSnoozedUntil: now - 1 } })).toBe(true);
+    expect(shouldPromptPain({ ...base, pref: { optOut: true } })).toBe(true);
+  });
+});

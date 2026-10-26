@@ -118,12 +118,18 @@ export function evolutionLink(p: Pick<IndicatorProgress, 'source' | 'params'>): 
 // «No quiero definir objetivos» la apaga en ese dispositivo. Lo que se guarda en el dispositivo es solo esa preferencia.
 export const GOALS_PROMPT_SNOOZE_DAYS = 3;
 
-export interface GoalsPromptPref { snoozedUntil?: number; optOut?: boolean }
+export interface GoalsPromptPref { snoozedUntil?: number; optOut?: boolean; painSnoozedUntil?: number }
 
 export function shouldPromptGoals(input: { hasPlan: boolean; goalsLoaded: boolean; goalCount: number; pref: GoalsPromptPref; now: number }): boolean {
   if (!input.hasPlan || !input.goalsLoaded || input.goalCount > 0) return false;
   if (input.pref.optOut) return false;
   return !(input.pref.snoozedUntil && input.pref.snoozedUntil > input.now);
+}
+
+// Quien viene por kinesiología sigue su dolor siempre: si todavía no tiene un objetivo de dolor, se le propone (sin opción de «no quiero»)
+export function shouldPromptPain(input: { isKine: boolean; goalsLoaded: boolean; hasPainGoal: boolean; pref: GoalsPromptPref; now: number }): boolean {
+  if (!input.isKine || !input.goalsLoaded || input.hasPainGoal) return false;
+  return !(input.pref.painSnoozedUntil && input.pref.painSnoozedUntil > input.now);
 }
 
 // ── Historial de cambios (se muestra al paciente y al profesional; nada se pisa en silencio) ──
