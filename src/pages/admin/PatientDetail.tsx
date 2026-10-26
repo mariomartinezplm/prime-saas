@@ -105,6 +105,8 @@ const PatientDetail = () => {
   const [manageApt, setManageApt] = useState<{ apt: Appointment; action?: 'cancel' | 'delete' } | null>(null);
   const navigate = useNavigate();
   const [recordsKey, setRecordsKey] = useState(0);
+  // «Registrar un nuevo peso» desde una fila del historial de ejercicios: el formulario de arriba se completa con ese ejercicio
+  const [exercisePrefill, setExercisePrefill] = useState<{ name: string; category: string; nonce: number } | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -463,8 +465,8 @@ const PatientDetail = () => {
 
         <TabsContent value="exercises" className="mt-4">
           <div className="space-y-4">
-            <ExerciseForm patientId={id!} onSuccess={() => setRecordsKey((k) => k + 1)} />
-            <ExerciseHistory patientId={id!} refreshKey={recordsKey} />
+            <ExerciseForm patientId={id!} onSuccess={() => setRecordsKey((k) => k + 1)} prefill={exercisePrefill ?? undefined} />
+            <ExerciseHistory patientId={id!} refreshKey={recordsKey} onNewWeight={(e) => setExercisePrefill({ name: e.exerciseName, category: e.category, nonce: Date.now() })} />
           </div>
         </TabsContent>
 

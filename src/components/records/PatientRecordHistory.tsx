@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
@@ -123,7 +125,7 @@ export const MeasurementHistory = ({ patientId, refreshKey }: HistoryProps) => {
   );
 };
 
-export const ExerciseHistory = ({ patientId, refreshKey }: HistoryProps) => {
+export const ExerciseHistory = ({ patientId, refreshKey, onNewWeight }: HistoryProps & { onNewWeight?: (record: ExerciseProgress) => void }) => {
   const { records, loading, load } = useRecords<ExerciseProgress>(`/exercises/patient/${patientId}`, 'exercises', refreshKey);
   const [editing, setEditing] = useState<ExerciseProgress | null>(null);
 
@@ -154,7 +156,18 @@ export const ExerciseHistory = ({ patientId, refreshKey }: HistoryProps) => {
             { key: 'sets', header: 'Series × Reps', align: 'center', cell: (e) => `${e.sets || '-'} × ${e.reps || '-'}` },
             { key: 'weight', header: 'Peso', align: 'right', cell: (e) => (e.weight ? `${e.weight} ${e.weightUnit}` : '-') },
           ]}
-          actions={(e) => <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(e)} onDelete={() => handleDelete(e)} />}
+          actions={(e) => (
+            <RecordRowActions
+              itemLabel="este ejercicio"
+              onEdit={() => setEditing(e)}
+              onDelete={() => handleDelete(e)}
+              extra={onNewWeight && (
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Registrar un nuevo peso en ${e.exerciseName}`} title="Registrar un nuevo peso" onClick={() => onNewWeight(e)}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              )}
+            />
+          )}
         />
       </CardContent>
 

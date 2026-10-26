@@ -67,11 +67,13 @@ interface NumberFieldProps {
   unit?: string;
   step?: string;
   className?: string;
+  // Texto gris de ejemplo (por ejemplo, lo último que se anotó): no es un valor, no se guarda
+  placeholder?: string;
 }
 
 // Campo numérico de los registros clínicos: acepta coma o punto decimal. Es un campo de TEXTO con teclado decimal (no type="number"):
 // en teléfonos con coma decimal, un type="number" devuelve vacío mientras se escribe «32,» y borra lo que la persona iba escribiendo.
-export const NumberField = ({ label, value, onChange, error, unit, step = '0.1', className }: NumberFieldProps) => (
+export const NumberField = ({ label, value, onChange, error, unit, step = '0.1', className, placeholder }: NumberFieldProps) => (
   <FormField label={unit ? `${label} (${unit})` : label} error={error} className={className}>
     {(control) => (
       <Input
@@ -80,6 +82,7 @@ export const NumberField = ({ label, value, onChange, error, unit, step = '0.1',
         inputMode="decimal"
         autoComplete="off"
         data-step={step}
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={cn(error && 'border-destructive')}

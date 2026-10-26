@@ -8,6 +8,7 @@ import {
   getExerciseProgressChart,
   getPersonalRecord,
   getExerciseList,
+  getExerciseSummary,
   getExerciseStats
 } from '../controllers/exerciseController.js';
 import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
@@ -26,6 +27,7 @@ router.get('/patient/:patientId', authorizePatientAccess('patientId'), getPatien
 router.get('/progress/:patientId/:exerciseName', authorizePatientAccess('patientId'), getExerciseProgressChart);
 router.get('/pr/:patientId/:exerciseName', authorizePatientAccess('patientId'), getPersonalRecord);
 router.get('/list/:patientId', authorizePatientAccess('patientId'), getExerciseList);
+router.get('/summary/:patientId', authorizePatientAccess('patientId'), getExerciseSummary);
 router.get('/stats/:patientId', authorizePatientAccess('patientId'), getExerciseStats);
 
 router.route('/:id')

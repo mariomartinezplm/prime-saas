@@ -1,7 +1,23 @@
 import api from '../lib/api';
 import type { ExerciseProgress, CreateExerciseData, APIResponse } from '../types';
 
+// Un ejercicio que la persona ya tiene registrado, con lo último que se anotó (para elegirlo de una lista)
+export interface ExerciseSummary {
+  key: string;
+  name: string;
+  category: ExerciseProgress['category'];
+  count: number;
+  lastDate: string;
+  last: { sets: number | null; reps: number | null; weight: number | null; weightUnit: 'kg' | 'lbs'; rpe: number | null };
+}
+
 export const exerciseService = {
+  // Ejercicios ya registrados de una persona, del más reciente al más antiguo
+  getSummary: async (patientId: string): Promise<ExerciseSummary[]> => {
+    const response = await api.get<APIResponse<{ exercises: ExerciseSummary[] }>>(`/exercises/summary/${patientId}`);
+    return response.data.data.exercises;
+  },
+
   // Crear registro de ejercicio
   create: async (data: CreateExerciseData): Promise<ExerciseProgress> => {
     const response = await api.post<APIResponse<{ exerciseProgress: ExerciseProgress }>>('/exercises', data);

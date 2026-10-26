@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { FormField, NumberField } from '@/components/forms/FormField';
 import SubmitButton from '@/components/forms/SubmitButton';
+import ExercisePicker from '@/components/forms/ExercisePicker';
+import { exerciseService, type ExerciseSummary } from '@/services/exerciseService';
+import { exactExercise, lastRecordText } from '@/lib/exercisePicker';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { notify } from '@/lib/notify';
 import { showApiError } from '@/lib/apiError';
@@ -22,6 +25,9 @@ interface ExerciseFormProps {
   embedded?: boolean;
   // Si viene, el formulario corrige ese registro en vez de crear uno nuevo
   record?: ExerciseProgress;
+  // Para registrar un nuevo peso en un ejercicio que ya está en el historial: se completan su nombre y categoría y el cursor va al peso.
+  // `nonce` cambia cada vez que se pide, así volver a elegir el mismo ejercicio también funciona.
+  prefill?: { name: string; category: string; nonce: number };
 }
 
 const CATEGORIES = [
@@ -79,13 +85,20 @@ function validate(form: FormState): Errors {
   return errors;
 }
 
-const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: ExerciseFormProps) => {
+const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill }: ExerciseFormProps) => {
   const isEdit = !!record;
   const formRef = useRef<HTMLFormElement>(null);
   const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [form, setForm] = useState<FormState>(() => (record ? formFromRecord(record) : emptyForm()));
+  // Ejercicios que la persona ya tiene registrados: se ofrecen en una lista para no escribirlos de nuevo (si no cargan, se escribe como siempre)
+  const [options, setOptions] = useState<ExerciseSummary[]>([]);
+  const loadOptions = useCallback(() => {
+    if (isEdit) return;
+    exerciseService.getSummary(patientId).then(setOptions).catch(() => setOptions([]));
+  }, [patientId, isEdit]);
+  useEffect(loadOptions, [loadOptions]);
 
   const dirty = !isEdit && JSON.stringify(form) !== JSON.stringify(emptyForm());
   useUnsavedChangesWarning(dirty && !loading);
@@ -94,6 +107,23 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: Exerci
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
+
+  // Elegir un ejercicio de la lista: se completan su nombre (con la misma escritura de siempre) y su categoría, y el cursor pasa al peso
+  const pickExercise = (o: ExerciseSummary) => {
+    setForm((prev) => ({ ...prev, exerciseName: o.name, category: CATEGORIES.some((c) => c.value === o.category) ? o.category : prev.category }));
+    setErrors((prev) => ({ ...prev, exerciseName: undefined }));
+    requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('input[data-step="0.5"]')?.focus());
+  };
+  const matched = isEdit ? undefined : exactExercise(options, form.exerciseName);
+
+  useEffect(() => {
+    if (!prefill || isEdit) return;
+    setForm((prev) => ({ ...prev, exerciseName: prefill.name, category: CATEGORIES.some((c) => c.value === prefill.category) ? prefill.category : prev.category }));
+    setErrors((prev) => ({ ...prev, exerciseName: undefined }));
+    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('input[data-step="0.5"]')?.focus());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.nonce]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +159,7 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: Exerci
         await api.post('/exercises', { patient: patientId, ...payload });
         notify.success('Ejercicio registrado');
         setForm(emptyForm());
+        loadOptions(); // el ejercicio recién registrado ya aparece en la lista
       }
       onSuccess();
     } catch (err: unknown) {
@@ -147,8 +178,10 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: Exerci
       </FormField>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <FormField label="Ejercicio" required error={errors.exerciseName}>
-          {(c) => <Input {...c} autoComplete="off" placeholder="Ej: Sentadilla" value={form.exerciseName} onChange={(e) => set('exerciseName', e.target.value)} />}
+        <FormField label="Ejercicio" required error={errors.exerciseName} hint={matched ? `Ya registrado · Último: ${lastRecordText(matched)}` : undefined}>
+          {(c) => isEdit
+            ? <Input {...c} autoComplete="off" placeholder="Ej: Sentadilla" value={form.exerciseName} onChange={(e) => set('exerciseName', e.target.value)} />
+            : <ExercisePicker control={c} value={form.exerciseName} onChange={(v) => set('exerciseName', v)} options={options} onPick={pickExercise} />}
         </FormField>
         <FormField label="Categoría">
           {(c) => (
@@ -169,8 +202,8 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record }: Exerci
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <NumberField label="Series" step="1" value={form.sets} onChange={(v) => set('sets', v)} error={errors.sets} />
-        <NumberField label="Repeticiones" step="1" value={form.reps} onChange={(v) => set('reps', v)} error={errors.reps} />
+        <NumberField label="Series" step="1" value={form.sets} onChange={(v) => set('sets', v)} error={errors.sets} placeholder={matched?.last.sets ? String(matched.last.sets) : undefined} />
+        <NumberField label="Repeticiones" step="1" value={form.reps} onChange={(v) => set('reps', v)} error={errors.reps} placeholder={matched?.last.reps ? String(matched.last.reps) : undefined} />
         <NumberField label="Peso" unit="kg" step="0.5" value={form.weight} onChange={(v) => set('weight', v)} error={errors.weight} />
         <NumberField label="RPE" unit="1 a 10" step="1" value={form.rpe} onChange={(v) => set('rpe', v)} error={errors.rpe} />
       </div>
