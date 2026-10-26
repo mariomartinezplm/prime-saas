@@ -25,13 +25,15 @@ import { usePlanHistory } from '@/components/dashboard/usePlanHistory';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 import GoalsPrompt from '@/components/goals/GoalsPrompt';
+import BirthdatePrompt, { readBirthdatePref } from '@/components/profile/BirthdatePrompt';
+import { shouldPromptBirthdate } from '@/lib/birthdatePrompt';
 import WeeklyCheckin from '@/components/goals/WeeklyCheckin';
 import { useMyGoals } from '@/hooks/useMyGoals';
 import { TriangleAlert } from 'lucide-react';
 import type { Appointment, SessionBalance } from '@/types';
 
 const PatientDashboard = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const userId = user?.id;
   const [searchParams] = useSearchParams();
   const readinessRef = useRef<HTMLDivElement | null>(null);
@@ -119,6 +121,11 @@ const PatientDashboard = () => {
   const showConstancy = hasPlan && (summary.status === 'loading' || !!consistency);
   // Sin plan vigente la tarjeta protagonista ya lo explica: «Mi plan» no repite el mensaje
   const myGoals = useMyGoals(user?.id, hasPlan);
+  // Primero se pide la fecha de nacimiento (si falta) y recién después el aviso de objetivos: nunca dos hojas a la vez
+  const [birthOpen, setBirthOpen] = useState(false);
+  useEffect(() => {
+    if (user?.role === 'patient' && shouldPromptBirthdate({ hasBirthDate: !!user.dateOfBirth, pref: readBirthdatePref(user.id), now: Date.now() })) setBirthOpen(true);
+  }, [user?.id, user?.role, user?.dateOfBirth]);
   const showPlanCard = planView.kind !== 'inactive' || planIsWaiting(states, planHistory.pending);
 
   return (
@@ -172,7 +179,8 @@ const PatientDashboard = () => {
         </div>
       </div>
 
-      {user && <GoalsPrompt userId={user.id} enabled={hasPlan} loaded={myGoals.loaded} goalCount={myGoals.goals.length} />}
+      {user && <BirthdatePrompt userId={user.id} open={birthOpen} onClose={() => setBirthOpen(false)} onSaved={updateUser} />}
+      {user && <GoalsPrompt userId={user.id} enabled={hasPlan && !birthOpen} loaded={myGoals.loaded} goalCount={myGoals.goals.length} />}
 
       <QuickActions hide={hero.kind === 'session' ? ['/app/mis-citas'] : hero.kind === 'book' ? ['/app/reservar'] : []} />
     </div>

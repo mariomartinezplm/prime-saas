@@ -73,7 +73,7 @@ function validate(form: FormState): Errors {
   else if (!isEmail(form.email)) errors.email = 'Ingresa un correo válido, por ejemplo nombre@correo.cl';
   if (form.rut.trim() && !isValidRut(form.rut)) errors.rut = 'RUT inválido: revisa los números y el dígito verificador';
   if (form.phone.trim() && !isPhone(form.phone)) errors.phone = 'Ingresa un teléfono válido, por ejemplo +56 9 1234 5678';
-  const birth = birthDateError(form.dateOfBirth, todayLocal());
+  const birth = form.dateOfBirth ? birthDateError(form.dateOfBirth, todayLocal()) : 'Ingresa la fecha de nacimiento (así el profesional recibe el aviso de su cumpleaños)';
   if (birth) errors.dateOfBirth = birth;
   const hasEmergency = form.emergencyName.trim() || form.emergencyPhone.trim() || form.emergencyRelationship.trim();
   if (hasEmergency && !form.emergencyName.trim()) errors.emergencyName = 'Indica el nombre del contacto (si no, estos datos no se guardan)';
@@ -248,7 +248,7 @@ const RegisterPatient = () => {
           <FormField label="Teléfono" error={errors.phone}>
             {(c) => <Input {...c} type="tel" inputMode="tel" autoComplete="off" placeholder="+56 9 1234 5678" value={form.phone} onChange={(e) => set('phone', e.target.value)} />}
           </FormField>
-          <FormField label="Fecha de nacimiento" error={errors.dateOfBirth}>
+          <FormField label="Fecha de nacimiento" required error={errors.dateOfBirth}>
             {(c) => <Input {...c} type="date" max={todayLocal()} value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} />}
           </FormField>
           <FormField label="Dirección" className="md:col-span-2">

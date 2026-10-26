@@ -18,7 +18,7 @@ const query = (value) => ({ select: () => query(value), then: (ok, no) => Promis
 
 const ADMIN = nuevoId();
 const PROF = nuevoId();
-const base = { firstName: 'Ana', lastName: 'Pérez', email: 'ana@ejemplo.invalid' };
+const base = { firstName: 'Ana', lastName: 'Pérez', email: 'ana@ejemplo.invalid', dateOfBirth: '1992-10-28' };
 
 describe('registrar un paciente: profesional asignado', () => {
   let creado;
@@ -68,6 +68,37 @@ describe('registrar un paciente: profesional asignado', () => {
     await createUser({ user: { _id: PROF, role: 'professional' }, body: { ...base, assignedProfessionalId: String(ADMIN) } }, res);
     expect(res.statusCode).toBe(201);
     expect(String(creado.assignedProfessionalId)).toBe(String(PROF));
+  });
+});
+
+describe('registrar un paciente: fecha de nacimiento obligatoria', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(inviteService, 'createInvite').mockResolvedValue(undefined);
+    vi.spyOn(User, 'create').mockImplementation(async (doc) => ({ _id: nuevoId(), ...doc }));
+    vi.spyOn(User, 'findOne').mockResolvedValue(null);
+  });
+
+  it('un paciente sin fecha, con fecha inválida o futura se rechaza y no se crea', async () => {
+    for (const dateOfBirth of [undefined, '', 'xx', '2999-01-01']) {
+      const res = fakeRes();
+      await createUser({ user: { _id: ADMIN, role: 'admin' }, body: { ...base, dateOfBirth } }, res);
+      expect(res.statusCode).toBe(400);
+    }
+    expect(User.create).not.toHaveBeenCalled();
+  });
+
+  it('una fecha válida queda guardada como fecha', async () => {
+    const res = fakeRes();
+    await createUser({ user: { _id: ADMIN, role: 'admin' }, body: { ...base } }, res);
+    expect(res.statusCode).toBe(201);
+    expect(User.create.mock.calls[0][0].dateOfBirth.toISOString()).toBe('1992-10-28T00:00:00.000Z');
+  });
+
+  it('el personal (admin/profesional) se puede crear sin fecha de nacimiento', async () => {
+    const res = fakeRes();
+    await createUser({ user: { _id: ADMIN, role: 'admin' }, body: { ...base, dateOfBirth: undefined, role: 'professional' } }, res);
+    expect(res.statusCode).toBe(201);
   });
 });
 

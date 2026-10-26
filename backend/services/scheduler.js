@@ -3,6 +3,7 @@ import { runPlanLifecycleJob } from './planLifecycleService.js';
 import { runAchievementSweep } from './achievements/index.js';
 import { sendReadinessReminders } from './readinessReminderService.js';
 import { sendWeeklyBookingReminders } from './weeklyBookingReminderService.js';
+import { sendBirthdayReminders } from './birthdayReminderService.js';
 import { syncAllRecurringSlots } from './recurringSlotService.js';
 import { importNewPatients, isAirtableConfigured, AUTO_IMPORT_FROM } from '../utils/airtableSync.js';
 
@@ -54,6 +55,15 @@ async function tick() {
     }
   } catch (error) {
     console.error('Error en el recordatorio semanal para agendar:', error.message);
+  }
+
+  try {
+    const birthdays = await sendBirthdayReminders();
+    if (birthdays.weekly || birthdays.daily || birthdays.failed) {
+      console.log(`🎂 Cumpleaños: ${birthdays.weekly} avisos de la semana, ${birthdays.daily} de hoy, ${birthdays.failed} con error`);
+    }
+  } catch (error) {
+    console.error('Error en los avisos de cumpleaños:', error.message);
   }
 
   try {

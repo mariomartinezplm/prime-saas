@@ -149,3 +149,19 @@ describe('orientación prudente', () => {
     for (const id of ['pain', 'mobility', 'posture', 'cardiometabolic', 'stress']) expect(safetyNote(id)).not.toMatch(/tienes (ansiedad|depresi|diabetes|hipertens)|toma |debes tomar|ejercicio recomendado/i);
   });
 });
+
+describe('pregunta de la fecha de nacimiento', async () => {
+  const { shouldPromptBirthdate, BIRTHDATE_SNOOZE_DAYS } = await import('../../src/lib/birthdatePrompt.ts');
+  const now = 1_000_000_000_000;
+
+  it('solo pregunta a quien no tiene la fecha', () => {
+    expect(shouldPromptBirthdate({ hasBirthDate: true, pref: {}, now })).toBe(false);
+    expect(shouldPromptBirthdate({ hasBirthDate: false, pref: {}, now })).toBe(true);
+  });
+
+  it('«Más tarde» la deja para dentro de unos días y después vuelve a preguntar', () => {
+    const snoozedUntil = now + BIRTHDATE_SNOOZE_DAYS * 86400000;
+    expect(shouldPromptBirthdate({ hasBirthDate: false, pref: { snoozedUntil }, now })).toBe(false);
+    expect(shouldPromptBirthdate({ hasBirthDate: false, pref: { snoozedUntil }, now: snoozedUntil + 1 })).toBe(true);
+  });
+});
