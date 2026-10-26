@@ -54,6 +54,11 @@ export async function getSignedDownloadUrl(key, { fileName, contentType, expires
   return getSignedUrl(getClient(), command, { expiresIn });
 }
 
+export async function getObjectBuffer(key) {
+  const result = await getClient().send(new GetObjectCommand({ Bucket: bucketName(), Key: key }));
+  return Buffer.from(await result.Body.transformToByteArray());
+}
+
 export async function deleteObject(key) {
   await getClient().send(new DeleteObjectCommand({ Bucket: bucketName(), Key: key }));
 }

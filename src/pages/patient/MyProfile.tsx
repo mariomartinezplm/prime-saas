@@ -20,6 +20,8 @@ import { Input } from '@/components/ui/input';
 import { getWhatsAppUrl } from '@/config/contact';
 import { SERVICE_TYPE_LABELS, formatPlanUsage, formatCycleProgress } from '@/config/planCatalog';
 import FounderBadge from '@/components/plans/FounderBadge';
+import UserAvatar from '@/components/profile/UserAvatar';
+import AvatarEditor, { AvatarButton } from '@/components/profile/AvatarEditor';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
 import { showApiError } from '@/lib/apiError';
 import { todayLocal } from '@/lib/evolutionDate';
@@ -184,14 +186,13 @@ const HubRow = ({ icon: Icon, title, summary, onClick, attention }: { icon: Luci
   </button>
 );
 
-const initialsOf = (u: User) => `${u.firstName?.[0] ?? ''}${u.lastName?.[0] ?? ''}`.toUpperCase() || 'P';
-
 const MyProfile = () => {
   const { user, updateUser } = useAuth();
   const [balance, setBalance] = useState<SessionBalance | null>(null);
   // Si no se pudo consultar el plan NO se dice "no tienes un plan activo": sería falso
   const [balanceStatus, setBalanceStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [section, setSection] = useState<SectionKey | null>(null);
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const userId = user?.id;
 
   const loadBalance = useCallback(() => {
@@ -331,7 +332,8 @@ const MyProfile = () => {
       <PageTitle serif eyebrow="Mi perfil" title={<>Tu espacio<br />personal</>} />
 
       <section aria-label="Tu cuenta" className={cn('flex items-center gap-4 rounded-[24px] border p-5', HERO_SURFACE)}>
-        <span aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#398ca2]/60 bg-[#181619]/60 text-xl font-extrabold text-[#fff8e4]">{initialsOf(user)}</span>
+        <AvatarButton onClick={() => setAvatarOpen(true)}><UserAvatar user={user} size="lg" /></AvatarButton>
+        <AvatarEditor open={avatarOpen} onOpenChange={setAvatarOpen} />
         <div className="min-w-0 space-y-1">
           <p className="truncate font-serif text-2xl font-medium text-[#fff8e4]">{user.firstName} {user.lastName}</p>
           <p className="truncate text-sm text-[#fff8e4]/72">{user.email}</p>

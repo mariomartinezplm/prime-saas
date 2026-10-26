@@ -28,6 +28,7 @@ import goalRoutes from './routes/goalRoutes.js';
 import pushRoutes from './routes/pushRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 import photoRoutes from './routes/photoRoutes.js';
+import avatarRoutes from './routes/avatarRoutes.js';
 import recurringSlotRoutes from './routes/recurringSlotRoutes.js';
 import { startScheduler } from './services/scheduler.js';
 import googleCalendarRoutes from './routes/googleCalendarRoutes.js';
@@ -121,6 +122,7 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/photos', photoRoutes);
+app.use('/api/avatar', avatarRoutes);
 app.use('/api/recurring-slots', recurringSlotRoutes);
 
 app.use('/api/google-calendar', googleCalendarRoutes);
