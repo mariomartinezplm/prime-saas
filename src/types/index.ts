@@ -452,7 +452,8 @@ export type NotificationType =
   | 'readiness_reminder'
   | 'weekly_booking_reminder'
   | 'birthday_week'
-  | 'birthday_today';
+  | 'birthday_today'
+  | 'midweek_booking_reminder';
 
 export interface Notification {
   _id: string;

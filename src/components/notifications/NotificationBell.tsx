@@ -44,6 +44,7 @@ const TYPE_META: Record<string, { icon: LucideIcon; tone: string }> = {
   weekly_booking_reminder: { icon: CalendarCheck, tone: 'bg-info/15 text-info' },
   birthday_week: { icon: Cake, tone: 'bg-primary/15 text-primary' },
   birthday_today: { icon: Cake, tone: 'bg-primary/15 text-primary' },
+  midweek_booking_reminder: { icon: CalendarCheck, tone: 'bg-info/15 text-info' },
   recurring_booked: { icon: Repeat, tone: 'bg-info/15 text-info' },
   recurring_skipped: { icon: CalendarX, tone: 'bg-warning/15 text-warning' },
 };
