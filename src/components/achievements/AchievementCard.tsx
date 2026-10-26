@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import type { AchievementCategoryKey, AchievementItem } from '@/services/achievementService';
 import AchievementBadge from './AchievementBadge';
+import ShareAchievementButton from './ShareAchievementButton';
 import { formatDay, formatNumber } from './format';
 import { cn } from '@/lib/utils';
 
@@ -17,10 +18,12 @@ const periodLabel = (periodKey: string) => {
 interface AchievementCardProps {
   item: AchievementItem;
   category: AchievementCategoryKey;
+  // Nombre de la categoría (para la imagen que se comparte)
+  categoryLabel?: string;
 }
 
 // Una tarjeta por reto: qué es, cómo va y, si se consiguió, cuándo. El criterio exacto está a un toque.
-const AchievementCard = ({ item, category }: AchievementCardProps) => {
+const AchievementCard = ({ item, category, categoryLabel = '' }: AchievementCardProps) => {
   const earned = item.status === 'earned';
   const ratio = item.progress && item.progress.target > 0 ? item.progress.current / item.progress.target : 0;
   const badgeState = earned ? 'earned' : item.status === 'in_progress' ? 'progress' : item.status === 'available' ? 'idle' : 'muted';
@@ -53,6 +56,7 @@ const AchievementCard = ({ item, category }: AchievementCardProps) => {
               {item.awards.length > 1 && <span className="font-normal text-muted-foreground"> · {item.awards.length} veces</span>}
             </p>
           )}
+          {earned && latest && <ShareAchievementButton achievement={{ title: item.title, category, categoryLabel, awardedAt: latest.awardedAt }} />}
 
           {/* Un logro único ya conseguido no muestra su barra llena; uno mensual sí muestra el mes en curso */}
           {item.progress && item.status !== 'locked' && !(earned && item.progress.current >= item.progress.target) && (
@@ -94,6 +98,7 @@ const AchievementCard = ({ item, category }: AchievementCardProps) => {
           </div>
         </details>
       )}
+
     </li>
   );
 };

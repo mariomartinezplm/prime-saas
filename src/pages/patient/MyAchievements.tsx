@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronRight, HeartHandshake, Trophy } from 'lucide-react';
 import { achievementApi, type AchievementCategory, type AchievementItem, type AchievementsOverview } from '@/services/achievementService';
 import AchievementBadge from '@/components/achievements/AchievementBadge';
+import ShareAchievementButton from '@/components/achievements/ShareAchievementButton';
 import AchievementCard from '@/components/achievements/AchievementCard';
 import { formatDay, formatNumber } from '@/components/achievements/format';
 import { CATEGORY_ICONS } from '@/components/achievements/categoryMeta';
@@ -147,6 +148,7 @@ const MyAchievements = () => {
                         <p className="text-[15px] font-semibold leading-snug text-[#fff8e4]">{item.title}</p>
                         {latest && <p className="mt-0.5 text-[12.5px] text-[#fff8e4]/70">{formatDay(latest.awardedAt)}{item.awards.length > 1 ? ` · ${item.awards.length} veces` : ''}</p>}
                       </div>
+                      {latest && <ShareAchievementButton achievement={{ title: item.title, category: category.key, categoryLabel: category.label, awardedAt: latest.awardedAt }} className="-mb-1" />}
                     </li>
                   );
                 })}
@@ -188,7 +190,7 @@ const MyAchievements = () => {
                     </summary>
                     <ul className="space-y-3 px-3 pb-3">
                       {items.map((item) => (
-                        <AchievementCard key={item.key} item={item} category={category.key} />
+                        <AchievementCard key={item.key} item={item} category={category.key} categoryLabel={category.label} />
                       ))}
                     </ul>
                   </details>

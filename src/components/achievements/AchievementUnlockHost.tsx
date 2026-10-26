@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
+import { Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 import { achievementApi, type UnseenAchievement } from '@/services/achievementService';
 import AchievementBadge from './AchievementBadge';
+import ShareAchievementDialog from './ShareAchievementDialog';
 import { formatDay } from './format';
 import { formatValue } from '@/lib/goals';
 
@@ -29,6 +31,7 @@ const AchievementUnlockHost = () => {
   const [queue, setQueue] = useState<UnseenAchievement[]>([]);
   const [position, setPosition] = useState(0);
   const [open, setOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   // Lo ya mostrado en esta sesión: navegar entre secciones no repite la animación
   const shown = useRef(new Set<string>());
   const mountedAt = useRef(Date.now());
@@ -169,6 +172,10 @@ const AchievementUnlockHost = () => {
           </dl>
 
           <div className="flex w-full flex-col gap-1 pt-1">
+            <Button variant="outline" onClick={() => setShareOpen(true)} className="mb-1 min-h-[48px] rounded-2xl border-[#398ca2] bg-transparent text-base font-bold text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]">
+              <Share2 aria-hidden="true" />
+              Compartir mi logro
+            </Button>
             {current.goal && position + 1 >= queue.length ? (
               <>
                 <Button onClick={goToDetails} autoFocus className="min-h-[52px] rounded-2xl border-[#398ca2] bg-[#398ca2] text-base font-bold text-[#181619] hover:bg-[#398ca2]/90">
@@ -190,6 +197,11 @@ const AchievementUnlockHost = () => {
             )}
           </div>
         </div>
+        <ShareAchievementDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          achievement={{ title: current.title, category: current.category, categoryLabel: current.categoryLabel, awardedAt: current.awardedAt, record: current.record ?? null, goal: current.goal ?? null }}
+        />
       </DialogContent>
     </Dialog>
   );
