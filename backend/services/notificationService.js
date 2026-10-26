@@ -9,7 +9,7 @@ import { sendPushToUser } from './pushService.js';
 // quedan fuera a propósito: appointmentController ya manda su propio email
 // específico (con más detalle) en el mismo momento; espejarlos aquí también
 // duplicaría el correo.
-const EMAIL_MIRRORED_TYPES = ['plan_expiring', 'plan_expired', 'wellness_alert', 'evolution_updated', 'recurring_skipped'];
+const EMAIL_MIRRORED_TYPES = ['plan_expiring', 'plan_expired', 'wellness_alert', 'evolution_updated', 'recurring_skipped', 'plan_auto_renewed'];
 
 // Tipos que además se envían como push al dispositivo (si la persona activó las notificaciones en él).
 // El recordatorio del Readiness vence en 6 horas: si el teléfono estuvo apagado, no llega al día siguiente.

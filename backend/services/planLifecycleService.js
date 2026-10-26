@@ -16,29 +16,25 @@ import { buildCycles, paymentDueBy, TERM_CYCLES } from './planCycles.js';
 // proceso haya corrido a medianoche) y desde el programador para todos.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const FOUNDER_STATUSES = ['active', 'upcoming'];
 const MAX_STEPS = 20;
 const NOTICE_HORIZON_DAYS = 5;
 const EXPIRED_NOTICE_LOOKBACK_DAYS = 60;
 
-// ─── Miembro Fundador (plan anual) ──────────────────────────────────────────
-// La insignia sigue al plan: se enciende con un plan anual vigente (o pagado por
-// adelantado) y se apaga cuando el paciente deja de tenerlo.
+// ─── Renovación automática (beca y Miembro Fundador) ────────────────────────
+// Miembro Fundador es una marca que pone el administrador (no depende del plan: no se apaga sola ni al cambiar de plan).
+// Un plan con beca, o de un Miembro Fundador, no se queda «pendiente de pago»: al terminar el último ciclo se abre el
+// siguiente ya activo. La beca no avisa nada de pagos; el fundador recibe el aviso de que debe pagar y los administradores
+// reciben el aviso de la renovación para revisar su transferencia (el sistema no registra ese pago).
 
-export async function syncFounderFlag(patientId) {
-  const hasAnnual = !!(await ClientPlan.exists({
-    patient: patientId,
-    term: 'anual',
-    status: { $in: FOUNDER_STATUSES }
-  }));
-  await User.updateOne({ _id: patientId, isFounder: { $ne: hasAnnual } }, { $set: { isFounder: hasAnnual } });
-}
+const founderIdSet = async (patientIds) => {
+  const ids = [...new Set(patientIds.map(String))];
+  if (ids.length === 0) return new Set();
+  const founders = await User.find({ _id: { $in: ids }, isFounder: true }).select('_id');
+  return new Set(founders.map((u) => String(u._id)));
+};
 
-export async function syncAllFounderFlags() {
-  const founders = await ClientPlan.distinct('patient', { term: 'anual', status: { $in: FOUNDER_STATUSES } });
-  await User.updateMany({ _id: { $in: founders }, isFounder: { $ne: true } }, { $set: { isFounder: true } });
-  await User.updateMany({ role: 'patient', isFounder: true, _id: { $nin: founders } }, { $set: { isFounder: false } });
-}
+// Un plan se renueva solo si es de una beca o de un fundador, y es de los que se renuevan (no un plan puntual)
+const renewsByItself = (plan, founders) => plan.renews !== false && (plan.scholarship === true || founders.has(String(plan.patient)));
 
 // ─── Crear un plan (todos sus ciclos) ───────────────────────────────────────
 
@@ -50,13 +46,16 @@ export async function createTermPlans({
   term = 'mensual',
   billingCycle = 'calendar',
   startDate = new Date(),
-  renews = true,
+  renews: renewsRequested = true,
   paymentMode = 'prepaid',
   scholarship = false,
   graceDays,
   registeredBy,
   notes
 }) {
+  // Una beca siempre se renueva sola (la casilla «Se renueva cada mes» no puede dejarla sin renovación)
+  const renews = scholarship ? true : renewsRequested;
+
   // Kinesiología: un solo plan por sesiones, sin ciclos, sin fecha de término y sin renovación automática
   if (serviceType === 'kinesiologia') {
     const plan = await ClientPlan.create({
@@ -106,7 +105,6 @@ export async function createTermPlans({
       status: cycle.cycleNumber === 1 ? 'active' : 'upcoming'
     }));
   }
-  await syncFounderFlag(patientId);
   return created[0];
 }
 
@@ -114,7 +112,7 @@ export async function createTermPlans({
 // queda pagado CONSERVANDO las sesiones ya usadas (así quien agendó en los
 // días de plazo no recibe un cupo nuevo por pagar), y si pagó un plan de
 // varios meses se crean los ciclos que faltan.
-export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false, term = 'mensual', renews = true, paymentMode = 'prepaid', scholarship = false, graceDays, registeredBy, notes }) {
+export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false, term = 'mensual', renews: renewsRequested = true, paymentMode = 'prepaid', scholarship = false, graceDays, registeredBy, notes }) {
   // Una renovación pendiente de pago de kinesiología pasa a plan por sesiones: queda pagada, sin ciclos ni fecha, conservando lo ya usado
   if (plan.serviceType === 'kinesiologia') {
     plan.sessionsTotal = sessionsTotal;
@@ -133,6 +131,7 @@ export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false
     return plan;
   }
 
+  const renews = scholarship ? true : renewsRequested;
   const cyclesTotal = TERM_CYCLES[term];
   const termId = new mongoose.Types.ObjectId();
 
@@ -174,7 +173,6 @@ export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false
       status: 'upcoming'
     });
   }
-  await syncFounderFlag(plan.patient);
   return plan;
 }
 
@@ -185,7 +183,6 @@ export async function cancelPlanAndFutureCycles(plan) {
   if (plan.termId) {
     await ClientPlan.updateMany({ termId: plan.termId, status: 'upcoming' }, { $set: { status: 'cancelled' } });
   }
-  await syncFounderFlag(plan.patient);
 }
 
 // ─── Cambiar la fecha de inicio de un plan ──────────────────────────────────
@@ -256,7 +253,6 @@ export async function changePlanStartDate(plan, startDateStr, now = new Date()) 
     if (cycleDocs[i].paymentPending) cycleDocs[i].paymentDueBy = paymentDueBy(cycleDocs[i].startDate, cycleDocs[i].graceDays ?? 5);
     await cycleDocs[i].save();
   }
-  await syncFounderFlag(plan.patient);
   return cycleDocs;
 }
 
@@ -296,12 +292,72 @@ async function openPendingRenewal(plan, now) {
   return true;
 }
 
+// Ciclo nuevo de una beca o de un fundador: nace activo y pagado (con los ciclos que faltan si el plan es trimestral o anual).
+// Pasa por el mismo camino que cuando el administrador registra el pago, así conserva las sesiones ya usadas y las reglas.
+async function settleAutoRenewal(pending, previous) {
+  await settlePendingPlan(pending, {
+    sessionsTotal: pending.sessionsTotal,
+    unlimited: pending.unlimited,
+    term: pending.term,
+    renews: true,
+    paymentMode: previous?.paymentMode ?? 'prepaid',
+    scholarship: previous?.scholarship === true,
+    graceDays: pending.graceDays,
+    registeredBy: pending.registeredBy,
+    notes: 'Renovación automática'
+  });
+}
+
+async function openAutoRenewal(plan) {
+  const start = new Date(plan.endDate.getTime() + 1);
+  const graceDays = plan.graceDays ?? 5;
+  let renewal;
+  try {
+    renewal = await ClientPlan.create({
+      patient: plan.patient,
+      serviceType: plan.serviceType,
+      sessionsTotal: plan.sessionsTotal,
+      unlimited: plan.unlimited,
+      startDate: start,
+      term: plan.term,
+      billingCycle: plan.billingCycle,
+      cycleNumber: 1,
+      cyclesTotal: TERM_CYCLES[plan.term],
+      renews: true,
+      paymentPending: true,
+      paymentDueBy: paymentDueBy(start, graceDays),
+      graceDays,
+      renewedFrom: plan._id,
+      autoRenewed: true,
+      registeredBy: plan.registeredBy,
+      status: 'active'
+    });
+  } catch (error) {
+    // Otro proceso ya la abrió (índice único en renewedFrom): perfecto, es lo mismo
+    if (error.code !== 11000) throw error;
+    return;
+  }
+  await settleAutoRenewal(renewal, plan);
+}
+
 export async function advancePlans({ patientId, now = new Date() } = {}) {
   const scope = patientId ? { patient: patientId } : {};
-  let anyChange = false;
-
   for (let step = 0; step < MAX_STEPS; step++) {
     let changed = false;
+
+    // 0) Renovaciones pendientes de una beca o de un fundador (abiertas antes de que existiera la renovación automática,
+    //    o que quedaron a medias): pasan a ser pagadas, nunca vencen
+    const pendings = await ClientPlan.find({ ...scope, status: 'active', paymentPending: true });
+    if (pendings.length) {
+      const founders = await founderIdSet(pendings.map((p) => p.patient));
+      for (const pending of pendings) {
+        const previous = pending.renewedFrom ? await ClientPlan.findOne({ _id: pending.renewedFrom }) : null;
+        if (!(founders.has(String(pending.patient)) || previous?.scholarship === true)) continue;
+        pending.autoRenewed = true;
+        await settleAutoRenewal(pending, previous);
+        changed = true;
+      }
+    }
 
     // 1) Renovaciones pendientes que no se pagaron a tiempo: vencen
     const unpaid = await ClientPlan.updateMany(
@@ -318,6 +374,7 @@ export async function advancePlans({ patientId, now = new Date() } = {}) {
       endDate: { $lt: now }
     });
 
+    const founders = await founderIdSet(ended.map((p) => p.patient));
     for (const plan of ended) {
       const next = plan.termId
         ? await ClientPlan.findOne({ termId: plan.termId, status: 'upcoming', cycleNumber: plan.cycleNumber + 1 })
@@ -333,7 +390,11 @@ export async function advancePlans({ patientId, now = new Date() } = {}) {
         continue;
       }
 
-      if (plan.renews && (await openPendingRenewal(plan, now))) {
+      if (renewsByItself(plan, founders)) {
+        // Beca o fundador: el ciclo siguiente se abre solo, ya activo (no se queda esperando un pago)
+        await openAutoRenewal(plan);
+        await ClientPlan.updateOne({ _id: plan._id, status: 'active' }, { $set: { status: 'expired', expiredNotifiedAt: now } });
+      } else if (plan.renews && (await openPendingRenewal(plan, now))) {
         // El aviso al paciente lo da la renovación pendiente, no un "venció"
         await ClientPlan.updateOne({ _id: plan._id, status: 'active' }, { $set: { status: 'expired', expiredNotifiedAt: now } });
       } else {
@@ -343,11 +404,7 @@ export async function advancePlans({ patientId, now = new Date() } = {}) {
     }
 
     if (!changed) break;
-    anyChange = true;
   }
-
-  // Una renovación que venció sin pago puede apagar la insignia de Fundador
-  if (anyChange && patientId) await syncFounderFlag(patientId);
 }
 
 // ─── Avisos (campanita + correo) ────────────────────────────────────────────
@@ -371,11 +428,10 @@ export function buildExpiringMessage(plan, now) {
 
 export async function runPlanLifecycleJob(now = new Date()) {
   await advancePlans({ now });
-  await syncAllFounderFlags();
 
   const admins = await User.find({ role: 'admin', isActive: true }).select('_id');
   const adminIds = admins.map((a) => a._id);
-  const summary = { expiringNotices: 0, renewalNotices: 0, expiredNotices: 0 };
+  const summary = { expiringNotices: 0, renewalNotices: 0, expiredNotices: 0, autoRenewed: 0 };
 
   // 1) Último ciclo de un plan que vence en 5 días (o en 1): aviso con el plazo de pago
   const horizon = new Date(now.getTime() + NOTICE_HORIZON_DAYS * DAY_MS);
@@ -387,7 +443,10 @@ export async function runPlanLifecycleJob(now = new Date()) {
     $or: [{ expiringNotifiedAt: null }, { expiringTomorrowNotifiedAt: null }]
   });
 
+  const selfRenewing = await founderIdSet(expiring.map((p) => p.patient));
   for (const plan of expiring) {
+    // Una beca o un fundador se renueva solo: no tiene nada que pagar «para no perder» el plan
+    if (renewsByItself(plan, selfRenewing)) continue;
     const isLastDay = plan.endDate.getTime() - now.getTime() <= DAY_MS;
     if (isLastDay ? plan.expiringTomorrowNotifiedAt : plan.expiringNotifiedAt) continue;
 
@@ -411,6 +470,36 @@ export async function runPlanLifecycleJob(now = new Date()) {
     plan.renewalNotifiedAt = now;
     await plan.save();
     summary.renewalNotices++;
+  }
+
+  // 2b) Renovaciones automáticas: la beca no recibe nada (no paga); al fundador se le recuerda pagar y a los administradores se
+  //     les avisa para que revisen su transferencia (el sistema no registra ese pago). Un solo aviso por renovación.
+  const autoOpened = await ClientPlan.find({ status: 'active', autoRenewed: true, paymentPending: false, renewalNotifiedAt: null })
+    .populate('patient', 'firstName lastName');
+  const renewedFounders = [];
+  for (const plan of autoOpened) {
+    if (plan.patient && !plan.scholarship) {
+      await notify(plan.patient._id, 'plan_auto_renewed', {
+        title: 'Tu plan se renovó',
+        body: `Tu plan se renovó automáticamente y ya puedes agendar. Recuerda pagarlo por transferencia a Prime F&H antes del ${dayBeforeEnd(paymentDueBy(plan.startDate, plan.graceDays ?? 5))}.`,
+        link: '/app/mi-perfil'
+      });
+      renewedFounders.push(`${plan.patient.firstName} ${plan.patient.lastName}`);
+    }
+    plan.renewalNotifiedAt = now;
+    await plan.save();
+    summary.autoRenewed++;
+  }
+  if (renewedFounders.length) {
+    const shown = renewedFounders.slice(0, 6).join(', ');
+    const more = renewedFounders.length > 6 ? ` y ${renewedFounders.length - 6} más` : '';
+    for (const adminId of adminIds) {
+      await notify(adminId, 'plan_auto_renewed', {
+        title: 'Planes renovados automáticamente',
+        body: `Se renovaron solos los planes de miembros fundadores: ${shown}${more}. Revisa que hayan transferido.`,
+        link: '/app/admin/planes'
+      });
+    }
   }
 
   // 3) Planes vencidos sin pagar: aviso al paciente y a los administradores

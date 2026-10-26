@@ -97,8 +97,8 @@ const userSchema = new mongoose.Schema({
     baseWeightKg: Number,
     smoker: Boolean
   },
-  // "Miembro Fundador": pacientes con plan anual. Lo mantiene el servidor
-  // (services/planLifecycleService.js); ningún formulario puede escribirlo.
+  // "Miembro Fundador": lo marca SOLO el administrador (PUT /api/users/:id) y no depende del plan: si el paciente cambia de
+  // mensual a trimestral, o de plan a otro, la estrella se queda. Sus planes se renuevan solos (services/planLifecycleService.js).
   isFounder: {
     type: Boolean,
     default: false

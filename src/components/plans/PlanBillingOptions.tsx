@@ -43,7 +43,7 @@ const PlanBillingOptions = ({ term, paymentMode, scholarship, onPaymentModeChang
         <Checkbox id={beca} checked={scholarship} onCheckedChange={(v) => onScholarshipChange(v === true)} className="mt-0.5" />
         <div className="space-y-0.5">
           <Label htmlFor={beca} className="cursor-pointer">Beca total (sin costo)</Label>
-          <p className="text-xs text-muted-foreground">Cuenta como $0 en Ingresos y queda identificada como beca.</p>
+          <p className="text-xs text-muted-foreground">Cuenta como $0 en Ingresos y queda identificada como beca. Se renueva sola cada mes y no recibe avisos de pago.</p>
         </div>
       </div>
     </div>

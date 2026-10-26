@@ -9,7 +9,7 @@ interface FounderBadgeProps {
   className?: string;
 }
 
-// Miembro Fundador: pacientes con plan anual
+// Miembro Fundador: lo marca el administrador
 const FounderBadge = ({ compact, tone = 'default', className }: FounderBadgeProps) => (
   <span
     title="Miembro Fundador"

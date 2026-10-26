@@ -18,7 +18,7 @@ interface PlanTermFieldsProps {
   onBillingCycleChange: (cycle: BillingCycle) => void;
   // Versión corta para filas de listas: sin la explicación de abajo
   compact?: boolean;
-  // El plan anual (Miembro Fundador) lo deja solo el administrador
+  // El plan anual lo deja solo el administrador
   allowAnnual?: boolean;
 }
 

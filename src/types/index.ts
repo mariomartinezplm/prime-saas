@@ -6,7 +6,7 @@ export interface User {
   fullName: string;
   email: string;
   role: 'admin' | 'professional' | 'patient';
-  // Miembro Fundador (plan anual); lo calcula el servidor
+  // Miembro Fundador: lo marca el administrador (no depende del plan)
   isFounder?: boolean;
   phone?: string;
   dateOfBirth?: string;

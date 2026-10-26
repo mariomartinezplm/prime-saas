@@ -20,7 +20,8 @@ const notificationSchema = new mongoose.Schema({
       'weekly_booking_reminder',
       'recurring_booked',
       'recurring_skipped',
-      'goal_pending_validation'
+      'goal_pending_validation',
+      'plan_auto_renewed'
     ],
     required: [true, 'El tipo de notificación es requerido']
   },
