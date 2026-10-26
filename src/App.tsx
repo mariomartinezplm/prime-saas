@@ -37,6 +37,7 @@ import PatientMeasurements from "./pages/patient/Measurements";
 import PatientProgress from "./pages/patient/Progress";
 import PatientExercises from "./pages/patient/Exercises";
 import PainRecords from "./pages/patient/PainRecords";
+import BodyMapPage from "./pages/patient/BodyMapPage";
 import PatientPhotosPage from "./pages/patient/Photos";
 
 // Admin/Staff pages
@@ -123,6 +124,10 @@ const App = () => (
               <Route
                 path="logros"
                 element={<RoleRoute roles={['patient']}><MyAchievements /></RoleRoute>}
+              />
+              <Route
+                path="mapa-corporal"
+                element={<RoleRoute roles={['patient']}><BodyMapPage /></RoleRoute>}
               />
               <Route
                 path="objetivos"

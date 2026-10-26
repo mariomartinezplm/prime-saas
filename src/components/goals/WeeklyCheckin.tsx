@@ -80,11 +80,12 @@ const WeeklyCheckin = ({ userId, goals, catalog, onSaved, className }: WeeklyChe
           <FormField label={p.question} error={errors[p.seriesKey]}>
             {(c) => (
               <div className="flex gap-2">
-                <Input {...c} type="text" inputMode="decimal" autoComplete="off" value={values[p.seriesKey] ?? ''} onChange={(e) => { setValues({ ...values, [p.seriesKey]: e.target.value }); setErrors({ ...errors, [p.seriesKey]: '' }); }} className="h-12 flex-1 border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]" placeholder={p.unit === '/10' ? '0 a 10' : p.unit} />
+                <Input {...c} type="text" inputMode="decimal" autoComplete="off" value={values[p.seriesKey] ?? ''} onChange={(e) => { setValues({ ...values, [p.seriesKey]: e.target.value }); setErrors({ ...errors, [p.seriesKey]: '' }); }} className="h-12 flex-1 border-[#fff8e4]/40 bg-[#fff8e4]/[0.05] text-base text-[#fff8e4]" placeholder={p.unit === '/10' ? `${p.range.min} a ${p.range.max}` : p.unit} />
                 <Button type="submit" disabled={saving === p.seriesKey} className={cn('min-h-[48px] rounded-xl px-5 font-bold', BTN_FILL)}>{saving === p.seriesKey ? '…' : 'Guardar'}</Button>
               </div>
             )}
           </FormField>
+          {p.scaleHint && <p className="text-[12.5px] font-medium text-[#cdc6b6]">{p.scaleHint}</p>}
           <p className="text-[12px] text-[#a8a295]">Objetivo: {p.goalName}</p>
         </form>
       ))}

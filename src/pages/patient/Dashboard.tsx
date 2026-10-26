@@ -118,6 +118,8 @@ const PatientDashboard = () => {
   // Constancia: solo existe con un plan mensual de entrenamiento con meta. Mientras carga se reserva su lugar; sin meta, «Mi plan» ocupa todo el ancho.
   const consistency = summary.status === 'ready' ? summary.view?.consistency ?? null : null;
   const hasPlan = !!balance?.hasActivePlan;
+  // Quien viene por kinesiología sigue siempre su dolor
+  const isKine = balance?.plan?.serviceType === 'kinesiologia';
   const showConstancy = hasPlan && (summary.status === 'loading' || !!consistency);
   // Sin plan vigente la tarjeta protagonista ya lo explica: «Mi plan» no repite el mensaje
   const myGoals = useMyGoals(user?.id, hasPlan);
@@ -180,7 +182,7 @@ const PatientDashboard = () => {
       </div>
 
       {user && <BirthdatePrompt userId={user.id} open={birthOpen} onClose={() => setBirthOpen(false)} onSaved={updateUser} />}
-      {user && <GoalsPrompt userId={user.id} enabled={hasPlan && !birthOpen} loaded={myGoals.loaded} goalCount={myGoals.goals.length} />}
+      {user && <GoalsPrompt userId={user.id} enabled={hasPlan && !birthOpen} loaded={myGoals.loaded} goalCount={myGoals.goals.length} painRequired={isKine && !myGoals.goals.some((g) => g.categoryId === 'pain' && (g.status === 'active' || g.status === 'pending_validation'))} />}
 
       <QuickActions hide={hero.kind === 'session' ? ['/app/mis-citas'] : hero.kind === 'book' ? ['/app/reservar'] : []} />
     </div>

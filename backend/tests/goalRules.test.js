@@ -36,11 +36,38 @@ describe('validar un indicador', () => {
     expect(validateIndicatorInput('strength', { ...press, direction: 'decrease' }).ok).toBe(false);
     expect(validateIndicatorInput('nope', press).ok).toBe(false);
   });
-  it('bíceps contraído derecho: la zona se elige de la lista (no se mezcla lado ni relajado)', () => {
-    const ok = validateIndicatorInput('muscle_mass', { indicatorId: 'perimeter_muscle', params: { field: 'bicepFlexedRight' }, target: { value: 37 } });
+  it('bíceps contraído derecho: el lado se elige de la lista (no se mezcla con el relajado ni con otra zona)', () => {
+    const ok = validateIndicatorInput('muscle_mass', { indicatorId: 'perimeter_bicep_flexed', params: { field: 'bicepFlexedRight' }, target: { value: 37 } });
     expect(ok.ok).toBe(true);
-    expect(ok.indicator.seriesKey).toBe('perimeter_muscle|field=bicepflexedright');
-    expect(validateIndicatorInput('muscle_mass', { indicatorId: 'perimeter_muscle', params: { field: 'bicepsCualquiera' }, target: { value: 37 } }).ok).toBe(false);
+    expect(ok.indicator.seriesKey).toBe('perimeter_bicep_flexed|field=bicepflexedright');
+    expect(validateIndicatorInput('muscle_mass', { indicatorId: 'perimeter_bicep_flexed', params: { field: 'bicepsCualquiera' }, target: { value: 37 } }).ok).toBe(false);
+    expect(validateIndicatorInput('muscle_mass', { indicatorId: 'perimeter_bicep_flexed', params: { field: 'thighLeft' }, target: { value: 37 } }).ok).toBe(false);
+  });
+  it('muslo y glúteos se miden sin mezclar lados; glúteos no lleva lado', () => {
+    expect(validateIndicatorInput('muscle_mass', { indicatorId: 'perimeter_thigh', params: { field: 'thighLeft' } }).ok).toBe(true);
+    expect(validateIndicatorInput('muscle_mass', { indicatorId: 'perimeter_glute' }).ok).toBe(true);
+    expect(validateIndicatorInput('muscle_mass', { indicatorId: 'perimeter_glute', params: { field: 'hips' } }).ok).toBe(false);
+  });
+  it('lo que ya no se ofrece no se puede elegir en un objetivo nuevo (pero sigue definido para los antiguos)', () => {
+    const viejos = [['muscle_mass', 'perimeter_muscle', { field: 'bicepFlexedRight' }], ['muscle_mass', 'muscle_mass_pct'], ['cardiometabolic', 'resting_heart_rate', { method: 'manual' }], ['cardiometabolic', 'weekly_activity_minutes'], ['stress', 'sleep_hours'], ['posture', 'posture_functional_test', { testName: 'x' }], ['mobility', 'rom_degrees'], ['mobility', 'mobility_test']];
+    for (const [cat, indicatorId, params] of viejos) expect(validateIndicatorInput(cat, { indicatorId, params }).ok, indicatorId).toBe(false);
+  });
+  it('las escalas respetan su rango: postura y movilidad de 1 a 10, estrés de 0 a 10', () => {
+    expect(validateIndicatorInput('posture', { indicatorId: 'posture_self_rating', target: { value: 8 } }).ok).toBe(true);
+    expect(validateIndicatorInput('posture', { indicatorId: 'posture_self_rating', target: { value: 0 } }).ok).toBe(false);
+    expect(validateIndicatorInput('mobility', { indicatorId: 'mobility_self_rating', target: { value: 11 } }).ok).toBe(false);
+    expect(validateIndicatorInput('stress', { indicatorId: 'stress_perceived', target: { value: 0 } }).ok).toBe(true);
+  });
+  it('cardio: triglicéridos es un indicador propio y el colesterol ya no lo mezcla como fracción', () => {
+    expect(validateIndicatorInput('cardiometabolic', { indicatorId: 'triglycerides' }).ok).toBe(true);
+    expect(validateIndicatorInput('cardiometabolic', { indicatorId: 'cholesterol', params: { analyte: 'triglycerides' } }).ok).toBe(false);
+    expect(validateIndicatorInput('cardiometabolic', { indicatorId: 'cholesterol', params: { analyte: 'ldl' } }).ok).toBe(true);
+  });
+  it('rendimiento: ritmo por kilómetro (baja) y cómo me siento en mi deporte (1 a 10)', () => {
+    const pace = validateIndicatorInput('sport_performance', { indicatorId: 'running_pace', target: { value: 5.5 } });
+    expect(pace.ok).toBe(true);
+    expect(pace.indicator).toMatchObject({ direction: 'decrease', unit: 'min/km' });
+    expect(validateIndicatorInput('sport_performance', { indicatorId: 'sport_self_rating', target: { value: 9 } }).ok).toBe(true);
   });
   it('mantener exige un margen mayor que 0', () => {
     const base = { indicatorId: 'body_weight', direction: 'maintain' };
@@ -62,10 +89,14 @@ describe('validar un indicador', () => {
 });
 
 describe('validar un objetivo completo', () => {
-  const weekly = { indicatorId: 'weekly_activity_minutes', target: { value: 150 } };
-  const rate = { indicatorId: 'resting_heart_rate', params: { method: 'manual' }, target: { value: 60 } };
+  const weekly = { indicatorId: 'glucose', params: { context: 'fasting', method: 'lab' }, direction: 'decrease', target: { value: 95 } };
+  const rate = { indicatorId: 'triglycerides', direction: 'decrease', target: { value: 150 } };
   it('corazón y metabolismo admite varios indicadores en un solo objetivo', () => {
     expect(validateGoalInput({ categoryId: 'cardiometabolic', indicators: [weekly, rate] }).ok).toBe(true);
+  });
+  it('masa muscular admite bíceps, muslo y glúteos en un mismo objetivo', () => {
+    const list = [{ indicatorId: 'perimeter_bicep_flexed', params: { field: 'bicepFlexedLeft' } }, { indicatorId: 'perimeter_thigh', params: { field: 'thighRight' } }, { indicatorId: 'perimeter_glute' }];
+    expect(validateGoalInput({ categoryId: 'muscle_mass', indicators: list }).ok).toBe(true);
   });
   it('una categoría de un solo indicador rechaza varios; no se repite un indicador; hay un tope', () => {
     const one = { indicatorId: 'body_weight', target: { value: 80 } };
@@ -106,6 +137,7 @@ describe('qué objetivos necesitan validación profesional', () => {
     const cardio = getCategory('cardiometabolic');
     expect(requiresValidation(cardio, [ind('weekly_activity_minutes')])).toBe(false);
     expect(requiresValidation(cardio, [ind('weekly_activity_minutes'), ind('glucose')])).toBe(true);
+    expect(requiresValidation(cardio, [ind('triglycerides')])).toBe(true);
     expect(requiresValidation(cardio, [ind('blood_pressure_systolic')])).toBe(true);
   });
   it('fuerza, peso y estrés no; «recomendada» no obliga', () => {

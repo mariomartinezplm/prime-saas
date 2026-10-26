@@ -6,7 +6,7 @@ import { BTN_FILL, Meter, CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/
 import GoalIcon from '@/components/goals/GoalIcon';
 import GoalTrend from '@/components/goals/GoalTrend';
 import { getWhatsAppUrl } from '@/config/contact';
-import { changeText, dayLabel, directionText, evolutionLink, formatValue, historyText, paramsText, safetyNote, statusLabel } from '@/lib/goals';
+import { changeText, dayLabel, directionText, evolutionLink, formatValue, historyText, indicatorDefOf, paramsText, safetyNote, statusLabel } from '@/lib/goals';
 import { cn } from '@/lib/utils';
 import type { CatalogCategory, GoalSources, GoalView, IndicatorProgress } from '@/services/goalService';
 
@@ -59,7 +59,7 @@ const IndicatorBlock = ({ goal, ind, category, sources, canAct, onCheckin, onSet
   const link = staff ? null : evolutionLink(ind);
   const ratio = (ind.percent ?? 0) / 100;
   const change = changeText(ind);
-  const def = category?.indicators.find((i) => i.id === ind.indicatorId);
+  const def = indicatorDefOf(category, ind.indicatorId);
   // La persona puede poner ella misma la meta cuando el objetivo no es clínico; si lo es, la define o valida el kinesiólogo
   const ownTarget = !staff && ind.state === 'needs_target' && !!def && !def.professionalTarget && !def.clinical && category?.supervision !== 'required' && (goal.status === 'active' || goal.status === 'pending_validation');
   const awaiting = ind.state === 'needs_target' ? (staff ? 'Falta definir la meta.' : ownTarget ? 'Aún no definiste tu meta. Puedes ponerla cuando quieras.' : 'Tu kinesiólogo definirá la meta.') : ind.state === 'needs_baseline' ? (ind.manual ? (staff ? 'Aún no hay un primer valor registrado.' : 'Registra tu primer valor para fijar tu punto de partida.') : (staff ? 'Aún no hay registros para fijar el punto de partida.' : 'Primero necesitamos registrar tu punto de partida.')) : null;

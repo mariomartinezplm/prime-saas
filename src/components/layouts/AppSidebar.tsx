@@ -15,6 +15,7 @@ import {
   Trophy,
   Dumbbell,
   Activity,
+  PersonStanding,
   User,
   FileText,
   Wallet,
@@ -74,6 +75,7 @@ const patientNav: NavGroup[] = [
     items: [
       { label: 'Resumen', icon: Activity, path: '/app/progreso', exact: true },
       { label: 'Mediciones', icon: Ruler, path: '/app/mediciones' },
+      { label: 'Mapa del cuerpo', icon: PersonStanding, path: '/app/mapa-corporal' },
       { label: 'Ejercicios', icon: Dumbbell, path: '/app/ejercicios' },
       { label: 'Fotos', icon: Camera, path: '/app/fotos' },
       { label: 'Dolor (EVA)', icon: Activity, path: '/app/dolor' },
