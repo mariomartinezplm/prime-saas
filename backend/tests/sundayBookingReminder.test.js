@@ -1,5 +1,5 @@
 /**
- * PRUEBAS — recordatorio de mitad de semana (miércoles) para quienes vienen 2 o 3 veces por semana. Sin base real: se simulan los modelos.
+ * PRUEBAS — recordatorio de los domingos por la noche para quienes vienen 2 o 3 veces por semana. Sin base real: se simulan los modelos.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import mongoose from 'mongoose';
@@ -8,7 +8,7 @@ import ClientPlan from '../models/ClientPlan.js';
 import Appointment from '../models/Appointment.js';
 import * as notifications from '../services/notificationService.js';
 import * as emails from '../services/emailService.js';
-import { sendMidweekBookingReminders, midweekKey, midweekMessage } from '../services/midweekBookingReminderService.js';
+import { sendSundayBookingReminders, sundayKey, sundayMessage } from '../services/sundayBookingReminderService.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 
 vi.mock('../services/notificationService.js', () => ({ notifyOnce: vi.fn() }));
@@ -16,11 +16,13 @@ vi.mock('../services/emailService.js', () => ({ sendNotificationEmail: vi.fn(asy
 
 const id = () => new mongoose.Types.ObjectId();
 const chain = (rows) => ({ select: () => ({ lean: async () => rows }) });
-const WEDNESDAY_9 = santiagoToUtc(2026, 10, 28, 9, 0); // miércoles 28 de octubre de 2026, 09:00 en Chile
-const WEDNESDAY_7 = santiagoToUtc(2026, 10, 28, 7, 0);
+const SUNDAY_20 = santiagoToUtc(2026, 10, 25, 20, 30); // domingo 25 de octubre de 2026, 20:30 en Chile (la semana que viene empieza el lunes 26)
+const SUNDAY_19 = santiagoToUtc(2026, 10, 25, 19, 30);
+const SUNDAY_22 = santiagoToUtc(2026, 10, 25, 22, 30);
+const WEDNESDAY_9 = santiagoToUtc(2026, 10, 28, 9, 0);
 const MONDAY_9 = santiagoToUtc(2026, 10, 26, 9, 0);
 
-describe('recordatorio de mitad de semana', () => {
+describe('recordatorio de los domingos', () => {
   const dos = id(); // 2 por semana, agendó 1
   const tres = id(); // 3 por semana, agendó 1
   const completo = id(); // 2 por semana, ya agendó 2
@@ -46,20 +48,21 @@ describe('recordatorio de mitad de semana', () => {
     notifications.notifyOnce.mockResolvedValue({ _id: id() });
   });
 
-  it('el miércoles avisa a quien le faltan sesiones de su frecuencia, con la cantidad que le falta', async () => {
-    const summary = await sendMidweekBookingReminders({ now: WEDNESDAY_9 });
+  it('el domingo a las 20:00 avisa a quien le faltan sesiones de su frecuencia, con la cantidad que le falta', async () => {
+    const summary = await sendSundayBookingReminders({ now: SUNDAY_20 });
     expect(summary).toMatchObject({ sent: 4, failed: 0 });
     const byPatient = Object.fromEntries(notifications.notifyOnce.mock.calls.map((c) => [String(c[0]), c[2]]));
     expect(byPatient[String(dos)].body).toContain('te falta agendar 1 sesión');
     expect(byPatient[String(tres)].body).toContain('te faltan 2 sesiones');
     expect(byPatient[String(nadaAgendado)].body).toContain('te faltan 2 sesiones');
     expect(byPatient[String(sinSesiones)].body).toContain('te falta agendar 1 sesión'); // le falta 1 por frecuencia pero también le queda solo 1
-    expect(byPatient[String(dos)].dedupeKey).toBe(midweekKey(String(dos), '2026-10-26'));
+    expect(byPatient[String(dos)].dedupeKey).toBe(sundayKey(String(dos), '2026-10-26')); // la semana que empieza mañana, lunes 26
+    expect(byPatient[String(dos)].body).toContain('Mañana empieza tu semana');
     expect(emails.sendNotificationEmail).toHaveBeenCalledTimes(4);
   });
 
   it('no avisa a quien ya agendó todas las de su semana', async () => {
-    await sendMidweekBookingReminders({ now: WEDNESDAY_9 });
+    await sendSundayBookingReminders({ now: SUNDAY_20 });
     const asked = User.find.mock.calls[0][0]._id.$in;
     expect(asked).not.toContain(String(completo));
   });
@@ -67,42 +70,45 @@ describe('recordatorio de mitad de semana', () => {
   it('nunca le dice que le faltan más sesiones de las que le quedan en el plan', async () => {
     vi.mocked(ClientPlan.find).mockReturnValue(chain([{ patient: tres, sessionsTotal: 12, sessionsUsed: 11 }]));
     vi.mocked(Appointment.find).mockReturnValue(chain([]));
-    await sendMidweekBookingReminders({ now: WEDNESDAY_9 });
+    await sendSundayBookingReminders({ now: SUNDAY_20 });
     expect(notifications.notifyOnce.mock.calls[0][2].body).toContain('te falta agendar 1 sesión');
   });
 
   it('solo toma planes de entrenamiento no ilimitados de 8 o 12 sesiones, vigentes', async () => {
-    await sendMidweekBookingReminders({ now: WEDNESDAY_9 });
+    await sendSundayBookingReminders({ now: SUNDAY_20 });
     const filter = ClientPlan.find.mock.calls[0][0];
     expect(filter).toMatchObject({ status: 'active', serviceType: 'entrenamiento', unlimited: { $ne: true }, sessionsTotal: { $in: [8, 12] } });
     const appointmentFilter = Appointment.find.mock.calls[0][0];
     expect(appointmentFilter).toMatchObject({ type: 'entrenamiento', status: { $ne: 'cancelled' } });
   });
 
-  it('cuenta la semana de lunes a domingo (desde el lunes 26 de octubre)', async () => {
-    await sendMidweekBookingReminders({ now: WEDNESDAY_9 });
+  it('cuenta la semana que viene, de lunes a domingo (desde mañana, lunes 26 de octubre)', async () => {
+    await sendSundayBookingReminders({ now: SUNDAY_20 });
     const { date } = Appointment.find.mock.calls[0][0];
     expect(date.$gte.toISOString()).toBe('2026-10-26T00:00:00.000Z');
     expect(date.$lt.toISOString()).toBe('2026-11-02T00:00:00.000Z');
   });
 
-  it('no avisa antes de las 08:00 ni cualquier otro día', async () => {
-    expect((await sendMidweekBookingReminders({ now: WEDNESDAY_7 })).sent).toBe(0);
-    expect((await sendMidweekBookingReminders({ now: MONDAY_9 })).sent).toBe(0);
+  it('solo avisa el domingo entre las 20:00 y las 22:00: ni antes, ni de madrugada, ni otro día', async () => {
+    expect((await sendSundayBookingReminders({ now: SUNDAY_19 })).sent).toBe(0);
+    expect((await sendSundayBookingReminders({ now: SUNDAY_22 })).sent).toBe(0);
+    expect((await sendSundayBookingReminders({ now: WEDNESDAY_9 })).sent).toBe(0);
+    expect((await sendSundayBookingReminders({ now: MONDAY_9 })).sent).toBe(0);
     expect(notifications.notifyOnce).not.toHaveBeenCalled();
+    expect((await sendSundayBookingReminders({ now: santiagoToUtc(2026, 10, 25, 20, 0) })).sent).toBe(4); // justo a las 20:00 sí
   });
 
   it('si la semana ya se avisó (clave repetida), no manda otro correo', async () => {
     notifications.notifyOnce.mockResolvedValue(null);
-    const summary = await sendMidweekBookingReminders({ now: WEDNESDAY_9 });
+    const summary = await sendSundayBookingReminders({ now: SUNDAY_20 });
     expect(summary).toMatchObject({ sent: 0, duplicates: 4 });
     expect(emails.sendNotificationEmail).not.toHaveBeenCalled();
   });
 
   it('un error con un paciente no detiene la pasada, y el texto no lleva datos de salud', async () => {
     notifications.notifyOnce.mockRejectedValueOnce(new Error('boom'));
-    const summary = await sendMidweekBookingReminders({ now: WEDNESDAY_9 });
+    const summary = await sendSundayBookingReminders({ now: SUNDAY_20 });
     expect(summary).toMatchObject({ sent: 3, failed: 1 });
-    expect(midweekMessage(2).body).not.toMatch(/dolor|lesi|kine|diagn/i);
+    expect(sundayMessage(2).body).not.toMatch(/dolor|lesi|kine|diagn/i);
   });
 });

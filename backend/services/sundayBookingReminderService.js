@@ -6,42 +6,44 @@ import { sendNotificationEmail } from './emailService.js';
 import { santiagoParts } from '../utils/timezone.js';
 
 /**
- * Recordatorio de mitad de semana para quienes vienen 2 o 3 veces por semana: los miércoles por la mañana (hora de Chile),
- * campanita + correo, si todavía no agendaron todas las sesiones de la semana.
+ * Recordatorio de los domingos por la noche (hora de Chile) para quienes vienen 2 o 3 veces por semana: campanita + correo, si
+ * todavía no agendaron todas las sesiones de la semana que empieza mañana.
  *
  * Reglas:
- *  - Solo miércoles, desde las 08:00 hora de Chile (el programador corre cada 10 minutos).
+ *  - Solo domingo, entre las 20:00 y las 22:00 hora de Chile (el programador corre cada 10 minutos). Pasadas las 22:00 ya no se
+ *    manda: un aviso a medianoche por un servidor que estuvo caído sería peor que no mandarlo.
  *  - Solo planes de entrenamiento NO ilimitados de 8 sesiones al mes (2 por semana) o de 12 (3 por semana), con el plan
  *    vigente. Los demás planes no tienen una frecuencia semanal clara y siguen con el aviso general de los lunes.
- *  - Cuenta las citas de entrenamiento de esa semana (lunes a domingo) que no están canceladas. Si faltan para llegar a las
- *    de su frecuencia, y le quedan sesiones en el plan, se le avisa cuántas le faltan.
- *  - Un solo aviso por paciente por semana (clave `midweek-booking:<paciente>:<lunes>`).
+ *  - Cuenta las citas de entrenamiento de la semana que empieza mañana (lunes a domingo) que no están canceladas. Si faltan para
+ *    llegar a las de su frecuencia, y le quedan sesiones en el plan, se le avisa cuántas le faltan.
+ *  - Un solo aviso por paciente por semana (clave `sunday-booking:<paciente>:<lunes>`).
  *  - Texto amable y genérico: sin datos de salud.
  */
 
-export const MIDWEEK_REMINDER_HOUR = 8;
+export const SUNDAY_REMINDER_FROM_HOUR = 20;
+export const SUNDAY_REMINDER_UNTIL_HOUR = 22;
 export const SESSIONS_PER_WEEK = { 8: 2, 12: 3 };
-const WEDNESDAY = 3;
+const SUNDAY = 0;
 
-export const midweekKey = (patientId, monday) => `midweek-booking:${patientId}:${monday}`;
+export const sundayKey = (patientId, monday) => `sunday-booking:${patientId}:${monday}`;
 const pad = (n) => String(n).padStart(2, '0');
 
-export const midweekMessage = (missing) => ({
-  title: 'Completa tu semana de entrenamiento',
+export const sundayMessage = (missing) => ({
+  title: 'Agenda tu semana de entrenamiento',
   body: missing === 1
-    ? 'Esta semana te falta agendar 1 sesión. Reserva ahora para asegurar tu horario; puedes agendar con hasta 4 horas de anticipación.'
-    : `Esta semana te faltan ${missing} sesiones por agendar. Reserva ahora para asegurar tu horario; puedes agendar con hasta 4 horas de anticipación.`,
+    ? 'Mañana empieza tu semana y te falta agendar 1 sesión. Reserva ahora para asegurar tu horario; puedes agendar con hasta 4 horas de anticipación.'
+    : `Mañana empieza tu semana y te faltan ${missing} sesiones por agendar. Reserva ahora para asegurar tu horario; puedes agendar con hasta 4 horas de anticipación.`,
   link: '/app/reservar'
 });
 
-export async function sendMidweekBookingReminders({ now = new Date(), limit = 1000 } = {}) {
+export async function sendSundayBookingReminders({ now = new Date(), limit = 1000 } = {}) {
   const summary = { checked: 0, sent: 0, duplicates: 0, failed: 0 };
   const p = santiagoParts(now);
   const weekday = new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay();
-  if (weekday !== WEDNESDAY || p.hour < MIDWEEK_REMINDER_HOUR) return summary;
+  if (weekday !== SUNDAY || p.hour < SUNDAY_REMINDER_FROM_HOUR || p.hour >= SUNDAY_REMINDER_UNTIL_HOUR) return summary;
 
-  // Lunes de esta semana (miércoles - 2 días) y el lunes siguiente
-  const mondayDate = new Date(Date.UTC(p.year, p.month - 1, p.day - 2));
+  // La semana que viene: el lunes es mañana
+  const mondayDate = new Date(Date.UTC(p.year, p.month - 1, p.day + 1));
   const monday = `${mondayDate.getUTCFullYear()}-${pad(mondayDate.getUTCMonth() + 1)}-${pad(mondayDate.getUTCDate())}`;
   const weekStart = new Date(`${monday}T00:00:00.000Z`);
   const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -85,8 +87,8 @@ export async function sendMidweekBookingReminders({ now = new Date(), limit = 10
   for (const patient of patients.slice(0, limit)) {
     summary.checked += 1;
     try {
-      const message = midweekMessage(missingBy.get(String(patient._id)));
-      const created = await notifyOnce(patient._id, 'midweek_booking_reminder', { ...message, dedupeKey: midweekKey(String(patient._id), monday) });
+      const message = sundayMessage(missingBy.get(String(patient._id)));
+      const created = await notifyOnce(patient._id, 'sunday_booking_reminder', { ...message, dedupeKey: sundayKey(String(patient._id), monday) });
       if (!created) {
         summary.duplicates += 1;
         continue;
@@ -94,11 +96,11 @@ export async function sendMidweekBookingReminders({ now = new Date(), limit = 10
       summary.sent += 1;
       if (patient.email) {
         // Un correo que no sale no debe tumbar la pasada (mismo criterio que el resto de los avisos)
-        sendNotificationEmail({ user: patient, ...message }).catch((error) => console.error('Error enviando correo de mitad de semana:', error.message));
+        sendNotificationEmail({ user: patient, ...message }).catch((error) => console.error('Error enviando correo del domingo:', error.message));
       }
     } catch (error) {
       summary.failed += 1;
-      console.error('Error enviando recordatorio de mitad de semana:', error.message);
+      console.error('Error enviando recordatorio del domingo:', error.message);
     }
   }
 
