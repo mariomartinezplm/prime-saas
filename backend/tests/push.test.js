@@ -280,6 +280,27 @@ describe('avisos que además salen como push', () => {
     expect(webpush.sendNotification.mock.calls[0][2]).toMatchObject({ TTL: PUSH_TYPES.readiness_reminder.ttlSeconds });
   });
 
+  it('el recordatorio del domingo para agendar también sale al teléfono, con su propio vencimiento y llevando a Reservar', async () => {
+    conVapid();
+    vi.spyOn(Notification, 'create').mockImplementation(async (doc) => doc);
+    vi.spyOn(PushSubscription, 'find').mockResolvedValue([{ _id: 'd1', endpoint: sub(1).endpoint, keys: sub(1).keys, failureCount: 0 }]);
+    vi.spyOn(PushSubscription, 'updateOne').mockResolvedValue({});
+    webpush.sendNotification.mockResolvedValue({});
+    await notifyOnce(nuevoId(), 'sunday_booking_reminder', { title: 'Agenda tu semana de entrenamiento', body: 'Mañana empieza tu semana y te falta agendar 1 sesión.', link: '/app/reservar', dedupeKey: 'sunday-booking:p:2026-10-26' });
+    await pausa();
+    expect(webpush.sendNotification).toHaveBeenCalledTimes(1);
+    expect(PUSH_TYPES.sunday_booking_reminder.ttlSeconds).toBe(3 * 60 * 60);
+    expect(webpush.sendNotification.mock.calls[0][2]).toMatchObject({ TTL: 3 * 60 * 60 });
+    const payload = JSON.parse(webpush.sendNotification.mock.calls[0][1]);
+    expect(payload).toMatchObject({ url: '/app/reservar', tag: 'sunday_booking_reminder' });
+    expect(JSON.stringify(payload)).not.toMatch(/dolor|lesi|diagn/i); // sin datos de salud en la pantalla bloqueada
+  });
+
+  it('el aviso general de los lunes y los cumpleaños siguen sin push (no se pidió)', () => {
+    expect(PUSH_TYPES.weekly_booking_reminder).toBeUndefined();
+    expect(PUSH_TYPES.birthday_week).toBeUndefined();
+  });
+
   it('un tipo que no está en la lista no genera push', async () => {
     conVapid();
     vi.spyOn(Notification, 'create').mockImplementation(async (doc) => doc);
