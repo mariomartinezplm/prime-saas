@@ -7,7 +7,9 @@ import {
   cancelClientPlan,
   updateGraceDays,
   updatePlanStartDate,
-  runExpireCheck
+  runExpireCheck,
+  previewPlanRenewal,
+  renewPlan
 } from '../controllers/clientPlanController.js';
 import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
 
@@ -21,6 +23,9 @@ router.get('/', authorize('admin', 'professional'), getAllClientPlans);
 // patientId desde el body cuando no viene en la URL (Paso clasificación de planes).
 router.post('/', authorize('admin', 'professional'), authorizePatientAccess('patientId'), createClientPlan);
 router.post('/expire-check', authorize('admin'), runExpireCheck);
+// «Renovar plan» con un toque: renueva el plan que el paciente ya tiene (solo para pacientes a los que se tiene acceso)
+router.get('/renew/:patientId', authorize('admin', 'professional'), authorizePatientAccess('patientId'), previewPlanRenewal);
+router.post('/renew/:patientId', authorize('admin', 'professional'), authorizePatientAccess('patientId'), renewPlan);
 router.put('/:id/cancel', authorize('admin'), cancelClientPlan);
 router.put('/:id/grace-days', authorize('admin', 'professional'), updateGraceDays);
 router.put('/:id/start-date', authorize('admin', 'professional'), updatePlanStartDate);

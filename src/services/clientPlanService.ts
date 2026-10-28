@@ -1,7 +1,34 @@
 import api from '../lib/api';
 import type { ClientPlan, CreateClientPlanData, SessionBalance, APIResponse } from '../types';
 
+// Lo que haría «Renovar plan» con un toque (sin cambiar nada) y lo que se mantiene
+export type RenewalKind = 'settle_pending' | 'early' | 'reactivate' | 'kine_new';
+export interface RenewalPreview {
+  kind: RenewalKind | 'none';
+  // Solo cuando no hay nada que renovar
+  reason?: string;
+  message?: string;
+  paidUntil?: string;
+  plan?: { serviceType: 'entrenamiento' | 'kinesiologia'; sessionsTotal: number; unlimited: boolean; term: string; billingCycle: string; cyclesTotal: number; openEnded: boolean; scholarship: boolean };
+  starts?: string;
+  firstCycleEnds?: string | null;
+  endsOn?: string | null;
+  keep?: { futureAppointments: number; fixedSlots: number };
+}
+
 export const clientPlanService = {
+  // Vista previa de «Renovar plan» para un paciente
+  getRenewalPreview: async (patientId: string): Promise<RenewalPreview> => {
+    const response = await api.get<APIResponse<{ renewal: RenewalPreview }>>(`/client-plans/renew/${patientId}`);
+    return response.data.data.renewal;
+  },
+
+  // Renovar el plan que el paciente ya tiene, con las mismas condiciones (citas y horario fijo se mantienen)
+  renew: async (patientId: string): Promise<{ kind: RenewalKind; fixed: { slots: number; created: number; skipped: number } }> => {
+    const response = await api.post<APIResponse<{ kind: RenewalKind; fixed: { slots: number; created: number; skipped: number } }>>(`/client-plans/renew/${patientId}`);
+    return response.data.data;
+  },
+
   // Listar planes (activos + vencidos) de todos los pacientes — panel admin
   getAll: async (): Promise<ClientPlan[]> => {
     const response = await api.get<APIResponse<{ clientPlans: ClientPlan[] }>>('/client-plans');

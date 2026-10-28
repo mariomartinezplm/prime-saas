@@ -13,6 +13,7 @@ import {
 import { TERMS, BILLING_CYCLES, isValidGraceDays, MAX_GRACE_DAYS, paymentDueBy } from '../services/planCycles.js';
 import { santiagoToUtc } from '../utils/timezone.js';
 import { ownedPatientsOr, canAccessPatient } from '../middleware/auth.js';
+import { describeRenewal, renewPatientPlan, RenewalError } from '../services/planRenewalService.js';
 
 function isStaff(user) {
   return ['admin', 'professional'].includes(user.role);
@@ -378,5 +379,31 @@ export const updatePlanStartDate = async (req, res) => {
       return res.status(400).json({ success: false, message: error.message });
     }
     res.status(500).json({ success: false, message: 'No se pudo cambiar la fecha de inicio' });
+  }
+};
+
+// @desc    Qué pasaría al tocar «Renovar plan» (no cambia nada)
+// @route   GET /api/client-plans/renew/:patientId
+// @access  Private/Staff (pertenencia verificada en la ruta)
+export const previewPlanRenewal = async (req, res) => {
+  try {
+    const renewal = await describeRenewal(req.params.patientId);
+    res.status(200).json({ success: true, data: { renewal } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'No se pudo revisar la renovación' });
+  }
+};
+
+// @desc    Renovar el plan que el paciente ya tiene, con las mismas condiciones (sus citas y su horario fijo se mantienen)
+// @route   POST /api/client-plans/renew/:patientId
+// @access  Private/Staff (pertenencia verificada en la ruta)
+export const renewPlan = async (req, res) => {
+  try {
+    const result = await renewPatientPlan(req.params.patientId, req.user);
+    await result.plan.populate('patient', 'firstName lastName email');
+    res.status(201).json({ success: true, message: 'Plan renovado', data: result });
+  } catch (error) {
+    if (error instanceof RenewalError) return res.status(error.status).json({ success: false, code: error.code, message: error.message });
+    res.status(500).json({ success: false, message: error.message || 'No se pudo renovar el plan' });
   }
 };

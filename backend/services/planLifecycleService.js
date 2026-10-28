@@ -176,6 +176,52 @@ export async function settlePendingPlan(plan, { sessionsTotal, unlimited = false
   return plan;
 }
 
+// Renovación por adelantado: el plazo siguiente queda PAGADO desde ya y parte justo cuando termina el último ciclo vigente (sin
+// perder ni un día, sin tocar las citas ni el horario fijo). Si ya existía una renovación de ese ciclo, lanza ALREADY_RENEWED.
+export class RenewalError extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+export async function createEarlyRenewal(plan, { registeredBy, notes, paymentMode = 'prepaid', scholarship = false, graceDays } = {}) {
+  const start = new Date(plan.endDate.getTime() + 1);
+  const cyclesTotal = TERM_CYCLES[plan.term] ?? 1;
+  const termId = new mongoose.Types.ObjectId();
+  const cycles = buildCycles(start, plan.billingCycle, cyclesTotal);
+  const created = [];
+  for (const cycle of cycles) {
+    try {
+      created.push(await ClientPlan.create({
+        patient: plan.patient,
+        serviceType: plan.serviceType,
+        sessionsTotal: plan.sessionsTotal,
+        unlimited: plan.unlimited,
+        startDate: cycle.start,
+        term: plan.term,
+        billingCycle: plan.billingCycle,
+        cycleNumber: cycle.cycleNumber,
+        cyclesTotal,
+        termId,
+        renews: true,
+        paymentMode: cyclesTotal > 1 ? paymentMode : 'prepaid',
+        scholarship,
+        ...(graceDays !== undefined ? { graceDays } : {}),
+        ...(cycle.cycleNumber === 1 ? { renewedFrom: plan._id } : {}),
+        registeredBy,
+        notes,
+        status: 'upcoming'
+      }));
+    } catch (error) {
+      if (error.code === 11000) throw new RenewalError(409, 'ALREADY_RENEWED', 'Este plan ya fue renovado');
+      throw error;
+    }
+  }
+  return created[0];
+}
+
 // Cancela un plan y los ciclos futuros ya pagados de ese mismo pago
 export async function cancelPlanAndFutureCycles(plan) {
   plan.status = 'cancelled';
@@ -376,9 +422,11 @@ export async function advancePlans({ patientId, now = new Date() } = {}) {
 
     const founders = await founderIdSet(ended.map((p) => p.patient));
     for (const plan of ended) {
-      const next = plan.termId
+      let next = plan.termId
         ? await ClientPlan.findOne({ termId: plan.termId, status: 'upcoming', cycleNumber: plan.cycleNumber + 1 })
         : null;
+      // Renovación pagada por adelantado: el plazo siguiente espera, ya pagado, a que termine este ciclo
+      if (!next) next = await ClientPlan.findOne({ renewedFrom: plan._id, status: 'upcoming' });
 
       if (next) {
         // Ciclo ya pagado: el siguiente arranca (con sus sesiones en cero) y el anterior cierra en silencio
@@ -447,6 +495,8 @@ export async function runPlanLifecycleJob(now = new Date()) {
   for (const plan of expiring) {
     // Una beca o un fundador se renueva solo: no tiene nada que pagar «para no perder» el plan
     if (renewsByItself(plan, selfRenewing)) continue;
+    // Ya se renovó por adelantado: no hay nada que pagar
+    if (await ClientPlan.exists({ renewedFrom: plan._id })) continue;
     const isLastDay = plan.endDate.getTime() - now.getTime() <= DAY_MS;
     if (isLastDay ? plan.expiringTomorrowNotifiedAt : plan.expiringNotifiedAt) continue;
 

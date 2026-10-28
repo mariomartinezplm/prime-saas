@@ -205,12 +205,20 @@ describe('pertenencia a nivel de ruta', () => {
   it('toda la API de planes pide sesión, y las rutas con :patientId pasan por authorizePatientAccess', () => {
     expect(clientPlanRouter.stack[0].name).toBe('protect');
     const rutas = clientPlanRouter.stack.filter((l) => l.route && l.route.path.includes(':patientId') && l.route.methods.get);
-    expect(rutas.map((l) => l.route.path).sort()).toEqual(['/balance/:patientId', '/patient/:patientId']);
-    // en cada ruta: authorizePatientAccess y, al final, el controlador
+    expect(rutas.map((l) => l.route.path).sort()).toEqual(['/balance/:patientId', '/patient/:patientId', '/renew/:patientId']);
+    // en cada ruta: authorizePatientAccess y, al final, el controlador. «Renovar plan» además exige ser personal (administración o profesional).
     for (const l of rutas) {
-      expect(l.route.stack.length).toBe(2);
-      expect(['getPatientPlans', 'getBalance']).toContain(l.route.stack[1].name);
+      const renovar = l.route.path === '/renew/:patientId';
+      expect(l.route.stack.length).toBe(renovar ? 3 : 2);
+      expect(['getPatientPlans', 'getBalance', 'previewPlanRenewal']).toContain(l.route.stack[l.route.stack.length - 1].name);
     }
+  });
+
+  it('«Renovar plan» (vista previa y renovar): solo personal y solo de pacientes a los que tiene acceso', () => {
+    const rutas = clientPlanRouter.stack.filter((l) => l.route && l.route.path === '/renew/:patientId');
+    expect(rutas.map((l) => Object.keys(l.route.methods)[0]).sort()).toEqual(['get', 'post']);
+    for (const l of rutas) expect(l.route.stack.length).toBe(3); // authorize(rol) + authorizePatientAccess + controlador
+    expect(rutas.find((l) => l.route.methods.post).route.stack[2].name).toBe('renewPlan');
   });
 
   it('canAccessPatient: un paciente solo accede a sí mismo; otro paciente o un id inválido, no', async () => {

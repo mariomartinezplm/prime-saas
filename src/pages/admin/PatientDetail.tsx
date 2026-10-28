@@ -42,6 +42,7 @@ import PatientGoalsTab from '@/components/goals/PatientGoalsTab';
 import { MeasurementHistory, ExerciseHistory } from '@/components/records/PatientRecordHistory';
 import ClinicalBaselineFields from '@/components/forms/ClinicalBaselineFields';
 import EditPatientDialog from '@/components/forms/EditPatientDialog';
+import RenewPlanDialog from '@/components/plans/RenewPlanDialog';
 import AdminBookingDialog from '@/components/booking/AdminBookingDialog';
 import FixedScheduleDialog from '@/components/booking/FixedScheduleDialog';
 import AppointmentDetailDialog from '@/components/calendar/AppointmentDetailDialog';
@@ -105,6 +106,7 @@ const PatientDetail = () => {
   const [manageApt, setManageApt] = useState<{ apt: Appointment; action?: 'cancel' | 'delete' } | null>(null);
   const navigate = useNavigate();
   const [recordsKey, setRecordsKey] = useState(0);
+  const [renewOpen, setRenewOpen] = useState(false);
   // «Registrar un nuevo peso» desde una fila del historial de ejercicios: el formulario de arriba se completa con ese ejercicio
   const [exercisePrefill, setExercisePrefill] = useState<{ name: string; category: string; nonce: number } | null>(null);
 
@@ -236,11 +238,9 @@ const PatientDetail = () => {
                 Agendar cita
               </Button>
             )}
-            <Button asChild variant="outline">
-              <Link to={`/app/admin/planes?paciente=${id}`}>
-                <RefreshCw aria-hidden="true" />
-                Renovar plan
-              </Link>
+            <Button variant="outline" onClick={() => setRenewOpen(true)}>
+              <RefreshCw aria-hidden="true" />
+              Renovar plan
             </Button>
             {fixedProfessionalId && (
               <Button variant="outline" onClick={() => setFixedOpen(true)}>
@@ -525,11 +525,9 @@ const PatientDetail = () => {
                     </AlertDescription>
                   </Alert>
                 )}
-                <Button asChild size="sm" variant="outline" className="w-fit">
-                  <Link to={`/app/admin/planes?paciente=${id}`}>
-                    <RefreshCw aria-hidden="true" />
-                    Renovar plan
-                  </Link>
+                <Button size="sm" variant="outline" className="w-fit" onClick={() => setRenewOpen(true)}>
+                  <RefreshCw aria-hidden="true" />
+                  Renovar plan
                 </Button>
                 <DetailList>
                   <DetailRow label="Tipo">{SERVICE_TYPE_LABELS[balance.plan.serviceType]}</DetailRow>
@@ -549,9 +547,7 @@ const PatientDetail = () => {
               title="Este paciente no tiene un plan activo"
               action={
                 <div className="flex flex-wrap justify-center gap-2">
-                  <Button asChild size="sm">
-                    <Link to={`/app/admin/planes?paciente=${id}`}>Renovar plan</Link>
-                  </Button>
+                  <Button size="sm" onClick={() => setRenewOpen(true)}>Renovar plan</Button>
                   <Button asChild size="sm" variant="outline">
                     <Link to="/app/admin/planes/clasificar">Asignar plan</Link>
                   </Button>
@@ -561,6 +557,14 @@ const PatientDetail = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      <RenewPlanDialog
+        patientId={id!}
+        patientName={`${patient.firstName} ${patient.lastName}`}
+        open={renewOpen}
+        onOpenChange={setRenewOpen}
+        onRenewed={fetchData}
+      />
 
       <EditPatientDialog
         patient={patient}

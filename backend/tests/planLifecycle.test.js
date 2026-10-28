@@ -114,6 +114,7 @@ import { notify } from '../services/notificationService.js';
 import User from '../models/User.js';
 import {
   createTermPlans,
+  createEarlyRenewal,
   settlePendingPlan,
   cancelPlanAndFutureCycles,
   advancePlans,
@@ -536,6 +537,74 @@ describe('beca y Miembro Fundador: el plan se renueva solo', () => {
     await buy({ startDate: at(2026, 10, 20, 15) });
     await runPlanLifecycleJob(at(2026, 10, 28, 1));
     expect(vi.mocked(notify).mock.calls.some(([, type]) => type === 'plan_expiring')).toBe(false);
+  });
+});
+
+describe('renovación por adelantado («Renovar plan» antes de que termine el mes)', () => {
+  // Ningún paciente es fundador aquí (otras pruebas del archivo cambian esta respuesta)
+  beforeEach(() => vi.mocked(User.find).mockImplementation(() => ({ select: async () => [{ _id: 'admin-1' }] })));
+  const renewEarly = (plan, extra = {}) => createEarlyRenewal(plan, { registeredBy: adminId, ...extra });
+  const noticesTo = (type) => vi.mocked(notify).mock.calls.filter(([, t]) => t === type);
+
+  it('el plazo siguiente queda pagado (por empezar) y parte justo cuando termina el vigente', async () => {
+    const plan = await buy({ startDate: at(2026, 10, 20, 15) });
+    const next = await renewEarly(plan);
+    expect(next).toMatchObject({ status: 'upcoming', paymentPending: false, renews: true, sessionsTotal: 8, cycleNumber: 1 });
+    expect(String(next.renewedFrom)).toBe(String(plan._id));
+    expect(wall(next.startDate)).toBe('2026-11-01 00:00:00');
+    expect(plan.status).toBe('active'); // el plan de hoy sigue igual
+  });
+
+  it('al terminar el mes arranca solo el plazo ya pagado: sin renovación pendiente, sin plazo de pago y sin avisos de pago', async () => {
+    const plan = await buy({ startDate: at(2026, 10, 20, 15) });
+    await renewEarly(plan);
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    const active = byStatus('active');
+    expect(active).toHaveLength(1);
+    expect(active[0]).toMatchObject({ paymentPending: false, sessionsUsed: 0 });
+    expect(wall(active[0].startDate)).toBe('2026-11-01 00:00:00');
+    expect(store.docs.some((d) => d.paymentPending)).toBe(false);
+    // y pasado el plazo de 5 días sigue activo (nada vence)
+    await advancePlans({ patientId, now: at(2026, 11, 20, 1) });
+    expect(byStatus('active')).toHaveLength(1);
+    await runPlanLifecycleJob(at(2026, 11, 7, 1));
+    expect(noticesTo('plan_expired')).toHaveLength(0);
+  });
+
+  it('un plan trimestral renovado por adelantado trae sus tres meses pagados', async () => {
+    const plan = await buy({ term: 'trimestral', startDate: at(2026, 8, 1) });
+    await advancePlans({ patientId, now: at(2026, 10, 15) });
+    const last = byStatus('active')[0];
+    await renewEarly(last);
+    expect(byStatus('upcoming').map((d) => d.cycleNumber).sort()).toEqual([1, 2, 3]);
+    expect(plan).toBeTruthy();
+  });
+
+  it('no avisa «tu plan está por vencer» a quien ya renovó', async () => {
+    const plan = await buy({ startDate: at(2026, 10, 20, 15) });
+    await runPlanLifecycleJob(at(2026, 10, 28, 10));
+    expect(noticesTo('plan_expiring')).toHaveLength(1); // sin renovar, sí avisa
+    vi.mocked(notify).mockClear();
+    plan.expiringNotifiedAt = null;
+    plan.expiringTomorrowNotifiedAt = null;
+    await renewEarly(plan);
+    await runPlanLifecycleJob(at(2026, 10, 30, 1));
+    expect(noticesTo('plan_expiring')).toHaveLength(0);
+  });
+
+  it('renovar dos veces el mismo plan no crea dos renovaciones', async () => {
+    const plan = await buy({ startDate: at(2026, 10, 20, 15) });
+    await renewEarly(plan);
+    await expect(renewEarly(plan)).rejects.toMatchObject({ code: 'ALREADY_RENEWED', status: 409 });
+    expect(byStatus('upcoming')).toHaveLength(1);
+  });
+
+  it('conserva el pago mes a mes y la beca', async () => {
+    const plan = await buy({ term: 'trimestral', startDate: at(2026, 8, 1) });
+    await advancePlans({ patientId, now: at(2026, 10, 15) });
+    const next = await renewEarly(byStatus('active')[0], { paymentMode: 'monthly', scholarship: true });
+    expect(next).toMatchObject({ paymentMode: 'monthly', scholarship: true });
+    expect(plan).toBeTruthy();
   });
 });
 
