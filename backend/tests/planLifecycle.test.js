@@ -323,27 +323,77 @@ describe('el admin registra el pago', () => {
 describe('avisos de vencimiento (campanita + correo)', () => {
   const noticesTo = (type) => vi.mocked(notify).mock.calls.filter(([, t]) => t === type);
 
-  it('a 4 días del fin de mes: aviso "por vencer" con el plazo del 5 de noviembre, una sola vez', async () => {
+  // Solo los que salen además por correo (la renovación pendiente y el «venció» van solo a la campanita)
+  const expiringTitles = () => noticesTo('plan_expiring').filter(([, , data]) => data.email !== false).map(([, , data]) => data.title);
+
+  it('antes del último día no sale ningún aviso de renovación', async () => {
     await buy();
-    await runPlanLifecycleJob(at(2026, 10, 27, 10));
-    await runPlanLifecycleJob(at(2026, 10, 28, 10));
+    for (const d of [25, 26, 27, 28, 29, 30]) await runPlanLifecycleJob(at(2026, 10, d, 10));
+    expect(expiringTitles()).toEqual([]);
+  });
+
+  it('el último día del mes: un aviso con el plazo del 5 de noviembre, una sola vez', async () => {
+    await buy();
+    await runPlanLifecycleJob(at(2026, 10, 31, 10));
+    await runPlanLifecycleJob(at(2026, 10, 31, 18));
 
     const [call] = noticesTo('plan_expiring');
     expect(noticesTo('plan_expiring')).toHaveLength(1);
     expect(call[0]).toEqual(patientId);
-    expect(call[2].title).toBe('Tu plan está por vencer');
+    expect(call[2].title).toBe('Tu plan vence hoy: recuerda renovar');
     expect(call[2].body).toContain('31 de octubre');
     expect(call[2].body).toContain('5 de noviembre');
+    expect(call[2].body).toContain('no podrás agendar');
   });
 
-  it('el último día: aviso "vence mañana" (una sola vez), además del de 5 días', async () => {
+  it('son 3 correos en total: el último día del mes, el día 3 y el día 5 (último día para pagar)', async () => {
     await buy();
-    await runPlanLifecycleJob(at(2026, 10, 27, 10));
-    await runPlanLifecycleJob(at(2026, 10, 30, 12));
-    await runPlanLifecycleJob(at(2026, 10, 31, 8));
+    for (const [d, h] of [[30, 10], [31, 7], [31, 9], [31, 20]]) await runPlanLifecycleJob(at(2026, 10, d, h));
+    for (const [d, h] of [[1, 9], [2, 9], [3, 7], [3, 9], [3, 18], [4, 9], [5, 7], [5, 9], [5, 20]]) {
+      await runPlanLifecycleJob(at(2026, 11, d, h));
+    }
+    expect(expiringTitles()).toEqual(['Tu plan vence hoy: recuerda renovar', 'Recuerda pagar tu renovación', 'Hoy es tu último día para pagar']);
+  });
 
-    const titles = noticesTo('plan_expiring').map(([, , data]) => data.title);
-    expect(titles).toEqual(['Tu plan está por vencer', 'Tu plan vence mañana']);
+  it('los correos no salen de madrugada: esperan a las 08:00 de Chile', async () => {
+    await buy();
+    await runPlanLifecycleJob(at(2026, 10, 31, 3));
+    expect(notify).not.toHaveBeenCalled();
+    await runPlanLifecycleJob(at(2026, 10, 31, 8, 30));
+    expect(noticesTo('plan_expiring')).toHaveLength(1);
+  });
+
+  it('si el programador estuvo apagado hasta el día 5, sale solo el del último día para pagar', async () => {
+    await buy();
+    await runPlanLifecycleJob(at(2026, 11, 1, 9));
+    await runPlanLifecycleJob(at(2026, 11, 5, 10));
+    await runPlanLifecycleJob(at(2026, 11, 5, 18));
+    expect(expiringTitles()).toEqual(['Hoy es tu último día para pagar']);
+  });
+
+  it('solo planes de entrenamiento: kinesiología no recibe estos correos', async () => {
+    await buy({ serviceType: 'kinesiologia', sessionsTotal: 5 });
+    await runPlanLifecycleJob(at(2026, 10, 31, 10));
+    await runPlanLifecycleJob(at(2026, 11, 3, 10));
+    expect(expiringTitles()).toEqual([]);
+  });
+
+  it('si el plan se renueva por adelantado, el aviso del último día no sale', async () => {
+    const plan = await buy();
+    await createEarlyRenewal(plan, { registeredBy: adminId });
+    await runPlanLifecycleJob(at(2026, 10, 31, 10));
+    await runPlanLifecycleJob(at(2026, 11, 3, 10));
+    expect(expiringTitles()).toEqual([]);
+  });
+
+  it('si se paga el día 2, ni el del día 3 ni el del día 5 salen', async () => {
+    await buy();
+    await runPlanLifecycleJob(at(2026, 11, 1, 9));
+    const pending = byStatus('active')[0];
+    await settlePendingPlan(pending, { sessionsTotal: 8, term: 'mensual', registeredBy: adminId });
+    await runPlanLifecycleJob(at(2026, 11, 3, 9));
+    await runPlanLifecycleJob(at(2026, 11, 5, 9));
+    expect(expiringTitles()).toEqual([]);
   });
 
   it('un plan lejos de vencer no genera avisos', async () => {
@@ -361,7 +411,7 @@ describe('avisos de vencimiento (campanita + correo)', () => {
   it('el último mes de un plan anual sí avisa', async () => {
     await buy({ term: 'anual', startDate: at(2026, 10, 1) });
     await advancePlans({ patientId, now: at(2027, 9, 15) });
-    await runPlanLifecycleJob(at(2027, 9, 27, 10));
+    await runPlanLifecycleJob(at(2027, 9, 30, 10));
     expect(noticesTo('plan_expiring')).toHaveLength(1);
   });
 
@@ -373,6 +423,7 @@ describe('avisos de vencimiento (campanita + correo)', () => {
     const pendingNotices = noticesTo('plan_expiring').filter(([, , d]) => d.title === 'Renovación pendiente de pago');
     expect(pendingNotices).toHaveLength(1);
     expect(pendingNotices[0][2].body).toContain('5 de noviembre');
+    expect(pendingNotices[0][2].email).toBe(false); // solo campanita: el correo es el del día 3
     expect(noticesTo('plan_expired')).toHaveLength(0); // abrir la renovación NO es "venció"
   });
 
@@ -385,6 +436,7 @@ describe('avisos de vencimiento (campanita + correo)', () => {
     const expired = noticesTo('plan_expired');
     expect(expired).toHaveLength(2);
     expect(expired.map(([to]) => String(to)).sort()).toEqual([String(patientId), 'admin-1'].sort());
+    expect(expired.every(([, , d]) => d.email === false)).toBe(true); // el correo es solo para los 4 avisos de antes
   });
 
   it('plan que no se renueva: avisa "venció" sin abrir renovación', async () => {
@@ -582,13 +634,12 @@ describe('renovación por adelantado («Renovar plan» antes de que termine el m
 
   it('no avisa «tu plan está por vencer» a quien ya renovó', async () => {
     const plan = await buy({ startDate: at(2026, 10, 20, 15) });
-    await runPlanLifecycleJob(at(2026, 10, 28, 10));
+    await runPlanLifecycleJob(at(2026, 10, 31, 10));
     expect(noticesTo('plan_expiring')).toHaveLength(1); // sin renovar, sí avisa
     vi.mocked(notify).mockClear();
-    plan.expiringNotifiedAt = null;
-    plan.expiringTomorrowNotifiedAt = null;
+    plan.expiringTodayNotifiedAt = null;
     await renewEarly(plan);
-    await runPlanLifecycleJob(at(2026, 10, 30, 1));
+    await runPlanLifecycleJob(at(2026, 10, 31, 12));
     expect(noticesTo('plan_expiring')).toHaveLength(0);
   });
 

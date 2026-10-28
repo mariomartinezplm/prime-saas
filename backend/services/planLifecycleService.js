@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import ClientPlan from '../models/ClientPlan.js';
 import User from '../models/User.js';
 import { notify } from './notificationService.js';
-import { formatDayMonthSantiago, santiagoToUtc } from '../utils/timezone.js';
+import { formatDayMonthSantiago, santiagoParts, santiagoToUtc } from '../utils/timezone.js';
 import { buildCycles, paymentDueBy, TERM_CYCLES } from './planCycles.js';
 
 // Vida de un plan (Prime F&H):
@@ -17,7 +17,6 @@ import { buildCycles, paymentDueBy, TERM_CYCLES } from './planCycles.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_STEPS = 20;
-const NOTICE_HORIZON_DAYS = 5;
 const EXPIRED_NOTICE_LOOKBACK_DAYS = 60;
 
 // ─── Renovación automática (beca y Miembro Fundador) ────────────────────────
@@ -459,19 +458,38 @@ export async function advancePlans({ patientId, now = new Date() } = {}) {
 
 const dayBeforeEnd = (date) => formatDayMonthSantiago(new Date(date.getTime() - 1));
 
+// Los correos de renovación salen desde las 08:00 (hora de Chile), nunca de madrugada
+export const EXPIRING_NOTICE_FROM_HOUR = 8;
+// Un solo correo antes del vencimiento: el último día del plan. Después, si la renovación sigue sin pagarse: el día 3 del ciclo
+// nuevo (2 días después de empezar) y el último día del plazo (el día 5).
+export const PENDING_REMINDER_AFTER_DAYS = 2;
+
+const dayNumber = (date) => {
+  const p = santiagoParts(date);
+  return Date.UTC(p.year, p.month - 1, p.day) / DAY_MS;
+};
+
+// Cuántos días de calendario (en Chile) faltan para el último día del plan: 0 = hoy es el último día
+export const daysUntilLastDay = (plan, now) => dayNumber(plan.endDate) - dayNumber(now);
+
+// Solo el último día del plan toca avisar de la renovación
+export const expiringStage = (plan, now) => (daysUntilLastDay(plan, now) === 0 ? 'today' : null);
+
 export function buildExpiringMessage(plan, now) {
-  const msLeft = plan.endDate.getTime() - now.getTime();
-  const isLastDay = msLeft <= DAY_MS;
   const endsOn = formatDayMonthSantiago(plan.endDate);
+  const dueOn = dayBeforeEnd(paymentDueBy(new Date(plan.endDate.getTime() + 1), plan.graceDays ?? 5));
+  const body = plan.renews
+    ? `Tu plan vence hoy, ${endsOn}. Renuévalo antes del ${dueOn} para seguir agendando: pasada esa fecha no podrás agendar. Contacta a Prime F&H para renovar.`
+    : `Tu plan vence hoy, ${endsOn}. Contacta a Prime F&H para renovar.`;
+  return { title: 'Tu plan vence hoy: recuerda renovar', body };
+}
 
-  const paymentLine = plan.renews
-    ? ` Para seguir sin interrupciones tienes plazo hasta el ${dayBeforeEnd(paymentDueBy(new Date(plan.endDate.getTime() + 1), plan.graceDays ?? 5))} para pagar tu renovación; puedes seguir agendando hasta esa fecha.`
-    : '';
-
-  return {
-    title: isLastDay ? 'Tu plan vence mañana' : 'Tu plan está por vencer',
-    body: `Tu plan vence el ${endsOn}.${paymentLine} Contacta a Prime F&H para renovar.`
-  };
+// Recordatorios con la renovación ya abierta y sin pagar: 'last' = hoy es el último día para pagar; 'day3' = día 3 del ciclo
+export function buildPendingReminderMessage(plan, kind = 'day3') {
+  const dueOn = dayBeforeEnd(plan.paymentDueBy);
+  return kind === 'last'
+    ? { title: 'Hoy es tu último día para pagar', body: `Hoy ${dueOn} es el último día para pagar tu renovación. Si no se registra el pago, no podrás agendar. Contacta a Prime F&H para pagar.` }
+    : { title: 'Recuerda pagar tu renovación', body: `Tu renovación sigue pendiente de pago. Tienes hasta el ${dueOn} para pagar y seguir agendando. Contacta a Prime F&H para pagar.` };
 }
 
 export async function runPlanLifecycleJob(now = new Date()) {
@@ -479,34 +497,52 @@ export async function runPlanLifecycleJob(now = new Date()) {
 
   const admins = await User.find({ role: 'admin', isActive: true }).select('_id');
   const adminIds = admins.map((a) => a._id);
-  const summary = { expiringNotices: 0, renewalNotices: 0, expiredNotices: 0, autoRenewed: 0 };
+  const summary = { expiringNotices: 0, pendingReminders: 0, renewalNotices: 0, expiredNotices: 0, autoRenewed: 0 };
 
-  // 1) Último ciclo de un plan que vence en 5 días (o en 1): aviso con el plazo de pago
-  const horizon = new Date(now.getTime() + NOTICE_HORIZON_DAYS * DAY_MS);
-  const expiring = await ClientPlan.find({
-    status: 'active',
-    paymentPending: false,
-    endDate: { $gte: now, $lte: horizon },
-    $expr: { $gte: ['$cycleNumber', '$cyclesTotal'] },
-    $or: [{ expiringNotifiedAt: null }, { expiringTomorrowNotifiedAt: null }]
-  });
+  // 1) Correos de renovación (solo planes de entrenamiento que no se han renovado): el último día del plan, el día 3 del ciclo
+  //    nuevo y el último día del plazo (el 5). Salen desde las 08:00, una sola vez cada uno, y se detienen apenas se renueva o se paga.
+  const mayNotify = santiagoParts(now).hour >= EXPIRING_NOTICE_FROM_HOUR;
+  if (mayNotify) {
+    const expiring = await ClientPlan.find({
+      status: 'active',
+      serviceType: 'entrenamiento',
+      paymentPending: false,
+      expiringTodayNotifiedAt: null,
+      endDate: { $gte: now, $lte: new Date(now.getTime() + DAY_MS) },
+      $expr: { $gte: ['$cycleNumber', '$cyclesTotal'] }
+    });
 
-  const selfRenewing = await founderIdSet(expiring.map((p) => p.patient));
-  for (const plan of expiring) {
-    // Una beca o un fundador se renueva solo: no tiene nada que pagar «para no perder» el plan
-    if (renewsByItself(plan, selfRenewing)) continue;
-    // Ya se renovó por adelantado: no hay nada que pagar
-    if (await ClientPlan.exists({ renewedFrom: plan._id })) continue;
-    const isLastDay = plan.endDate.getTime() - now.getTime() <= DAY_MS;
-    if (isLastDay ? plan.expiringTomorrowNotifiedAt : plan.expiringNotifiedAt) continue;
+    const selfRenewing = await founderIdSet(expiring.map((p) => p.patient));
+    for (const plan of expiring) {
+      // Una beca o un fundador se renueva solo: no tiene nada que pagar «para no perder» el plan
+      if (renewsByItself(plan, selfRenewing)) continue;
+      // Ya se renovó por adelantado: no hay nada que pagar
+      if (await ClientPlan.exists({ renewedFrom: plan._id })) continue;
+      if (!expiringStage(plan, now)) continue;
 
-    const { title, body } = buildExpiringMessage(plan, now);
-    await notify(plan.patient, 'plan_expiring', { title, body, link: '/app/mi-perfil' });
+      const { title, body } = buildExpiringMessage(plan, now);
+      await notify(plan.patient, 'plan_expiring', { title, body, link: '/app/mi-perfil' });
+      plan.expiringTodayNotifiedAt = now;
+      await plan.save();
+      summary.expiringNotices++;
+    }
 
-    plan.expiringNotifiedAt = plan.expiringNotifiedAt || now;
-    if (isLastDay) plan.expiringTomorrowNotifiedAt = now;
-    await plan.save();
-    summary.expiringNotices++;
+    const stillPending = await ClientPlan.find({ status: 'active', serviceType: 'entrenamiento', paymentPending: true, pendingLastDayNotifiedAt: null });
+    for (const plan of stillPending) {
+      if (!plan.paymentDueBy || now.getTime() >= plan.paymentDueBy.getTime()) continue;
+      const today = dayNumber(now);
+      const lastPayDay = dayNumber(new Date(plan.paymentDueBy.getTime() - 1));
+      const isLast = today >= lastPayDay;
+      const isDay3 = today >= dayNumber(plan.startDate) + PENDING_REMINDER_AFTER_DAYS;
+      if (!isLast && (!isDay3 || plan.pendingReminderNotifiedAt)) continue;
+
+      await notify(plan.patient, 'plan_expiring', { ...buildPendingReminderMessage(plan, isLast ? 'last' : 'day3'), link: '/app/mi-perfil' });
+      // Si hoy toca el último día, el del día 3 ya no sale después
+      plan.pendingReminderNotifiedAt = plan.pendingReminderNotifiedAt || now;
+      if (isLast) plan.pendingLastDayNotifiedAt = now;
+      await plan.save();
+      summary.pendingReminders++;
+    }
   }
 
   // 2) Renovaciones pendientes recién abiertas: se le avisa al paciente
@@ -515,7 +551,8 @@ export async function runPlanLifecycleJob(now = new Date()) {
     await notify(plan.patient, 'plan_expiring', {
       title: 'Renovación pendiente de pago',
       body: `Empezó un nuevo ciclo de tu plan. Tienes hasta el ${dayBeforeEnd(plan.paymentDueBy)} para pagar y puedes seguir agendando hasta esa fecha. Contacta a Prime F&H para pagar.`,
-      link: '/app/mi-perfil'
+      link: '/app/mi-perfil',
+      email: false
     });
     plan.renewalNotifiedAt = now;
     await plan.save();
@@ -567,13 +604,15 @@ export async function runPlanLifecycleJob(now = new Date()) {
     await notify(plan.patient._id, 'plan_expired', {
       title: 'Tu plan venció',
       body: 'Tu plan venció. Contacta a Prime F&H para renovar y seguir agendando.',
-      link: '/app/mi-perfil'
+      link: '/app/mi-perfil',
+      email: false
     });
     for (const adminId of adminIds) {
       await notify(adminId, 'plan_expired', {
         title: 'Plan de paciente vencido',
         body: `El plan de ${patientName} venció.`,
-        link: '/app/admin/planes'
+        link: '/app/admin/planes',
+        email: false
       });
     }
 

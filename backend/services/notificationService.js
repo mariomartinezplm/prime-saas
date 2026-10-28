@@ -24,10 +24,11 @@ export const PUSH_TYPES = {
 // email — fire-and-forget para el email (mismo criterio que emailService: un
 // correo que no sale nunca debe tumbar el flujo que la disparó), pero el
 // registro in-app sí se espera (es lo que hace aparecer la campanita).
-export async function notify(userId, type, { title, body, link } = {}) {
+// `email: false` deja el aviso solo en la campanita aunque su tipo normalmente se espeje por correo
+export async function notify(userId, type, { title, body, link, email = true } = {}) {
   const notification = await Notification.create({ user: userId, type, title, body, link });
 
-  if (EMAIL_MIRRORED_TYPES.includes(type)) {
+  if (email && EMAIL_MIRRORED_TYPES.includes(type)) {
     User.findById(userId).select('email firstName').then((user) => {
       if (user?.email) {
         sendNotificationEmail({ user, title, body, link });

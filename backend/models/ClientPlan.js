@@ -138,7 +138,13 @@ const clientPlanSchema = new mongoose.Schema({
   },
   expiredNotifiedAt: {
     type: Date
-  }
+  },
+  // Los 4 correos de «plan por vencer»: 5 días antes (expiringNotifiedAt), 3 días antes, el día del vencimiento y el día 3 del
+  // mes siguiente si la renovación sigue sin pagarse. Cada uno sale una sola vez; al renovarse dejan de salir.
+  expiring3dNotifiedAt: { type: Date },
+  expiringTodayNotifiedAt: { type: Date },
+  pendingReminderNotifiedAt: { type: Date },
+  pendingLastDayNotifiedAt: { type: Date }
 }, {
   timestamps: true
 });
