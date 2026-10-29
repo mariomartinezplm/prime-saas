@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Maximize2, Minimize2, Minus, Pause, Play, Plus, RotateCcw, Save, Square, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { COUNTDOWN_TONES, FINISH_TONES, phaseTones, playTones, unlockAudio } from '@/lib/sound';
 import {
   IDLE_CLOCK, LIMITS, TABATA, elapsedSeconds, formatClock, normalizeConfig, pause, positionAt, start, totalSeconds,
   type ClockState, type PhaseKind, type TimerConfig,
@@ -51,7 +52,6 @@ const Timer = () => {
   const [routineName, setRoutineName] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<AudioContext | null>(null);
   const wakeRef = useRef<{ release: () => Promise<void> } | null>(null);
   const lastCue = useRef<{ phase: number; sec: number; done: boolean } | null>(null);
 
@@ -66,23 +66,7 @@ const Timer = () => {
     return () => window.clearInterval(id);
   }, [running]);
 
-  const beep = useCallback((freq: number, ms: number, delay = 0) => {
-    const ctx = audioRef.current;
-    if (!sound || !ctx) return;
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = freq;
-      osc.type = 'sine';
-      const t0 = ctx.currentTime + delay;
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + ms / 1000);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + ms / 1000 + 0.05);
-    } catch { /* sin audio: el cronómetro sigue funcionando */ }
-  }, [sound]);
+  const cue = useCallback((tones: Parameters<typeof playTones>[0]) => { if (sound) playTones(tones); }, [sound]);
 
   // Avisos: pitido corto en los últimos 3 s de cada fase, uno largo al cambiar de fase, tres al terminar
   useEffect(() => {
@@ -91,10 +75,10 @@ const Timer = () => {
     const prev = lastCue.current;
     lastCue.current = { phase: pos.phaseIndex, sec, done: pos.done };
     if (!prev) return;
-    if (pos.done && !prev.done) { beep(880, 200); beep(880, 200, 0.3); beep(1175, 500, 0.6); return; }
-    if (pos.phaseIndex !== prev.phase) { beep(pos.phase?.kind === 'work' ? 1175 : 660, 450); return; }
-    if (sec !== prev.sec && sec >= 1 && sec <= 3) beep(784, 120);
-  }, [began, running, pos.phaseIndex, pos.phaseRemainingSec, pos.done, pos.phase?.kind, beep]);
+    if (pos.done && !prev.done) { cue(FINISH_TONES); return; }
+    if (pos.phaseIndex !== prev.phase) { cue(phaseTones(pos.phase?.kind ?? 'work')); return; }
+    if (sec !== prev.sec && sec >= 1 && sec <= 3) cue(COUNTDOWN_TONES);
+  }, [began, running, pos.phaseIndex, pos.phaseRemainingSec, pos.done, pos.phase?.kind, cue]);
 
   useEffect(() => {
     if (pos.done && running) setRunning(false);
@@ -124,14 +108,6 @@ const Timer = () => {
   const persist = (next: Routine[]) => {
     setRoutines(next);
     try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* sin almacenamiento: no se guardan rutinas */ }
-  };
-
-  const unlockAudio = () => {
-    try {
-      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (Ctx && !audioRef.current) audioRef.current = new Ctx();
-      audioRef.current?.resume().catch(() => undefined);
-    } catch { /* ignorar */ }
   };
 
   const begin = () => {

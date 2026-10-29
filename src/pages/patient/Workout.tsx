@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import RestBar from '@/components/workout/RestBar';
+import { REST_DONE_TONES, playTones, unlockAudio } from '@/lib/sound';
 import BlockBuilder from '@/components/workout/BlockBuilder';
 import BlockCard from '@/components/workout/BlockCard';
 import SetEditSheet from '@/components/workout/SetEditSheet';
@@ -54,13 +55,24 @@ const Workout = () => {
   const rest = session?.rest;
   const display = rest ? restDisplayState(rest, now, offsetMs) : 'idle';
 
-  // Aviso discreto al terminar el descanso con la app abierta (solo si la persona ya tocó la pantalla)
+  // El teléfono solo deja sonar el audio después de un toque: cada toque en la pantalla lo deja listo
   useEffect(() => {
-    if (!session || !rest || display !== 'done') return;
+    const unlock = () => unlockAudio();
+    window.addEventListener('pointerdown', unlock, { passive: true });
+    return () => window.removeEventListener('pointerdown', unlock);
+  }, []);
+
+  // Al terminar el descanso con la app abierta: tres pitidos y vibración. Solo suena si se VIO correr el descanso hasta el final
+  // (abrir la app con un descanso que ya había terminado no hace ruido).
+  const prevDisplay = useRef(display);
+  useEffect(() => {
+    const was = prevDisplay.current;
+    prevDisplay.current = display;
+    if (!session || !rest || display !== 'done' || was !== 'running') return;
     const key = `${session.id}:${rest.version}`;
     if (announcedDone.current === key) return;
     announcedDone.current = key;
-    if (document.visibilityState === 'visible' && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(180);
+    if (document.visibilityState === 'visible') playTones(REST_DONE_TONES, { vibrate: !!navigator.userActivation?.hasBeenActive });
   }, [session, rest, display]);
 
   const blocks = session?.blocks ?? [];
