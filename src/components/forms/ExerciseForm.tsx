@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FormField, NumberField } from '@/components/forms/FormField';
 import SubmitButton from '@/components/forms/SubmitButton';
 import ExercisePicker from '@/components/forms/ExercisePicker';
-import { exerciseService, type ExerciseSummary } from '@/services/exerciseService';
+import { exerciseService, type ExerciseSummary, type LibraryExercise } from '@/services/exerciseService';
 import { exactExercise, lastRecordText } from '@/lib/exercisePicker';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { notify } from '@/lib/notify';
@@ -94,9 +94,11 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
   const [form, setForm] = useState<FormState>(() => (record ? formFromRecord(record) : emptyForm()));
   // Ejercicios que la persona ya tiene registrados: se ofrecen en una lista para no escribirlos de nuevo (si no cargan, se escribe como siempre)
   const [options, setOptions] = useState<ExerciseSummary[]>([]);
+  const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const loadOptions = useCallback(() => {
     if (isEdit) return;
     exerciseService.getSummary(patientId).then(setOptions).catch(() => setOptions([]));
+    exerciseService.getLibrary().then(setLibrary).catch(() => setLibrary([]));
   }, [patientId, isEdit]);
   useEffect(loadOptions, [loadOptions]);
 
@@ -109,7 +111,7 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
   };
 
   // Elegir un ejercicio de la lista: se completan su nombre (con la misma escritura de siempre) y su categoría, y el cursor pasa al peso
-  const pickExercise = (o: ExerciseSummary) => {
+  const pickExercise = (o: ExerciseSummary | LibraryExercise) => {
     setForm((prev) => ({ ...prev, exerciseName: o.name, category: CATEGORIES.some((c) => c.value === o.category) ? o.category : prev.category }));
     setErrors((prev) => ({ ...prev, exerciseName: undefined }));
     requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('input[data-step="0.5"]')?.focus());
@@ -181,7 +183,7 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
         <FormField label="Ejercicio" required error={errors.exerciseName} hint={matched ? `Ya registrado · Último: ${lastRecordText(matched)}` : undefined}>
           {(c) => isEdit
             ? <Input {...c} autoComplete="off" placeholder="Ej: Sentadilla" value={form.exerciseName} onChange={(e) => set('exerciseName', e.target.value)} />
-            : <ExercisePicker control={c} value={form.exerciseName} onChange={(v) => set('exerciseName', v)} options={options} onPick={pickExercise} />}
+            : <ExercisePicker control={c} value={form.exerciseName} onChange={(v) => set('exerciseName', v)} options={options} library={library} onPick={pickExercise} />}
         </FormField>
         <FormField label="Categoría">
           {(c) => (

@@ -65,6 +65,40 @@ export async function exerciseSummary(patientId) {
   return [...groups.values()];
 }
 
+// Biblioteca de ejercicios: los ejercicios que registran TODAS las personas se cruzan para ofrecerlos en la lista al elegir uno.
+// Privacidad: solo viaja el nombre y la categoría (nunca quién ni cuántas veces), y un nombre entra a la biblioteca solo si lo
+// usan al menos LIBRARY_MIN_PATIENTS personas distintas: así un nombre escrito a mano que identifique a alguien («rehab de Juan»)
+// nunca llega a otra persona. La identidad es la misma de siempre (sin tildes ni mayúsculas); gana la escritura más usada.
+export const LIBRARY_MIN_PATIENTS = 2;
+const LIBRARY_LIMIT = 500;
+
+export async function exerciseLibrary({ minPatients = LIBRARY_MIN_PATIENTS } = {}) {
+  const rows = await ExerciseProgress.aggregate([
+    { $match: { exerciseName: { $type: 'string' } } },
+    { $group: { _id: '$exerciseName', patients: { $addToSet: '$patient' }, category: { $first: '$category' } } }
+  ]);
+  const groups = new Map();
+  for (const r of rows) {
+    const key = exerciseKey(r._id);
+    if (!key) continue;
+    let g = groups.get(key);
+    if (!g) {
+      g = { key, patients: new Set(), best: null };
+      groups.set(key, g);
+    }
+    const ids = (r.patients ?? []).map(String);
+    ids.forEach((p) => g.patients.add(p));
+    if (!g.best || ids.length > g.best.n || (ids.length === g.best.n && String(r._id) < g.best.name)) {
+      g.best = { name: String(r._id).replace(/\s+/g, ' ').trim(), category: r.category ?? 'otro', n: ids.length };
+    }
+  }
+  return [...groups.values()]
+    .filter((g) => g.patients.size >= minPatients && cleanExerciseName(g.best.name))
+    .sort((a, b) => b.patients.size - a.patients.size || a.best.name.localeCompare(b.best.name, 'es'))
+    .slice(0, LIBRARY_LIMIT)
+    .map((g) => ({ key: g.key, name: cleanExerciseName(g.best.name), category: g.best.category }));
+}
+
 // Si el nombre ya existe en el historial, se reutiliza EXACTAMENTE esa escritura (misma identidad); si no, es un ejercicio nuevo
 export async function resolveCanonicalName(patientId, typed, history) {
   const clean = cleanExerciseName(typed);

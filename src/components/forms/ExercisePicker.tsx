@@ -1,9 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { filterExercises, lastRecordText } from '@/lib/exercisePicker';
+import { filterExercises, filterLibrary, lastRecordText } from '@/lib/exercisePicker';
 import { cn } from '@/lib/utils';
-import type { ExerciseSummary } from '@/services/exerciseService';
+import type { ExerciseSummary, LibraryExercise } from '@/services/exerciseService';
 
 const CATEGORY_LABEL: Record<string, string> = { fuerza: 'Fuerza', cardio: 'Cardio', flexibilidad: 'Flexibilidad', funcional: 'Funcional', rehabilitacion: 'Rehabilitación', otro: 'Otro' };
 
@@ -14,19 +14,23 @@ interface ExercisePickerProps {
   onChange: (text: string) => void;
   // Ejercicios que la persona ya tiene registrados
   options: ExerciseSummary[];
-  onPick: (option: ExerciseSummary) => void;
+  // Biblioteca compartida: ejercicios que usan varias personas y esta todavía no tiene
+  library?: LibraryExercise[];
+  onPick: (option: ExerciseSummary | LibraryExercise) => void;
 }
 
 // Campo «Ejercicio» con la lista de los ejercicios ya registrados: al tocarlo aparece la lista (se filtra mientras se escribe) y se
 // elige uno sin escribirlo de nuevo. También se puede escribir un ejercicio nuevo. Funciona con dedo, mouse y teclado.
-const ExercisePicker = ({ control, value, onChange, options, onPick }: ExercisePickerProps) => {
+const ExercisePicker = ({ control, value, onChange, options, library = [], onPick }: ExercisePickerProps) => {
   const listId = useId();
   const wrapper = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  const shown = filterExercises(options, value);
-  const hasList = options.length > 0;
+  const own = filterExercises(options, value);
+  const shared = filterLibrary(library, options, value);
+  const shown: (ExerciseSummary | LibraryExercise)[] = [...own, ...shared];
+  const hasList = options.length > 0 || library.length > 0;
   const expanded = open && hasList && shown.length > 0;
 
   // En el teléfono la lista queda debajo del campo: al abrirla se desplaza la pantalla lo justo para verla completa
@@ -34,7 +38,7 @@ const ExercisePicker = ({ control, value, onChange, options, onPick }: ExerciseP
     if (expanded) listRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }, [expanded]);
 
-  const pick = (o: ExerciseSummary) => {
+  const pick = (o: ExerciseSummary | LibraryExercise) => {
     setOpen(false);
     setActive(-1);
     onPick(o);
@@ -75,7 +79,7 @@ const ExercisePicker = ({ control, value, onChange, options, onPick }: ExerciseP
         aria-autocomplete="list"
         aria-activedescendant={expanded && active >= 0 ? `${listId}-${active}` : undefined}
         autoComplete="off"
-        placeholder={hasList ? 'Toca para elegir uno ya registrado o escribe uno nuevo' : 'Ej: Sentadilla'}
+        placeholder={hasList ? 'Toca para elegir de la lista o escribe uno nuevo' : 'Ej: Sentadilla'}
         value={value}
         onFocus={() => setOpen(true)}
         onClick={() => setOpen(true)}
@@ -101,32 +105,43 @@ const ExercisePicker = ({ control, value, onChange, options, onPick }: ExerciseP
       )}
       {expanded && (
         <ul ref={listRef} id={listId} role="listbox" aria-label="Ejercicios ya registrados" className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
-          <li role="presentation" className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Ya registrados ({options.length})</li>
           {shown.map((o, i) => (
-            <li
-              key={o.key}
-              id={`${listId}-${i}`}
-              role="option"
-              aria-selected={i === active}
-              // mouseDown (no click) para elegir antes de que el campo pierda el foco
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(o);
-              }}
-              onMouseEnter={() => setActive(i)}
-              className={cn('flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-sm px-2 py-2', i === active && 'bg-accent text-accent-foreground')}
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold">{o.name}</span>
-                <span className="block text-xs text-muted-foreground">{CATEGORY_LABEL[o.category] ?? 'Otro'} · Último: {lastRecordText(o)}</span>
-              </span>
-              <span className="shrink-0 text-xs text-muted-foreground">{o.count} {o.count === 1 ? 'registro' : 'registros'}</span>
-            </li>
+            <Fragment key={o.key}>
+              {i === 0 && own.length > 0 && <li role="presentation" className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Ya registrados ({options.length})</li>}
+              {i === own.length && shared.length > 0 && <li role="presentation" className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Biblioteca de PRIME F&amp;H</li>}
+              <li
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === active}
+                // mouseDown (no click) para elegir antes de que el campo pierda el foco
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(o);
+                }}
+                onMouseEnter={() => setActive(i)}
+                className={cn('flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-sm px-2 py-2', i === active && 'bg-accent text-accent-foreground')}
+              >
+                {'last' in o ? (
+                  <>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold">{o.name}</span>
+                      <span className="block text-xs text-muted-foreground">{CATEGORY_LABEL[o.category] ?? 'Otro'} · Último: {lastRecordText(o)}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{o.count} {o.count === 1 ? 'registro' : 'registros'}</span>
+                  </>
+                ) : (
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{o.name}</span>
+                    <span className="block text-xs text-muted-foreground">{CATEGORY_LABEL[o.category] ?? 'Otro'}</span>
+                  </span>
+                )}
+              </li>
+            </Fragment>
           ))}
         </ul>
       )}
       {!expanded && hasList && value.trim() !== '' && shown.length === 0 && (
-        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Check className="h-3 w-3" aria-hidden="true" />Ejercicio nuevo: no está entre los ya registrados.</p>
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Check className="h-3 w-3" aria-hidden="true" />Ejercicio nuevo: no está en la lista.</p>
       )}
     </div>
   );

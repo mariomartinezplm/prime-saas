@@ -6,7 +6,7 @@ import { canAccessPatient } from '../middleware/auth.js';
 import { evolutionDateError } from '../utils/evolutionDate.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { notify } from '../services/notificationService.js';
-import { canonicalSpelling, exerciseSummary } from '../services/exerciseNames.js';
+import { canonicalSpelling, exerciseSummary, exerciseLibrary } from '../services/exerciseNames.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
@@ -463,6 +463,18 @@ export const getExerciseSummary = async (req, res) => {
     res.status(200).json({ success: true, count: exercises.length, data: { exercises } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Error al obtener los ejercicios registrados' });
+  }
+};
+
+// @desc    Biblioteca de ejercicios compartida (nombre y categoría de los que usan varias personas)
+// @route   GET /api/exercises/library
+// @access  Private (cualquier usuario con sesión; no lleva datos de ninguna persona)
+export const getExerciseLibrary = async (req, res) => {
+  try {
+    const exercises = await exerciseLibrary();
+    res.status(200).json({ success: true, count: exercises.length, data: { exercises } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Error al obtener la biblioteca de ejercicios' });
   }
 };
 

@@ -9,6 +9,7 @@ import {
   getPersonalRecord,
   getExerciseList,
   getExerciseSummary,
+  getExerciseLibrary,
   getExerciseStats
 } from '../controllers/exerciseController.js';
 import { protect, authorize, authorizePatientAccess } from '../middleware/auth.js';
@@ -27,6 +28,8 @@ router.get('/patient/:patientId', authorizePatientAccess('patientId'), getPatien
 router.get('/progress/:patientId/:exerciseName', authorizePatientAccess('patientId'), getExerciseProgressChart);
 router.get('/pr/:patientId/:exerciseName', authorizePatientAccess('patientId'), getPersonalRecord);
 router.get('/list/:patientId', authorizePatientAccess('patientId'), getExerciseList);
+// La biblioteca no depende de ninguna persona: va antes de las rutas con :id
+router.get('/library', getExerciseLibrary);
 router.get('/summary/:patientId', authorizePatientAccess('patientId'), getExerciseSummary);
 router.get('/stats/:patientId', authorizePatientAccess('patientId'), getExerciseStats);
 

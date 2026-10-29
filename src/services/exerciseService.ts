@@ -11,7 +11,20 @@ export interface ExerciseSummary {
   last: { sets: number | null; reps: number | null; weight: number | null; weightUnit: 'kg' | 'lbs'; rpe: number | null };
 }
 
+// Un ejercicio de la biblioteca compartida (lo usan varias personas): solo nombre y categoría
+export interface LibraryExercise {
+  key: string;
+  name: string;
+  category: ExerciseProgress['category'];
+}
+
 export const exerciseService = {
+  // Biblioteca de ejercicios que usan varias personas (para elegir sin escribir)
+  getLibrary: async (): Promise<LibraryExercise[]> => {
+    const response = await api.get<APIResponse<{ exercises: LibraryExercise[] }>>('/exercises/library');
+    return response.data.data.exercises;
+  },
+
   // Ejercicios ya registrados de una persona, del más reciente al más antiguo
   getSummary: async (patientId: string): Promise<ExerciseSummary[]> => {
     const response = await api.get<APIResponse<{ exercises: ExerciseSummary[] }>>(`/exercises/summary/${patientId}`);

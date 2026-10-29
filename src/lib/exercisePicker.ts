@@ -1,5 +1,5 @@
 import { exerciseKeyOf } from './exerciseKey';
-import type { ExerciseSummary } from '@/services/exerciseService';
+import type { ExerciseSummary, LibraryExercise } from '@/services/exerciseService';
 
 // Ejercicios de la lista que coinciden con lo escrito: todas las palabras escritas deben aparecer en el nombre (sin tildes ni
 // mayúsculas). Sin texto, se ofrecen todos (del más reciente al más antiguo). El que empieza igual que lo escrito va primero.
@@ -9,6 +9,17 @@ export function filterExercises(options: ExerciseSummary[], typed: string, max =
   const tokens = text.split(' ');
   return options
     .filter((o) => tokens.every((t) => o.key.includes(t)))
+    .sort((a, b) => Number(b.key.startsWith(text)) - Number(a.key.startsWith(text)))
+    .slice(0, max);
+}
+
+// Ejercicios de la biblioteca compartida que la persona todavía NO tiene (los suyos ya salen arriba), filtrados igual que los suyos
+export function filterLibrary(library: LibraryExercise[], own: ExerciseSummary[], typed: string, max = 30): LibraryExercise[] {
+  const ownKeys = new Set(own.map((o) => o.key));
+  const text = exerciseKeyOf(typed);
+  const tokens = text ? text.split(' ') : [];
+  return library
+    .filter((l) => !ownKeys.has(l.key) && tokens.every((t) => l.key.includes(t)))
     .sort((a, b) => Number(b.key.startsWith(text)) - Number(a.key.startsWith(text)))
     .slice(0, max);
 }

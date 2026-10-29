@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-const { filterExercises, exactExercise, lastRecordText } = await import('../../src/lib/exercisePicker.ts');
+const { filterExercises, filterLibrary, exactExercise, lastRecordText } = await import('../../src/lib/exercisePicker.ts');
 
 const ex = (name, over = {}) => ({ key: name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(), name, category: 'fuerza', count: 3, lastDate: '2026-10-12T12:00:00.000Z', last: { sets: 3, reps: 8, weight: 60, weightUnit: 'kg', rpe: 7 }, ...over });
 const options = [ex('Sentadilla búlgara'), ex('Press banca'), ex('Sentadilla trasera'), ex('Peso muerto')];
@@ -52,5 +52,23 @@ describe('«lo último que se anotó»', () => {
     expect(lastRecordText(ex('x', { last: { sets: null, reps: 20, weight: null, weightUnit: 'kg', rpe: null } }))).toBe('20 repeticiones · 12 oct');
     expect(lastRecordText(ex('x', { last: { sets: null, reps: null, weight: null, weightUnit: 'kg', rpe: null } }))).toBe('12 oct');
     expect(lastRecordText(ex('x', { last: { sets: 3, reps: 10, weight: 100, weightUnit: 'lbs', rpe: null } }))).toBe('100 lbs · 3 series × 10 repeticiones · 12 oct');
+  });
+});
+
+describe('biblioteca compartida en la lista', () => {
+  const lib = [
+    { key: 'sentadilla bulgara', name: 'Sentadilla búlgara', category: 'fuerza' },
+    { key: 'remo con barra', name: 'Remo con barra', category: 'fuerza' },
+    { key: 'sentadilla', name: 'Sentadilla', category: 'fuerza' },
+  ];
+  const own = [{ key: 'sentadilla', name: 'Sentadilla', category: 'fuerza', count: 2, lastDate: '2026-10-01T12:00:00Z', last: { sets: 3, reps: 8, weight: 60, weightUnit: 'kg', rpe: null } }];
+
+  it('no repite los ejercicios que la persona ya tiene', () => {
+    expect(filterLibrary(lib, own, '').map((l) => l.key)).toEqual(['sentadilla bulgara', 'remo con barra']);
+  });
+
+  it('filtra al escribir, sin tildes ni mayúsculas', () => {
+    expect(filterLibrary(lib, own, 'BÚLGARA').map((l) => l.key)).toEqual(['sentadilla bulgara']);
+    expect(filterLibrary(lib, own, 'xyz')).toEqual([]);
   });
 });
