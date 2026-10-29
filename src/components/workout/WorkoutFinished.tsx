@@ -4,6 +4,7 @@ import { ArrowRight, Check, Dumbbell, Flame, Info, Layers, Repeat, Target, Timer
 import { Button } from '@/components/ui/button';
 import { BTN_FILL } from '@/components/dashboard/brand';
 import { formatClock, spokenDuration } from '@/lib/workoutClock';
+import { improvementText, monthCongrats, setLine } from '@/lib/sessionCongrats';
 import type { WorkoutSummary } from '@/services/workoutService';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,8 @@ const WorkoutFinished = ({ summary, firstName, onHome }: WorkoutFinishedProps) =
   const rise = (delay: number) => ({ initial: reduce ? false : { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: reduce ? { duration: 0 } : { duration: 0.45, delay, ease: 'easeOut' as const } });
   const circumference = 2 * Math.PI * 52;
   const name = firstName ? `, ${firstName}` : '';
+  const congrats = eng ? monthCongrats(eng.monthCount, eng.monthlyTarget, eng.monthMet, new Date(), eng.remainingMonth) : null;
+  const improved = exercises.filter((e) => e.improvement).length;
 
   return (
     <div className="mx-auto w-full max-w-md pb-6">
@@ -59,6 +62,14 @@ const WorkoutFinished = ({ summary, firstName, onHome }: WorkoutFinishedProps) =
           <p className="mt-1.5 text-[3.9rem] font-extrabold leading-none tracking-[-0.05em] tabular-nums text-[#fff8e4]" aria-label={spokenDuration(summary.durationSec)}>{formatClock(summary.durationSec, { alwaysHours: true })}</p>
         </motion.div>
       </div>
+
+      {congrats && (
+        <motion.section aria-label="Felicitación del mes" className="mt-3 rounded-[22px] border border-[#62b8cf]/40 bg-[linear-gradient(160deg,rgba(57,140,162,0.28),#1f1c21_72%)] p-4 text-center" {...rise(0.46)}>
+          <p className="flex items-center justify-center gap-2 font-serif text-[1.35rem] font-medium leading-tight text-[#fff8e4]"><Flame className="h-5 w-5 text-[#8fd0e0]" aria-hidden="true" />{congrats.title}</p>
+          <p className="mt-1 text-[14px] leading-snug text-[#cdc6b6]">{congrats.body}</p>
+          {improved > 0 && <p className="mt-2 text-[13.5px] font-semibold text-[#8fd0e0]">Mejoraste en {improved} {improved === 1 ? 'ejercicio' : 'ejercicios'} frente a tu última vez.</p>}
+        </motion.section>
+      )}
 
       {records.length > 0 && (
         <motion.section aria-labelledby="marcas" className="mt-3 space-y-2" {...rise(0.5)}>
@@ -127,6 +138,12 @@ const WorkoutFinished = ({ summary, firstName, onHome }: WorkoutFinishedProps) =
                       {e.bestWeight ? ` · hasta ${String(e.bestWeight).replace('.', ',')} ${e.unit}` : e.timeSec ? ` · ${e.timeSec} s` : ''}
                     </p>
                   </div>
+                  {e.setList.length > 0 && (
+                    <p className="mt-1.5 text-[12.5px] leading-snug tabular-nums text-[#a8a295]">
+                      {e.setList.map((x, i) => `${i + 1}ª: ${setLine(x)}`).filter((t) => !t.endsWith(': ')).join('  ·  ')}
+                    </p>
+                  )}
+                  {e.improvement && <p className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-[#8fd0e0]/45 bg-[#398ca2]/25 px-2.5 py-0.5 text-[12.5px] font-bold text-[#fff8e4]"><Trophy className="h-3 w-3 text-[#8fd0e0]" aria-hidden="true" />{improvementText(e.improvement)} vs tu última vez</p>}
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#fff8e4]/10" aria-hidden="true">
                     <motion.div className="h-full rounded-full bg-[#62b8cf]" initial={reduce ? false : { width: 0 }} animate={{ width: `${(e.sets / maxSets) * 100}%` }} transition={reduce ? { duration: 0 } : { duration: 0.7, delay: 0.75, ease: 'easeOut' }} />
                   </div>

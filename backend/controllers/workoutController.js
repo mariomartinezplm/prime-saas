@@ -5,9 +5,10 @@ import ExerciseProgress from '../models/Exercise.js';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
+import { exerciseKey } from '../utils/exerciseKey.js';
 import { exerciseHistory, resolveCanonicalName, searchExercises as searchHistory } from '../services/exerciseNames.js';
 import ClientPlan from '../models/ClientPlan.js';
-import { validateBlockInput, validateSetInput, buildSummary, sessionRecords, engagementOf, targetsOf, nextLabel, slotId, MAX_SETS_PER_BATCH } from '../services/workoutSets.js';
+import { validateBlockInput, validateSetInput, buildSummary, sessionRecords, sessionImprovements, engagementOf, targetsOf, nextLabel, slotId, MAX_SETS_PER_BATCH } from '../services/workoutSets.js';
 import { dayOf } from '../services/achievements/dates.js';
 import { santiagoParts, santiagoToUtc } from '../utils/timezone.js';
 import { applyRestAction, settle, remainingSec, pickStartable, isStale, REST_ACTIONS } from '../services/workoutService.js';
@@ -82,6 +83,14 @@ async function summaryFor(session, sets, user) {
   const plan = await ClientPlan.findOne({ patient: session.patient, serviceType: 'entrenamiento', status: 'active', endDate: { $gte: new Date() } }).select('sessionsTotal unlimited').lean();
   const targets = targetsOf({ weeklyOverride: user?.preferences?.weeklyGoal?.sessions, plan });
   const engagement = engagementOf({ finishedAt: (finished ?? []).map((f) => f.endedAt), ...targets });
+  // Mejora frente a la última vez de cada ejercicio (todas las medidas, no solo el peso)
+  if (sets.length > 0) {
+    const names = [...new Set(sets.map((x) => x.exerciseName))];
+    const before = await ExerciseProgress.find({ patient: session.patient, workoutSession: { $ne: session._id }, exerciseName: { $in: names } })
+      .sort({ date: -1 }).limit(3000).select('exerciseName weight weightUnit reps durationSec date').lean();
+    const better = sessionImprovements(sets, before ?? [], dayOf(session.startedAt), dayOf);
+    for (const e of summary.exercises) e.improvement = better.get(exerciseKey(e.name)) ?? null;
+  }
   return { ...summary, records: sessionRecords(sets, previous ?? [], dayOf(session.startedAt), dayOf), engagement };
 }
 

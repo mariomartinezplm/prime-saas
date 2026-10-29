@@ -72,9 +72,10 @@ export function buildSummary(session, sets) {
   const byKey = new Map();
   for (const s of sets) {
     const key = exerciseKey(s.exerciseName);
-    if (!byKey.has(key)) byKey.set(key, { name: s.exerciseName, slots: new Set(), sets: 0, reps: 0, bestWeight: null, unit: null, timeSec: 0, modality: s.modality ?? null });
+    if (!byKey.has(key)) byKey.set(key, { name: s.exerciseName, slots: new Set(), sets: 0, reps: 0, bestWeight: null, unit: null, timeSec: 0, modality: s.modality ?? null, setList: [] });
     const e = byKey.get(key);
     e.sets += 1;
+    e.setList.push({ reps: s.reps ?? null, weight: s.weight > 0 ? s.weight : null, unit: s.weight > 0 ? (s.weightUnit || 'kg') : null, durationSec: s.durationSec ?? null });
     if (s.slot) e.slots.add(s.slot);
     if (s.reps) e.reps += s.reps;
     if (s.durationSec) e.timeSec += s.durationSec;
@@ -83,7 +84,7 @@ export function buildSummary(session, sets) {
       e.unit = s.weightUnit || 'kg';
     }
   }
-  const exercises = [...byKey.values()].map((e) => ({ name: e.name, slots: [...e.slots], sets: e.sets, reps: e.reps, bestWeight: e.bestWeight, unit: e.unit, timeSec: e.timeSec, modality: e.modality }));
+  const exercises = [...byKey.values()].map((e) => ({ name: e.name, slots: [...e.slots], sets: e.sets, reps: e.reps, bestWeight: e.bestWeight, unit: e.unit, timeSec: e.timeSec, modality: e.modality, setList: e.setList, improvement: null }));
 
   return {
     durationSec: Math.max(0, Math.round((end - startedAt) / 1000)),
@@ -121,6 +122,58 @@ export function sessionRecords(sets, previousRows, sessionDay, dayOf) {
     }
   }
   return records.sort((a, b) => b.improvement - a.improvement);
+}
+
+// Cuánto mejoró cada ejercicio frente a la ÚLTIMA vez que se hizo (el día anterior más reciente con ese ejercicio). Una sola medida por
+// ejercicio, la más clara disponible: la mejor carga (si las dos veces tuvo peso y en la misma unidad); si no, la mejor serie en
+// repeticiones (así se compara igual una serie suelta que un registro clásico de «3 × 10»); si no, la mejor serie en tiempo. Solo se informa una mejora real (> 0 %): nunca se inventa ni se muestra una baja.
+// Devuelve un Map clave-del-ejercicio → { kind, previous, current, pct, unit }.
+export function sessionImprovements(sets, previousRows, sessionDay, dayOf) {
+  const today = new Map();
+  for (const s of sets) {
+    const key = exerciseKey(s.exerciseName);
+    if (!key) continue;
+    const t = today.get(key) ?? { weight: 0, unit: null, reps: 0, time: 0 };
+    if (s.weight > 0 && s.weight > t.weight) { t.weight = s.weight; t.unit = s.weightUnit || 'kg'; }
+    t.reps = Math.max(t.reps, s.reps || 0);
+    t.time = Math.max(t.time, s.durationSec || 0);
+    today.set(key, t);
+  }
+
+  // Última vez anterior de cada ejercicio: el día más reciente anterior a hoy
+  const lastDay = new Map();
+  for (const r of previousRows) {
+    const key = exerciseKey(r.exerciseName);
+    if (!today.has(key) || !r.date) continue;
+    const day = dayOf(r.date);
+    if (day >= sessionDay) continue;
+    if (!lastDay.has(key) || day > lastDay.get(key)) lastDay.set(key, day);
+  }
+  const before = new Map();
+  for (const r of previousRows) {
+    const key = exerciseKey(r.exerciseName);
+    if (!r.date || lastDay.get(key) !== dayOf(r.date)) continue;
+    const t = before.get(key) ?? { weight: 0, unit: null, reps: 0, time: 0 };
+    if (r.weight > 0 && r.weight > t.weight) { t.weight = r.weight; t.unit = r.weightUnit || 'kg'; }
+    t.reps = Math.max(t.reps, r.reps || 0);
+    t.time = Math.max(t.time, r.durationSec || 0);
+    before.set(key, t);
+  }
+
+  const pctOf = (cur, prev) => Math.round(((cur - prev) / prev) * 100);
+  const out = new Map();
+  for (const [key, cur] of today) {
+    const prev = before.get(key);
+    if (!prev) continue;
+    let found = null;
+    if (cur.weight > 0 && prev.weight > 0 && cur.unit === prev.unit) found = { kind: 'weight', previous: prev.weight, current: cur.weight, unit: cur.unit };
+    else if (!(cur.weight > 0) && !(prev.weight > 0) && cur.reps > 0 && prev.reps > 0) found = { kind: 'reps', previous: prev.reps, current: cur.reps, unit: null };
+    else if (!(cur.weight > 0) && !(prev.weight > 0) && cur.reps === 0 && prev.reps === 0 && cur.time > 0 && prev.time > 0) found = { kind: 'time', previous: prev.time, current: cur.time, unit: null };
+    if (!found) continue;
+    const pct = pctOf(found.current, found.previous);
+    if (pct > 0) out.set(key, { ...found, pct });
+  }
+  return out;
 }
 
 // Constancia a partir de los entrenamientos que la propia persona REGISTRÓ y finalizó (no es asistencia validada por el centro).

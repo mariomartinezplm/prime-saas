@@ -65,7 +65,7 @@ export interface ExerciseSearch {
 
 export interface WorkoutSummary {
   durationSec: number;
-  exercises: { name: string; slots: string[]; sets: number; reps: number; bestWeight: number | null; unit: 'kg' | 'lbs' | null; timeSec: number; modality: Modality | null }[];
+  exercises: { name: string; slots: string[]; sets: number; reps: number; bestWeight: number | null; unit: 'kg' | 'lbs' | null; timeSec: number; modality: Modality | null; setList: { reps: number | null; weight: number | null; unit: string | null; durationSec: number | null }[]; improvement: { kind: 'weight' | 'reps' | 'time'; previous: number; current: number; pct: number; unit: string | null } | null }[];
   totals: { exercises: number; sets: number; reps: number; timeSec: number };
   // Marcas personales logradas en esta sesión (carga en kg que supera la mejor de días anteriores)
   // Constancia con los entrenamientos que la persona registró y finalizó (no es asistencia validada por el centro)
