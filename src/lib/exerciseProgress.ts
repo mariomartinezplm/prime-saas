@@ -11,7 +11,7 @@ export interface ProgressRecord {
   weightUnit?: string;
   durationSec?: number;
   duration?: number; // minutos (registros antiguos)
-  modality?: 'weight' | 'bodyweight' | 'time';
+  modality?: 'weight' | 'bodyweight' | 'time' | 'weight_time';
   category?: string;
 }
 
@@ -42,6 +42,8 @@ export function groupExercises(records: ProgressRecord[]): ExerciseGroup[] {
 
 // Cómo se mide un registro (sin inventar nada): lo guardado manda; en registros antiguos se deduce de los datos
 export function modalityOf(r: ProgressRecord): 'weight' | 'bodyweight' | 'time' | null {
+  // Peso y tiempo a la vez (isométrico con carga): el progreso se sigue por el tiempo que se sostiene
+  if (r.modality === 'weight_time') return 'time';
   if (r.modality) return r.modality;
   if (r.durationSec || (r.duration && !r.weight && !r.reps)) return 'time';
   if (r.weight && r.weight > 0) return 'weight';

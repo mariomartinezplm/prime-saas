@@ -6,7 +6,8 @@ import type { RestState } from '@/lib/workoutClock';
 const REQUEST = { timeout: 15000 };
 
 export type BlockKind = 'single' | 'super' | 'tri';
-export type Modality = 'weight' | 'bodyweight' | 'time';
+// Con peso, peso corporal, por tiempo, o peso y tiempo a la vez (isométrico con carga)
+export type Modality = 'weight' | 'bodyweight' | 'time' | 'weight_time';
 
 export interface BlockSlot {
   slot: string; // A1, A2, B3…
@@ -40,6 +41,17 @@ export interface SavedSet {
 export interface SetInput {
   clientId: string;
   slot: string;
+  reps?: number;
+  weight?: number;
+  weightUnit?: 'kg' | 'lbs';
+  durationSec?: number;
+}
+
+// Una serie de un bloque completo; el ejercicio se indica por su posición en el bloque (0, 1, 2)
+export interface BlockSetInput {
+  clientId: string;
+  slotIndex: number;
+  setNumber: number;
   reps?: number;
   weight?: number;
   weightUnit?: 'kg' | 'lbs';
@@ -140,6 +152,18 @@ export const workoutService = {
   // Por lote e idempotente: cada serie lleva su `clientId`; reintentar nunca duplica
   saveSets: async (id: string, blockId: string, sets: SetInput[]): Promise<WorkoutMutation> => {
     const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/sets`, { blockId, sets }, REQUEST);
+    return response.data.data;
+  },
+
+  // Guarda un bloque COMPLETO (todas las series de todos sus ejercicios) y reemplaza lo que tenía; reintentar nunca duplica
+  replaceBlockSets: async (id: string, blockId: string, sets: BlockSetInput[]): Promise<WorkoutMutation> => {
+    const response = await api.put<APIResponse<WorkoutMutation>>(`/workouts/${id}/blocks/${blockId}/sets`, { sets }, REQUEST);
+    return response.data.data;
+  },
+
+  // Quita un bloque de la sesión junto con sus series
+  removeBlock: async (id: string, blockId: string): Promise<WorkoutMutation> => {
+    const response = await api.delete<APIResponse<WorkoutMutation>>(`/workouts/${id}/blocks/${blockId}`, REQUEST);
     return response.data.data;
   },
 

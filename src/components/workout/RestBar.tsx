@@ -8,7 +8,9 @@ import { formatClock, restDisplayState, restFraction, restRemainingSec, type Res
 import type { RestAction } from '@/services/workoutService';
 import { cn } from '@/lib/utils';
 
-const PRESETS = [30, 60, 90, 120];
+const PRESETS = [30, 60, 90, 120, 150, 180];
+// 30 → «30 s», 90 → «1:30», 150 → «2:30»
+const presetLabel = (s: number) => (s < 60 ? `${s} s` : formatClock(s));
 
 interface RestBarProps {
   rest: RestState;
@@ -94,15 +96,15 @@ const RestBar = ({ rest, now, offsetMs, busy, onAction, onCustom }: RestBarProps
               Iniciar descanso de {formatClock(rest.nextDurationSec)}
             </Button>
           )}
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#fff8e4]/10 bg-[#181619]/60 p-3">
-            <div>
+          <div className="rounded-2xl border border-[#fff8e4]/10 bg-[#181619]/60 p-3">
+            <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-bold text-[#fff8e4]">Próximo descanso</p>
               <button type="button" onClick={() => { setOpen(false); onCustom(); }} className="min-h-[44px] text-xs text-[#8fd0e0] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">Otro tiempo</button>
             </div>
-            <div role="group" aria-label="Duración del próximo descanso" className="flex overflow-hidden rounded-[14px] border border-[#fff8e4]/20 bg-[#1f1c21]">
+            <div role="group" aria-label="Duración del próximo descanso" className="mt-1 grid grid-cols-3 overflow-hidden rounded-[14px] border border-[#fff8e4]/20 bg-[#1f1c21] min-[400px]:grid-cols-6">
               {PRESETS.map((s) => (
-                <button key={s} type="button" disabled={busy} aria-pressed={rest.nextDurationSec === s} onClick={() => onAction('set_next', s)} className={cn('min-h-[44px] min-w-[46px] px-3 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]', rest.nextDurationSec === s ? 'bg-[#398ca2] font-extrabold text-[#181619]' : 'text-[#cdc6b6]')}>
-                  {s}
+                <button key={s} type="button" disabled={busy} aria-pressed={rest.nextDurationSec === s} onClick={() => onAction('set_next', s)} className={cn('min-h-[44px] px-2 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#fff8e4]', rest.nextDurationSec === s ? 'bg-[#398ca2] font-extrabold text-[#181619]' : 'text-[#cdc6b6]')}>
+                  {presetLabel(s)}
                 </button>
               ))}
             </div>

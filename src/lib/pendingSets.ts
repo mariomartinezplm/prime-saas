@@ -1,4 +1,4 @@
-import type { SetInput } from '@/services/workoutService';
+import type { BlockKind, BlockSetInput, Modality, SetInput } from '@/services/workoutService';
 
 // Cola MÍNIMA de series que todavía no llegaron al servidor (sin conexión o con error). Es la única copia local de datos de
 // entrenamiento y se borra apenas el servidor confirma, al finalizar la sesión y al cerrar sesión. Las series YA confirmadas
@@ -10,6 +10,11 @@ export interface PendingBatch {
   sessionId: string;
   blockId: string;
   sets: SetInput[];
+  // Guardado de un bloque COMPLETO (vista única): reemplaza las series del bloque. Lleva su definición por si el bloque todavía no
+  // llegó al servidor (se crea primero). Hay a lo más UN lote por bloque: guardar otra vez lo reemplaza.
+  replace?: boolean;
+  blockSets?: BlockSetInput[];
+  blockDef?: { kind: BlockKind; slots: { exerciseName: string; modality: Modality }[] };
   // Datos de pantalla para mostrar «pendiente» (no se envían al servidor)
   display: { slot: string; exerciseName: string; reps?: number; weight?: number; durationSec?: number }[];
   savedAt: number;
@@ -72,9 +77,12 @@ export async function listPending(sessionId?: string, userId?: string, now: numb
   return fresh.filter((b) => (!sessionId || b.sessionId === sessionId) && (!userId || b.userId === userId)).sort((a, b) => a.savedAt - b.savedAt);
 }
 
+// Cuántas series trae un lote (de una serie suelta o de un bloque completo)
+export const batchSize = (b: PendingBatch): number => b.blockSets?.length ?? b.sets.length;
+
 // Cuántas series de ESTA cuenta siguen sin sincronizar
 export async function countPendingSets(userId: string): Promise<number> {
-  return (await listPending(undefined, userId)).reduce((n, b) => n + b.sets.length, 0);
+  return (await listPending(undefined, userId)).reduce((n, b) => n + batchSize(b), 0);
 }
 
 // Borra lo pendiente de UNA cuenta (nunca el de otra)

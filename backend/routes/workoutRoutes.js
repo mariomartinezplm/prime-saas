@@ -1,6 +1,6 @@
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
-import { getActive, startWorkout, restAction, finishWorkout, getSummary, searchExercises, addBlock, saveSets, updateSet, deleteSet } from '../controllers/workoutController.js';
+import { getActive, startWorkout, restAction, finishWorkout, getSummary, searchExercises, addBlock, saveSets, replaceBlockSets, removeBlock, updateSet, deleteSet } from '../controllers/workoutController.js';
 
 const router = express.Router();
 
@@ -16,6 +16,8 @@ router.post('/start', startWorkout);
 router.post('/:id/rest', restAction);
 router.post('/:id/blocks', addBlock);
 router.post('/:id/sets', saveSets);
+router.put('/:id/blocks/:blockId/sets', replaceBlockSets);
+router.delete('/:id/blocks/:blockId', removeBlock);
 router.post('/:id/finish', finishWorkout);
 router.get('/:id/summary', getSummary);
 

@@ -100,8 +100,8 @@ const exerciseProgressSchema = new mongoose.Schema({
   // Posición dentro del bloque (A1, A2, B3…): conserva la identidad individual del ejercicio dentro de una superserie
   slot: { type: String, trim: true, maxlength: 10 },
   setNumber: { type: Number, min: 1, max: 99 },
-  // Con peso externo, peso corporal o por tiempo. No se convierten entre sí.
-  modality: { type: String, enum: ['weight', 'bodyweight', 'time'] },
+  // Con peso externo, peso corporal, por tiempo, o con peso y tiempo a la vez (isométrico con carga). No se convierten entre sí.
+  modality: { type: String, enum: ['weight', 'bodyweight', 'time', 'weight_time'] },
   // Segundos de un ejercicio por tiempo (`duration` sigue siendo minutos, como siempre)
   durationSec: { type: Number, min: 1, max: 7200 },
   // Clave de idempotencia de esta serie: reintentar el mismo envío nunca la duplica

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { clearPending, countPendingSets } from '@/lib/pendingSets';
+import { clearPlans } from '@/lib/workoutPlan';
 import { authService } from '../services/authService';
 import { getAccessToken, refreshAccessToken, setAccessToken } from '../lib/api';
 import { releasePushOnLogout } from '../lib/push';
@@ -69,7 +70,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
     resetWelcome();
     // Las series de entrenamiento pendientes de envío no deben quedar en el dispositivo cuando alguien cierra sesión
-    if (!options.preservePending && user) clearPending(user.id).catch(() => {});
+    if (!options.preservePending && user) {
+      clearPending(user.id).catch(() => {});
+      clearPlans(user.id);
+    }
     try {
       await authService.logout();
     } catch {

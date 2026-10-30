@@ -8,7 +8,7 @@ import { triggerAchievementEvaluation } from '../services/achievements/index.js'
 import { exerciseKey } from '../utils/exerciseKey.js';
 import { exerciseHistory, resolveCanonicalName, searchExercises as searchHistory } from '../services/exerciseNames.js';
 import ClientPlan from '../models/ClientPlan.js';
-import { validateBlockInput, validateSetInput, buildSummary, sessionRecords, sessionImprovements, engagementOf, targetsOf, nextLabel, slotId, MAX_SETS_PER_BATCH } from '../services/workoutSets.js';
+import { validateBlockInput, validateSetInput, buildSummary, sessionRecords, sessionImprovements, engagementOf, targetsOf, nextLabel, slotId, MAX_SETS_PER_BATCH, MAX_SETS_PER_BLOCK } from '../services/workoutSets.js';
 import { dayOf } from '../services/achievements/dates.js';
 import { santiagoParts, santiagoToUtc } from '../utils/timezone.js';
 import { applyRestAction, settle, remainingSec, pickStartable, isStale, REST_ACTIONS } from '../services/workoutService.js';
@@ -437,6 +437,103 @@ export const saveSets = async (req, res) => {
     res.status(200).json({ success: true, data: { serverNow: now, saved, session: await viewOf(fresh, now) } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'No se pudieron guardar las series' });
+  }
+};
+
+// @desc    Guardar un bloque COMPLETO de una vez: todas las series de todos sus ejercicios (reemplaza lo que el bloque ya tenía).
+//          Es lo que usa la vista única: la persona llena el bloque y lo guarda una sola vez; volver a guardarlo lo corrige.
+// @route   PUT /api/workouts/:id/blocks/:blockId/sets   { sets:[{ clientId, slotIndex|slot, setNumber, reps?, weight?, weightUnit?, durationSec? }] }
+// @access  Private/Patient
+export const replaceBlockSets = async (req, res) => {
+  try {
+    const session = await ownSession(req, res);
+    if (!session) return;
+    const now = new Date();
+    if (session.status !== 'active') return res.status(409).json({ success: false, message: 'Este entrenamiento ya terminó', code: 'NOT_ACTIVE' });
+
+    const block = (session.blocks ?? []).find((b) => b.blockId === req.params.blockId);
+    if (!block) return res.status(404).json({ success: false, message: 'Bloque no encontrado' });
+    const sets = req.body?.sets;
+    if (!Array.isArray(sets) || sets.length < 1 || sets.length > MAX_SETS_PER_BLOCK) {
+      return res.status(400).json({ success: false, message: `Envía entre 1 y ${MAX_SETS_PER_BLOCK} series` });
+    }
+
+    // Se valida TODO antes de tocar nada: si algo es inválido, el bloque queda como estaba
+    const clean = [];
+    const seenIds = new Set();
+    const seenSlotSet = new Set();
+    for (const input of sets) {
+      // El ejercicio se puede indicar por su posición en el bloque (0, 1, 2): sirve aunque el bloque se haya creado hace un instante
+      const slotDef = Number.isInteger(input?.slotIndex) ? block.slots[input.slotIndex] : block.slots.find((x) => x.slot === input?.slot);
+      if (!slotDef) return res.status(400).json({ success: false, message: 'Ejercicio del bloque no válido' });
+      if (!Number.isInteger(input.setNumber) || input.setNumber < 1 || input.setNumber > 99) return res.status(400).json({ success: false, message: 'Número de serie no válido' });
+      const id = String(input.clientId);
+      const pair = `${slotDef.slot}:${input.setNumber}`;
+      if (seenIds.has(id) || seenSlotSet.has(pair)) return res.status(400).json({ success: false, message: 'Hay series repetidas en el envío' });
+      seenIds.add(id);
+      seenSlotSet.add(pair);
+      const parsed = validateSetInput(input, slotDef);
+      if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+      clean.push({ input, slotDef, value: parsed.value });
+    }
+
+    if (!(await hasActivePlan(req.user._id))) {
+      return res.status(403).json({ success: false, message: PLAN_MESSAGE.replace('iniciar un entrenamiento', 'registrar ejercicios'), code: 'NO_ACTIVE_PLAN_SESSIONS' });
+    }
+
+    await ExerciseProgress.deleteMany({ patient: req.user._id, workoutSession: session._id, blockId: block.blockId, source: 'workout' });
+    await ExerciseProgress.insertMany(clean.map(({ input, slotDef, value }) => ({
+      patient: req.user._id,
+      recordedBy: req.user._id,
+      exerciseName: slotDef.exerciseName,
+      category: 'fuerza',
+      date: dayAtNoon(now),
+      sets: 1,
+      reps: value.reps,
+      weight: value.weight,
+      weightUnit: value.unit,
+      duration: value.durationSec ? Math.round((value.durationSec / 60) * 100) / 100 : undefined,
+      durationSec: value.durationSec,
+      modality: slotDef.modality,
+      source: 'workout',
+      workoutSession: session._id,
+      blockId: block.blockId,
+      blockKind: block.kind,
+      slot: slotDef.slot,
+      setNumber: input.setNumber,
+      clientId: input.clientId
+    })), { ordered: true });
+
+    await WorkoutSession.updateOne({ _id: session._id, status: 'active' }, { $set: { lastActivityAt: now } });
+    triggerAchievementEvaluation(req.user._id).catch(() => {});
+    const fresh = await WorkoutSession.findById(session._id);
+    res.status(200).json({ success: true, data: { serverNow: now, saved: clean.length, session: await viewOf(fresh, now) } });
+  } catch (error) {
+    if (error?.code === 11000) return res.status(409).json({ success: false, message: 'Esas series ya se guardaron en otro bloque', code: 'DUPLICATE_SET' });
+    res.status(500).json({ success: false, message: 'No se pudo guardar el bloque' });
+  }
+};
+
+// @desc    Quitar un bloque de la sesión activa junto con todas sus series (por ejemplo, se eligió mal el ejercicio)
+// @route   DELETE /api/workouts/:id/blocks/:blockId
+// @access  Private/Patient
+export const removeBlock = async (req, res) => {
+  try {
+    const session = await ownSession(req, res);
+    if (!session) return;
+    const now = new Date();
+    if (session.status !== 'active') return res.status(409).json({ success: false, message: 'Este entrenamiento ya terminó', code: 'NOT_ACTIVE' });
+
+    const blockId = req.params.blockId;
+    // Quitar un bloque que ya no está es lo mismo que haberlo quitado: no es un error (reintentos)
+    if ((session.blocks ?? []).some((b) => b.blockId === blockId)) {
+      await ExerciseProgress.deleteMany({ patient: req.user._id, workoutSession: session._id, blockId, source: 'workout' });
+      await WorkoutSession.updateOne({ _id: session._id, patient: req.user._id, status: 'active' }, { $pull: { blocks: { blockId } }, $set: { lastActivityAt: now } });
+    }
+    const fresh = await WorkoutSession.findById(session._id);
+    res.status(200).json({ success: true, data: { serverNow: now, session: await viewOf(fresh, now) } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'No se pudo quitar el bloque' });
   }
 };
 

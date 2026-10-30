@@ -7,9 +7,11 @@ import { defaultWeeklyTarget } from './achievements/weekly.js';
  */
 
 export const BLOCK_KINDS = { single: 1, super: 2, tri: 3 };
-export const MODALITIES = ['weight', 'bodyweight', 'time'];
+export const MODALITIES = ['weight', 'bodyweight', 'time', 'weight_time'];
 export const MAX_BLOCKS = 30;
 export const MAX_SETS_PER_BATCH = 6;
+// Un bloque completo (todas las series de todos sus ejercicios) se guarda de una vez
+export const MAX_SETS_PER_BLOCK = 120;
 export const UNITS = ['kg', 'lbs'];
 const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -50,6 +52,13 @@ export function validateSetInput(input, slotDef) {
   if (!UNITS.includes(unit)) return { error: 'La unidad debe ser kg o lbs' };
   if (input.setNumber !== undefined && !isInt(input.setNumber, 1, 99)) return { error: 'Número de serie no válido' };
 
+  if (modality === 'weight_time') {
+    // Isométrico con carga (p. ej. plancha con 10 kg durante 30 s): lleva peso Y tiempo, sin repeticiones
+    if (!isInt(durationSec, 1, 7200)) return { error: 'La duración debe ser un número entero de segundos entre 1 y 7200' };
+    if (reps !== undefined && reps !== null) return { error: 'Un ejercicio por peso y tiempo no lleva repeticiones' };
+    if (typeof weight !== 'number' || !Number.isFinite(weight) || weight <= 0 || weight > 1000) return { error: 'La carga debe ser un número mayor que 0 y hasta 1000' };
+    return { value: { durationSec, weight: Math.round(weight * 100) / 100, unit } };
+  }
   if (modality === 'time') {
     if (!isInt(durationSec, 1, 7200)) return { error: 'La duración debe ser un número entero de segundos entre 1 y 7200' };
     if (reps !== undefined && reps !== null) return { error: 'Un ejercicio por tiempo no lleva repeticiones' };

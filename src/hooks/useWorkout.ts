@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { clockOffset } from '@/lib/workoutClock';
 import { useAuth } from '@/contexts/AuthContext';
 import { isRetryable, listPending, putPending, removePending, type PendingBatch } from '@/lib/pendingSets';
+import { expandBlock, type DraftBlock } from '@/lib/workoutPlan';
 import { workoutService, type BlockKind, type Modality, type RestAction, type SetInput, type WorkoutActive, type WorkoutMutation, type WorkoutSessionView } from '@/services/workoutService';
 
 type Status = 'loading' | 'ready' | 'error';
@@ -120,6 +121,12 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
     return false;
   };
 
+  // Guarda un bloque completo: primero se asegura de que exista en el servidor (crearlo es idempotente) y luego reemplaza sus series
+  const sendBlock = async (sessionId: string, blockId: string, def: PendingBatch['blockDef'], blockSets: NonNullable<PendingBatch['blockSets']>, known = false) => {
+    if (!known && def) await workoutService.addBlock(sessionId, { blockId, ...def });
+    return workoutService.replaceBlockSets(sessionId, blockId, blockSets);
+  };
+
   const refreshPending = useCallback(async (sessionId?: string) => setPending(await listPending(sessionId, userId)), [userId]);
 
   // Envía lo que quedó pendiente (sin conexión o con error). Cada serie lleva su clientId: reenviar nunca duplica.
@@ -132,7 +139,9 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
       for (const batch of await listPending(id, userId)) {
         const sentAt = Date.now();
         try {
-          const mutation = await workoutService.saveSets(batch.sessionId, batch.blockId, batch.sets);
+          const mutation = batch.replace && batch.blockSets
+            ? await sendBlock(batch.sessionId, batch.blockId, batch.blockDef, batch.blockSets)
+            : await workoutService.saveSets(batch.sessionId, batch.blockId, batch.sets);
           await removePending(batch.batchId);
           apply(mutation, sentAt);
           sent += 1;
@@ -181,6 +190,32 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
     }
   };
 
+  // Vista única: guarda el bloque completo. Queda a salvo en este dispositivo ANTES de enviarse; sin conexión queda «pendiente».
+  const saveBlock = async (session: WorkoutSessionView, block: DraftBlock): Promise<'saved' | 'pending'> => {
+    const blockSets = expandBlock(block);
+    const def = { kind: block.kind, slots: block.slots.map((s) => ({ exerciseName: s.name ?? '', modality: s.modality })) };
+    const batch: PendingBatch = { batchId: `blk-${block.blockId}`, userId, sessionId: session.id, blockId: block.blockId, sets: [], replace: true, blockSets, blockDef: def, display: [], savedAt: Date.now() };
+    await putPending(batch);
+    await refreshPending(session.id);
+    const known = session.blocks.some((b) => b.blockId === block.blockId);
+    try {
+      await run(() => sendBlock(session.id, block.blockId, def, blockSets, known));
+      await removePending(batch.batchId);
+      await refreshPending(session.id);
+      return 'saved';
+    } catch (error) {
+      if ((error as Error)?.message === 'busy') {
+        await removePending(batch.batchId);
+        await refreshPending(session.id);
+        throw error;
+      }
+      if (isRetryable(error)) return 'pending';
+      await removePending(batch.batchId); // el servidor lo rechazó: no se queda en la cola
+      await refreshPending(session.id);
+      throw error;
+    }
+  };
+
   return {
     data,
     status,
@@ -201,6 +236,8 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
     pending,
     flushPending,
     saveBatch,
+    saveBlock,
+    removeBlock: (session: WorkoutSessionView, blockId: string) => run(() => workoutService.removeBlock(session.id, blockId)),
     addBlock: (session: WorkoutSessionView, block: { blockId: string; kind: BlockKind; slots: { exerciseName: string; modality: Modality }[] }) => run(() => workoutService.addBlock(session.id, block)),
     updateSet: (setId: string, values: { reps?: number; weight?: number; weightUnit?: 'kg' | 'lbs'; durationSec?: number }) => run(() => workoutService.updateSet(setId, values)),
     deleteSet: (setId: string) => run(() => workoutService.deleteSet(setId)),

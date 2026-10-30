@@ -1,36 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Clock, CloudOff, Dumbbell, Layers, Play, Plus, RefreshCw } from 'lucide-react';
+import { ChevronLeft, Clock, CloudOff, Layers, Play, Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
 import { CardsSkeleton, PageSkeleton } from '@/components/shared/Skeletons';
 import RestBar from '@/components/workout/RestBar';
-import { REST_DONE_TONES, playTones, unlockAudio } from '@/lib/sound';
-import BlockBuilder from '@/components/workout/BlockBuilder';
-import BlockCard from '@/components/workout/BlockCard';
-import SetEditSheet from '@/components/workout/SetEditSheet';
+import ExercisePickSheet, { type PickedExercise } from '@/components/workout/ExercisePickSheet';
+import PlanBlockCard from '@/components/workout/PlanBlockCard';
+import SessionPlanner, { type PlanCounts } from '@/components/workout/SessionPlanner';
 import WorkoutFinished from '@/components/workout/WorkoutFinished';
-import { BTN_FILL, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
+import { REST_DONE_TONES, playTones, unlockAudio } from '@/lib/sound';
+import { BTN_FILL, EYEBROW_SOFT } from '@/components/dashboard/brand';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkout } from '@/hooks/useWorkout';
+import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { elapsedSec, formatClock, restDisplayState, spokenDuration } from '@/lib/workoutClock';
-import { listPending } from '@/lib/pendingSets';
-import { workoutService, type BlockKind, type Modality, type SavedSet, type WorkoutSummary } from '@/services/workoutService';
-import type { Reference } from '@/lib/workoutDraft';
+import { listPending, batchSize } from '@/lib/pendingSets';
+import { KIND_TITLE, blockSignature, hasUnsaved, newBlock, newGroup, planFromCounts, type DraftBlock, type DraftSlot } from '@/lib/workoutPlan';
+import type { BlockKind, WorkoutSummary } from '@/services/workoutService';
 import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 
-type Ref = Reference & { weightUnit: 'kg' | 'lbs'; lastDate: string };
 const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `w-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`);
 const clock = (iso: string) => new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Santiago' }).format(new Date(iso));
-
-const FORMATS: { kind: BlockKind; title: string; hint: string; n: number }[] = [
-  { kind: 'single', title: 'Ejercicio individual', hint: 'Un ejercicio, varias series', n: 1 },
-  { kind: 'super', title: 'Superserie', hint: 'Dos ejercicios seguidos, luego descanso', n: 2 },
-  { kind: 'tri', title: 'Triserie', hint: 'Tres ejercicios seguidos, luego descanso', n: 3 },
-];
+const dateText = (iso: string) => new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' }).format(new Date(iso));
 
 // Entrenamiento en curso: cronómetro sin límite, descanso persistente y registro de ejercicios (individual, superserie, triserie).
 // Es un registro personal: no cambia tu cita, tu plan ni los cupos del centro.
@@ -39,21 +34,36 @@ const Workout = () => {
   const { user } = useAuth();
   const w = useWorkout();
   const { session, startable, now, offsetMs } = w;
+  const plan = useWorkoutPlan(user?.id ?? '', session);
   const [confirming, setConfirming] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customValue, setCustomValue] = useState('');
-  const [builder, setBuilder] = useState<{ open: boolean; kind: BlockKind | null }>({ open: false, kind: null });
-  const [editing, setEditing] = useState<SavedSet | null>(null);
   const [finished, setFinished] = useState<WorkoutSummary | null>(null);
-  const [currentId, setCurrentId] = useState<string | null>(null);
-  const [refs, setRefs] = useState<Record<string, Ref | undefined>>({});
-  const asked = useRef(new Set<string>());
+  const [counts, setCounts] = useState<PlanCounts>({ single: 1, super: 0, tri: 0 });
+  const [picking, setPicking] = useState<{ blockId: string; slotIndex: number } | null>(null);
+  const [hints, setHints] = useState<Record<string, string | undefined>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [removing, setRemoving] = useState<DraftBlock | null>(null);
+  const [adding, setAdding] = useState(false);
   const startKey = useRef(newId()); // el mismo inicio, si se reintenta, no crea otra sesión
   const announcedDone = useRef<string | null>(null);
 
   const elapsed = session ? elapsedSec(session.startedAt, now, offsetMs) : 0;
   const rest = session?.rest;
   const display = rest ? restDisplayState(rest, now, offsetMs) : 'idle';
+
+  // Para que el cronómetro se quede arriba al bajar, el contenedor de la página no puede ser un área con su propio desplazamiento
+  // (con `overflow: auto` el `sticky` se pega a ese contenedor, que no se mueve, y el cronómetro se iría con la página)
+  useEffect(() => {
+    const main = document.getElementById('contenido');
+    if (!main) return undefined;
+    const previous = main.style.overflow;
+    main.style.overflow = 'visible';
+    return () => {
+      main.style.overflow = previous;
+    };
+  }, []);
 
   // El teléfono solo deja sonar el audio después de un toque: cada toque en la pantalla lo deja listo
   useEffect(() => {
@@ -75,27 +85,6 @@ const Workout = () => {
     if (document.visibilityState === 'visible') playTones(REST_DONE_TONES, { vibrate: !!navigator.userActivation?.hasBeenActive });
   }, [session, rest, display]);
 
-  const blocks = session?.blocks ?? [];
-  const current = blocks.find((b) => b.blockId === currentId) ?? blocks[blocks.length - 1] ?? null;
-
-  // Referencia «última sesión» de cada ejercicio del bloque abierto (del propio historial; no incluye lo de hoy)
-  const loadRefs = useCallback(async (names: string[]) => {
-    for (const name of names) {
-      if (asked.current.has(name)) continue;
-      asked.current.add(name);
-      try {
-        const result = await workoutService.searchExercises(name);
-        const hit = result.matches.find((m) => m.name.toLowerCase() === name.toLowerCase());
-        setRefs((prev) => ({ ...prev, [name]: hit?.refDate ? { reps: hit.last.reps, weight: hit.last.weight, durationSec: hit.last.durationSec, weightUnit: hit.last.weightUnit, lastDate: hit.refDate } : undefined }));
-      } catch {
-        asked.current.delete(name); // sin conexión: se vuelve a intentar al reabrir el bloque
-      }
-    }
-  }, []);
-  useEffect(() => {
-    if (current) loadRefs(current.slots.map((s) => s.exerciseName));
-  }, [current, loadRefs]);
-
   const guard = async (fn: () => Promise<unknown>, fallback: string) => {
     try {
       return await fn();
@@ -109,14 +98,60 @@ const Workout = () => {
 
   const doStart = () => startable && guard(() => w.start(startable.appointmentId, startKey.current), 'No se pudo iniciar tu entrenamiento');
 
-  const createBlock = async (kind: BlockKind, slots: { exerciseName: string; modality: Modality }[]) => {
-    if (!session) return;
-    const blockId = newId();
-    const done = await guard(() => w.addBlock(session, { blockId, kind, slots }), 'No se pudo agregar el bloque');
-    if (done) {
-      setCurrentId(blockId);
-      setBuilder({ open: false, kind: null });
+  const serverBlockIds = useMemo(() => new Set((session?.blocks ?? []).map((b) => b.blockId)), [session?.blocks]);
+  const pendingIds = useMemo(() => new Set(w.pending.filter((b) => b.replace).map((b) => b.blockId)), [w.pending]);
+  const unsaved = plan.blocks.filter(hasUnsaved);
+
+  const createPlan = () => {
+    plan.setBlocks((prev) => [...prev, ...planFromCounts(counts)]);
+  };
+  const addOne = (kind: BlockKind) => {
+    plan.setBlocks((prev) => [...prev, newBlock(kind)]);
+    setAdding(false);
+  };
+
+  const onPicked = (picked: PickedExercise) => {
+    if (!picking) return;
+    const { blockId, slotIndex } = picking;
+    plan.updateBlock(blockId, (b) => ({
+      ...b,
+      slots: b.slots.map((sl, i): DraftSlot => (i === slotIndex ? { name: picked.name, modality: picked.modality, groups: [newGroup(picked.modality, picked.reference)] } : sl)),
+    }));
+    const ref = picked.reference;
+    if (ref) {
+      const parts = [ref.reps ? `${ref.reps} rep` : null, ref.durationSec ? `${ref.durationSec} s` : null, ref.weight ? `${String(ref.weight).replace('.', ',')} ${ref.weightUnit ?? 'kg'}` : null].filter(Boolean);
+      setHints((prev) => ({ ...prev, [picked.name]: `Última vez (${dateText(ref.date)})${parts.length ? ` · ${parts.join(' · ')}` : ''}` }));
+    } else {
+      setHints((prev) => ({ ...prev, [picked.name]: picked.existing ? undefined : 'Ejercicio nuevo' }));
     }
+    setPicking(null);
+  };
+
+  const saveBlock = async (block: DraftBlock) => {
+    if (!session) return;
+    setSavingId(block.blockId);
+    setErrors((prev) => ({ ...prev, [block.blockId]: undefined }));
+    const signature = blockSignature(block);
+    try {
+      const result = await w.saveBlock(session, block);
+      plan.updateBlock(block.blockId, (b) => ({ ...b, savedSig: signature }));
+      if (result === 'saved') notify.success('Bloque guardado');
+    } catch (err) {
+      if ((err as Error)?.message === 'busy') return;
+      setErrors((prev) => ({ ...prev, [block.blockId]: (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'No se pudo guardar. Revisa los datos e inténtalo de nuevo.' }));
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const removeBlock = async (block: DraftBlock) => {
+    if (!session) return;
+    if (serverBlockIds.has(block.blockId)) {
+      const done = await guard(() => w.removeBlock(session, block.blockId), 'No se pudo quitar el bloque');
+      if (!done) return;
+    }
+    plan.setBlocks((prev) => prev.filter((b) => b.blockId !== block.blockId));
+    setRemoving(null);
   };
 
   const doFinish = async () => {
@@ -132,6 +167,7 @@ const Workout = () => {
     }
     const result = await guard(() => w.finish(session), 'No se pudo finalizar tu entrenamiento');
     if (result && (result as { summary?: WorkoutSummary }).summary) {
+      plan.clear();
       setConfirming(false);
       setFinished((result as { summary: WorkoutSummary }).summary);
     }
@@ -141,7 +177,7 @@ const Workout = () => {
   const customValid = Number.isInteger(custom) && custom >= 5 && custom <= 1800;
   const spoken = useMemo(() => spokenDuration(elapsed), [elapsed]);
   const totalSets = session?.sets.length ?? 0;
-  const exerciseCount = new Set((session?.sets ?? []).map((s) => s.exerciseName.toLowerCase())).size;
+  const pendingSets = w.pending.reduce((n, b) => n + batchSize(b), 0);
 
   if (finished) return <WorkoutFinished summary={finished} firstName={user?.firstName} onHome={() => navigate('/app/dashboard')} />;
 
@@ -177,8 +213,8 @@ const Workout = () => {
     );
   }
 
-  const nextLabel = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[blocks.length] ?? 'Z';
-  const pendingFor = (blockId: string) => w.pending.filter((b) => b.blockId === blockId).flatMap((b) => b.display);
+  const pickingBlock = picking ? plan.blocks.find((b) => b.blockId === picking.blockId) : null;
+  const takenNames = pickingBlock ? pickingBlock.slots.filter((_, i) => i !== picking?.slotIndex).map((s) => s.name).filter((n): n is string => !!n) : [];
 
   return (
     <div className="mx-auto w-full max-w-md space-y-3.5 pb-6">
@@ -193,117 +229,98 @@ const Workout = () => {
         <button type="button" onClick={() => setConfirming(true)} className="min-h-[44px] shrink-0 rounded-xl px-2.5 text-[14px] font-semibold text-[#cdc6b6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">Finalizar</button>
       </div>
 
-      <section aria-label="Tiempo de sesión" className={cn('relative overflow-hidden rounded-[24px] border px-4 py-3.5', HERO_SURFACE)}>
-        <div className="flex items-center justify-between gap-3">
-          <p className="flex items-center gap-1.5 whitespace-nowrap text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#8fd0e0]"><Clock className="h-3.5 w-3.5" aria-hidden="true" /> Tiempo de sesión</p>
-          <p className="text-[12px] text-[#cdc6b6]">Empezaste a las <span className="font-bold tabular-nums text-[#fff8e4]">{clock(session.startedAt)}</span></p>
-        </div>
-        <p className="mt-1.5 text-[3rem] font-extrabold leading-none tracking-[-0.045em] tabular-nums text-[#fff8e4]" role="timer" aria-label={`Tiempo de sesión: ${spoken}`}>{formatClock(elapsed, { alwaysHours: true })}</p>
-        <p className="mt-1.5 text-[12px] text-[#a8a295]">Sigue contando aunque salgas de la app. No se detiene a la hora de tu cita.</p>
-      </section>
-
-      {rest && <RestBar rest={rest} now={now} offsetMs={offsetMs} busy={w.busy} onAction={act} onCustom={() => setCustomOpen(true)} />}
+      {/* Cronómetro y descanso: se quedan arriba mientras se baja y se sube por los bloques */}
+      <div data-testid="workout-sticky" className="sticky top-0 z-30 -mx-3 space-y-1.5 bg-background/95 px-3 pb-2 pt-1.5 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <section aria-label="Tiempo de sesión" className="flex items-center justify-between gap-3 rounded-[18px] border border-[#62b8cf]/30 bg-[linear-gradient(165deg,rgba(57,140,162,0.22),#1f1c21_60%)] px-3.5 py-2">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.16em] text-[#8fd0e0]"><Clock className="h-3.5 w-3.5" aria-hidden="true" /> Tiempo de sesión</p>
+            <p className="text-[11.5px] text-[#a8a295]">Desde las <span className="font-bold tabular-nums text-[#cdc6b6]">{clock(session.startedAt)}</span></p>
+          </div>
+          <p className="text-[2rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[#fff8e4]" role="timer" aria-label={`Tiempo de sesión: ${spoken}`}>{formatClock(elapsed, { alwaysHours: true })}</p>
+        </section>
+        {rest && <RestBar rest={rest} now={now} offsetMs={offsetMs} busy={w.busy} onAction={act} onCustom={() => setCustomOpen(true)} />}
+      </div>
 
       {w.pending.length > 0 && (
         <div role="status" className="flex items-center gap-3 rounded-2xl border border-[#e8b4a0]/55 bg-[#e8b4a0]/10 p-3">
           <CloudOff className="h-5 w-5 shrink-0 text-[#e8b4a0]" aria-hidden="true" />
-          <p className="min-w-0 flex-1 text-[13px] text-[#fff8e4]"><span className="font-bold">Guardado pendiente.</span> {w.pending.reduce((n, b) => n + b.sets.length, 0)} {w.pending.reduce((n, b) => n + b.sets.length, 0) === 1 ? 'serie está' : 'series están'} a salvo en este dispositivo y se enviarán al volver la conexión.</p>
+          <p className="min-w-0 flex-1 text-[13px] text-[#fff8e4]"><span className="font-bold">Guardado pendiente.</span> {pendingSets} {pendingSets === 1 ? 'serie está' : 'series están'} a salvo en este dispositivo y se enviarán al volver la conexión.</p>
           <button type="button" onClick={() => w.flushPending()} className="flex min-h-[44px] items-center gap-1.5 rounded-xl px-2 text-[13px] font-bold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]"><RefreshCw className="h-4 w-4" aria-hidden="true" /> Reintentar</button>
         </div>
       )}
 
-      {blocks.length === 0 ? (
-        <section aria-labelledby="vacio-titulo" className="rounded-[24px] border border-[#fff8e4]/10 bg-[linear-gradient(180deg,#272329,#1f1c21)] p-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#62b8cf]/35 bg-[#398ca2]/15 text-[#8fd0e0]"><Dumbbell className="h-5 w-5" aria-hidden="true" /></span>
-            <div>
-              <h2 id="vacio-titulo" className="text-lg font-extrabold tracking-tight text-[#fff8e4]">¿Con qué empiezas?</h2>
-              <p className="text-[13px] text-[#a8a295]">Elige el formato que te indique tu profesional.</p>
-            </div>
-          </div>
-          <div className="mt-3 grid gap-2">
-            {FORMATS.map((f) => (
-              <button key={f.kind} type="button" onClick={() => setBuilder({ open: true, kind: f.kind })} className="flex min-h-[64px] items-center gap-3.5 rounded-[18px] border border-[#fff8e4]/15 bg-[#181619]/60 p-3 text-left transition-colors active:border-[#62b8cf] active:bg-[#398ca2]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-[#62b8cf]/35 bg-[#398ca2]/15 text-lg font-extrabold text-[#8fd0e0]">{f.n}</span>
-                <span>
-                  <span className="block text-[15.5px] font-bold text-[#fff8e4]">{f.title}</span>
-                  <span className="block text-[12.5px] text-[#a8a295]">{f.hint}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="mt-3 text-center text-[12px] text-[#a8a295]">No hay rutinas precargadas: los ejercicios los eliges tú, de tu historial o nuevos.</p>
-        </section>
+      {plan.blocks.length === 0 ? (
+        <SessionPlanner counts={counts} busy={w.busy} onChange={setCounts} onCreate={createPlan} />
       ) : (
         <>
-          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-            <div role="tablist" aria-label="Bloques de la sesión" className="flex gap-2">
-            {blocks.map((b) => {
-              const active = current?.blockId === b.blockId;
-              const count = session.sets.filter((s) => s.blockId === b.blockId).length;
-              return (
-                <button key={b.blockId} role="tab" aria-selected={active} type="button" onClick={() => setCurrentId(b.blockId)} className={cn('flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border px-3.5 text-[13.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', active ? 'border-[#62b8cf] bg-[#398ca2] text-[#181619]' : 'border-[#fff8e4]/20 bg-[#1f1c21] text-[#cdc6b6]')}>
-                  <span className="font-extrabold">{b.label}</span>
-                  <span className="max-w-[9rem] truncate">{b.kind === 'single' ? b.slots[0].exerciseName : b.kind === 'super' ? 'Superserie' : 'Triserie'}</span>
-                  {count > 0 && <span className={cn('rounded-full px-1.5 text-[11px] font-bold tabular-nums', active ? 'bg-[#181619]/25' : 'bg-[#62b8cf]/20 text-[#8fd0e0]')}>{count}</span>}
-                </button>
-              );
-            })}
-            </div>
-            <button type="button" onClick={() => setBuilder({ open: true, kind: null })} aria-label="Agregar bloque" className="flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border border-dashed border-[#62b8cf]/60 px-3.5 text-[13.5px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Bloque
-            </button>
+          <div className="space-y-3.5">
+            {plan.blocks.map((block, i) => (
+              <PlanBlockCard
+                key={block.blockId}
+                block={block}
+                index={i + 1}
+                pending={pendingIds.has(block.blockId)}
+                saving={savingId === block.blockId}
+                disabled={w.busy && savingId !== block.blockId}
+                error={errors[block.blockId] ?? null}
+                restSec={session.rest.nextDurationSec}
+                hints={hints}
+                onServer={serverBlockIds.has(block.blockId)}
+                onChange={(next) => plan.updateBlock(block.blockId, () => next)}
+                onPick={(slotIndex) => setPicking({ blockId: block.blockId, slotIndex })}
+                onSave={() => saveBlock(block)}
+                onRest={() => act('start')}
+                onRemove={() => (serverBlockIds.has(block.blockId) ? setRemoving(block) : removeBlock(block))}
+              />
+            ))}
           </div>
-          {current && (
-            <BlockCard
-              key={current.blockId}
-              block={current}
-              sets={session.sets.filter((s) => s.blockId === current.blockId)}
-              pending={pendingFor(current.blockId)}
-              references={refs}
-              nextRestSec={session.rest.nextDurationSec}
-              onSave={async (blockId, sets, display) => {
-                const result = await w.saveBatch(session, blockId, sets, display).catch((err) => {
-                  if ((err as Error)?.message !== 'busy') showApiError(err, 'No se pudo guardar la serie');
-                  throw err;
-                });
-                return result;
-              }}
-              onEdit={setEditing}
-              onRest={() => act('start')}
-            />
-          )}
+
+          <div>
+            {adding ? (
+              <div role="group" aria-label="Agregar bloque" className="grid grid-cols-3 gap-2">
+                {(['single', 'super', 'tri'] as const).map((kind) => (
+                  <button key={kind} type="button" onClick={() => addOne(kind)} className="flex min-h-[56px] flex-col items-center justify-center rounded-2xl border border-[#62b8cf]/50 bg-[#398ca2]/12 px-1 text-[13px] font-bold text-[#fff8e4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
+                    <span className="text-[#8fd0e0]">+ {KIND_TITLE[kind]}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button type="button" onClick={() => setAdding(true)} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#62b8cf]/60 text-[14.5px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Agregar otro bloque
+              </button>
+            )}
+          </div>
         </>
       )}
 
       <section aria-label="Sesión de hoy" className="flex items-center gap-3 rounded-[18px] border border-[#fff8e4]/10 bg-[#fff8e4]/[0.03] px-4 py-3">
         <Layers className="h-5 w-5 shrink-0 text-[#8fd0e0]" aria-hidden="true" />
         <p className="text-[13.5px] text-[#cdc6b6]">
-          <span className="font-bold text-[#fff8e4]">Sesión de hoy</span> · {exerciseCount} {exerciseCount === 1 ? 'ejercicio' : 'ejercicios'} · {totalSets} {totalSets === 1 ? 'serie guardada' : 'series guardadas'}
+          <span className="font-bold text-[#fff8e4]">Sesión de hoy</span> · {plan.blocks.length} {plan.blocks.length === 1 ? 'bloque' : 'bloques'} · {totalSets} {totalSets === 1 ? 'serie guardada' : 'series guardadas'}
         </p>
       </section>
 
-      <BlockBuilder open={builder.open} onOpenChange={(open) => setBuilder((b) => ({ ...b, open }))} nextLabel={nextLabel} initialKind={builder.kind} busy={w.busy} onCreate={createBlock} />
-      <SetEditSheet
-        set={editing}
-        busy={w.busy}
-        onClose={() => setEditing(null)}
-        onSave={async (set, values) => {
-          const done = await guard(() => w.updateSet(set.id, values), 'No se pudo corregir la serie');
-          if (done) {
-            notify.success('Serie corregida');
-            setEditing(null);
-          }
-        }}
-        onDelete={async (set) => {
-          const done = await guard(() => w.deleteSet(set.id), 'No se pudo eliminar la serie');
-          if (done) {
-            notify.success('Serie eliminada');
-            setEditing(null);
-          }
-        }}
+      <ExercisePickSheet
+        open={!!picking}
+        onOpenChange={(open) => !open && setPicking(null)}
+        title={picking && pickingBlock ? `Elegir ejercicio · ${KIND_TITLE[pickingBlock.kind]} ${plan.blocks.indexOf(pickingBlock) + 1}${pickingBlock.kind !== 'single' ? `.${picking.slotIndex + 1}` : ''}` : 'Elegir ejercicio'}
+        taken={takenNames}
+        onPick={onPicked}
       />
+
+      <Dialog open={!!removing} onOpenChange={(open) => !open && setRemoving(null)}>
+        <DialogContent className="max-w-sm border-[#fff8e4]/15 bg-[#1f1c21] text-[#fff8e4]">
+          <DialogHeader>
+            <DialogTitle>¿Quitar este bloque?</DialogTitle>
+            <DialogDescription className="text-[#cdc6b6]">Se borran también las series que ya guardaste en él. Esto no se puede deshacer.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+            <Button disabled={w.busy} onClick={() => removing && removeBlock(removing)} className="min-h-[48px] w-full rounded-2xl bg-[#e8b4a0] font-bold text-[#181619] hover:bg-[#e8b4a0]/90">Quitar bloque</Button>
+            <Button variant="outline" onClick={() => setRemoving(null)} className="min-h-[48px] w-full rounded-2xl border-[#398ca2] bg-transparent text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]">Conservarlo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent className="max-w-sm border-[#fff8e4]/15 bg-[#1f1c21] text-[#fff8e4]">
@@ -314,8 +331,13 @@ const Workout = () => {
               {w.pending.length > 0 && ' Tienes series sin enviar: intentaremos enviarlas antes de cerrar.'}
             </DialogDescription>
           </DialogHeader>
+          {unsaved.length > 0 && (
+            <p role="alert" className="rounded-xl border border-[#e8b4a0]/55 bg-[#e8b4a0]/10 p-3 text-[13.5px] text-[#fff8e4]">
+              <span className="font-bold">Tienes {unsaved.length} {unsaved.length === 1 ? 'bloque' : 'bloques'} sin guardar</span> (no quedarán en tu historial): {unsaved.map((b) => `${KIND_TITLE[b.kind]} ${plan.blocks.indexOf(b) + 1}`).join(', ')}.
+            </p>
+          )}
           <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
-            <Button disabled={w.busy} onClick={doFinish} className={cn('min-h-[48px] w-full rounded-2xl font-bold', BTN_FILL)}>Finalizar</Button>
+            <Button disabled={w.busy} onClick={doFinish} className={cn('min-h-[48px] w-full rounded-2xl font-bold', BTN_FILL)}>{unsaved.length > 0 ? 'Finalizar igual' : 'Finalizar'}</Button>
             <Button variant="outline" onClick={() => setConfirming(false)} className="min-h-[48px] w-full rounded-2xl border-[#398ca2] bg-transparent text-[#fff8e4] hover:bg-[#398ca2]/15 hover:text-[#fff8e4]">Seguir entrenando</Button>
           </DialogFooter>
         </DialogContent>

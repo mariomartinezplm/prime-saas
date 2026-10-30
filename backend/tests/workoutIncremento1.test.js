@@ -356,7 +356,7 @@ describe('POST /:id/rest y /finish', () => {
 describe('rutas', () => {
   it('todas exigen sesión y rol de paciente, y ninguna recibe el id de otro paciente', () => {
     const rutas = workoutRoutes.stack.filter((l) => l.route).map((l) => l.route.path);
-    expect(rutas.sort()).toEqual(['/:id/blocks', '/:id/finish', '/:id/rest', '/:id/sets', '/:id/summary', '/active', '/exercises/search', '/sets/:setId', '/sets/:setId', '/start']);
+    expect(rutas.sort()).toEqual(['/:id/blocks', '/:id/blocks/:blockId', '/:id/blocks/:blockId/sets', '/:id/finish', '/:id/rest', '/:id/sets', '/:id/summary', '/active', '/exercises/search', '/sets/:setId', '/sets/:setId', '/start']);
     expect(rutas.some((p) => /patientId/i.test(p))).toBe(false);
     // protect + authorize se aplican al router completo, antes de cualquier ruta
     const guards = workoutRoutes.stack.filter((l) => !l.route);
