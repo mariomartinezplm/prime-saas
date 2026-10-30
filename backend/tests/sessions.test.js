@@ -246,6 +246,7 @@ describe('POST /appointments — motor de descuento cableado', () => {
   });
 
   it('evaluación agendada por el personal a alguien SIN plan de kinesiología: se agenda igual, sin descuento (se le avisa al personal)', async () => {
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue(null);
     vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue(null);
     vi.spyOn(ExtraSession, 'findOneAndUpdate').mockResolvedValue(null);
 

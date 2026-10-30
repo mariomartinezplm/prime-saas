@@ -1,5 +1,5 @@
-import { getSessionBalanceByType } from './clientPlanService.js';
-import { santiagoToUtc, formatDayMonthSantiago } from '../utils/timezone.js';
+import { getSessionBalanceByType, planForBooking, bookingInstant, bookingWindowOf, bookablePlansFor } from './clientPlanService.js';
+import { formatDayMonthSantiago } from '../utils/timezone.js';
 
 // Reglas de saldo y plan para AGENDAR una cita. Vivían dentro de appointmentController.js; se movieron aquí SIN cambiar su
 // comportamiento para que las use también el horario fijo (recurringSlotService.js) y las reglas sean una sola.
@@ -44,23 +44,40 @@ export async function checkSessionBalanceForBooking(patientId, type, { date, sta
 
   const balance = await getSessionBalanceByType(patientId, planServiceOf(type));
 
-  // Renovación pendiente de pago: se puede agendar solo dentro del plazo de pago
-  // (hasta el día 5). Más allá, hace falta que el centro registre el pago.
-  if (balance.plan?.paymentPending && balance.planSessionsAvailable > 0 && date && startTime) {
-    const [year, month, day] = new Date(date).toISOString().split('T')[0].split('-').map(Number);
-    const [hour, minute] = startTime.split(':').map(Number);
-    const sessionStart = santiagoToUtc(year, month, day, hour, minute);
-
-    if (sessionStart.getTime() >= balance.plan.paymentDueBy.getTime()) {
-      const lastDay = formatDayMonthSantiago(new Date(balance.plan.paymentDueBy.getTime() - 1));
-      return {
-        status: 403,
-        body: {
-          success: false,
-          message: `Tu renovación está pendiente de pago: por ahora puedes agendar sesiones hasta el ${lastDay}. Para agendar después, contacta a Prime F&H para registrar tu pago.`,
-          code: 'PAYMENT_PENDING'
-        }
-      };
+  if (date && startTime) {
+    const sessionStart = bookingInstant(date, startTime);
+    // La cita sale del ciclo al que pertenece su fecha: el vigente, el siguiente si ya está pagado, o (hasta el día 5) lo que queda
+    // del último ciclo. Más allá, esa fecha todavía no se puede agendar.
+    const target = await planForBooking(patientId, planServiceOf(type), sessionStart);
+    if (target) {
+      const { plan } = target;
+      const left = plan.sessionsAvailable();
+      // Renovación pendiente de pago: se puede agendar solo dentro del plazo de pago (hasta el día 5)
+      if (plan.paymentPending && left > 0 && sessionStart.getTime() >= plan.paymentDueBy.getTime()) {
+        const lastDay = formatDayMonthSantiago(new Date(plan.paymentDueBy.getTime() - 1));
+        return {
+          status: 403,
+          body: {
+            success: false,
+            message: `Tu renovación está pendiente de pago: por ahora puedes agendar sesiones hasta el ${lastDay}. Para agendar después, contacta a Prime F&H para registrar tu pago.`,
+            code: 'PAYMENT_PENDING'
+          }
+        };
+      }
+      if (left + balance.extraSessionsAvailable > 0) return null;
+    } else if (balance.hasActivePlan) {
+      // Hay plan, pero esa fecha queda fuera de lo que cubre (o del plazo de pago): se dice hasta cuándo sí se puede
+      const win = bookingWindowOf(await bookablePlansFor(patientId, planServiceOf(type)));
+      if (win) {
+        return {
+          status: 403,
+          body: {
+            success: false,
+            message: `Tu plan te permite agendar hasta el ${formatDayMonthSantiago(win.until)}. Para agendar después, contacta a Prime F&H para renovar.`,
+            code: 'OUTSIDE_PLAN'
+          }
+        };
+      }
     }
   }
 

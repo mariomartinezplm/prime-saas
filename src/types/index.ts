@@ -228,6 +228,8 @@ export interface SessionBalance {
   plan: ClientPlan | null;
   paymentPending?: boolean;
   paymentDueBy?: string | null;
+  // Hasta cuándo se puede agendar (puede ser después del fin del plan vigente: ciclo siguiente ya pagado o plazo de pago hasta el día 5)
+  bookingWindow?: { until: string; upcomingSessionsAvailable: number } | null;
   planSessionsAvailable: number;
   extraSessionsAvailable: number;
   totalAvailable: number;

@@ -89,6 +89,7 @@ function mockHistorial(planes) {
 function mockSaldo(plan) {
   vi.spyOn(ClientPlan, 'findOne').mockResolvedValue(plan);
   vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(2);
+  vi.spyOn(ClientPlan, 'find').mockReturnValue({ sort: async () => (plan ? [plan] : []) });
 }
 
 beforeEach(() => vi.restoreAllMocks());

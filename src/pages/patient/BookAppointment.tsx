@@ -220,7 +220,8 @@ const BookAppointment = () => {
     if (!balance?.plan) return true;
     const start = parseISO(balance.plan.startDate);
     // Un plan «hasta completar las sesiones» no tiene fecha de término: se puede agendar con la anticipación habitual (hasta 6 meses)
-    const end = balance.plan.openEnded ? addMonths(new Date(), 6) : parseISO(balance.plan.endDate);
+    // Hasta donde llega la ventana de agendamiento: el ciclo siguiente si ya está pagado y, al final, el plazo de pago (día 5)
+    const end = balance.plan.openEnded ? addMonths(new Date(), 6) : parseISO(balance.bookingWindow?.until ?? balance.plan.endDate);
     // Con la renovación pendiente de pago, solo se agenda dentro del plazo de pago
     if (balance.plan.paymentPending && balance.plan.paymentDueBy && date >= parseISO(balance.plan.paymentDueBy)) return false;
     return date >= start && date <= end;
@@ -250,7 +251,7 @@ const BookAppointment = () => {
     const plan = balance.plan;
     const remaining = plan.sessionsTotal - plan.sessionsUsed;
     const unlimited = !!plan.unlimited;
-    const canBook = balance.totalAvailable > 0;
+    const canBook = balance.totalAvailable + (balance.bookingWindow?.upcomingSessionsAvailable ?? 0) > 0;
     const extraNote = balance.extraSessionsAvailable > 0 ? ` + ${balance.extraSessionsAvailable} extra` : '';
 
     return {
@@ -259,6 +260,9 @@ const BookAppointment = () => {
         ? `Sesiones ilimitadas${extraNote}`
         : `${remaining} de ${plan.sessionsTotal} sesiones restantes${extraNote}`,
       sessionCounter: formatPlanUsage(plan),
+      windowNote: !plan.openEnded && !balance.paymentPending && balance.bookingWindow && parseISO(balance.bookingWindow.until) > parseISO(plan.endDate)
+        ? `Puedes agendar hasta el ${format(parseISO(balance.bookingWindow.until), "d 'de' MMMM", { locale: es })}.`
+        : null,
       canBook,
       blockMessage: !canBook ? 'Has completado todas tus sesiones. Contacta a Prime F&H para renovar tu plan.' : null,
       color: canBook ? HERO_SURFACE : 'border-[#fff8e4]/15 bg-[#fff8e4]/[0.04]',
@@ -298,6 +302,7 @@ const BookAppointment = () => {
                 <div>
                   <p className="font-semibold text-sm">{planInfo.label}</p>
                   <p className="text-xs text-muted-foreground">{planInfo.description}</p>
+                  {planInfo.windowNote && <p className="text-xs text-muted-foreground">{planInfo.windowNote}</p>}
                 </div>
               </div>
 

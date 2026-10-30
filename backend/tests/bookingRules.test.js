@@ -212,6 +212,7 @@ describe('POST /appointments/bulk — reserva masiva con todas las reglas', () =
 
   it('el personal agendando en lote a un paciente sin plan ni sesiones: la cita se crea sin descontar', async () => {
     baseSetup();
+    vi.spyOn(ClientPlan, 'findOne').mockResolvedValue(null);
     vi.spyOn(ClientPlan, 'findOneAndUpdate').mockResolvedValue(null);
     vi.spyOn(ExtraSession, 'findOneAndUpdate').mockResolvedValue(null);
 
