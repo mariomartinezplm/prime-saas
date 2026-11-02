@@ -8,6 +8,8 @@ export interface User {
   role: 'admin' | 'professional' | 'patient';
   // Miembro Fundador: lo marca el administrador (no depende del plan)
   isFounder?: boolean;
+  // Renovación automática: la marca el administrador para quien paga todos los meses (no depende del plan)
+  autoRenew?: boolean;
   phone?: string;
   dateOfBirth?: string;
   rut?: string;

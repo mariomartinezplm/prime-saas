@@ -14,6 +14,7 @@ import { FormField } from '@/components/forms/FormField';
 import FormSection from '@/components/forms/FormSection';
 import SubmitButton from '@/components/forms/SubmitButton';
 import SessionsSelect from '@/components/plans/SessionsSelect';
+import AutoRenewSwitch from '@/components/plans/AutoRenewSwitch';
 import PlanBillingOptions, { type PaymentMode } from '@/components/plans/PlanBillingOptions';
 import PlanTermFields from '@/components/plans/PlanTermFields';
 import RenewsCheckbox from '@/components/plans/RenewsCheckbox';
@@ -95,6 +96,7 @@ const RegisterPatient = () => {
   const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
+  const [autoRenew, setAutoRenew] = useState(false);
   const [planInicial, setPlanInicial] = useState<PlanInicialOption>('despues');
   const [choice, setChoice] = useState<SessionsChoice>(DEFAULT_CHOICE.kinesiologia);
   const [term, setTerm] = useState<PlanTerm>('mensual');
@@ -146,7 +148,7 @@ const RegisterPatient = () => {
         dateOfBirth: form.dateOfBirth || undefined,
         address: form.address.trim() || undefined,
         role: 'patient',
-        ...(isAdmin ? { assignedProfessionalId: chosenProfessional === NONE ? '' : chosenProfessional } : {}),
+        ...(isAdmin ? { assignedProfessionalId: chosenProfessional === NONE ? '' : chosenProfessional, ...(autoRenew ? { autoRenew: true } : {}) } : {}),
         emergencyContact: hasEmergency
           ? { name: form.emergencyName.trim(), phone: form.emergencyPhone.trim(), relationship: form.emergencyRelationship.trim() }
           : undefined,
@@ -300,6 +302,12 @@ const RegisterPatient = () => {
                 </Select>
               )}
             </FormField>
+          </FormSection>
+        )}
+
+        {isAdmin && (
+          <FormSection title="Renovación" description="Para quien paga todos los meses. Puedes cambiarlo después al editar o renovar al paciente." className="md:grid-cols-1">
+            <AutoRenewSwitch id="register-auto-renew" checked={autoRenew} onCheckedChange={setAutoRenew} />
           </FormSection>
         )}
 

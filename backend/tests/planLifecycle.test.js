@@ -468,7 +468,7 @@ describe('Miembro Fundador: marca manual que ningún plan cambia', () => {
 
 describe('beca y Miembro Fundador: el plan se renueva solo', () => {
   const asFounder = (is = true) => vi.mocked(User.find).mockImplementation((filter) => ({
-    select: async () => (filter?.isFounder === true ? (is ? [{ _id: patientId }] : []) : [{ _id: 'admin-1' }])
+    select: async () => ((filter?.isFounder === true || Array.isArray(filter?.$or)) ? (is ? [{ _id: patientId }] : []) : [{ _id: 'admin-1' }])
   }));
   const lastActive = () => byStatus('active').at(-1);
 
@@ -485,6 +485,16 @@ describe('beca y Miembro Fundador: el plan se renueva solo', () => {
     await advancePlans({ patientId, now: at(2026, 11, 10, 1) });
     expect(byStatus('active')).toHaveLength(1);
     expect(byStatus('active')[0]).toMatchObject({ paymentPending: false, autoRenewed: true });
+  });
+
+  it('un paciente con «Renovación automática» (sin estrella) también se renueva solo: la consulta incluye esa marca', async () => {
+    asFounder();
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    expect(lastActive()).toMatchObject({ paymentPending: false, autoRenewed: true, status: 'active' });
+    const queries = vi.mocked(User.find).mock.calls.map(([f]) => f).filter((f) => Array.isArray(f?.$or));
+    expect(queries.length).toBeGreaterThan(0);
+    expect(queries[0].$or).toEqual([{ isFounder: true }, { autoRenew: true }]);
   });
 
   it('si el servidor estuvo apagado y ya pasó el plazo de 5 días, el fundador igual queda con su plan renovado', async () => {

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import AutoRenewSwitch from '@/components/plans/AutoRenewSwitch';
 import { Textarea } from '@/components/ui/textarea';
 import { FormField } from '@/components/forms/FormField';
 import SubmitButton from '@/components/forms/SubmitButton';
@@ -56,6 +57,7 @@ const buildForm = (patient: User) => ({
   assignedProfessionalId: idOf(patient.assignedProfessionalId) || NO_PROFESSIONAL,
   exemptFromCapacity: patient.exemptFromCapacity === true,
   isFounder: patient.isFounder === true,
+  autoRenew: patient.autoRenew === true,
 });
 type FormState = ReturnType<typeof buildForm>;
 type Errors = Partial<Record<keyof FormState, string>>;
@@ -165,6 +167,7 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, canChangePr
               assignedProfessionalId: form.assignedProfessionalId === NO_PROFESSIONAL ? '' : form.assignedProfessionalId,
               exemptFromCapacity: form.exemptFromCapacity,
               isFounder: form.isFounder,
+              autoRenew: form.autoRenew,
             }
           : canChangeProfessional && form.assignedProfessionalId !== NO_PROFESSIONAL
             ? { assignedProfessionalId: form.assignedProfessionalId }
@@ -313,6 +316,7 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, canChangePr
                       <Switch id="is-founder" checked={form.isFounder} onCheckedChange={(v) => set('isFounder', v)} />
                     </div>
                   )}
+                  {canAssign && <AutoRenewSwitch id="auto-renew" className="sm:col-span-2" checked={form.autoRenew} onCheckedChange={(v) => set('autoRenew', v)} />}
                 </div>
               </section>
 

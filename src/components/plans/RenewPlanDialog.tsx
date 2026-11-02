@@ -6,7 +6,9 @@ import { CalendarCheck, Loader2, RefreshCw, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import LoadErrorAlert from '@/components/shared/LoadErrorAlert';
+import AutoRenewSwitch from '@/components/plans/AutoRenewSwitch';
 import { clientPlanService, type RenewalPreview } from '@/services/clientPlanService';
+import { userService } from '@/services/userService';
 import { SERVICE_TYPE_LABELS, TERM_LABELS, type PlanTerm } from '@/config/planCatalog';
 import { getErrorMessage } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
@@ -37,11 +39,33 @@ interface RenewPlanDialogProps {
   onOpenChange: (open: boolean) => void;
   // Se renovó: la ficha vuelve a cargar
   onRenewed: () => void;
+  // Renovación automática (solo administración): estado actual del paciente y aviso para recargar la ficha al cambiarla
+  canSetAutoRenew?: boolean;
+  autoRenew?: boolean;
+  onAutoRenewChanged?: () => void;
 }
 
 // «Renovar plan» con un toque: renueva el plan que el paciente YA tiene (mismo servicio, sesiones, plazo y condiciones) y no toca sus
 // citas agendadas ni su horario fijo. Antes de confirmar se ve exactamente qué va a pasar.
-const RenewPlanDialog = ({ patientId, patientName, open, onOpenChange, onRenewed }: RenewPlanDialogProps) => {
+const RenewPlanDialog = ({ patientId, patientName, open, onOpenChange, onRenewed, canSetAutoRenew, autoRenew = false, onAutoRenewChanged }: RenewPlanDialogProps) => {
+  const [auto, setAuto] = useState(autoRenew);
+  const [savingAuto, setSavingAuto] = useState(false);
+  useEffect(() => setAuto(autoRenew), [autoRenew, open]);
+
+  // Se guarda al instante y solo se muestra como activada cuando el servidor lo confirma
+  const changeAuto = async (value: boolean) => {
+    setSavingAuto(true);
+    try {
+      await userService.update(patientId, { autoRenew: value });
+      setAuto(value);
+      notify.success(value ? 'Renovación automática activada' : 'Renovación automática apagada');
+      onAutoRenewChanged?.();
+    } catch (err) {
+      notify.error(getErrorMessage(err, 'No se pudo cambiar la renovación automática.'));
+    } finally {
+      setSavingAuto(false);
+    }
+  };
   const [preview, setPreview] = useState<RenewalPreview | null>(null);
   const [failed, setFailed] = useState(false);
   const [renewing, setRenewing] = useState(false);
@@ -152,6 +176,10 @@ const RenewPlanDialog = ({ patientId, patientName, open, onOpenChange, onRenewed
               </p>
             </div>
           </div>
+        )}
+
+        {canSetAutoRenew && (
+          <AutoRenewSwitch id="renew-auto-renew" checked={auto} onCheckedChange={changeAuto} disabled={savingAuto || renewing} />
         )}
 
         <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">

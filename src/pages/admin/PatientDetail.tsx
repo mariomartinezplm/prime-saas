@@ -217,6 +217,11 @@ const PatientDetail = () => {
             <ActiveStatusBadge isActive={patient.isActive} />
             {patient.inviteStatus && <InviteStatusBadge status={patient.inviteStatus} />}
             {patient.isFounder && <FounderBadge />}
+            {patient.autoRenew && (
+              <Badge variant="accent" title="Su plan se renueva solo cada mes">
+                Renueva solo
+              </Badge>
+            )}
             {patient.exemptFromCapacity && (
               <Badge variant="accent" title="Puede agendar aunque el horario esté lleno; no cuenta en los 4 simultáneos">
                 Sobre cupo
@@ -564,6 +569,9 @@ const PatientDetail = () => {
         open={renewOpen}
         onOpenChange={setRenewOpen}
         onRenewed={fetchData}
+        canSetAutoRenew={user?.role === 'admin'}
+        autoRenew={patient.autoRenew === true}
+        onAutoRenewChanged={fetchData}
       />
 
       <EditPatientDialog

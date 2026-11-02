@@ -19,16 +19,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_STEPS = 20;
 const EXPIRED_NOTICE_LOOKBACK_DAYS = 60;
 
-// ─── Renovación automática (beca y Miembro Fundador) ────────────────────────
-// Miembro Fundador es una marca que pone el administrador (no depende del plan: no se apaga sola ni al cambiar de plan).
-// Un plan con beca, o de un Miembro Fundador, no se queda «pendiente de pago»: al terminar el último ciclo se abre el
+// ─── Renovación automática (beca, Miembro Fundador y pacientes con «Renovación automática») ─────────────
+// Miembro Fundador y «Renovación automática» son marcas que pone el administrador (no dependen del plan: no se apagan solas ni al
+// cambiar de plan). Un plan con beca, de un Miembro Fundador o de un paciente con renovación automática, no se queda «pendiente de pago»: al terminar el último ciclo se abre el
 // siguiente ya activo. La beca no avisa nada de pagos; el fundador recibe el aviso de que debe pagar y los administradores
 // reciben el aviso de la renovación para revisar su transferencia (el sistema no registra ese pago).
 
 const founderIdSet = async (patientIds) => {
   const ids = [...new Set(patientIds.map(String))];
   if (ids.length === 0) return new Set();
-  const founders = await User.find({ _id: { $in: ids }, isFounder: true }).select('_id');
+  // Pacientes cuyo plan se renueva solo: Miembros Fundadores y los que tienen la renovación automática activada
+  const founders = await User.find({ _id: { $in: ids }, $or: [{ isFounder: true }, { autoRenew: true }] }).select('_id');
   return new Set(founders.map((u) => String(u._id)));
 };
 
@@ -583,7 +584,7 @@ export async function runPlanLifecycleJob(now = new Date()) {
     for (const adminId of adminIds) {
       await notify(adminId, 'plan_auto_renewed', {
         title: 'Planes renovados automáticamente',
-        body: `Se renovaron solos los planes de miembros fundadores: ${shown}${more}. Revisa que hayan transferido.`,
+        body: `Se renovaron solos los planes con renovación automática (fundadores y pacientes marcados): ${shown}${more}. Revisa que hayan transferido.`,
         link: '/app/admin/planes'
       });
     }

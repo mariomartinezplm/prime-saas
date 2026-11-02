@@ -103,6 +103,13 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // «Renovación automática»: lo marca SOLO el administrador (al registrar, al renovar o al editar al paciente) para quien paga todos
+  // los meses. Su plan se renueva solo cada ciclo, igual que el de un Miembro Fundador (sin la estrella): el ciclo nuevo nace activo y
+  // el administrador recibe el aviso para revisar la transferencia. No depende del plan: se queda si cambia de plan.
+  autoRenew: {
+    type: Boolean,
+    default: false
+  },
   isActive: {
     type: Boolean,
     default: true
