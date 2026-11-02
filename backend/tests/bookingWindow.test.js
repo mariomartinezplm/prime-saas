@@ -4,7 +4,7 @@
  *  - con la renovación ya hecha, todo el mes siguiente y hasta el día 5 del subsiguiente;
  *  - sin renovación pendiente de pago, solo hasta el fin del plazo de pago.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import mongoose from 'mongoose';
 import ClientPlan from '../models/ClientPlan.js';
 import ExtraSession from '../models/ExtraSession.js';
@@ -51,7 +51,13 @@ function mockPlans(plans) {
   vi.spyOn(ExtraSession, 'countDocuments').mockResolvedValue(0);
 }
 
-beforeEach(() => vi.restoreAllMocks());
+// La hora «de hoy» queda fija (30 de octubre de 2026): estas reglas dependen de cuándo se agenda
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(santiagoToUtc(2026, 10, 30, 9, 0));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('hasta cuándo se puede agendar', () => {
   it('último ciclo de octubre sin renovar: hasta el 5 de noviembre', () => {
