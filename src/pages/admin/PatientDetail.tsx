@@ -569,7 +569,7 @@ const PatientDetail = () => {
         open={renewOpen}
         onOpenChange={setRenewOpen}
         onRenewed={fetchData}
-        canSetAutoRenew={user?.role === 'admin'}
+        canSetAutoRenew={user?.role === 'admin' || user?.role === 'professional'}
         autoRenew={patient.autoRenew === true}
         onAutoRenewChanged={fetchData}
       />

@@ -148,7 +148,8 @@ const RegisterPatient = () => {
         dateOfBirth: form.dateOfBirth || undefined,
         address: form.address.trim() || undefined,
         role: 'patient',
-        ...(isAdmin ? { assignedProfessionalId: chosenProfessional === NONE ? '' : chosenProfessional, ...(autoRenew ? { autoRenew: true } : {}) } : {}),
+        ...(isAdmin ? { assignedProfessionalId: chosenProfessional === NONE ? '' : chosenProfessional } : {}),
+        ...(autoRenew ? { autoRenew: true } : {}),
         emergencyContact: hasEmergency
           ? { name: form.emergencyName.trim(), phone: form.emergencyPhone.trim(), relationship: form.emergencyRelationship.trim() }
           : undefined,
@@ -305,11 +306,9 @@ const RegisterPatient = () => {
           </FormSection>
         )}
 
-        {isAdmin && (
-          <FormSection title="Renovación" description="Para quien paga todos los meses. Puedes cambiarlo después al editar o renovar al paciente." className="md:grid-cols-1">
-            <AutoRenewSwitch id="register-auto-renew" checked={autoRenew} onCheckedChange={setAutoRenew} />
-          </FormSection>
-        )}
+        <FormSection title="Renovación" description="Para quien paga todos los meses. Puedes cambiarlo después al editar o renovar al paciente." className="md:grid-cols-1">
+          <AutoRenewSwitch id="register-auto-renew" checked={autoRenew} onCheckedChange={setAutoRenew} />
+        </FormSection>
 
         <Card>
           <CardHeader>

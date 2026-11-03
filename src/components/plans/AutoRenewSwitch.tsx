@@ -18,7 +18,7 @@ const AutoRenewSwitch = ({ id, checked, onCheckedChange, disabled, className }: 
       <Label htmlFor={id}>Renovar automáticamente cada mes</Label>
       <p className="text-xs text-muted-foreground">
         Para quien paga todos los meses: su plan se renueva solo, sin que tengas que apretar «Renovar plan». El mes nuevo queda activo (sin
-        plazo de pago) y tú recibes un aviso para revisar que haya transferido. Puedes apagarlo cuando quieras.
+        plazo de pago) y el día 1 de cada mes recibes un solo recordatorio para revisar que haya transferido. Puedes apagarlo cuando quieras.
       </p>
     </div>
     <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />

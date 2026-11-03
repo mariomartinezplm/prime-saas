@@ -167,11 +167,11 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, canChangePr
               assignedProfessionalId: form.assignedProfessionalId === NO_PROFESSIONAL ? '' : form.assignedProfessionalId,
               exemptFromCapacity: form.exemptFromCapacity,
               isFounder: form.isFounder,
-              autoRenew: form.autoRenew,
             }
           : canChangeProfessional && form.assignedProfessionalId !== NO_PROFESSIONAL
             ? { assignedProfessionalId: form.assignedProfessionalId }
             : {}),
+        autoRenew: form.autoRenew,
       });
       notify.success('Datos del paciente actualizados');
       onSaved(updated);
@@ -316,7 +316,7 @@ const EditPatientDialog = ({ patient, open, onOpenChange, canAssign, canChangePr
                       <Switch id="is-founder" checked={form.isFounder} onCheckedChange={(v) => set('isFounder', v)} />
                     </div>
                   )}
-                  {canAssign && <AutoRenewSwitch id="auto-renew" className="sm:col-span-2" checked={form.autoRenew} onCheckedChange={(v) => set('autoRenew', v)} />}
+                  <AutoRenewSwitch id="auto-renew" className="sm:col-span-2" checked={form.autoRenew} onCheckedChange={(v) => set('autoRenew', v)} />
                 </div>
               </section>
 

@@ -563,7 +563,7 @@ export async function runPlanLifecycleJob(now = new Date()) {
   // 2b) Renovaciones automáticas: la beca no recibe nada (no paga); al fundador se le recuerda pagar y a los administradores se
   //     les avisa para que revisen su transferencia (el sistema no registra ese pago). Un solo aviso por renovación.
   const autoOpened = await ClientPlan.find({ status: 'active', autoRenewed: true, paymentPending: false, renewalNotifiedAt: null })
-    .populate('patient', 'firstName lastName');
+    .populate('patient', 'firstName lastName assignedProfessionalId');
   const renewedFounders = [];
   for (const plan of autoOpened) {
     if (plan.patient && !plan.scholarship) {
@@ -572,19 +572,31 @@ export async function runPlanLifecycleJob(now = new Date()) {
         body: `Tu plan se renovó automáticamente y ya puedes agendar. Recuerda pagarlo por transferencia a Prime F&H antes del ${dayBeforeEnd(paymentDueBy(plan.startDate, plan.graceDays ?? 5))}.`,
         link: '/app/mi-perfil'
       });
-      renewedFounders.push(`${plan.patient.firstName} ${plan.patient.lastName}`);
+      renewedFounders.push({ name: `${plan.patient.firstName} ${plan.patient.lastName}`, professional: plan.patient.assignedProfessionalId });
     }
     plan.renewalNotifiedAt = now;
     await plan.save();
     summary.autoRenewed++;
   }
-  if (renewedFounders.length) {
-    const shown = renewedFounders.slice(0, 6).join(', ');
-    const more = renewedFounders.length > 6 ? ` y ${renewedFounders.length - 6} más` : '';
-    for (const adminId of adminIds) {
-      await notify(adminId, 'plan_auto_renewed', {
+  // Recordatorio para el equipo: UNO solo, el día 1 del mes, con los pacientes de renovación automática que se renovaron.
+  // Cada profesional recibe los suyos; el administrador recibe todos. Otro día del mes no se manda nada al equipo.
+  if (renewedFounders.length && santiagoParts(now).day === 1) {
+    const forStaff = new Map();
+    const add = (staffId, name) => {
+      const key = String(staffId);
+      if (!forStaff.has(key)) forStaff.set(key, { id: staffId, names: [] });
+      if (!forStaff.get(key).names.includes(name)) forStaff.get(key).names.push(name);
+    };
+    for (const r of renewedFounders) {
+      if (r.professional) add(r.professional, r.name);
+      for (const adminId of adminIds) add(adminId, r.name);
+    }
+    for (const { id, names } of forStaff.values()) {
+      const shown = names.slice(0, 6).join(', ');
+      const more = names.length > 6 ? ` y ${names.length - 6} más` : '';
+      await notify(id, 'plan_auto_renewed', {
         title: 'Planes renovados automáticamente',
-        body: `Se renovaron solos los planes con renovación automática (fundadores y pacientes marcados): ${shown}${more}. Revisa que hayan transferido.`,
+        body: `Hoy se renovaron solos los planes con renovación automática: ${shown}${more}. Revisa que hayan transferido.`,
         link: '/app/admin/planes'
       });
     }

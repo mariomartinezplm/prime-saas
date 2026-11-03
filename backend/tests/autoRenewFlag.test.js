@@ -34,10 +34,10 @@ describe('quién puede activar la renovación automática de un paciente (editar
     expect(paciente.autoRenew).toBe(false);
   });
 
-  it('un profesional (aunque sea el dueño del paciente) NO puede: se ignora el campo', async () => {
+  it('el profesional dueño del paciente también puede activarla', async () => {
     const paciente = prep();
     await updateUser(pedido({ _id: PROF, role: 'professional' }, { autoRenew: true, phone: '+56911111111' }), fakeRes());
-    expect(paciente.autoRenew).toBe(false);
+    expect(paciente.autoRenew).toBe(true);
     expect(paciente.phone).toBe('+56911111111');
   });
 
@@ -82,9 +82,9 @@ describe('al registrar un paciente', () => {
     expect(create.mock.calls[0][0].autoRenew).toBe(true);
   });
 
-  it('sin pedirlo, no queda activada; y un profesional no puede activarla al registrar', async () => {
+  it('sin pedirlo, no queda activada; y un profesional sí puede activarla al registrar', async () => {
     expect((await alta({ _id: nuevoId(), role: 'admin' }, {})).create.mock.calls[0][0]).not.toHaveProperty('autoRenew');
     const { create } = await alta({ _id: PROF, role: 'professional' }, { autoRenew: true });
-    expect(create.mock.calls[0][0]).not.toHaveProperty('autoRenew');
+    expect(create.mock.calls[0][0].autoRenew).toBe(true);
   });
 });

@@ -264,8 +264,8 @@ export const createUser = async (req, res) => {
       assignedProfessionalId = req.user._id;
     }
 
-    // «Renovación automática»: solo la decide el administrador, y solo para pacientes
-    const autoRenew = req.user.role === 'admin' && role === 'patient' && req.body.autoRenew === true;
+    // «Renovación automática»: la deciden el administrador y los profesionales (para sus pacientes), y solo para pacientes
+    const autoRenew = role === 'patient' && req.body.autoRenew === true;
 
     // Todo paciente nace con su fecha de nacimiento (de ahí salen los avisos de cumpleaños al profesional)
     let birthDate = dateOfBirth;
@@ -420,13 +420,14 @@ export const updateUser = async (req, res) => {
         }
         if (user.role === 'patient') user.isFounder = req.body.isFounder;
       }
-      // «Renovación automática»: solo el administrador la activa o la apaga (para quien paga todos los meses)
-      if (req.body.autoRenew !== undefined) {
-        if (typeof req.body.autoRenew !== 'boolean') {
-          return res.status(400).json({ success: false, message: 'autoRenew debe ser verdadero o falso' });
-        }
-        if (user.role === 'patient') user.autoRenew = req.body.autoRenew;
+    }
+    // «Renovación automática» (para quien paga todos los meses): la activa o apaga el administrador o el profesional del paciente
+    // (el acceso a este paciente ya se verificó arriba)
+    if (req.body.autoRenew !== undefined) {
+      if (typeof req.body.autoRenew !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'autoRenew debe ser verdadero o falso' });
       }
+      if (user.role === 'patient') user.autoRenew = req.body.autoRenew;
     }
     // Un profesional puede cambiar quién atiende a SU paciente (solo a personal activo; no puede dejarlo sin asignar).
     if (req.user.role === 'professional' && req.body.assignedProfessionalId) {

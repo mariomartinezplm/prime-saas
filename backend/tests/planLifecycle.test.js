@@ -46,7 +46,7 @@ vi.mock('../models/ClientPlan.js', async () => {
 
   const withPopulate = (docs) => Object.assign(Promise.resolve(docs), {
     populate: async () => docs.map((original) => {
-      const clone = { ...original, patient: { _id: original.patient, firstName: 'Ana', lastName: 'Pérez' } };
+      const clone = { ...original, patient: { _id: original.patient, firstName: 'Ana', lastName: 'Pérez', assignedProfessionalId: 'prof-1' } };
       clone.save = async () => {
         const { patient, save, ...rest } = clone; // eslint-disable-line no-unused-vars
         Object.assign(original, rest);
@@ -569,12 +569,12 @@ describe('beca y Miembro Fundador: el plan se renueva solo', () => {
     expect(store.docs.some((d) => d.autoRenewed)).toBe(false);
   });
 
-  it('avisos: el fundador recibe «tu plan se renovó» (con la fecha para pagar) y los administradores, uno solo; una sola vez', async () => {
+  it('avisos: el fundador recibe «tu plan se renovó» (con la fecha para pagar) y el equipo (profesional del paciente y administradores), uno solo cada uno; una sola vez', async () => {
     asFounder();
     await buy({ startDate: at(2026, 10, 20, 15) });
     await runPlanLifecycleJob(at(2026, 11, 1, 1));
     const renewed = vi.mocked(notify).mock.calls.filter(([, type]) => type === 'plan_auto_renewed');
-    expect(renewed.map(([to]) => String(to)).sort()).toEqual([String(patientId), 'admin-1'].sort());
+    expect(renewed.map(([to]) => String(to)).sort()).toEqual([String(patientId), 'admin-1', 'prof-1'].sort());
     const toPatient = renewed.find(([to]) => String(to) === String(patientId))[2];
     expect(toPatient.body).toMatch(/antes del 5 de noviembre/);
     expect(toPatient.body).not.toMatch(/\$/); // nunca se muestran precios
@@ -599,6 +599,29 @@ describe('beca y Miembro Fundador: el plan se renueva solo', () => {
     await buy({ startDate: at(2026, 10, 20, 15) });
     await runPlanLifecycleJob(at(2026, 10, 28, 1));
     expect(vi.mocked(notify).mock.calls.some(([, type]) => type === 'plan_expiring')).toBe(false);
+  });
+});
+
+describe('recordatorio al equipo por la renovación automática: uno solo, el día 1', () => {
+  const asAuto = () => vi.mocked(User.find).mockImplementation((filter) => ({
+    select: async () => (Array.isArray(filter?.$or) ? [{ _id: patientId }] : [{ _id: 'admin-1' }])
+  }));
+  const staffNotices = () => vi.mocked(notify).mock.calls.filter(([, t, p]) => t === 'plan_auto_renewed' && p.title === 'Planes renovados automáticamente');
+
+  it('el día 1 le llega al profesional del paciente y al administrador, una sola vez cada uno', async () => {
+    asAuto();
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await runPlanLifecycleJob(at(2026, 11, 1, 9));
+    await runPlanLifecycleJob(at(2026, 11, 1, 18));
+    expect(staffNotices().map(([to]) => to).sort()).toEqual(['admin-1', 'prof-1']);
+  });
+
+  it('otro día del mes no se manda nada al equipo', async () => {
+    asAuto();
+    await buy({ startDate: at(2026, 10, 20, 15) });
+    await advancePlans({ patientId, now: at(2026, 11, 1, 1) });
+    await runPlanLifecycleJob(at(2026, 11, 3, 10));
+    expect(staffNotices()).toHaveLength(0);
   });
 });
 
