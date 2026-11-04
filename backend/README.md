@@ -234,7 +234,7 @@ Para probar la API, puedes usar:
 
 2. **Reglas de agendamiento:**
    - Pacientes: deben agendar antes de las 21:00 hrs del día anterior
-   - Cancelaciones: mínimo 4 horas de anticipación
+   - Cancelaciones: mínimo 3 horas de anticipación
 
 3. **Cálculos automáticos:**
    - IMC calculado automáticamente con peso y altura

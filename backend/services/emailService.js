@@ -352,7 +352,7 @@ export async function sendAppointmentConfirmationToPatientEmail({ patient, profe
         Te enviaremos un recordatorio 24 horas y 4 horas antes.
       </p>
       <p style="font-size: 13px; color: #64748b;">
-        Si no puedes asistir, cancela desde la app con al menos 4 horas de anticipación para no perder la sesión:
+        Si no puedes asistir, cancela o cambia tu horario desde la app con al menos 3 horas de anticipación para no perder la sesión:
         <a href="${APP_URL}" style="color: ${BRAND_TEAL};">app.primefh.cl</a>
       </p>
     `
@@ -389,7 +389,7 @@ export async function sendAppointmentReminderEmail({ patient, professional, date
       <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
         ${isLastCall
           ? 'Si ya no puedes asistir, avísanos por WhatsApp lo antes posible.'
-          : `Si no puedes asistir, cancela desde la app con al menos 4 horas de anticipación para no perder la sesión: <a href="${APP_URL}" style="color: ${BRAND_TEAL};">app.primefh.cl</a>`}
+          : `Si no puedes asistir, cancela o cambia tu horario desde la app con al menos 3 horas de anticipación para no perder la sesión: <a href="${APP_URL}" style="color: ${BRAND_TEAL};">app.primefh.cl</a>`}
       </p>
     `
   });

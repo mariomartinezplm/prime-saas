@@ -179,7 +179,7 @@ export const updateSlot = async (req, res) => {
 
 // @route DELETE /api/recurring-slots/:id
 // Al quitar un horario fijo se cancelan sus citas FUTURAS que siguen agendadas y se devuelven las sesiones descontadas (las citas
-// ya realizadas no se tocan). Si quien lo quita es el paciente, las que empiezan en menos de 4 horas se conservan (misma regla
+// ya realizadas no se tocan). Si quien lo quita es el paciente, las que empiezan en menos de 3 horas se conservan (misma regla
 // que cancelar una cita: la sesión de una cita tan próxima no se devuelve).
 export const deleteSlot = async (req, res) => {
   try {

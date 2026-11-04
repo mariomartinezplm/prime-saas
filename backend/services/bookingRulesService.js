@@ -8,7 +8,7 @@ export { nowInSantiago };
 export const MAX_PATIENTS_PER_SLOT = 4;        // Máximo 4 pacientes simultáneos por profesional (lo que pueden agendar los pacientes)
 export const MAX_PATIENTS_WITH_OVERBOOK = 5;   // Con 1 sobrecupo del equipo: máximo 5 por profesional en cualquier hora (nadie puede pasar de 5)
 export const PATIENT_BOOK_AHEAD_HOURS = 2;     // Pacientes: mínimo 2h de anticipación para agendar (el personal agenda en cualquier momento)
-export const PATIENT_CANCEL_AHEAD_HOURS = 4;   // Pacientes: mínimo 4h de anticipación para cancelar sin perder la sesión
+export const PATIENT_CANCEL_AHEAD_HOURS = 3;   // Pacientes: mínimo 3h de anticipación para cancelar sin perder la sesión
 export const BULK_BOOKING_MAX_ITEMS = 20;      // Tope de citas por reserva masiva
 
 // Cuenta las citas que se solapan con el slot de 1 hora que empieza en

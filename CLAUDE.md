@@ -42,9 +42,9 @@ Esto es el modelo de negocio **hacia el que vamos**, no necesariamente lo que ya
 Se descuenta 1 sesión del plan cuando:
 - La cita se completa (`completed`)
 - El paciente no llega (`no-show`)
-- El paciente cancela con **menos de 4 horas** de anticipación
+- El paciente cancela con **menos de 3 horas** de anticipación (decisión de Mario, 2026-11-04)
 
-No se descuenta si cancela con 4+ horas de anticipación (la sesión vuelve al plan y el slot se libera).
+No se descuenta si cancela con 3+ horas de anticipación (la sesión vuelve al plan y el slot se libera).
 
 ### Agendamiento
 - Cada paciente está **asignado a un profesional fijo** (quien lo registró). Solo ve y agenda con ese profesional.

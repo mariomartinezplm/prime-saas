@@ -430,7 +430,7 @@ export const cancelAppointment = async (req, res) => {
 
     // ──── ¿Con cuánta anticipación cancela? (Paso 15 de BLUEPRINT.md) ────
     // El paciente SIEMPRE puede cancelar (nunca se bloquea la acción); lo que
-    // cambia es si la sesión se le devuelve o no. Cancelar con menos de 4h es
+    // cambia es si la sesión se le devuelve o no. Cancelar con menos de 3h es
     // una acción legítima, solo que se pierde la sesión — antes esto estaba
     // mal: el código bloqueaba con 400 la cancelación tardía en vez de
     // permitirla sin reembolso, contradiciendo la regla de negocio real.

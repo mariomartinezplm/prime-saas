@@ -24,7 +24,7 @@ import { useNow } from '@/components/dashboard/useNow';
 import { usePlanHistory } from '@/components/dashboard/usePlanHistory';
 import FounderBadge from '@/components/plans/FounderBadge';
 import PaymentPendingBanner from '@/components/plans/PaymentPendingBanner';
-import MondayNotice from '@/components/dashboard/MondayNotice';
+import CancelNotice from '@/components/dashboard/CancelNotice';
 import GoalsPrompt from '@/components/goals/GoalsPrompt';
 import BirthdatePrompt, { readBirthdatePref } from '@/components/profile/BirthdatePrompt';
 import { shouldPromptBirthdate } from '@/lib/birthdatePrompt';
@@ -157,7 +157,7 @@ const PatientDashboard = () => {
 
       {balance?.paymentPending && balance.paymentDueBy && <PaymentPendingBanner paymentDueBy={balance.paymentDueBy} />}
 
-      {user && <MondayNotice userId={user.id} hasPlan={hasPlan} />}
+      {user && <CancelNotice userId={user.id} hasPlan={hasPlan} appointments={upcoming} appointmentsLoading={states.upcoming === 'loading'} />}
 
       <div className="space-y-3 lg:grid lg:grid-cols-[1.25fr_1fr] lg:items-start lg:gap-4 lg:space-y-0">
         <div className="space-y-3">

@@ -314,7 +314,7 @@ const FixedScheduleDialog = ({ open, onClose, professionalId, allowedTypes, pati
         open={!!removing}
         onOpenChange={(next) => !next && setRemoving(null)}
         title="¿Quitar este horario fijo?"
-        description={`Dejaremos de agendar esos días y se cancelarán las citas futuras de este horario que siguen agendadas; las sesiones descontadas se devuelven al plan.${forPatient ? '' : ' Las que empiecen en menos de 4 horas se conservan.'} Las citas que ya se realizaron no se tocan.`}
+        description={`Dejaremos de agendar esos días y se cancelarán las citas futuras de este horario que siguen agendadas; las sesiones descontadas se devuelven al plan.${forPatient ? '' : ' Las que empiecen en menos de 3 horas se conservan.'} Las citas que ya se realizaron no se tocan.`}
         confirmLabel="Sí, quitar"
         cancelLabel="Volver"
         destructive
