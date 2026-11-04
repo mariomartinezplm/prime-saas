@@ -101,10 +101,13 @@ const InstallApp = () => {
             </CardHeader>
             <CardContent>
               <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                <li>Toca el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba) en la barra de abajo</li>
+                <li>Abre esta página en <strong>Safari</strong> (no desde Instagram ni WhatsApp: ahí no se puede instalar)</li>
+                <li>Toca el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba)</li>
                 <li>Desliza hacia abajo y toca <strong>"Agregar a pantalla de inicio"</strong></li>
+                <li>Si ves la opción <strong>"Abrir como app"</strong>, déjala activada</li>
                 <li>Toca <strong>"Agregar"</strong> arriba a la derecha</li>
               </ol>
+              <p className="mt-3 text-sm text-muted-foreground">¿Ya la agregaste antes y se abre como una página web? Mantén apretado el icono, elige <strong>"Eliminar app"</strong> y agrégala de nuevo con estos pasos.</p>
             </CardContent>
           </Card>
 
@@ -119,8 +122,9 @@ const InstallApp = () => {
               <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
                 <li>Si arriba aparece el botón "Instalar", tócalo</li>
                 <li>Si no, abre el menú (⋮, arriba a la derecha)</li>
-                <li>Toca <strong>"Instalar app"</strong> o <strong>"Agregar a pantalla de inicio"</strong></li>
+                <li>Toca <strong>"Instalar app"</strong> (mejor que "Agregar a pantalla de inicio", que solo crea un acceso directo)</li>
               </ol>
+              <p className="mt-3 text-sm text-muted-foreground">¿Ya tienes un acceso directo que se abre en el navegador? Elimínalo (mantén apretado el icono) e instala la app de nuevo.</p>
             </CardContent>
           </Card>
         </div>

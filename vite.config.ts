@@ -20,8 +20,13 @@ export default defineConfig(({ mode }) => ({
         short_name: "Prime",
         description: "Tu centro de entrenamiento y kinesiología en Puerto Montt",
         lang: "es",
-        start_url: "/",
+        // «id» fijo: la app ya instalada conserva su identidad aunque cambie la URL de inicio
+        id: "/",
+        // Abre directo en el login (que lleva al dashboard si hay sesión): nunca en la página corporativa
+        start_url: "/login",
+        scope: "/",
         display: "standalone",
+        display_override: ["standalone", "minimal-ui"],
         orientation: "portrait",
         theme_color: "#3D9AA6",
         background_color: "#181619",
