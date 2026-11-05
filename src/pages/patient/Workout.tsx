@@ -10,6 +10,8 @@ import ExercisePickSheet, { type PickedExercise } from '@/components/workout/Exe
 import PlanBlockCard from '@/components/workout/PlanBlockCard';
 import SessionPlanner, { type PlanCounts } from '@/components/workout/SessionPlanner';
 import WorkoutFinished from '@/components/workout/WorkoutFinished';
+import PlannedTrainingCard from '@/components/training/PlannedTrainingCard';
+import { draftFromPlan } from '@/lib/trainingPlan';
 import { REST_DONE_TONES, playTones, unlockAudio } from '@/lib/sound';
 import { BTN_FILL, EYEBROW_SOFT } from '@/components/dashboard/brand';
 import { useAuth } from '@/contexts/AuthContext';
@@ -251,7 +253,10 @@ const Workout = () => {
       )}
 
       {plan.blocks.length === 0 ? (
-        <SessionPlanner counts={counts} busy={w.busy} onChange={setCounts} onCreate={createPlan} />
+        <>
+          {user && <PlannedTrainingCard patientId={user.id} onUse={(blocks) => { plan.setBlocks((prev) => [...prev, ...draftFromPlan(blocks)]); notify.success('Cargamos lo planificado. Completa tus valores reales y guarda cada bloque.'); }} />}
+          <SessionPlanner counts={counts} busy={w.busy} onChange={setCounts} onCreate={createPlan} />
+        </>
       ) : (
         <>
           <div className="space-y-3.5">

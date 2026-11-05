@@ -16,6 +16,8 @@ export interface Group {
 // `execution`, `eccentricSec` e `implement` son opcionales: sin elegir quedan «sin especificar» (como todo el historial anterior)
 export interface DraftSlot extends Attributes {
   name: string | null; // null = todavía sin elegir
+  // Solo al preparar un entrenamiento: indicación para el paciente
+  note?: string;
   modality: Modality;
   groups: Group[];
 }
@@ -106,12 +108,13 @@ export function changeModality(slot: DraftSlot, modality: Modality): DraftSlot {
 }
 
 // Problema de un cuadro (mismas reglas que el servidor, para avisar antes de enviar); null si está bien
-export function groupProblem(modality: Modality, g: Group): string | null {
+// `weightOptional`: al PREPARAR un entrenamiento la carga puede quedar «por definir»
+export function groupProblem(modality: Modality, g: Group, { weightOptional = false } = {}): string | null {
   if (!g.sets || g.sets < 1) return 'Indica cuántas series';
   if (g.sets > MAX_SETS_PER_SLOT) return `Máximo ${MAX_SETS_PER_SLOT} series`;
   if (usesReps(modality) && (!g.reps || g.reps < 1)) return 'Indica las repeticiones';
   if (usesTime(modality) && (!g.durationSec || g.durationSec < 1)) return 'Indica los segundos';
-  if (usesWeight(modality) && (!g.weight || g.weight <= 0)) return 'Indica la carga';
+  if (usesWeight(modality) && !weightOptional && (!g.weight || g.weight <= 0)) return 'Indica la carga';
   return null;
 }
 

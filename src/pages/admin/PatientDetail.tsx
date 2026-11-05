@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 import MeasurementForm from '@/components/forms/MeasurementForm';
 import ExerciseForm from '@/components/forms/ExerciseForm';
+import PreparationsCard from '@/components/training/PreparationsCard';
 import EVAForm from '@/components/forms/EVAForm';
 import WellnessHistoryTab from '@/components/wellness/WellnessHistoryTab';
 import PatientFilesTab from '@/components/files/PatientFilesTab';
@@ -470,6 +471,7 @@ const PatientDetail = () => {
 
         <TabsContent value="exercises" className="mt-4">
           <div className="space-y-4">
+            <PreparationsCard patientId={id!} patientName={patient ? `${patient.firstName} ${patient.lastName}` : undefined} />
             <ExerciseForm patientId={id!} onSuccess={() => setRecordsKey((k) => k + 1)} prefill={exercisePrefill ?? undefined} />
             <ExerciseHistory patientId={id!} refreshKey={recordsKey} onNewWeight={(e) => setExercisePrefill({ name: e.exerciseName, category: e.category, nonce: Date.now() })} />
           </div>

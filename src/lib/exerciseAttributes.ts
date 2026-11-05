@@ -46,7 +46,7 @@ export const loadFieldLabel = (implement?: Implement | null): string =>
 
 // Cuadro de carga del entrenamiento (angosto): nombre y unidad según el implemento
 export const loadTile = (implement?: Implement | null): { label: string; unit: string } =>
-  implement === 'barbell' ? { label: 'Carga', unit: 'kg total' } : implement === 'two_dumbbells' ? { label: 'Carga', unit: 'kg c/u' } : { label: 'Carga', unit: 'kg' };
+  implement === 'barbell' ? { label: 'Total', unit: 'kg' } : implement === 'two_dumbbells' ? { label: 'Cada una', unit: 'kg' } : { label: 'Carga', unit: 'kg' };
 
 const num = (v: number) => String(v).replace('.', ',');
 

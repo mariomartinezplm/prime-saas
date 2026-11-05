@@ -11,6 +11,7 @@ import ExerciseForm from '@/components/forms/ExerciseForm';
 import PatientRecordDialog from '@/components/forms/PatientRecordDialog';
 import RecordRowActions from '@/components/records/RecordRowActions';
 import PageTitle from '@/components/premium/PageTitle';
+import PlannedTrainingCard from '@/components/training/PlannedTrainingCard';
 import SegmentedTabs from '@/components/premium/SegmentedTabs';
 import MetricTile from '@/components/premium/MetricTile';
 import TrendChart from '@/components/premium/TrendChart';
@@ -147,6 +148,8 @@ const ExercisesPage = () => {
           </AlertDescription>
         </Alert>
       )}
+
+      {user && <PlannedTrainingCard patientId={user.id} />}
 
       {exercises.length === 0 && !failed ? (
         <EmptyGuide

@@ -18,11 +18,16 @@ interface SlotEditorProps {
   locked?: boolean;
   onChange: (slot: DraftSlot) => void;
   onPick: () => void;
+  // Preparar entrenamiento (portal del profesional): el nombre se elige con otro control, la carga puede quedar por definir y
+  // cada ejercicio admite una indicación para el paciente
+  nameControl?: React.ReactNode;
+  weightOptional?: boolean;
+  allowNote?: boolean;
 }
 
 // Un ejercicio dentro de un bloque: nombre, cómo se mide y sus cuadros de «series × repeticiones × carga». Si en alguna serie los
 // valores cambiaron, se agrega otro cuadro (por ejemplo 3 series de 10 y 1 serie de 8).
-const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick }: SlotEditorProps) => {
+const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick, nameControl, weightOptional = false, allowNote = false }: SlotEditorProps) => {
   const updateGroup = (id: string, patch: Partial<Group>) => onChange({ ...slot, groups: slot.groups.map((g) => (g.id === id ? { ...g, ...patch } : g)) });
   const addGroup = () => {
     const last = slot.groups[slot.groups.length - 1];
@@ -37,6 +42,9 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick }:
     <div>
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#62b8cf]/40 bg-[#398ca2]/15 text-sm font-extrabold text-[#8fd0e0]">{badge}</span>
+        {nameControl ? (
+          <div className="min-w-0 flex-1">{nameControl}</div>
+        ) : (
         <button type="button" onClick={onPick} disabled={locked} className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
           <span className="min-w-0 flex-1">
             <span className={cn('line-clamp-2 break-words text-[1.0625rem] font-extrabold leading-tight tracking-tight', slot.name ? 'text-[#fff8e4]' : 'text-[#8fd0e0]')}>{slot.name ?? 'Elegir ejercicio'}</span>
@@ -45,6 +53,7 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick }:
           </span>
           {!locked && <ChevronDown className="h-4 w-4 shrink-0 text-[#a8a295]" aria-hidden="true" />}
         </button>
+        )}
       </div>
 
       {slot.name && (
@@ -69,7 +78,7 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick }:
 
           <div className="mt-2.5 space-y-2">
             {slot.groups.map((g, i) => {
-              const problem = showErrors ? groupProblem(slot.modality, g) : null;
+              const problem = showErrors ? groupProblem(slot.modality, g, { weightOptional }) : null;
               return (
                 <div key={g.id}>
                   {multiple && (
@@ -84,13 +93,20 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick }:
                     <ValueTile label="Series" value={g.sets} onChange={(v) => updateGroup(g.id, { sets: v })} min={0} max={20} invalid={!!problem && !g.sets} />
                     {usesReps(slot.modality) && <ValueTile label="Repeticiones" value={g.reps} onChange={(v) => updateGroup(g.id, { reps: v })} min={0} max={999} invalid={!!problem && !g.reps} />}
                     {usesTime(slot.modality) && <ValueTile label="Tiempo" unit="s" value={g.durationSec} onChange={(v) => updateGroup(g.id, { durationSec: v })} step={5} min={0} max={7200} invalid={!!problem && !g.durationSec} />}
-                    {usesWeight(slot.modality) && <ValueTile label={loadTile(slot.implement).label} unit={loadTile(slot.implement).unit} decimals step={2.5} value={g.weight} onChange={(v) => updateGroup(g.id, { weight: v })} min={0} max={1000} invalid={!!problem && !g.weight} />}
+                    {usesWeight(slot.modality) && <ValueTile label={loadTile(slot.implement).label} unit={loadTile(slot.implement).unit} decimals step={2.5} value={g.weight} onChange={(v) => updateGroup(g.id, { weight: v })} min={0} max={1000} invalid={!!problem && !g.weight && !weightOptional} />}
                   </div>
                   {problem && <p role="alert" className="mt-1 text-[12.5px] font-semibold text-[#e8b4a0]">{problem}.</p>}
                 </div>
               );
             })}
           </div>
+
+          {allowNote && (
+            <label className="mt-2 block">
+              <span className="text-[11.5px] font-bold uppercase tracking-[0.12em] text-[#a8a295]">Indicación para el paciente (opcional)</span>
+              <input type="text" maxLength={200} value={slot.note ?? ''} onChange={(e) => onChange({ ...slot, note: e.target.value })} placeholder="Ej: bajar en 3 segundos" className="mt-1 h-11 w-full rounded-xl border border-[#fff8e4]/15 bg-transparent px-3 text-[14px] text-[#fff8e4] placeholder:text-[#a8a295] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]" />
+            </label>
+          )}
 
           {slot.groups.length < MAX_GROUPS && (
             <button type="button" onClick={addGroup} className="mt-1.5 flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#62b8cf]/50 text-[13.5px] font-semibold text-[#8fd0e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
