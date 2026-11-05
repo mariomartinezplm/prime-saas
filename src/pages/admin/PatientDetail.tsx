@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Calendar,
   CalendarX,
+  ClipboardList,
   Dumbbell,
   FileText,
   MoreHorizontal,
@@ -28,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUnsavedChangesApi } from '@/contexts/UnsavedChangesContext';
 import MeasurementForm from '@/components/forms/MeasurementForm';
@@ -66,19 +67,23 @@ import { notify } from '@/lib/notify';
 import { capitalizeFirst } from '@/lib/utils';
 import type { Appointment, PatientProfile, SessionBalance } from '@/types';
 
-const SECTIONS = [
-  { value: 'profile', label: 'Perfil' },
-  { value: 'appointments', label: 'Citas' },
-  { value: 'measurements', label: 'Mediciones' },
-  { value: 'exercises', label: 'Ejercicios' },
-  { value: 'eva', label: 'EVA (dolor)' },
-  { value: 'files', label: 'Archivos' },
-  { value: 'photos', label: 'Fotos' },
-  { value: 'wellness', label: 'Bienestar' },
-  { value: 'goals', label: 'Objetivos' },
-  { value: 'achievements', label: 'Logros' },
-  { value: 'plan', label: 'Plan' },
-] as const;
+// Las secciones de la ficha, agrupadas por lo que el profesional necesita hacer (las rutas y los valores de `?tab=` no cambian)
+const GROUPS: { label: string; items: { value: string; label: string }[] }[] = [
+  { label: 'Paciente', items: [{ value: 'profile', label: 'Perfil' }] },
+  { label: 'Agenda y plan', items: [{ value: 'appointments', label: 'Citas' }, { value: 'plan', label: 'Plan' }] },
+  {
+    label: 'Entrenamiento y progreso',
+    items: [
+      { value: 'exercises', label: 'Ejercicios' },
+      { value: 'measurements', label: 'Mediciones' },
+      { value: 'goals', label: 'Objetivos' },
+      { value: 'achievements', label: 'Logros' },
+      { value: 'photos', label: 'Fotos' },
+    ],
+  },
+  { label: 'Clínico y archivos', items: [{ value: 'eva', label: 'EVA (dolor)' }, { value: 'wellness', label: 'Bienestar' }, { value: 'files', label: 'Archivos' }] },
+];
+const SECTIONS = GROUPS.flatMap((g) => g.items);
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -108,6 +113,8 @@ const PatientDetail = () => {
   const navigate = useNavigate();
   const [recordsKey, setRecordsKey] = useState(0);
   const [renewOpen, setRenewOpen] = useState(false);
+  // «Preparar entrenamiento» desde el encabezado: cambia a Ejercicios y abre el panel (el número cambia en cada petición)
+  const [prepareRequest, setPrepareRequest] = useState(0);
   // «Registrar un nuevo peso» desde una fila del historial de ejercicios: el formulario de arriba se completa con ese ejercicio
   const [exercisePrefill, setExercisePrefill] = useState<{ name: string; category: string; nonce: number } | null>(null);
 
@@ -195,16 +202,17 @@ const PatientDetail = () => {
     }
   };
 
-  const statCards = [
-    { label: 'Citas', value: stats.totalAppointments, icon: Calendar, tab: 'appointments' },
-    { label: 'Mediciones', value: stats.totalMeasurements, icon: Ruler, tab: 'measurements' },
-    { label: 'Ejercicios', value: stats.totalExercises, icon: Dumbbell, tab: 'exercises' },
-    { label: 'EVA', value: stats.totalEVARecords, icon: Activity, tab: 'eva' },
-  ];
+  // Los contadores van dentro de las pestañas (antes eran tarjetas que repetían lo mismo)
+  const counts: Record<string, number> = { appointments: stats.totalAppointments, measurements: stats.totalMeasurements, exercises: stats.totalExercises, eva: stats.totalEVARecords };
+  const onExercises = tab === 'exercises';
+  const prepare = () => {
+    changeTab('exercises');
+    setPrepareRequest((n) => n + 1);
+  };
 
   return (
     <div className="space-y-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
+      <Button asChild variant="ghost" size="sm" className="-ml-2 min-h-[44px]">
         <Link to="/app/admin/pacientes">
           <ArrowLeft aria-hidden="true" />
           Pacientes
@@ -238,38 +246,58 @@ const PatientDetail = () => {
         }
         actions={
           <>
-            {bookingProfessionalId && (
-              <Button onClick={() => setBookingOpen(true)}>
-                <Calendar aria-hidden="true" />
-                Agendar cita
+            {/* Una sola acción protagonista según lo que se está haciendo: con los ejercicios abiertos, preparar el entrenamiento */}
+            {onExercises ? (
+              <Button onClick={prepare} className="min-h-[44px] w-full px-5 sm:w-auto">
+                <ClipboardList aria-hidden="true" />
+                Preparar entrenamiento
               </Button>
+            ) : (
+              bookingProfessionalId && (
+                <Button onClick={() => setBookingOpen(true)} className="min-h-[44px] w-full px-5 sm:w-auto">
+                  <Calendar aria-hidden="true" />
+                  Agendar cita
+                </Button>
+              )
             )}
-            <Button variant="outline" onClick={() => setRenewOpen(true)}>
+            <Button variant="outline" onClick={() => setRenewOpen(true)} className="min-h-[44px]">
               <RefreshCw aria-hidden="true" />
               Renovar plan
             </Button>
-            {fixedProfessionalId && (
-              <Button variant="outline" onClick={() => setFixedOpen(true)}>
-                <Repeat aria-hidden="true" />
-                Horario fijo
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setEditOpen(true)}>
+            <Button variant="outline" onClick={() => setEditOpen(true)} className="min-h-[44px]">
               <Pencil aria-hidden="true" />
               Editar datos
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Más acciones">
+                <Button variant="outline" size="icon" aria-label="Más acciones" className="h-11 w-11">
                   <MoreHorizontal />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setInviteOpen(true)}>
+              <DropdownMenuContent align="end" className="min-w-[240px]">
+                {onExercises && bookingProfessionalId && (
+                  <DropdownMenuItem className="min-h-[44px]" onSelect={() => setBookingOpen(true)}>
+                    <Calendar className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Agendar cita
+                  </DropdownMenuItem>
+                )}
+                {!onExercises && (
+                  <DropdownMenuItem className="min-h-[44px]" onSelect={prepare}>
+                    <ClipboardList className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Preparar entrenamiento
+                  </DropdownMenuItem>
+                )}
+                {fixedProfessionalId && (
+                  <DropdownMenuItem className="min-h-[44px]" onSelect={() => setFixedOpen(true)}>
+                    <Repeat className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Horario fijo
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem className="min-h-[44px]" onSelect={() => setInviteOpen(true)}>
                   <Send className="mr-2 h-4 w-4" aria-hidden="true" />
                   {patient.inviteStatus === 'activated' ? 'Enviar enlace para nueva contraseña' : 'Reenviar invitación'}
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}>
+                <DropdownMenuItem className="min-h-[44px] text-destructive focus:text-destructive" onSelect={() => setDeleteOpen(true)}>
                   <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
                   Eliminar paciente
                 </DropdownMenuItem>
@@ -279,50 +307,48 @@ const PatientDetail = () => {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {statCards.map(({ label, value, icon: Icon, tab: target }) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => changeTab(target)}
-            className="rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <Card className="h-full transition-colors hover:bg-accent/40">
-              <CardContent className="flex items-center gap-3 p-4">
-                <Icon className="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
-                <div>
-                  <p className="text-xl font-semibold leading-none">{value}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </button>
-        ))}
-      </div>
-
       <Tabs value={tab} onValueChange={changeTab}>
-        {/* En móvil 10 pestañas no caben: se elige la sección con un selector */}
-        <div className="md:hidden">
+        {/* En teléfono y iPad vertical 11 pestañas no caben: se elige la sección con un selector (agrupado, con contadores) */}
+        <div className="lg:hidden">
           <Select value={tab} onValueChange={changeTab}>
-            <SelectTrigger aria-label="Sección de la ficha">
+            <SelectTrigger aria-label="Sección de la ficha" className="min-h-[48px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SECTIONS.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
+              {GROUPS.map((g) => (
+                <SelectGroup key={g.label}>
+                  <SelectLabel>{g.label}</SelectLabel>
+                  {g.items.map((s) => (
+                    <SelectItem key={s.value} value={s.value} className="min-h-[44px]">
+                      {s.label}
+                      {counts[s.value] !== undefined ? ` (${counts[s.value]})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
         </div>
-        <TabsList className="hidden h-auto flex-wrap justify-start md:inline-flex">
-          {SECTIONS.map((s) => (
-            <TabsTrigger key={s.value} value={s.value}>
-              {s.label}
-            </TabsTrigger>
+        {/* iPad horizontal y escritorio: las secciones agrupadas por lo que se hace con ellas, con su contador dentro */}
+        <div className="hidden flex-wrap gap-x-4 gap-y-2.5 lg:flex" role="presentation">
+          {GROUPS.map((g) => (
+            <div key={g.label}>
+              <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{g.label}</p>
+              <TabsList className="h-auto flex-wrap justify-start">
+                {g.items.map((s) => (
+                  <TabsTrigger key={s.value} value={s.value} className="min-h-[44px] gap-1.5 px-3">
+                    {s.label}
+                    {counts[s.value] !== undefined && (
+                      <span className="rounded-full bg-muted px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground" aria-label={`${counts[s.value]} registros`}>
+                        {counts[s.value]}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
           ))}
-        </TabsList>
+        </div>
 
         <TabsContent value="profile" className="mt-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -471,7 +497,7 @@ const PatientDetail = () => {
 
         <TabsContent value="exercises" className="mt-4">
           <div className="space-y-4">
-            <PreparationsCard patientId={id!} patientName={patient ? `${patient.firstName} ${patient.lastName}` : undefined} />
+            <PreparationsCard patientId={id!} patientName={`${patient.firstName} ${patient.lastName}`} openRequest={prepareRequest} onRequestHandled={() => setPrepareRequest(0)} />
             <ExerciseForm patientId={id!} onSuccess={() => setRecordsKey((k) => k + 1)} prefill={exercisePrefill ?? undefined} />
             <ExerciseHistory patientId={id!} refreshKey={recordsKey} onNewWeight={(e) => setExercisePrefill({ name: e.exerciseName, category: e.category, nonce: Date.now() })} />
           </div>

@@ -218,6 +218,9 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
 
   const fields = (
     <>
+      {/* Tablet horizontal y escritorio: a la izquierda QUÉ se hizo y a la derecha CUÁNTO; en pantallas angostas, en una columna */}
+      <div className={cn('grid gap-5', !embedded && 'lg:grid-cols-2')}>
+        <div className="space-y-4">
       <FormField label="Fecha" required error={errors.date} className="max-w-[220px]">
         {(c) => <Input {...c} type="date" max={todayLocal()} value={form.date} onChange={(e) => set('date', e.target.value)} />}
       </FormField>
@@ -246,6 +249,24 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
         </FormField>
       </div>
 
+      {!isEdit && options.length > 0 && (
+        <div>
+          <p className="mb-1 text-sm font-medium text-foreground">Últimos ejercicios</p>
+          <div role="group" aria-label="Últimos ejercicios del paciente" className="flex flex-wrap gap-2">
+            {options.slice(0, 6).map((o) => (
+              <button
+                key={o.key}
+                type="button"
+                onClick={() => pickExercise(o)}
+                className="min-h-[44px] max-w-full truncate rounded-full border border-border px-3.5 text-[13.5px] font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {o.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <p className="mb-1 text-sm font-medium text-foreground">Cómo se mide</p>
         <div role="group" aria-label="Cómo se mide el ejercicio" className="grid grid-cols-2 overflow-hidden rounded-lg border border-border sm:grid-cols-4">
@@ -265,6 +286,8 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
 
       <ExerciseAttributeFields tone="form" modality={form.modality} value={attrs} onChange={setAttrs} />
 
+        </div>
+        <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <NumberField label="Series" step="1" value={form.sets} onChange={(v) => set('sets', v)} error={errors.sets} placeholder={matched?.last.sets ? String(matched.last.sets) : undefined} />
         {usesReps(form.modality) && <NumberField label="Repeticiones" step="1" value={form.reps} onChange={(v) => set('reps', v)} error={errors.reps} placeholder={matched?.last.reps ? String(matched.last.reps) : undefined} />}
@@ -275,7 +298,10 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
 
       <FormField label="Notas">{(c) => <Textarea {...c} value={form.notes} onChange={(e) => set('notes', e.target.value)} />}</FormField>
 
-      <SubmitButton className="w-full" loading={loading} loadingLabel={isEdit ? 'Guardando…' : 'Registrando…'}>
+        </div>
+      </div>
+
+      <SubmitButton className="min-h-[48px] w-full" loading={loading} loadingLabel={isEdit ? 'Guardando…' : 'Registrando…'}>
         {isEdit ? 'Guardar cambios' : 'Registrar ejercicio'}
       </SubmitButton>
     </>
@@ -293,7 +319,8 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
     <form ref={formRef} onSubmit={handleSubmit} noValidate>
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Nuevo ejercicio</CardTitle>
+          <CardTitle className="text-lg">Registrar ejercicio realizado</CardTitle>
+          <p className="text-sm text-muted-foreground">Lo que el paciente ya hizo. Lo planificado se arma arriba, en «Preparar entrenamiento».</p>
         </CardHeader>
         <CardContent className="space-y-4">{fields}</CardContent>
       </Card>

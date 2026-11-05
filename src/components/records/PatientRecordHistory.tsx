@@ -164,7 +164,7 @@ export const ExerciseHistory = ({ patientId, refreshKey, onNewWeight }: HistoryP
               onEdit={() => setEditing(e)}
               onDelete={() => handleDelete(e)}
               extra={onNewWeight && (
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Registrar un nuevo peso en ${e.exerciseName}`} title="Registrar un nuevo peso" onClick={() => onNewWeight(e)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" aria-label={`Registrar un nuevo peso en ${e.exerciseName}`} title="Registrar un nuevo peso" onClick={() => onNewWeight(e)}>
                   <Plus className="h-4 w-4" aria-hidden="true" />
                 </Button>
               )}

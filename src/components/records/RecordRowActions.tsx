@@ -19,10 +19,10 @@ const RecordRowActions = ({ itemLabel, onEdit, onDelete, extra }: RecordRowActio
   return (
     <div className="flex justify-end gap-1">
       {extra}
-      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Editar ${itemLabel}`} onClick={onEdit}>
+      <Button variant="ghost" size="icon" className="h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" aria-label={`Editar ${itemLabel}`} onClick={onEdit}>
         <Pencil className="h-4 w-4" aria-hidden="true" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Eliminar ${itemLabel}`} onClick={() => setConfirming(true)}>
+      <Button variant="ghost" size="icon" className="h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" aria-label={`Eliminar ${itemLabel}`} onClick={() => setConfirming(true)}>
         <Trash2 className="h-4 w-4" aria-hidden="true" />
       </Button>
 
