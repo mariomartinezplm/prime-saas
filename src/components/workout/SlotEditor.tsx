@@ -84,7 +84,7 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick, n
                   {multiple && (
                     <div className="mb-1 flex items-center justify-between">
                       <p className="text-[11.5px] font-bold uppercase tracking-[0.12em] text-[#a8a295]">{i === 0 ? 'Series con estos valores' : `Otro cuadro · ${i + 1}`}</p>
-                      <button type="button" onClick={() => removeGroup(g.id)} aria-label={`Quitar el cuadro ${i + 1}`} className="flex h-9 w-9 items-center justify-center rounded-lg text-[#a8a295] active:bg-[#e8b4a0]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
+                      <button type="button" onClick={() => removeGroup(g.id)} aria-label={`Quitar el cuadro ${i + 1}`} className="flex h-11 w-11 items-center justify-center rounded-lg text-[#a8a295] active:bg-[#e8b4a0]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </button>
                     </div>

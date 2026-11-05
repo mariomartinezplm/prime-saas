@@ -199,7 +199,7 @@ const ExercisesPage = () => {
                   <p className={cn(EYEBROW_SOFT, 'text-[#7cc0d2]')}>{heroRehab ? 'Ejercicio de rehabilitación' : 'Ejercicio destacado'}</p>
                   <div className="mt-1 flex items-start justify-between gap-3">
                     <h2 className="text-xl font-bold tracking-tight text-[#fff8e4]">{hero}</h2>
-                    <Link to={`/app/ejercicios/${encodeURIComponent(exerciseKeyOf(hero))}`} className="shrink-0 rounded-xl px-1 py-2 text-[13px] font-semibold text-[#8fd0e0] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">Ver evolución</Link>
+                    <Link to={`/app/ejercicios/${encodeURIComponent(exerciseKeyOf(hero))}`} className="flex min-h-[44px] shrink-0 items-center rounded-xl px-2 text-[13px] font-semibold text-[#8fd0e0] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">Ver evolución</Link>
                   </div>
                   <div className="mt-2 flex items-end justify-between gap-3">
                     <p className="text-[3.75rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[#fff8e4]">
