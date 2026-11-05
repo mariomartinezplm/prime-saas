@@ -1,7 +1,8 @@
 // Vista única del entrenamiento: la persona arma su sesión (cuántos ejercicios, superseries y triseries) y completa cada ejercicio
 // con «series × repeticiones × carga». Si en alguna serie cambió el valor, agrega otro cuadro. Todo esto es lógica pura: no toca la
 // red ni el reloj. Lo que se guarda en el servidor son las series ya expandidas (una fila por serie).
-import type { BlockKind, Modality, SavedSet, WorkoutBlock } from '@/services/workoutService';
+import type { BlockKind, Modality, SavedSet, SlotDef, WorkoutBlock } from '@/services/workoutService';
+import { coerceAttributes, loadFieldLabel, loadText, type Attributes } from './exerciseAttributes';
 
 // Un cuadro de valores: «4 series de 10 repeticiones con 20 kg». Varios cuadros = valores distintos entre series.
 export interface Group {
@@ -12,11 +13,22 @@ export interface Group {
   durationSec: number | null;
 }
 
-export interface DraftSlot {
+// `execution`, `eccentricSec` e `implement` son opcionales: sin elegir quedan «sin especificar» (como todo el historial anterior)
+export interface DraftSlot extends Attributes {
   name: string | null; // null = todavía sin elegir
   modality: Modality;
   groups: Group[];
 }
+
+// Atributos del ejercicio tal como se envían al servidor (solo los elegidos)
+export const attributesOfSlot = (slot: Attributes): Attributes => ({
+  ...(slot.execution ? { execution: slot.execution } : {}),
+  ...(slot.execution === 'eccentric' && slot.eccentricSec ? { eccentricSec: slot.eccentricSec } : {}),
+  ...(slot.implement ? { implement: slot.implement } : {}),
+});
+
+// Definición del ejercicio para crear su bloque en el servidor
+export const slotDefOf = (slot: DraftSlot): SlotDef => ({ exerciseName: slot.name ?? '', modality: slot.modality, ...attributesOfSlot(slot) });
 
 export interface DraftBlock {
   blockId: string;
@@ -42,7 +54,7 @@ let counter = 0;
 export const newId = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `id-${Date.now()}-${(counter += 1)}-${Math.random().toString(36).slice(2, 10)}`;
 
-export interface Reference {
+export interface Reference extends Attributes {
   reps: number | null;
   weight: number | null;
   durationSec: number | null;
@@ -82,6 +94,7 @@ export function changeModality(slot: DraftSlot, modality: Modality): DraftSlot {
   if (slot.modality === modality) return slot;
   return {
     ...slot,
+    ...coerceAttributes(modality, slot),
     modality,
     groups: slot.groups.map((g) => ({
       ...g,
@@ -155,7 +168,7 @@ export function expandBlock(block: DraftBlock): SetPayload[] {
 
 // Lo que identifica el contenido guardable de un bloque (si cambia, hay cambios sin guardar)
 export const blockSignature = (block: DraftBlock): string =>
-  JSON.stringify(block.slots.map((s) => [s.name, s.modality, s.groups.map((g) => [g.sets, g.reps, g.weight, g.durationSec])]));
+  JSON.stringify(block.slots.map((s) => [s.name, s.modality, s.execution ?? null, s.eccentricSec ?? null, s.implement ?? null, s.groups.map((g) => [g.sets, g.reps, g.weight, g.durationSec])]));
 
 export const isSaved = (block: DraftBlock): boolean => block.savedSig !== null && block.savedSig === blockSignature(block);
 export const hasUnsaved = (block: DraftBlock): boolean => block.savedSig !== blockSignature(block) && blockHasContent(block);
@@ -185,7 +198,7 @@ export function draftFromServer(block: WorkoutBlock, sets: SavedSet[]): DraftBlo
     slots: block.slots.map((sl) => {
       const mine = sets.filter((s) => s.slot === sl.slot);
       const groups = mine.length > 0 ? groupsFromSets(mine) : [newGroup(sl.modality)];
-      return { name: sl.exerciseName, modality: sl.modality, groups };
+      return { name: sl.exerciseName, modality: sl.modality, ...attributesOfSlot(sl), groups };
     }),
     savedSig: null,
   };
@@ -207,14 +220,16 @@ export function planSummary(counts: { single: number; super: number; tri: number
 }
 
 // Texto corto de un cuadro: «4 × 10 · 20 kg», «3 × 30 s · 10 kg»
-export function groupText(modality: Modality, g: Group): string {
-  const n = (v: number) => String(v).replace('.', ',');
+export function groupText(modality: Modality, g: Group, implement?: Attributes['implement']): string {
   const parts = [`${g.sets ?? 0} ${g.sets === 1 ? 'serie' : 'series'}`];
   if (usesReps(modality) && g.reps) parts.push(`${g.reps} rep`);
   if (usesTime(modality) && g.durationSec) parts.push(`${g.durationSec} s`);
-  if (usesWeight(modality) && g.weight) parts.push(`${n(g.weight)} kg`);
+  if (usesWeight(modality) && g.weight) parts.push(loadText(g.weight, implement));
   return parts.join(' · ');
 }
+
+// Nombre del cuadro de carga según el implemento: «Peso total», «Mancuerna», «Por mancuerna» o «Carga»
+export { loadFieldLabel };
 
 // ─── Copia local del plan (solo en este dispositivo, solo mientras dura el entrenamiento) ─────────────────────────────────
 

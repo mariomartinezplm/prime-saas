@@ -1,4 +1,5 @@
 import { exerciseKeyOf } from './exerciseKey';
+import { attributeKey, attributeKeyLabel, type Execution, type Implement } from './exerciseAttributes';
 
 // Un registro del historial de ejercicios (solo los campos que usa el progreso por ejercicio)
 export interface ProgressRecord {
@@ -13,6 +14,10 @@ export interface ProgressRecord {
   duration?: number; // minutos (registros antiguos)
   modality?: 'weight' | 'bodyweight' | 'time' | 'weight_time';
   category?: string;
+  // Cómo se hizo y con qué (los registros antiguos no lo tienen)
+  implement?: Implement | null;
+  execution?: Execution | null;
+  eccentricSec?: number | null;
 }
 
 export type Metric = 'load' | 'reps' | 'time';
@@ -170,18 +175,39 @@ export function bestMark(points: ProgressPoint[]): BestMark | null {
 // Historial por día (más reciente primero) con cada serie tal como se registró
 export interface SessionRow {
   date: string;
-  sets: { reps: number | null; weight: number | null; unit: string; seconds: number | null }[];
+  sets: { reps: number | null; weight: number | null; unit: string; seconds: number | null; implement?: Implement | null }[];
 }
 export function sessionHistory(records: ProgressRecord[]): SessionRow[] {
   const map = new Map<string, SessionRow>();
   for (const r of [...records].sort((a, b) => a.date.localeCompare(b.date))) {
     const row = map.get(day(r)) ?? { date: day(r), sets: [] };
     const count = Math.max(1, r.sets ?? 1);
-    for (let i = 0; i < count; i += 1) row.sets.push({ reps: r.reps ?? null, weight: r.weight ?? null, unit: r.weightUnit ?? 'kg', seconds: seconds(r) || null });
+    for (let i = 0; i < count; i += 1) row.sets.push({ reps: r.reps ?? null, weight: r.weight ?? null, unit: r.weightUnit ?? 'kg', seconds: seconds(r) || null, implement: r.implement ?? null });
     map.set(day(r), row);
   }
   return [...map.values()].sort((a, b) => b.date.localeCompare(a.date));
 }
+
+// Variantes de un ejercicio (mismo implemento y misma ejecución): solo registros de la misma variante son comparables.
+// Sin implemento guardado = «Sin especificar»; sin ejecución guardada = normal. La más reciente va primero.
+export interface Variant {
+  key: string;
+  label: string;
+  count: number;
+  lastDate: string;
+}
+export function variantsOf(records: ProgressRecord[]): Variant[] {
+  const map = new Map<string, Variant>();
+  for (const r of records) {
+    const key = attributeKey(r);
+    const cur = map.get(key) ?? { key, label: attributeKeyLabel(key), count: 0, lastDate: '' };
+    cur.count += 1;
+    if (day(r) > cur.lastDate) cur.lastDate = day(r);
+    map.set(key, cur);
+  }
+  return [...map.values()].sort((a, b) => b.lastDate.localeCompare(a.lastDate) || b.count - a.count);
+}
+export const inVariant = (records: ProgressRecord[], key: string): ProgressRecord[] => records.filter((r) => attributeKey(r) === key);
 
 export const metricLabel: Record<Metric, { title: string; unit: string; axis: string }> = {
   load: { title: 'Carga máxima por día', unit: 'kg', axis: 'kg' },
@@ -204,9 +230,11 @@ export function normalizeNames<T extends { exerciseName: string; date: string }>
 }
 
 // Texto corto de una serie: «10 × 20 kg», «12 rep», «30 s»
-export function setLabel(s: { reps: number | null; weight: number | null; unit: string; seconds: number | null }): string {
+export function setLabel(s: { reps: number | null; weight: number | null; unit: string; seconds: number | null; implement?: Implement | null }): string {
+  const each = s.implement === 'two_dumbbells' ? ' c/u' : ''; // con dos mancuernas la carga es la de CADA una
+  if (s.seconds && s.weight) return `${s.seconds} s · ${String(s.weight).replace('.', ',')} ${s.unit}${each}`;
   if (s.seconds) return `${s.seconds} s`;
-  if (s.reps && s.weight) return `${s.reps} × ${String(s.weight).replace('.', ',')} ${s.unit}`;
+  if (s.reps && s.weight) return `${s.reps} × ${String(s.weight).replace('.', ',')} ${s.unit}${each}`;
   if (s.reps) return `${s.reps} rep`;
   return '—';
 }

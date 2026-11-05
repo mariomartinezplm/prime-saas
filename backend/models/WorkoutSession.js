@@ -27,7 +27,11 @@ const slotSchema = new mongoose.Schema(
   {
     slot: { type: String, required: true, maxlength: 10 }, // A1, A2, B3…
     exerciseName: { type: String, required: true, trim: true, maxlength: 60 },
-    modality: { type: String, enum: ['weight', 'bodyweight', 'time', 'weight_time'], default: 'weight' }
+    modality: { type: String, enum: ['weight', 'bodyweight', 'time', 'weight_time'], default: 'weight' },
+    // Ejecución e implemento del ejercicio dentro del bloque (opcionales; ver services/exerciseAttributes.js)
+    execution: { type: String, enum: ['normal', 'eccentric', 'isometric'] },
+    eccentricSec: { type: Number, min: 1, max: 30 },
+    implement: { type: String, enum: ['barbell', 'one_dumbbell', 'two_dumbbells', 'none'] }
   },
   { _id: false }
 );

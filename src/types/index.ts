@@ -342,6 +342,12 @@ export interface ExerciseProgress {
   techniqueRating?: number;
   videoUrl?: string;
   oneRepMax?: number;
+  // Cómo se mide, cómo se hace y con qué (los registros antiguos no lo tienen). Con dos mancuernas `weight` es el de CADA una.
+  modality?: 'weight' | 'bodyweight' | 'time' | 'weight_time';
+  durationSec?: number;
+  execution?: 'normal' | 'eccentric' | 'isometric';
+  eccentricSec?: number;
+  implement?: 'barbell' | 'one_dumbbell' | 'two_dumbbells' | 'none';
   createdAt: string;
   updatedAt: string;
 }
@@ -361,6 +367,11 @@ export interface CreateExerciseData {
   rpe?: number;
   notes?: string;
   techniqueRating?: number;
+  modality?: 'weight' | 'bodyweight' | 'time' | 'weight_time';
+  durationSec?: number;
+  execution?: 'normal' | 'eccentric' | 'isometric';
+  eccentricSec?: number;
+  implement?: 'barbell' | 'one_dumbbell' | 'two_dumbbells' | 'none';
 }
 
 // Tipos de EVA (Escala del Dolor)

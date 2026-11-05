@@ -3,6 +3,7 @@ import { Dumbbell, History, Plus, Search, Star } from 'lucide-react';
 import BottomSheet from '@/components/premium/BottomSheet';
 import { workoutService, type ExerciseSearch, type ExerciseSuggestion, type Modality } from '@/services/workoutService';
 import type { Reference } from '@/lib/workoutPlan';
+import { loadText } from '@/lib/exerciseAttributes';
 
 export interface PickedExercise {
   name: string;
@@ -25,7 +26,7 @@ const lastText = (last: ExerciseSuggestion['last']) => {
   const parts: string[] = [];
   if (last.reps) parts.push(`${last.reps} rep`);
   if (last.durationSec) parts.push(`${last.durationSec} s`);
-  if (last.weight) parts.push(`${String(last.weight).replace('.', ',')} ${last.weightUnit}`);
+  if (last.weight) parts.push(loadText(last.weight, last.implement, last.weightUnit));
   return parts.join(' · ');
 };
 
@@ -72,7 +73,7 @@ const ExercisePickSheet = ({ open, onOpenChange, title, taken, onPick }: Exercis
     name: s.name,
     modality: s.last.modality ?? 'weight',
     existing: true,
-    reference: s.refDate ? { reps: s.last.reps, weight: s.last.weight, durationSec: s.last.durationSec, weightUnit: s.last.weightUnit, date: s.refDate } : null,
+    reference: s.refDate ? { reps: s.last.reps, weight: s.last.weight, durationSec: s.last.durationSec, weightUnit: s.last.weightUnit, execution: s.last.execution ?? null, eccentricSec: s.last.eccentricSec ?? null, implement: s.last.implement ?? null, date: s.refDate } : null,
   });
 
   const list = (heading: string, icon: React.ReactNode, items: ExerciseSuggestion[]) =>

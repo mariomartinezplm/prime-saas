@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { clockOffset } from '@/lib/workoutClock';
 import { useAuth } from '@/contexts/AuthContext';
 import { isRetryable, listPending, putPending, removePending, type PendingBatch } from '@/lib/pendingSets';
-import { expandBlock, type DraftBlock } from '@/lib/workoutPlan';
-import { workoutService, type BlockKind, type Modality, type RestAction, type SetInput, type WorkoutActive, type WorkoutMutation, type WorkoutSessionView } from '@/services/workoutService';
+import { expandBlock, slotDefOf, type DraftBlock } from '@/lib/workoutPlan';
+import { workoutService, type BlockKind, type RestAction, type SetInput, type SlotDef, type WorkoutActive, type WorkoutMutation, type WorkoutSessionView } from '@/services/workoutService';
 
 type Status = 'loading' | 'ready' | 'error';
 
@@ -193,7 +193,7 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
   // Vista única: guarda el bloque completo. Queda a salvo en este dispositivo ANTES de enviarse; sin conexión queda «pendiente».
   const saveBlock = async (session: WorkoutSessionView, block: DraftBlock): Promise<'saved' | 'pending'> => {
     const blockSets = expandBlock(block);
-    const def = { kind: block.kind, slots: block.slots.map((s) => ({ exerciseName: s.name ?? '', modality: s.modality })) };
+    const def = { kind: block.kind, slots: block.slots.map(slotDefOf) };
     const batch: PendingBatch = { batchId: `blk-${block.blockId}`, userId, sessionId: session.id, blockId: block.blockId, sets: [], replace: true, blockSets, blockDef: def, display: [], savedAt: Date.now() };
     await putPending(batch);
     await refreshPending(session.id);
@@ -238,7 +238,7 @@ export function useWorkout({ tick = true }: { tick?: boolean } = {}) {
     saveBatch,
     saveBlock,
     removeBlock: (session: WorkoutSessionView, blockId: string) => run(() => workoutService.removeBlock(session.id, blockId)),
-    addBlock: (session: WorkoutSessionView, block: { blockId: string; kind: BlockKind; slots: { exerciseName: string; modality: Modality }[] }) => run(() => workoutService.addBlock(session.id, block)),
+    addBlock: (session: WorkoutSessionView, block: { blockId: string; kind: BlockKind; slots: SlotDef[] }) => run(() => workoutService.addBlock(session.id, block)),
     updateSet: (setId: string, values: { reps?: number; weight?: number; weightUnit?: 'kg' | 'lbs'; durationSec?: number }) => run(() => workoutService.updateSet(setId, values)),
     deleteSet: (setId: string) => run(() => workoutService.deleteSet(setId)),
   };

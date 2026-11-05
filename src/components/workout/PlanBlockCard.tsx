@@ -1,3 +1,4 @@
+import { attributeChips } from '@/lib/exerciseAttributes';
 import { useState } from 'react';
 import { Check, CloudOff, Link2, Loader2, Pencil, Play, Trash2, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,7 +84,8 @@ const PlanBlockCard = ({ block, index, pending, saving, disabled, error, restSec
             {block.slots.map((s, i) => (
               <li key={i} className="text-[14px]">
                 <span className="font-bold text-[#fff8e4]">{s.name}</span>
-                <span className="block text-[12.5px] tabular-nums text-[#a8a295]">{s.groups.map((g) => groupText(s.modality, g)).join('  +  ')}</span>
+                <span className="block text-[12.5px] tabular-nums text-[#a8a295]">{s.groups.map((g) => groupText(s.modality, g, s.implement)).join('  +  ')}</span>
+                {attributeChips(s).length > 0 && <span className="block text-[12px] text-[#8fd0e0]">{attributeChips(s).join(' · ')}</span>}
               </li>
             ))}
           </ul>

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import WorkoutSession from '../models/WorkoutSession.js';
 import Appointment from '../models/Appointment.js';
 import ExerciseProgress from '../models/Exercise.js';
+import { attributesOf } from '../services/exerciseAttributes.js';
 import { hasActivePlan } from '../services/clientPlanService.js';
 import { notify } from '../services/notificationService.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
@@ -34,6 +35,9 @@ export const setView = (e) => ({
   weightUnit: e.weightUnit ?? 'kg',
   durationSec: e.durationSec ?? null,
   modality: e.modality ?? null,
+  execution: e.execution ?? null,
+  eccentricSec: e.eccentricSec ?? null,
+  implement: e.implement ?? null,
   clientId: e.clientId ?? null,
   createdAt: e.createdAt ?? e.date
 });
@@ -56,7 +60,7 @@ export function sessionView(session, now = new Date(), sets = []) {
       nextDurationSec: rest.nextDurationSec ?? 120,
       version: rest.version ?? 0
     },
-    blocks: (session.blocks ?? []).map((b) => ({ blockId: b.blockId, kind: b.kind, label: b.label, slots: (b.slots ?? []).map((x) => ({ slot: x.slot, exerciseName: x.exerciseName, modality: x.modality })) })),
+    blocks: (session.blocks ?? []).map((b) => ({ blockId: b.blockId, kind: b.kind, label: b.label, slots: (b.slots ?? []).map((x) => ({ slot: x.slot, exerciseName: x.exerciseName, modality: x.modality, execution: x.execution ?? null, eccentricSec: x.eccentricSec ?? null, implement: x.implement ?? null })) })),
     sets: sets.map(setView)
   };
 }
@@ -67,7 +71,7 @@ export const dayAtNoon = (now) => {
   return santiagoToUtc(p.year, p.month, p.day, 12);
 };
 
-const SET_FIELDS = '_id blockId slot exerciseName setNumber reps weight weightUnit durationSec modality clientId createdAt date';
+const SET_FIELDS = '_id blockId slot exerciseName setNumber reps weight weightUnit durationSec modality execution eccentricSec implement clientId createdAt date';
 const loadSets = (session) => ExerciseProgress.find({ workoutSession: session._id }).sort({ createdAt: 1 }).select(SET_FIELDS).lean();
 // Vista completa de una sesión (con sus series)
 // Resumen completo: lo guardado + las marcas personales logradas hoy (comparadas con DÍAS anteriores, solo kg)
@@ -75,7 +79,7 @@ async function summaryFor(session, sets, user) {
   const summary = buildSummary(session, sets);
   const withLoad = sets.some((s) => s.weight > 0);
   const previous = withLoad
-    ? await ExerciseProgress.find({ patient: session.patient, workoutSession: { $ne: session._id }, weight: { $gt: 0 } }).sort({ date: -1 }).limit(3000).select('exerciseName weight weightUnit date').lean()
+    ? await ExerciseProgress.find({ patient: session.patient, workoutSession: { $ne: session._id }, weight: { $gt: 0 } }).sort({ date: -1 }).limit(3000).select('exerciseName weight weightUnit implement execution date').lean()
     : [];
   // Constancia: entrenamientos registrados y finalizados esta semana / este mes, frente a la meta del plan
   const since = new Date(Date.now() - 400 * 86400000);
@@ -87,9 +91,9 @@ async function summaryFor(session, sets, user) {
   if (sets.length > 0) {
     const names = [...new Set(sets.map((x) => x.exerciseName))];
     const before = await ExerciseProgress.find({ patient: session.patient, workoutSession: { $ne: session._id }, exerciseName: { $in: names } })
-      .sort({ date: -1 }).limit(3000).select('exerciseName weight weightUnit reps durationSec date').lean();
+      .sort({ date: -1 }).limit(3000).select('exerciseName weight weightUnit reps durationSec implement execution date').lean();
     const better = sessionImprovements(sets, before ?? [], dayOf(session.startedAt), dayOf);
-    for (const e of summary.exercises) e.improvement = better.get(exerciseKey(e.name)) ?? null;
+    for (const e of summary.exercises) e.improvement = better.get(e.key) ?? null;
   }
   return { ...summary, records: sessionRecords(sets, previous ?? [], dayOf(session.startedAt), dayOf), engagement };
 }
@@ -337,7 +341,7 @@ export const addBlock = async (req, res) => {
     for (const [index, slot] of parsed.slots.entries()) {
       const resolved = await resolveCanonicalName(req.user._id, slot.exerciseName, history);
       if (!resolved) return res.status(400).json({ success: false, message: 'Escribe un nombre de ejercicio válido (entre 2 y 60 caracteres)' });
-      slots.push({ slot: slotId(label, index), exerciseName: resolved.name, modality: slot.modality });
+      slots.push({ slot: slotId(label, index), exerciseName: resolved.name, modality: slot.modality, ...attributesOf(slot) });
     }
     const keys = new Set(slots.map((x) => x.exerciseName.toLowerCase()));
     if (keys.size !== slots.length) return res.status(400).json({ success: false, message: 'Un bloque no puede repetir el mismo ejercicio' });
@@ -413,6 +417,7 @@ export const saveSets = async (req, res) => {
           duration: value.durationSec ? Math.round((value.durationSec / 60) * 100) / 100 : undefined,
           durationSec: value.durationSec,
           modality: slotDef.modality,
+          ...attributesOf(slotDef),
           source: 'workout',
           workoutSession: session._id,
           blockId: block.blockId,
@@ -495,6 +500,7 @@ export const replaceBlockSets = async (req, res) => {
       duration: value.durationSec ? Math.round((value.durationSec / 60) * 100) / 100 : undefined,
       durationSec: value.durationSec,
       modality: slotDef.modality,
+      ...attributesOf(slotDef),
       source: 'workout',
       workoutSession: session._id,
       blockId: block.blockId,

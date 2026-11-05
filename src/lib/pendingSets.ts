@@ -1,4 +1,4 @@
-import type { BlockKind, BlockSetInput, Modality, SetInput } from '@/services/workoutService';
+import type { BlockKind, BlockSetInput, SetInput, SlotDef } from '@/services/workoutService';
 
 // Cola MÍNIMA de series que todavía no llegaron al servidor (sin conexión o con error). Es la única copia local de datos de
 // entrenamiento y se borra apenas el servidor confirma, al finalizar la sesión y al cerrar sesión. Las series YA confirmadas
@@ -14,7 +14,7 @@ export interface PendingBatch {
   // llegó al servidor (se crea primero). Hay a lo más UN lote por bloque: guardar otra vez lo reemplaza.
   replace?: boolean;
   blockSets?: BlockSetInput[];
-  blockDef?: { kind: BlockKind; slots: { exerciseName: string; modality: Modality }[] };
+  blockDef?: { kind: BlockKind; slots: SlotDef[] };
   // Datos de pantalla para mostrar «pendiente» (no se envían al servidor)
   display: { slot: string; exerciseName: string; reps?: number; weight?: number; durationSec?: number }[];
   savedAt: number;

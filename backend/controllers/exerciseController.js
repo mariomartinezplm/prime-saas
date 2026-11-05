@@ -7,6 +7,7 @@ import { evolutionDateError } from '../utils/evolutionDate.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { notify } from '../services/notificationService.js';
 import { canonicalSpelling, exerciseSummary, exerciseLibrary } from '../services/exerciseNames.js';
+import { manualRecordFields } from '../services/exerciseAttributes.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 
 const PLAN_EXPIRED_MESSAGE = 'Tu plan venció o no tienes un plan activo. Contacta a Prime F&H para renovar antes de registrar tu evolución.';
@@ -80,6 +81,10 @@ export const createExerciseProgress = async (req, res) => {
       });
     }
 
+    // Modalidad, ejecución e implemento (mismas reglas que el entrenamiento en curso)
+    const extra = manualRecordFields(req.body);
+    if (extra.error) return res.status(400).json({ success: false, message: extra.error });
+
     // Crear registro
     const exerciseProgress = await ExerciseProgress.create({
       patient,
@@ -98,7 +103,8 @@ export const createExerciseProgress = async (req, res) => {
       rpe,
       notes,
       techniqueRating,
-      videoUrl
+      videoUrl,
+      ...extra.set
     });
 
     if (req.user.role === 'patient') notifyProfessionalOfEvolutionUpdate(patientUser);
@@ -261,6 +267,10 @@ export const updateExerciseProgress = async (req, res) => {
       }
     }
 
+    // Modalidad, ejecución e implemento (se validan contra lo que ya tenía el registro)
+    const extra = manualRecordFields(req.body, exerciseProgress);
+    if (extra.error) return res.status(400).json({ success: false, message: extra.error });
+
     // Actualizar campos
     if (exerciseName) exerciseProgress.exerciseName = await canonicalSpelling(exerciseProgress.patient, exerciseName);
     if (category) exerciseProgress.category = category;
@@ -276,6 +286,8 @@ export const updateExerciseProgress = async (req, res) => {
     if (notes !== undefined) exerciseProgress.notes = notes;
     if (techniqueRating !== undefined) exerciseProgress.techniqueRating = techniqueRating;
     if (videoUrl !== undefined) exerciseProgress.videoUrl = videoUrl;
+    Object.assign(exerciseProgress, extra.set);
+    for (const field of extra.unset) exerciseProgress.set(field, undefined);
 
     await exerciseProgress.save();
     triggerAchievementEvaluation(exerciseProgress.patient).catch(() => {});

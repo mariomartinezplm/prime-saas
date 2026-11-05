@@ -1,4 +1,5 @@
 import { exerciseKey } from './exerciseNames.js';
+import { validateAttributes, comparableKey } from './exerciseAttributes.js';
 import { dayOf, dayNumber, isoWeekOf } from './achievements/dates.js';
 import { defaultWeeklyTarget } from './achievements/weekly.js';
 
@@ -13,6 +14,12 @@ export const MAX_SETS_PER_BATCH = 6;
 // Un bloque completo (todas las series de todos sus ejercicios) se guarda de una vez
 export const MAX_SETS_PER_BLOCK = 120;
 export const UNITS = ['kg', 'lbs'];
+// Un ejercicio solo se compara con registros equivalentes: mismo nombre, mismo implemento y misma ejecución
+// Sin implemento ni ejecución especiales (todo el historial anterior) la clave es solo el nombre, como siempre.
+export const variantKey = (row) => {
+  const variant = comparableKey(row);
+  return variant === 'unspecified|normal' ? exerciseKey(row.exerciseName) : `${exerciseKey(row.exerciseName)}|${variant}`;
+};
 const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export const nextLabel = (blocks) => LABELS[blocks.length] ?? null;
@@ -33,7 +40,9 @@ export function validateBlockInput(body, blocks = []) {
     const modality = s?.modality ?? 'weight';
     if (!MODALITIES.includes(modality)) return { error: 'Modalidad no válida' };
     if (typeof s?.exerciseName !== 'string') return { error: 'Falta el nombre del ejercicio' };
-    out.push({ exerciseName: s.exerciseName, modality });
+    const attrs = validateAttributes(s, modality);
+    if (attrs.error) return { error: attrs.error };
+    out.push({ exerciseName: s.exerciseName, modality, ...attrs.value });
   }
   const keys = out.map((s) => exerciseKey(s.exerciseName));
   if (new Set(keys).size !== keys.length) return { error: 'Un bloque no puede repetir el mismo ejercicio' };
@@ -80,8 +89,8 @@ export function buildSummary(session, sets) {
   const end = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
   const byKey = new Map();
   for (const s of sets) {
-    const key = exerciseKey(s.exerciseName);
-    if (!byKey.has(key)) byKey.set(key, { name: s.exerciseName, slots: new Set(), sets: 0, reps: 0, bestWeight: null, unit: null, timeSec: 0, modality: s.modality ?? null, setList: [] });
+    const key = variantKey(s);
+    if (!byKey.has(key)) byKey.set(key, { key, implement: s.implement ?? null, execution: s.execution ?? null, eccentricSec: s.eccentricSec ?? null, name: s.exerciseName, slots: new Set(), sets: 0, reps: 0, bestWeight: null, unit: null, timeSec: 0, modality: s.modality ?? null, setList: [] });
     const e = byKey.get(key);
     e.sets += 1;
     e.setList.push({ reps: s.reps ?? null, weight: s.weight > 0 ? s.weight : null, unit: s.weight > 0 ? (s.weightUnit || 'kg') : null, durationSec: s.durationSec ?? null });
@@ -93,7 +102,7 @@ export function buildSummary(session, sets) {
       e.unit = s.weightUnit || 'kg';
     }
   }
-  const exercises = [...byKey.values()].map((e) => ({ name: e.name, slots: [...e.slots], sets: e.sets, reps: e.reps, bestWeight: e.bestWeight, unit: e.unit, timeSec: e.timeSec, modality: e.modality, setList: e.setList, improvement: null }));
+  const exercises = [...byKey.values()].map((e) => ({ key: e.key, implement: e.implement, execution: e.execution, eccentricSec: e.eccentricSec, name: e.name, slots: [...e.slots], sets: e.sets, reps: e.reps, bestWeight: e.bestWeight, unit: e.unit, timeSec: e.timeSec, modality: e.modality, setList: e.setList, improvement: null }));
 
   return {
     durationSec: Math.max(0, Math.round((end - startedAt) / 1000)),
@@ -114,20 +123,20 @@ export function sessionRecords(sets, previousRows, sessionDay, dayOf) {
   const best = new Map();
   for (const s of sets) {
     if (!(s.weight > 0) || (s.weightUnit || 'kg') !== 'kg') continue;
-    const key = exerciseKey(s.exerciseName);
+    const key = variantKey(s);
     const cur = best.get(key);
-    if (!cur || s.weight > cur.weight) best.set(key, { name: s.exerciseName, weight: s.weight, reps: s.reps ?? null });
+    if (!cur || s.weight > cur.weight) best.set(key, { name: s.exerciseName, weight: s.weight, reps: s.reps ?? null, ...(s.implement ? { implement: s.implement } : {}), ...(s.execution ? { execution: s.execution } : {}) });
   }
   const records = [];
   for (const [key, today] of best) {
     let previous = 0;
     for (const r of previousRows) {
-      if (!(r.weight > 0) || (r.weightUnit || 'kg') !== 'kg' || !r.date || exerciseKey(r.exerciseName) !== key) continue;
+      if (!(r.weight > 0) || (r.weightUnit || 'kg') !== 'kg' || !r.date || variantKey(r) !== key) continue;
       if (dayOf(r.date) >= sessionDay) continue;
       previous = Math.max(previous, r.weight);
     }
     if (previous > 0 && today.weight > previous) {
-      records.push({ name: today.name, previous, current: today.weight, improvement: Math.round((today.weight - previous) * 100) / 100, reps: today.reps });
+      records.push({ name: today.name, ...(today.implement ? { implement: today.implement } : {}), ...(today.execution ? { execution: today.execution } : {}), previous, current: today.weight, improvement: Math.round((today.weight - previous) * 100) / 100, reps: today.reps });
     }
   }
   return records.sort((a, b) => b.improvement - a.improvement);
@@ -140,8 +149,8 @@ export function sessionRecords(sets, previousRows, sessionDay, dayOf) {
 export function sessionImprovements(sets, previousRows, sessionDay, dayOf) {
   const today = new Map();
   for (const s of sets) {
-    const key = exerciseKey(s.exerciseName);
-    if (!key) continue;
+    if (!exerciseKey(s.exerciseName)) continue;
+    const key = variantKey(s);
     const t = today.get(key) ?? { weight: 0, unit: null, reps: 0, time: 0 };
     if (s.weight > 0 && s.weight > t.weight) { t.weight = s.weight; t.unit = s.weightUnit || 'kg'; }
     t.reps = Math.max(t.reps, s.reps || 0);
@@ -152,7 +161,7 @@ export function sessionImprovements(sets, previousRows, sessionDay, dayOf) {
   // Última vez anterior de cada ejercicio: el día más reciente anterior a hoy
   const lastDay = new Map();
   for (const r of previousRows) {
-    const key = exerciseKey(r.exerciseName);
+    const key = variantKey(r);
     if (!today.has(key) || !r.date) continue;
     const day = dayOf(r.date);
     if (day >= sessionDay) continue;
@@ -160,7 +169,7 @@ export function sessionImprovements(sets, previousRows, sessionDay, dayOf) {
   }
   const before = new Map();
   for (const r of previousRows) {
-    const key = exerciseKey(r.exerciseName);
+    const key = variantKey(r);
     if (!r.date || lastDay.get(key) !== dayOf(r.date)) continue;
     const t = before.get(key) ?? { weight: 0, unit: null, reps: 0, time: 0 };
     if (r.weight > 0 && r.weight > t.weight) { t.weight = r.weight; t.unit = r.weightUnit || 'kg'; }

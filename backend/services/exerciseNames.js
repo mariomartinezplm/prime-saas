@@ -27,7 +27,7 @@ const HISTORY_LIMIT = 3000;
 // Los ejercicios guardados HOY también aparecen (para poder reutilizarlos en otro bloque), pero la referencia «última vez»
 // (`last`, `refDate`) sale solo de OTRAS sesiones: lo de hoy nunca se presenta como si fuera del pasado.
 export async function exerciseHistory(patientId, { excludeSession } = {}) {
-  const rows = await ExerciseProgress.find({ patient: patientId }).sort({ date: -1, createdAt: -1 }).limit(HISTORY_LIMIT).select('exerciseName date reps weight weightUnit durationSec modality workoutSession').lean();
+  const rows = await ExerciseProgress.find({ patient: patientId }).sort({ date: -1, createdAt: -1 }).limit(HISTORY_LIMIT).select('exerciseName date reps weight weightUnit durationSec modality execution eccentricSec implement workoutSession').lean();
   const groups = new Map();
   for (const r of rows) {
     const key = exerciseKey(r.exerciseName);
@@ -40,16 +40,16 @@ export async function exerciseHistory(patientId, { excludeSession } = {}) {
     g.count += 1;
     g.days.add(new Date(r.date).toISOString().slice(0, 10));
     const fromCurrent = excludeSession && r.workoutSession && String(r.workoutSession) === String(excludeSession);
-    if (!g.ref && !fromCurrent) g.ref = { reps: r.reps ?? null, weight: r.weight ?? null, weightUnit: r.weightUnit ?? 'kg', durationSec: r.durationSec ?? null, modality: r.modality ?? null, date: r.date };
+    if (!g.ref && !fromCurrent) g.ref = { reps: r.reps ?? null, weight: r.weight ?? null, weightUnit: r.weightUnit ?? 'kg', durationSec: r.durationSec ?? null, modality: r.modality ?? null, execution: r.execution ?? null, eccentricSec: r.eccentricSec ?? null, implement: r.implement ?? null, date: r.date };
   }
-  return [...groups.values()].map((g) => ({ key: g.key, name: g.name, count: g.count, days: g.days.size, lastDate: g.lastDate, last: g.ref ? { reps: g.ref.reps, weight: g.ref.weight, weightUnit: g.ref.weightUnit, durationSec: g.ref.durationSec, modality: g.ref.modality } : { reps: null, weight: null, weightUnit: 'kg', durationSec: null, modality: null }, refDate: g.ref?.date ?? null }));
+  return [...groups.values()].map((g) => ({ key: g.key, name: g.name, count: g.count, days: g.days.size, lastDate: g.lastDate, last: g.ref ? { reps: g.ref.reps, weight: g.ref.weight, weightUnit: g.ref.weightUnit, durationSec: g.ref.durationSec, modality: g.ref.modality, execution: g.ref.execution, eccentricSec: g.ref.eccentricSec, implement: g.ref.implement } : { reps: null, weight: null, weightUnit: 'kg', durationSec: null, modality: null, execution: null, eccentricSec: null, implement: null }, refDate: g.ref?.date ?? null }));
 }
 
 // Lista de los ejercicios que una persona YA tiene registrados, del más reciente al más antiguo, para elegirlos de una lista al
 // registrar un nuevo peso (sin escribir el nombre otra vez). Cada uno trae su categoría y lo último que se anotó. Lo usa el formulario
 // de Ejercicios del personal y del paciente; solo lee el historial de ESA persona.
 export async function exerciseSummary(patientId) {
-  const rows = await ExerciseProgress.find({ patient: patientId }).sort({ date: -1, createdAt: -1 }).limit(HISTORY_LIMIT).select('exerciseName category date sets reps weight weightUnit rpe').lean();
+  const rows = await ExerciseProgress.find({ patient: patientId }).sort({ date: -1, createdAt: -1 }).limit(HISTORY_LIMIT).select('exerciseName category date sets reps weight weightUnit rpe modality durationSec execution eccentricSec implement').lean();
   const groups = new Map();
   for (const r of rows) {
     const key = exerciseKey(r.exerciseName);
@@ -57,7 +57,7 @@ export async function exerciseSummary(patientId) {
     let g = groups.get(key);
     if (!g) {
       // La primera fila de cada ejercicio es la más reciente: su escritura, su categoría y sus números son «lo último»
-      g = { key, name: r.exerciseName, category: r.category ?? 'otro', count: 0, lastDate: r.date, last: { sets: r.sets ?? null, reps: r.reps ?? null, weight: r.weight ?? null, weightUnit: r.weightUnit ?? 'kg', rpe: r.rpe ?? null } };
+      g = { key, name: r.exerciseName, category: r.category ?? 'otro', count: 0, lastDate: r.date, last: { sets: r.sets ?? null, reps: r.reps ?? null, weight: r.weight ?? null, weightUnit: r.weightUnit ?? 'kg', rpe: r.rpe ?? null, modality: r.modality ?? null, durationSec: r.durationSec ?? null, execution: r.execution ?? null, eccentricSec: r.eccentricSec ?? null, implement: r.implement ?? null } };
       groups.set(key, g);
     }
     g.count += 1;

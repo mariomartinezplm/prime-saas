@@ -10,7 +10,7 @@ import EmptyGuide from '@/components/premium/EmptyGuide';
 import SegmentedTabs from '@/components/premium/SegmentedTabs';
 import ExerciseChart from '@/components/workout/ExerciseChart';
 import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
-import { bestMark, defaultLoad, filterPeriod, insights, formatNumber, groupExercises, loadOptions, metricLabel, primaryMetric, progressPoints, repsAtLoadPoints, sessionHistory, setLabel, topLoads, type Period, type ProgressRecord } from '@/lib/exerciseProgress';
+import { bestMark, defaultLoad, filterPeriod, insights, formatNumber, groupExercises, loadOptions, metricLabel, primaryMetric, progressPoints, repsAtLoadPoints, sessionHistory, setLabel, topLoads, inVariant, variantsOf, type Period, type ProgressRecord } from '@/lib/exerciseProgress';
 import { longDate } from '@/lib/trend';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +33,7 @@ const ExerciseDetail = () => {
   const [tab, setTab] = useState<string | null>(null);
   const [pickedLoad, setPickedLoad] = useState<number | null>(null);
   const [allLoads, setAllLoads] = useState(false);
+  const [pickedVariant, setPickedVariant] = useState<string | null>(null);
 
   const load = () => {
     if (!user) return;
@@ -46,7 +47,11 @@ const ExerciseDetail = () => {
   };
   useEffect(load, [user]);
 
-  const group = useMemo(() => groupExercises(records).find((g) => g.key === decodeURIComponent(key)), [records, key]);
+  const fullGroup = useMemo(() => groupExercises(records).find((g) => g.key === decodeURIComponent(key)), [records, key]);
+  // Barra, mancuernas o ejecución distinta no son mediciones equivalentes: se ve UNA variante a la vez (por defecto la más reciente)
+  const variants = useMemo(() => (fullGroup ? variantsOf(fullGroup.records) : []), [fullGroup]);
+  const variantKey = pickedVariant && variants.some((v) => v.key === pickedVariant) ? pickedVariant : variants[0]?.key ?? null;
+  const group = useMemo(() => (fullGroup && variantKey ? { ...fullGroup, records: inVariant(fullGroup.records, variantKey) } : fullGroup), [fullGroup, variantKey]);
   const metric = group ? primaryMetric(group.records) : null;
   const all = useMemo(() => (group && metric ? progressPoints(group.records, metric) : []), [group, metric]);
   const shown = useMemo(() => filterPeriod(all, period), [all, period]);
@@ -80,6 +85,8 @@ const ExerciseDetail = () => {
     );
   }
   const labels = metric ? metricLabel[metric] : null;
+  // Con dos mancuernas la carga es la de CADA una: se aclara junto a la unidad
+  const unitText = labels ? `${labels.unit}${metric === 'load' && variantKey?.startsWith('two_dumbbells') ? ' c/u' : ''}` : '';
 
   const periodToggle = (
     <div role="group" aria-label="Período" className="flex overflow-hidden rounded-[12px] border border-[#fff8e4]/20">
@@ -176,29 +183,42 @@ const ExerciseDetail = () => {
         <h1 className="text-[1.75rem] font-extrabold leading-[1.1] tracking-tight text-[#fff8e4] sm:text-[2rem]">{group.name}</h1>
       </header>
 
+      {variants.length > 1 && (
+        <section aria-label="Variante del ejercicio" className="space-y-1.5">
+          <div role="group" aria-label="Variante del ejercicio" className="flex flex-wrap gap-2">
+            {variants.map((v) => (
+              <button key={v.key} type="button" aria-pressed={v.key === variantKey} onClick={() => setPickedVariant(v.key)} className={cn('min-h-[44px] rounded-full border px-4 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]', v.key === variantKey ? 'border-[#398ca2] bg-[#398ca2] font-extrabold text-[#181619]' : 'border-[#fff8e4]/20 text-[#cdc6b6]')}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[12.5px] text-[#a8a295]">Cada implemento y cada forma de ejecución se ve por separado: no son cargas equivalentes.</p>
+        </section>
+      )}
+
       {best && labels ? (
         <>
           <section aria-label="Resumen" className={cn('grid grid-cols-2 gap-3 rounded-[24px] border p-4', HERO_SURFACE)}>
             <div>
               <p className="flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8fd0e0]"><Trophy className="h-3.5 w-3.5" aria-hidden="true" /> Mejor marca</p>
-              <p className="mt-1.5 text-[2.6rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[#fff8e4]">{formatNumber(best.value)}<span className="ml-1 text-base font-bold text-[#cdc6b6]">{labels.unit}</span></p>
+              <p className="mt-1.5 text-[2.6rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[#fff8e4]">{formatNumber(best.value)}<span className="ml-1 text-base font-bold text-[#cdc6b6]">{unitText}</span></p>
               <p className="mt-1 text-[12.5px] text-[#cdc6b6]">{best.reps ? `× ${best.reps} rep · ` : ''}{longDate(best.date)}</p>
             </div>
             <div>
               <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#a8a295]">Última sesión</p>
-              <p className="mt-1.5 text-[2.6rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[#fff8e4]">{formatNumber(last.value)}<span className="ml-1 text-base font-bold text-[#cdc6b6]">{labels.unit}</span></p>
+              <p className="mt-1.5 text-[2.6rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[#fff8e4]">{formatNumber(last.value)}<span className="ml-1 text-base font-bold text-[#cdc6b6]">{unitText}</span></p>
               <p className="mt-1 text-[12.5px] text-[#cdc6b6]">{last.reps ? `× ${last.reps} rep · ` : ''}{longDate(last.date)}</p>
             </div>
-            {gain !== null && <p className="col-span-2 border-t border-[#fff8e4]/10 pt-2.5 text-[13px] text-[#cdc6b6]">{gain === 0 ? 'Sin cambios' : `${gain > 0 ? '+' : '−'}${formatNumber(Math.abs(gain))} ${labels.unit}`} desde tu primer registro ({longDate(first.date)}).</p>}
+            {gain !== null && <p className="col-span-2 border-t border-[#fff8e4]/10 pt-2.5 text-[13px] text-[#cdc6b6]">{gain === 0 ? 'Sin cambios' : `${gain > 0 ? '+' : '−'}${formatNumber(Math.abs(gain))} ${unitText}`} desde tu primer registro ({longDate(first.date)}).</p>}
           </section>
 
           <section aria-label="Lectura de tu progreso" className={cn(CARD, 'space-y-2 p-4')}>
             <h2 className="text-[15px] font-bold text-[#fff8e4]">Tu progreso, en simple</h2>
             <ul className="space-y-2 text-[14px] text-[#cdc6b6]">
-              <li className="flex items-start gap-2.5"><Trophy className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span><b className="text-[#fff8e4]">Mejor marca actual:</b> {formatNumber(best.value)} {labels.unit}{best.reps ? ` × ${best.reps} rep` : ''}</span></li>
-              <li className="flex items-start gap-2.5"><TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span><b className="text-[#fff8e4]">Última vez:</b> {formatNumber(last.value)} {labels.unit}{last.reps ? ` × ${last.reps} rep` : ''}
-                {read.changeFromPrevious !== null && (read.changeFromPrevious === 0 ? ' · igual que la sesión anterior' : ` · ${read.changeFromPrevious > 0 ? '+' : '−'}${formatNumber(Math.abs(read.changeFromPrevious))} ${labels.unit} respecto a la sesión anterior`)}</span></li>
-              {read.improvedOverPreviousBest !== null && <li className="flex items-start gap-2.5"><ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span>Has mejorado <b className="text-[#fff8e4]">{formatNumber(read.improvedOverPreviousBest)} {labels.unit}</b> desde tu mejor registro anterior.</span></li>}
+              <li className="flex items-start gap-2.5"><Trophy className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span><b className="text-[#fff8e4]">Mejor marca actual:</b> {formatNumber(best.value)} {unitText}{best.reps ? ` × ${best.reps} rep` : ''}</span></li>
+              <li className="flex items-start gap-2.5"><TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span><b className="text-[#fff8e4]">Última vez:</b> {formatNumber(last.value)} {unitText}{last.reps ? ` × ${last.reps} rep` : ''}
+                {read.changeFromPrevious !== null && (read.changeFromPrevious === 0 ? ' · igual que la sesión anterior' : ` · ${read.changeFromPrevious > 0 ? '+' : '−'}${formatNumber(Math.abs(read.changeFromPrevious))} ${unitText} respecto a la sesión anterior`)}</span></li>
+              {read.improvedOverPreviousBest !== null && <li className="flex items-start gap-2.5"><ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span>Has mejorado <b className="text-[#fff8e4]">{formatNumber(read.improvedOverPreviousBest)} {unitText}</b> desde tu mejor registro anterior.</span></li>}
               {read.improvedOverPreviousBest === null && read.tie && <li className="flex items-start gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span>Igualaste tu mejor registro anterior.</span></li>}
               <li className="flex items-start gap-2.5"><Calendar className="mt-0.5 h-4 w-4 shrink-0 text-[#8fd0e0]" aria-hidden="true" /><span>Llevas <b className="text-[#fff8e4]">{read.sessions} {read.sessions === 1 ? 'sesión' : 'sesiones'}</b> registrando este ejercicio.</span></li>
             </ul>

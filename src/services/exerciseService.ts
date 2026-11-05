@@ -8,7 +8,7 @@ export interface ExerciseSummary {
   category: ExerciseProgress['category'];
   count: number;
   lastDate: string;
-  last: { sets: number | null; reps: number | null; weight: number | null; weightUnit: 'kg' | 'lbs'; rpe: number | null };
+  last: { sets: number | null; reps: number | null; weight: number | null; weightUnit: 'kg' | 'lbs'; rpe: number | null; modality?: ExerciseProgress['modality'] | null; durationSec?: number | null; execution?: ExerciseProgress['execution'] | null; eccentricSec?: number | null; implement?: ExerciseProgress['implement'] | null };
 }
 
 // Un ejercicio de la biblioteca compartida (lo usan varias personas): solo nombre y categoría

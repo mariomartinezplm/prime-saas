@@ -18,7 +18,8 @@ import EmptyGuide from '@/components/premium/EmptyGuide';
 import MetricDetailDrawer from '@/components/premium/MetricDetailDrawer';
 import { CARD, EYEBROW_SOFT, HERO_SURFACE } from '@/components/dashboard/brand';
 import { exerciseKeyOf } from '@/lib/exerciseKey';
-import { groupExercises, normalizeNames, primaryMetric, progressPoints, formatNumber as fmtNum, metricLabel } from '@/lib/exerciseProgress';
+import { groupExercises, inVariant, normalizeNames, primaryMetric, progressPoints, variantsOf, formatNumber as fmtNum, metricLabel } from '@/lib/exerciseProgress';
+import { attributeChips, attributeKeyLabel, loadText } from '@/lib/exerciseAttributes';
 import { exercisesByFrequency, isRehabExercise, lastSessionText, sessionDays, totalVolumeTons, volumeComparison, weightSeries } from '@/lib/exerciseSeries';
 import { formatValue, longDate, shortDate, summarize } from '@/lib/trend';
 import { cn } from '@/lib/utils';
@@ -80,13 +81,17 @@ const ExercisesPage = () => {
   // Solo los ejercicios con peso registrado tienen progresión de carga
   const withLoad = names.filter((n) => weightSeries(byName.get(n) ?? []).length > 0);
   const hero = withLoad.includes(heroName ?? '') ? (heroName as string) : withLoad[0];
-  const heroPoints = hero ? weightSeries(byName.get(hero) ?? []) : [];
-  const heroUnit = hero ? byName.get(hero)?.find((e) => e.weightUnit)?.weightUnit ?? 'kg' : 'kg';
+  // Barra, mancuernas o ejecución distinta no son cargas equivalentes: el destacado sigue la variante MÁS RECIENTE del ejercicio
+  const heroAll = hero ? byName.get(hero) ?? [] : [];
+  const heroVariants = variantsOf(heroAll);
+  const heroRecords = heroVariants.length > 1 ? inVariant(heroAll, heroVariants[0].key) : heroAll;
+  const heroPoints = hero ? weightSeries(heroRecords) : [];
+  const heroUnit = hero ? heroRecords.find((e) => e.weightUnit)?.weightUnit ?? 'kg' : 'kg';
   const heroSummary = hero ? summarize(heroPoints, heroUnit, 1) : null;
   const heroBest = heroPoints.length > 0 ? Math.max(...heroPoints.map((p) => p.value)) : null;
-  const heroLast = hero ? [...(byName.get(hero) ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
+  const heroLast = hero ? [...heroRecords].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
   const days = sessionDays(exercises);
-  const heroRehab = hero ? isRehabExercise(byName.get(hero) ?? []) : false;
+  const heroRehab = hero ? isRehabExercise(heroRecords) : false;
   const unitOf = (name: string) => byName.get(name)?.find((e) => e.weightUnit)?.weightUnit ?? 'kg';
 
   const registerButton = (
@@ -201,7 +206,7 @@ const ExercisesPage = () => {
                     {heroSummary.count > 1 && <span className="mb-1 shrink-0 rounded-full border border-[#fff8e4]/20 bg-[#fff8e4]/[0.06] px-3 py-1 text-[13px] font-semibold text-[#fff8e4]">{heroSummary.changeText}</span>}
                   </div>
                   <p className="mt-1.5 text-sm text-[#fff8e4]/72">
-                    {heroLast ? `Última sesión · ${lastSessionText(byName.get(hero!) ?? []) ?? ''}` : 'Último registro'}
+                    {heroLast ? `Última sesión · ${lastSessionText(heroRecords) ?? ''}` : 'Último registro'}
                     {!heroRehab && heroBest !== null && heroSummary.count > 1 ? ` · mejor marca ${formatValue(heroBest, 1)} ${heroUnit}` : ''}
                   </p>
                   {heroSummary.count > 1 ? (
@@ -211,6 +216,7 @@ const ExercisesPage = () => {
                   ) : (
                     <p className="my-3 rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-3 text-sm text-[#fff8e4]/75">Con un segundo registro de este ejercicio verás aquí tu progresión.</p>
                   )}
+                  {heroVariants.length > 1 && <p className="px-1 text-xs text-[#8fd0e0]">Variante: {attributeKeyLabel(heroVariants[0].key)} · el resto se ve por separado en «Ver evolución».</p>}
                   <p className="px-1 text-xs text-[#fff8e4]/62">{heroSummary.count} {heroSummary.count === 1 ? 'día con registro' : 'días con registro'} · {heroSummary.sinceText}</p>
                   {heroRehab && <p className="mx-1 mt-2 rounded-xl border border-[#398ca2]/30 bg-[#398ca2]/10 px-3 py-2 text-[12.5px] text-[#fff8e4]/80">En rehabilitación, la carga la define tu kinesiólogo: subir el peso no siempre es el objetivo.</p>}
                   {withLoad.length > 1 && (
@@ -290,14 +296,15 @@ const ExercisesPage = () => {
                             <div className="min-w-0">
                               <p className="truncate text-[15px] font-semibold text-[#fff8e4]">{ex.exerciseName}</p>
                               <p className="text-[13px] text-[#fff8e4]/70">
-                                {ex.category === 'rehabilitacion' ? 'Rehabilitación' : 'Entrenamiento'}
+                                {[ex.category === 'rehabilitacion' ? 'Rehabilitación' : 'Entrenamiento', ...attributeChips(ex)].join(' · ')}
                                 {ex.rpe ? ` · esfuerzo ${ex.rpe}/10` : ''}
                               </p>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                               <p className="text-right text-[15px] font-bold tabular-nums text-[#fff8e4]">
                                 {ex.sets && ex.reps ? `${ex.sets}×${ex.reps}` : ''}
-                                {ex.weight ? <span className="block text-[13px] font-semibold text-[#7cc0d2]">{ex.weight} {ex.weightUnit}</span> : null}
+                                {ex.durationSec ? `${ex.sets ? `${ex.sets}× ` : ''}${ex.durationSec} s` : ''}
+                                {ex.weight ? <span className="block text-[13px] font-semibold text-[#7cc0d2]">{loadText(ex.weight, ex.implement, ex.weightUnit)}</span> : null}
                               </p>
                               {canEdit && <RecordRowActions itemLabel="este ejercicio" onEdit={() => setEditing(ex)} onDelete={() => handleDelete(ex)} />}
                             </div>

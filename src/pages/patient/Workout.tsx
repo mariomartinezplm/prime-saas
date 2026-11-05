@@ -17,7 +17,8 @@ import { useWorkout } from '@/hooks/useWorkout';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { elapsedSec, formatClock, restDisplayState, spokenDuration } from '@/lib/workoutClock';
 import { listPending, batchSize } from '@/lib/pendingSets';
-import { KIND_TITLE, blockSignature, hasUnsaved, newBlock, newGroup, planFromCounts, type DraftBlock, type DraftSlot } from '@/lib/workoutPlan';
+import { KIND_TITLE, attributesOfSlot, blockSignature, hasUnsaved, newBlock, newGroup, planFromCounts, type DraftBlock, type DraftSlot } from '@/lib/workoutPlan';
+import { attributeChips, coerceAttributes, loadText } from '@/lib/exerciseAttributes';
 import type { BlockKind, WorkoutSummary } from '@/services/workoutService';
 import { showApiError } from '@/lib/apiError';
 import { notify } from '@/lib/notify';
@@ -115,11 +116,11 @@ const Workout = () => {
     const { blockId, slotIndex } = picking;
     plan.updateBlock(blockId, (b) => ({
       ...b,
-      slots: b.slots.map((sl, i): DraftSlot => (i === slotIndex ? { name: picked.name, modality: picked.modality, groups: [newGroup(picked.modality, picked.reference)] } : sl)),
+      slots: b.slots.map((sl, i): DraftSlot => (i === slotIndex ? { name: picked.name, modality: picked.modality, ...coerceAttributes(picked.modality, attributesOfSlot(picked.reference ?? {})), groups: [newGroup(picked.modality, picked.reference)] } : sl)),
     }));
     const ref = picked.reference;
     if (ref) {
-      const parts = [ref.reps ? `${ref.reps} rep` : null, ref.durationSec ? `${ref.durationSec} s` : null, ref.weight ? `${String(ref.weight).replace('.', ',')} ${ref.weightUnit ?? 'kg'}` : null].filter(Boolean);
+      const parts = [ref.reps ? `${ref.reps} rep` : null, ref.durationSec ? `${ref.durationSec} s` : null, ref.weight ? loadText(ref.weight, ref.implement, ref.weightUnit ?? 'kg') : null, ...attributeChips(ref)].filter(Boolean);
       setHints((prev) => ({ ...prev, [picked.name]: `Última vez (${dateText(ref.date)})${parts.length ? ` · ${parts.join(' · ')}` : ''}` }));
     } else {
       setHints((prev) => ({ ...prev, [picked.name]: picked.existing ? undefined : 'Ejercicio nuevo' }));

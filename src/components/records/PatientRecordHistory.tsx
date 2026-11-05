@@ -1,3 +1,4 @@
+import { attributeChips, loadText } from '@/lib/exerciseAttributes';
 import { useCallback, useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Plus } from 'lucide-react';
@@ -153,8 +154,9 @@ export const ExerciseHistory = ({ patientId, refreshKey, onNewWeight }: HistoryP
           columns={[
             { key: 'date', header: 'Fecha', cell: (e) => format(parseISO(e.date), 'dd/MM/yyyy') },
             { key: 'name', header: 'Ejercicio', cell: (e) => <span className="font-medium">{e.exerciseName}</span>, primary: true },
-            { key: 'sets', header: 'Series × Reps', align: 'center', cell: (e) => `${e.sets || '-'} × ${e.reps || '-'}` },
-            { key: 'weight', header: 'Peso', align: 'right', cell: (e) => (e.weight ? `${e.weight} ${e.weightUnit}` : '-') },
+            { key: 'detail', header: 'Cómo', cell: (e) => attributeChips(e).join(' · ') || '-' },
+            { key: 'sets', header: 'Series × Reps', align: 'center', cell: (e) => (e.durationSec ? `${e.sets || '-'} × ${e.durationSec} s` : `${e.sets || '-'} × ${e.reps || '-'}`) },
+            { key: 'weight', header: 'Carga', align: 'right', cell: (e) => (e.weight ? loadText(e.weight, e.implement, e.weightUnit) : '-') },
           ]}
           actions={(e) => (
             <RecordRowActions

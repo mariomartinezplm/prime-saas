@@ -1,3 +1,4 @@
+import { attributeChips, loadText } from '@/lib/exerciseAttributes';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, Check, Dumbbell, Flame, Info, Layers, Repeat, Target, Timer, Trophy } from 'lucide-react';
@@ -75,8 +76,9 @@ const WorkoutFinished = ({ summary, firstName, onHome }: WorkoutFinishedProps) =
         <motion.section aria-labelledby="marcas" className="mt-3 space-y-2" {...rise(0.5)}>
           <h2 id="marcas" className="flex items-center gap-2 px-1 text-[13px] font-bold uppercase tracking-[0.14em] text-[#8fd0e0]"><Trophy className="h-4 w-4" aria-hidden="true" /> Nueva marca personal</h2>
           {records.map((r, i) => (
-            <motion.div key={r.name} className="relative overflow-hidden rounded-[20px] border border-[#62b8cf]/45 bg-[linear-gradient(160deg,rgba(57,140,162,0.32),#1f1c21_72%)] p-4" initial={reduce ? false : { opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.6 + i * 0.12 }}>
+            <motion.div key={`${r.name}-${r.implement ?? ''}-${r.execution ?? ''}`} className="relative overflow-hidden rounded-[20px] border border-[#62b8cf]/45 bg-[linear-gradient(160deg,rgba(57,140,162,0.32),#1f1c21_72%)] p-4" initial={reduce ? false : { opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.6 + i * 0.12 }}>
               <p className="text-[17px] font-extrabold tracking-tight text-[#fff8e4]">{r.name}</p>
+              {attributeChips(r).length > 0 && <p className="text-[12.5px] text-[#8fd0e0]">{attributeChips(r).join(' · ')}</p>}
               <div className="mt-2 flex items-end justify-between gap-3">
                 <div className="flex items-center gap-3 text-[#cdc6b6]">
                   <div><p className="text-[11.5px]">Anterior</p><p className="text-[1.25rem] font-bold tabular-nums">{fmt(r.previous)} kg</p></div>
@@ -130,12 +132,15 @@ const WorkoutFinished = ({ summary, firstName, onHome }: WorkoutFinishedProps) =
           <motion.section aria-label="Por ejercicio" className="mt-3 overflow-hidden rounded-[22px] border border-[#fff8e4]/10 bg-[#fff8e4]/[0.03]" {...rise(0.64)}>
             <ul className="divide-y divide-[#fff8e4]/10">
               {exercises.map((e) => (
-                <li key={e.name} className="px-4 py-3">
+                <li key={e.key ?? e.name} className="px-4 py-3">
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 break-words text-[15.5px] font-bold leading-tight text-[#fff8e4]">{e.name}</p>
+                    <div className="min-w-0">
+                      <p className="break-words text-[15.5px] font-bold leading-tight text-[#fff8e4]">{e.name}</p>
+                      {attributeChips(e).length > 0 && <p className="text-[12px] text-[#8fd0e0]">{attributeChips(e).join(' · ')}</p>}
+                    </div>
                     <p className="shrink-0 text-[13px] tabular-nums text-[#cdc6b6]">
                       {e.sets} {e.sets === 1 ? 'serie' : 'series'}
-                      {e.bestWeight ? ` · hasta ${String(e.bestWeight).replace('.', ',')} ${e.unit}` : e.timeSec ? ` · ${e.timeSec} s` : ''}
+                      {e.bestWeight ? ` · hasta ${loadText(e.bestWeight, e.implement, e.unit ?? 'kg')}` : e.timeSec ? ` · ${e.timeSec} s` : ''}
                     </p>
                   </div>
                   {e.setList.length > 0 && (

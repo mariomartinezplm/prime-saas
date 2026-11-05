@@ -1,5 +1,7 @@
 import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import ValueTile from './ValueTile';
+import ExerciseAttributeFields from '@/components/exercises/ExerciseAttributeFields';
+import { attributeChips, loadTile } from '@/lib/exerciseAttributes';
 import { MAX_GROUPS, MODALITY_LABEL, changeModality, groupProblem, newGroup, usesReps, usesTime, usesWeight, type DraftSlot, type Group } from '@/lib/workoutPlan';
 import type { Modality } from '@/services/workoutService';
 import { cn } from '@/lib/utils';
@@ -48,7 +50,7 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick }:
       {slot.name && (
         <>
           {locked ? (
-            <p className="mt-1.5 text-[12.5px] text-[#a8a295]">{MODALITY_LABEL[slot.modality]}</p>
+            <p className="mt-1.5 text-[12.5px] text-[#a8a295]">{[MODALITY_LABEL[slot.modality], ...attributeChips(slot)].join(' · ')}</p>
           ) : (
           <div role="group" aria-label={`Cómo se mide ${slot.name}`} className="mt-2.5 grid grid-cols-4 overflow-hidden rounded-[14px] border border-[#fff8e4]/15">
             {MODALITIES.map((m) => (
@@ -57,6 +59,12 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick }:
               </button>
             ))}
           </div>
+          )}
+
+          {!locked && (
+            <div className="mt-3">
+              <ExerciseAttributeFields tone="workout" modality={slot.modality} value={slot} onChange={(a) => onChange({ ...slot, execution: a.execution ?? undefined, eccentricSec: a.eccentricSec ?? undefined, implement: a.implement ?? undefined })} />
+            </div>
           )}
 
           <div className="mt-2.5 space-y-2">
@@ -76,7 +84,7 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick }:
                     <ValueTile label="Series" value={g.sets} onChange={(v) => updateGroup(g.id, { sets: v })} min={0} max={20} invalid={!!problem && !g.sets} />
                     {usesReps(slot.modality) && <ValueTile label="Repeticiones" value={g.reps} onChange={(v) => updateGroup(g.id, { reps: v })} min={0} max={999} invalid={!!problem && !g.reps} />}
                     {usesTime(slot.modality) && <ValueTile label="Tiempo" unit="s" value={g.durationSec} onChange={(v) => updateGroup(g.id, { durationSec: v })} step={5} min={0} max={7200} invalid={!!problem && !g.durationSec} />}
-                    {usesWeight(slot.modality) && <ValueTile label="Carga" unit="kg" decimals step={2.5} value={g.weight} onChange={(v) => updateGroup(g.id, { weight: v })} min={0} max={1000} invalid={!!problem && !g.weight} />}
+                    {usesWeight(slot.modality) && <ValueTile label={loadTile(slot.implement).label} unit={loadTile(slot.implement).unit} decimals step={2.5} value={g.weight} onChange={(v) => updateGroup(g.id, { weight: v })} min={0} max={1000} invalid={!!problem && !g.weight} />}
                   </div>
                   {problem && <p role="alert" className="mt-1 text-[12.5px] font-semibold text-[#e8b4a0]">{problem}.</p>}
                 </div>

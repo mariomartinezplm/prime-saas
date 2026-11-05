@@ -102,6 +102,12 @@ const exerciseProgressSchema = new mongoose.Schema({
   setNumber: { type: Number, min: 1, max: 99 },
   // Con peso externo, peso corporal, por tiempo, o con peso y tiempo a la vez (isométrico con carga). No se convierten entre sí.
   modality: { type: String, enum: ['weight', 'bodyweight', 'time', 'weight_time'] },
+  // Cómo se hace el ejercicio y con qué (independientes de la modalidad y de la categoría; los registros antiguos no los tienen).
+  // Con dos mancuernas `weight` es el peso de CADA mancuerna.
+  execution: { type: String, enum: ['normal', 'eccentric', 'isometric'] },
+  // Segundos de la fase excéntrica (solo con execution = eccentric)
+  eccentricSec: { type: Number, min: 1, max: 30 },
+  implement: { type: String, enum: ['barbell', 'one_dumbbell', 'two_dumbbells', 'none'] },
   // Segundos de un ejercicio por tiempo (`duration` sigue siendo minutos, como siempre)
   durationSec: { type: Number, min: 1, max: 7200 },
   // Clave de idempotencia de esta serie: reintentar el mismo envío nunca la duplica

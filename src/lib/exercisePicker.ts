@@ -1,5 +1,6 @@
 import { exerciseKeyOf } from './exerciseKey';
 import type { ExerciseSummary, LibraryExercise } from '@/services/exerciseService';
+import { loadText } from './exerciseAttributes';
 
 // Ejercicios de la lista que coinciden con lo escrito: todas las palabras escritas deben aparecer en el nombre (sin tildes ni
 // mayúsculas). Sin texto, se ofrecen todos (del más reciente al más antiguo). El que empieza igual que lo escrito va primero.
@@ -39,7 +40,7 @@ const dayLabel = (iso: string) => {
 // «60 kg · 3 series × 8 repeticiones · 12 oct» — solo con lo que de verdad se anotó (nunca inventa un dato)
 export function lastRecordText(o: ExerciseSummary): string {
   const parts: string[] = [];
-  if (o.last.weight !== null) parts.push(`${String(o.last.weight).replace('.', ',')} ${o.last.weightUnit}`);
+  if (o.last.weight !== null) parts.push(loadText(o.last.weight, o.last.implement, o.last.weightUnit));
   if (o.last.sets !== null && o.last.reps !== null) parts.push(`${o.last.sets} ${o.last.sets === 1 ? 'serie' : 'series'} × ${o.last.reps} ${o.last.reps === 1 ? 'repetición' : 'repeticiones'}`);
   else if (o.last.reps !== null) parts.push(`${o.last.reps} ${o.last.reps === 1 ? 'repetición' : 'repeticiones'}`);
   parts.push(dayLabel(o.lastDate));

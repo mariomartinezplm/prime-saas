@@ -1,6 +1,7 @@
 import api from '../lib/api';
 import type { APIResponse } from '../types';
 import type { RestState } from '@/lib/workoutClock';
+import type { Attributes, Execution, Implement } from '@/lib/exerciseAttributes';
 
 // Una solicitud que no responde en 15 s se corta: la serie queda «pendiente» y se reenvía con la MISMA clave (no se duplica)
 const REQUEST = { timeout: 15000 };
@@ -9,8 +10,14 @@ export type BlockKind = 'single' | 'super' | 'tri';
 // Con peso, peso corporal, por tiempo, o peso y tiempo a la vez (isométrico con carga)
 export type Modality = 'weight' | 'bodyweight' | 'time' | 'weight_time';
 
-export interface BlockSlot {
+export interface BlockSlot extends Attributes {
   slot: string; // A1, A2, B3…
+  exerciseName: string;
+  modality: Modality;
+}
+
+// Definición de un ejercicio al crear un bloque: nombre, cómo se mide y (opcional) cómo se hace y con qué
+export interface SlotDef extends Attributes {
   exerciseName: string;
   modality: Modality;
 }
@@ -34,6 +41,9 @@ export interface SavedSet {
   weightUnit: 'kg' | 'lbs';
   durationSec: number | null;
   modality: Modality | null;
+  execution?: Execution | null;
+  eccentricSec?: number | null;
+  implement?: Implement | null;
   clientId: string | null;
   createdAt: string;
 }
@@ -65,7 +75,7 @@ export interface ExerciseSuggestion {
   lastDate: string;
   // Fecha de la referencia «última vez» (de otra sesión); null si el ejercicio solo existe en la sesión de hoy
   refDate: string | null;
-  last: { reps: number | null; weight: number | null; weightUnit: 'kg' | 'lbs'; durationSec: number | null; modality: Modality | null };
+  last: { reps: number | null; weight: number | null; weightUnit: 'kg' | 'lbs'; durationSec: number | null; modality: Modality | null; execution?: Execution | null; eccentricSec?: number | null; implement?: Implement | null };
 }
 
 export interface ExerciseSearch {
@@ -77,12 +87,12 @@ export interface ExerciseSearch {
 
 export interface WorkoutSummary {
   durationSec: number;
-  exercises: { name: string; slots: string[]; sets: number; reps: number; bestWeight: number | null; unit: 'kg' | 'lbs' | null; timeSec: number; modality: Modality | null; setList: { reps: number | null; weight: number | null; unit: string | null; durationSec: number | null }[]; improvement: { kind: 'weight' | 'reps' | 'time'; previous: number; current: number; pct: number; unit: string | null } | null }[];
+  exercises: { key?: string; implement?: Implement | null; execution?: Execution | null; eccentricSec?: number | null; name: string; slots: string[]; sets: number; reps: number; bestWeight: number | null; unit: 'kg' | 'lbs' | null; timeSec: number; modality: Modality | null; setList: { reps: number | null; weight: number | null; unit: string | null; durationSec: number | null }[]; improvement: { kind: 'weight' | 'reps' | 'time'; previous: number; current: number; pct: number; unit: string | null } | null }[];
   totals: { exercises: number; sets: number; reps: number; timeSec: number };
   // Marcas personales logradas en esta sesión (carga en kg que supera la mejor de días anteriores)
   // Constancia con los entrenamientos que la persona registró y finalizó (no es asistencia validada por el centro)
   engagement: { weekCount: number; monthCount: number; weeklyTarget: number | null; monthlyTarget: number | null; weekMet: boolean; monthMet: boolean; remainingWeek: number | null; remainingMonth: number | null; streakWeeks: number };
-  records: { name: string; previous: number; current: number; improvement: number; reps: number | null }[];
+  records: { name: string; implement?: Implement | null; execution?: Execution | null; previous: number; current: number; improvement: number; reps: number | null }[];
 }
 
 export interface WorkoutSessionView {
@@ -144,7 +154,7 @@ export const workoutService = {
     return response.data.data;
   },
 
-  addBlock: async (id: string, block: { blockId: string; kind: BlockKind; slots: { exerciseName: string; modality: Modality }[] }): Promise<WorkoutMutation> => {
+  addBlock: async (id: string, block: { blockId: string; kind: BlockKind; slots: SlotDef[] }): Promise<WorkoutMutation> => {
     const response = await api.post<APIResponse<WorkoutMutation>>(`/workouts/${id}/blocks`, block, REQUEST);
     return response.data.data;
   },
