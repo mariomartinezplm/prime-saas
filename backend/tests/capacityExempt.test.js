@@ -22,6 +22,14 @@ import { createAppointment, bulkCreateAppointments } from '../controllers/appoin
 import { getAvailableSlots } from '../controllers/availabilityController.js';
 import { updateUser } from '../controllers/userController.js';
 
+// «Cerrar horario» consulta la base: en estas pruebas ninguna hora está cerrada (las pruebas de cierre están en slotClosure.test.js)
+vi.mock('../services/slotClosureService.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isSlotClosed: async () => false,
+  closedStartsFor: async () => []
+}));
+
+
 vi.mock('../services/planLifecycleService.js', async (importOriginal) => ({
   ...(await importOriginal()),
   advancePlans: vi.fn(async () => {})

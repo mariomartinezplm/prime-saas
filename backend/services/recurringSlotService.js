@@ -14,6 +14,7 @@ import {
 } from './bookingRulesService.js';
 import { notify, notifyOnce } from './notificationService.js';
 import { santiagoParts } from '../utils/timezone.js';
+import { isSlotClosed } from './slotClosureService.js';
 
 /**
  * HORARIO FIJO — «todos los lunes a las 18:00».
@@ -106,6 +107,7 @@ export const defaultDeps = {
   refund: refundSession,
   isExempt: isExemptFromCapacity,
   countOverlapping: countOverlappingAppointments,
+  isClosed: isSlotClosed,
   async listPatientAppointments(patientId, firstDate, lastDate) {
     const docs = await Appointment.find({
       patient: patientId,
@@ -201,6 +203,12 @@ export async function syncSlot(slot, { now = new Date(), silent = false, deps = 
         // Sin sesiones: no tiene sentido seguir con las fechas siguientes
         result.noSessions = true;
         break;
+      }
+
+      // Hora cerrada por el profesional («Cerrar horario»): para el paciente es como un horario lleno
+      if (deps.isClosed && (await deps.isClosed(slot.professional, date, slot.startTime))) {
+        newSkips.push({ date, code: 'FULL', notifiedAt: null });
+        continue;
       }
 
       const taken = exempt ? 0 : await deps.countOverlapping(slot.professional, date, slot.startTime);

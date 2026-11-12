@@ -33,6 +33,14 @@ import {
 } from '../controllers/appointmentController.js';
 import { triggerAchievementEvaluation } from '../services/achievements/index.js';
 
+// «Cerrar horario» consulta la base: en estas pruebas ninguna hora está cerrada (las pruebas de cierre están en slotClosure.test.js)
+vi.mock('../services/slotClosureService.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isSlotClosed: async () => false,
+  closedStartsFor: async () => []
+}));
+
+
 vi.mock('../services/achievements/index.js', () => ({
   triggerAchievementEvaluation: vi.fn(async () => {})
 }));

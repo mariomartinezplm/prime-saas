@@ -1,6 +1,7 @@
 import Availability from '../models/Availability.js';
 import { parseISO, getDay } from 'date-fns';
 import { patientHasBookablePlan, PLAN_LOCKED_MESSAGE } from '../services/bookingGuards.js';
+import { closedStartsFor, blockedByClosures } from '../services/slotClosureService.js';
 import { MAX_PATIENTS_PER_SLOT, MAX_PATIENTS_WITH_OVERBOOK, countOverlappingAppointments, isExemptFromCapacity } from '../services/bookingRulesService.js';
 
 // @desc    Obtener disponibilidad de un profesional
@@ -222,9 +223,19 @@ export const getAvailableSlots = async (req, res) => {
       }
     }
 
+    // Horas cerradas por el profesional («Cerrar horario»): para un paciente quedan como no disponibles (como si estuvieran llenas);
+    // el equipo las sigue viendo (puede agregar a alguien confirmando el aviso) y recibe la lista en `closedSlots`.
+    const closedSlots = blockedByClosures(await closedStartsFor(professionalId, date), candidateSlots);
+    let shownAvailable = availableSlots;
+    let shownBooked = bookedSlots;
+    if (!staffRoles.includes(req.user?.role) && closedSlots.length > 0) {
+      shownAvailable = availableSlots.filter((s) => !closedSlots.includes(s));
+      shownBooked = [...new Set([...bookedSlots, ...closedSlots])];
+    }
+
     res.status(200).json({
       success: true,
-      data: { date, availableSlots, bookedSlots, blockedSlots, ...(staffRoles.includes(req.user?.role) ? { overbookFullSlots } : {}) }
+      data: { date, availableSlots: shownAvailable, bookedSlots: shownBooked, blockedSlots, ...(staffRoles.includes(req.user?.role) ? { overbookFullSlots, closedSlots } : {}) }
     });
   } catch (error) {
     res.status(500).json({

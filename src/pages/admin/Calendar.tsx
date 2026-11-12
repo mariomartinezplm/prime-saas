@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Views, type View } from 'react-big-calendar';
-import { TriangleAlert } from 'lucide-react';
+import { Lock, TriangleAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { userService } from '@/services/userService';
 import { availabilityService } from '@/services/availabilityService';
+import { slotClosureService } from '@/services/slotClosureService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,13 +15,15 @@ import AppointmentCalendar from '@/components/calendar/AppointmentCalendar';
 import AppointmentDetailDialog from '@/components/calendar/AppointmentDetailDialog';
 import StatusLegend from '@/components/calendar/StatusLegend';
 import AvailabilityLegend from '@/components/calendar/AvailabilityLegend';
+import CloseSlotDialog from '@/components/calendar/CloseSlotDialog';
+import ClosedSlotsList from '@/components/calendar/ClosedSlotsList';
 import { buildCoverage, type Coverage } from '@/components/calendar/availabilityCoverage';
 import { toEvents } from '@/components/calendar/calendarUtils';
 import { BlockSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { notify } from '@/lib/notify';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import type { Appointment, User } from '@/types';
+import type { Appointment, SlotClosure, User } from '@/types';
 
 const AdminCalendar = () => {
   const { user } = useAuth();
@@ -67,6 +70,22 @@ const AdminCalendar = () => {
     };
   }, [coverageOwnerId]);
 
+  // «Cerrar horario»: horas que ya no reciben pacientes nuevos (las del profesional que se ve en el calendario)
+  const [closures, setClosures] = useState<SlotClosure[]>([]);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const loadClosures = useCallback(async () => {
+    if (!coverageOwnerId) return;
+    try {
+      setClosures(await slotClosureService.list(coverageOwnerId));
+    } catch {
+      // Es un extra: si no carga, el calendario se ve como siempre
+      setClosures([]);
+    }
+  }, [coverageOwnerId]);
+  useEffect(() => {
+    loadClosures();
+  }, [loadClosures]);
+
   // El filtro por profesional solo lo respeta el servidor para el admin
   useEffect(() => {
     if (!isAdmin) return;
@@ -101,7 +120,12 @@ const AdminCalendar = () => {
         title="Calendario"
         description="Toca una cita para ver el detalle, sincronizarla o cambiar su estado."
         actions={
-          isAdmin && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setCloseOpen(true)}>
+              <Lock className="mr-2 h-4 w-4" aria-hidden="true" />
+              Cerrar horario
+            </Button>
+            {isAdmin && (
             <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
               <SelectTrigger className="w-[220px]" aria-label="Filtrar por profesional">
                 <SelectValue placeholder="Todos los profesionales" />
@@ -115,9 +139,12 @@ const AdminCalendar = () => {
                 ))}
               </SelectContent>
             </Select>
-          )
+            )}
+          </div>
         }
       />
+
+      <ClosedSlotsList closures={closures} onChanged={loadClosures} />
 
       <StatusLegend />
       {coverage && <AvailabilityLegend />}
@@ -157,6 +184,17 @@ const AdminCalendar = () => {
       )}
 
       <AppointmentDetailDialog appointment={selected} onClose={closeDetail} onChanged={load} />
+
+      <CloseSlotDialog
+        open={closeOpen}
+        onClose={() => setCloseOpen(false)}
+        isAdmin={isAdmin}
+        ownId={user?.id ?? ''}
+        professionals={professionals}
+        defaultProfessionalId={coverageOwnerId ?? ''}
+        closures={closures}
+        onClosed={loadClosures}
+      />
     </div>
   );
 };

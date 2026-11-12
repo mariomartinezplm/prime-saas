@@ -21,6 +21,14 @@ import * as emailService from '../services/emailService.js';
 import { deductSession, refundSession } from '../services/clientPlanService.js';
 import { createAppointment } from '../controllers/appointmentController.js';
 
+// «Cerrar horario» consulta la base: en estas pruebas ninguna hora está cerrada (las pruebas de cierre están en slotClosure.test.js)
+vi.mock('../services/slotClosureService.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isSlotClosed: async () => false,
+  closedStartsFor: async () => []
+}));
+
+
 // El motor de ciclos de planes toca la base: en estas pruebas el plan ya viene "al día"
 vi.mock('../services/planLifecycleService.js', async (importOriginal) => ({
   ...(await importOriginal()),

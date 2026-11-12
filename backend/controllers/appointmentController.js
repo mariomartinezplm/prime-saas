@@ -11,6 +11,7 @@ import { triggerAchievementEvaluation } from '../services/achievements/index.js'
 import { generateAppointmentICS } from '../services/icsService.js';
 import { santiagoToUtc, formatDayMonthSantiago } from '../utils/timezone.js';
 import { appointmentForViewer, isStaffViewer } from '../services/patientViews.js';
+import { isSlotClosed, SLOT_CLOSED_PATIENT_MESSAGE, SLOT_CLOSED_STAFF_MESSAGE } from '../services/slotClosureService.js';
 import {
   MAX_PATIENTS_PER_SLOT,
   MAX_PATIENTS_WITH_OVERBOOK,
@@ -139,6 +140,17 @@ export const createAppointment = async (req, res) => {
       code: 'DUPLICATE_APPOINTMENT',
       message: 'Ya existe una cita agendada para ese paciente en ese día y horario.'
     });
+  }
+
+  // ──── REGLA 4c: hora cerrada por el profesional («Cerrar horario»): no se suman pacientes nuevos ────
+  // A un paciente se le rechaza siempre. Al equipo se le avisa y puede agregar igual con `allowClosed: true`.
+  if (await isSlotClosed(professional, date, startTime)) {
+    if (!isStaff(req.user)) {
+      return res.status(409).json({ success: false, code: 'SLOT_CLOSED', message: SLOT_CLOSED_PATIENT_MESSAGE });
+    }
+    if (req.body.allowClosed !== true) {
+      return res.status(409).json({ success: false, code: 'SLOT_CLOSED', message: SLOT_CLOSED_STAFF_MESSAGE });
+    }
   }
 
   // ──── REGLA 5: Máximo 4 pacientes por hora por kinesiólogo ────
@@ -698,6 +710,12 @@ export const bulkCreateAppointments = async (req, res) => {
 
         if (await hasIdenticalAppointment(patientId, professional, date, startTime)) {
           skipped.push({ fecha: date, motivo: 'Ya existe una cita agendada en ese día y horario' });
+          continue;
+        }
+
+        // Hora cerrada por el profesional: se salta (el equipo solo la agenda si lo confirmó expresamente con allowClosed)
+        if ((await isSlotClosed(professional, date, startTime)) && !(isStaff(req.user) && req.body.allowClosed === true)) {
+          skipped.push({ fecha: date, motivo: 'Horario cerrado' });
           continue;
         }
 

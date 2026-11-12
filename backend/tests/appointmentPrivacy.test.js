@@ -23,6 +23,14 @@ import { getAppointments, getAppointment, cancelAppointment, createAppointment, 
 import { getPatientProfile, getUserById } from '../controllers/userController.js';
 import { PATIENT_APPOINTMENT_FIELDS, toPatientAppointmentView, appointmentForViewer } from '../services/patientViews.js';
 
+// «Cerrar horario» consulta la base: en estas pruebas ninguna hora está cerrada (las pruebas de cierre están en slotClosure.test.js)
+vi.mock('../services/slotClosureService.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isSlotClosed: async () => false,
+  closedStartsFor: async () => []
+}));
+
+
 // Escritos a mano a propósito (no importados): si alguien saca un campo de la lista del código, esta prueba debe fallar
 const CAMPOS_ADMINISTRATIVOS_DE_LA_FICHA = ['exemptFromCapacity', 'airtableId', 'lastActivityDate', 'source', 'isProspect'];
 const LISTA_ESPERADA_DE_CITAS = ['_id', 'patient', 'professional', 'date', 'startTime', 'endTime', 'type', 'status', 'recurringSlot', 'priorToApp'];

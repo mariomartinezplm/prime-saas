@@ -96,6 +96,8 @@ const AdminBookingDialog = ({
     ? [...slots.availableSlots, ...slots.bookedSlots, ...(slots.blockedSlots || [])].sort()
     : [];
   const selectedIsFull = !!selectedSlot && !!slots?.bookedSlots.includes(selectedSlot);
+  // Hora cerrada por el profesional: el equipo puede agregar igual, después de ver el aviso
+  const selectedIsClosed = !!selectedSlot && !!slots?.closedSlots?.includes(selectedSlot);
 
   const dayOfWeek = date ? new Date(`${date}T00:00:00Z`).getUTCDay() : 0;
   const weeklyAllowed = !!date && canRepeatWeekly(type, dayOfWeek);
@@ -117,10 +119,11 @@ const AdminBookingDialog = ({
         endTime,
         type,
         allowOverbook: selectedIsFull,
+        allowClosed: selectedIsClosed,
       });
       // Kinesiología, entrenamiento y la evaluación de kinesiología descuentan 1 sesión del plan; si el paciente no tiene plan vigente o sesiones, se agenda igual pero sin descontar
       const descuenta = type === 'kinesiologia' || type === 'entrenamiento' || type === 'evaluacion';
-      const base = selectedIsFull ? 'Cita agendada como sobrecupo' : 'Cita agendada';
+      const base = selectedIsFull ? 'Cita agendada como sobrecupo' : selectedIsClosed ? 'Cita agendada en un horario cerrado' : 'Cita agendada';
       if (descuenta && created?.sessionDeducted === false) {
         notify.warning(`${base}, pero no se descontó ninguna sesión: el paciente no tiene un plan vigente con sesiones de ${type === 'entrenamiento' ? 'entrenamiento' : 'kinesiología'}.`, { duration: 9000 });
       } else if (descuenta) {
@@ -128,7 +131,7 @@ const AdminBookingDialog = ({
       } else {
         notify.success(base);
       }
-      if (repeat === 'weekly' && weeklyAllowed && !selectedIsFull) {
+      if (repeat === 'weekly' && weeklyAllowed && !selectedIsFull && !selectedIsClosed) {
         await saveWeeklyAfterBooking({ dayOfWeek, startTime: selectedSlot, type: type as 'kinesiologia' | 'entrenamiento', patient: patientId });
       }
       onBooked();
@@ -190,6 +193,7 @@ const AdminBookingDialog = ({
                       const isBlocked = !!slots!.blockedSlots?.includes(slot);
                       // 5 de 5: ni el sobrecupo cabe
                       const isMaxed = !!slots!.overbookFullSlots?.includes(slot);
+                      const isClosed = !!slots!.closedSlots?.includes(slot);
                       const selectable = !isBlocked && (!isFull || (canOverbook && !isMaxed));
                       return (
                         <button
@@ -197,11 +201,12 @@ const AdminBookingDialog = ({
                           type="button"
                           disabled={!selectable}
                           aria-pressed={selectedSlot === slot}
-                          aria-label={`${slot}, ${isBlocked ? 'bloqueado' : isMaxed ? 'lleno, 5 de 5 pacientes' : isFull ? (canOverbook ? 'ocupado, se puede agendar 1 sobrecupo' : 'ocupado') : 'disponible'}`}
+                          aria-label={`${slot}, ${isBlocked ? 'bloqueado' : isClosed ? 'horario cerrado, se puede agregar confirmando el aviso' : isMaxed ? 'lleno, 5 de 5 pacientes' : isFull ? (canOverbook ? 'ocupado, se puede agendar 1 sobrecupo' : 'ocupado') : 'disponible'}`}
                           onClick={() => setSelectedSlot(slot)}
                           className={cn(
                             'rounded-md px-2 py-2.5 text-center text-sm font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                            !isFull && !isBlocked && 'bg-success/20 text-success hover:bg-success/30',
+                            !isFull && !isBlocked && !isClosed && 'bg-success/20 text-success hover:bg-success/30',
+                            isClosed && !isBlocked && 'bg-muted text-foreground ring-1 ring-warning/60 hover:bg-muted/70',
                             isFull && canOverbook && !isMaxed && 'bg-warning/20 text-warning hover:bg-warning/30',
                             isFull && (!canOverbook || isMaxed) && 'bg-destructive/20 text-destructive cursor-not-allowed',
                             isBlocked && 'bg-muted text-muted-foreground cursor-not-allowed',
@@ -209,7 +214,8 @@ const AdminBookingDialog = ({
                           )}
                         >
                           {slot}
-                          {isFull && canOverbook && !isMaxed && <span className="block text-[10px] font-normal">sobrecupo</span>}
+                          {isClosed && !isBlocked && <span className="block text-[10px] font-normal">cerrado</span>}
+                          {isFull && canOverbook && !isMaxed && !isClosed && <span className="block text-[10px] font-normal">sobrecupo</span>}
                           {isMaxed && <span className="block text-[10px] font-normal">lleno 5/5</span>}
                         </button>
                       );
@@ -231,9 +237,18 @@ const AdminBookingDialog = ({
               onChange={setRepeat}
               dayOfWeek={dayOfWeek}
               time={selectedSlot}
-              disabled={selectedIsFull}
-              disabledReason="No disponible en un sobrecupo."
+              disabled={selectedIsFull || selectedIsClosed}
+              disabledReason={selectedIsClosed ? 'No disponible en un horario cerrado.' : 'No disponible en un sobrecupo.'}
             />
+          )}
+
+          {selectedIsClosed && (
+            <Alert variant="warning">
+              <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+              <AlertDescription>
+                El horario {selectedSlot} está cerrado: se había decidido no sumar más pacientes. Si continúas, esta persona se agrega igual a esa hora.
+              </AlertDescription>
+            </Alert>
           )}
 
           {selectedIsFull && (
@@ -254,7 +269,7 @@ const AdminBookingDialog = ({
             loadingLabel="Agendando…"
             className="w-full"
           >
-            {selectedIsFull ? 'Agendar como sobrecupo' : 'Agendar'}
+            {selectedIsClosed ? 'Agregar de todos modos' : selectedIsFull ? 'Agendar como sobrecupo' : 'Agendar'}
           </SubmitButton>
         </DialogFooter>
       </DialogContent>

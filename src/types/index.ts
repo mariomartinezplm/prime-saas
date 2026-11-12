@@ -126,6 +126,8 @@ export interface CreateAppointmentData {
   type: 'kinesiologia' | 'entrenamiento' | 'evaluacion';
   notes?: string;
   allowOverbook?: boolean;
+  // El equipo confirmó agregar a alguien en una hora cerrada («Cerrar horario»)
+  allowClosed?: boolean;
 }
 
 export interface BulkBookingData {
@@ -177,6 +179,17 @@ export interface AvailableSlots {
   message?: string;
   // Solo para el personal: horarios que ya tienen 5 pacientes (ni el sobrecupo cabe)
   overbookFullSlots?: string[];
+  // Solo para el personal: horas que el profesional cerró (no se suman pacientes nuevos)
+  closedSlots?: string[];
+}
+
+// «Cerrar horario»: una hora de un día que ya no recibe pacientes nuevos (los que ya están se mantienen)
+export interface SlotClosure {
+  id: string;
+  professional: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  present: number; // personas que ya están en esa hora
 }
 
 // Tipos de ClientPlan (sistema de planes por bono de sesiones)
