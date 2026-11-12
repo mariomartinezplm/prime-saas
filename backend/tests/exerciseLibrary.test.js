@@ -1,10 +1,12 @@
 /**
  * PRUEBAS — biblioteca de ejercicios compartida: se cruzan los ejercicios de todas las personas, solo nombre y categoría,
- * y solo entran los que usan al menos 2 personas distintas.
+ * entra todo lo que ingresa el equipo (profesionales y administradores) y, de los pacientes, solo lo que usan al menos 2 personas.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import mongoose from 'mongoose';
 import ExerciseProgress from '../models/Exercise.js';
+import TrainingPlan from '../models/TrainingPlan.js';
+import User from '../models/User.js';
 import { exerciseLibrary } from '../services/exerciseNames.js';
 import { getExerciseLibrary } from '../controllers/exerciseController.js';
 import router from '../routes/exerciseRoutes.js';
@@ -12,7 +14,9 @@ import router from '../routes/exerciseRoutes.js';
 const id = () => new mongoose.Types.ObjectId();
 const [a, b, c] = [id(), id(), id()];
 const group = (name, patients, category = 'fuerza') => ({ _id: name, patients, category });
-const run = (rows, opts) => {
+const run = (rows, opts, planned = []) => {
+  vi.spyOn(User, 'distinct').mockResolvedValue([]);
+  vi.spyOn(TrainingPlan, 'aggregate').mockResolvedValue(planned);
   vi.spyOn(ExerciseProgress, 'aggregate').mockResolvedValue(rows);
   return exerciseLibrary(opts);
 };
@@ -41,7 +45,20 @@ describe('biblioteca de ejercicios', () => {
     expect(list.map((e) => e.key).sort()).toEqual(['sentadilla bulgara', 'sentadilla trasera']);
   });
 
+  it('lo que ingresa el equipo entra aunque lo use una sola persona', async () => {
+    const list = await run([{ ...group('Remo con banda', [a]), staff: true }, group('Rehab hombro de Juan', [a])]);
+    expect(list.map((e) => e.name)).toEqual(['Remo con banda']);
+  });
+
+  it('lo que el equipo deja preparado para un paciente también entra, y no se repite si ya está', async () => {
+    const list = await run([{ ...group('Peso muerto', [a]), staff: true }], undefined, [{ _id: 'peso muerto' }, { _id: 'Puente de glúteo' }]);
+    expect(list.map((e) => e.name).sort()).toEqual(['Peso muerto', 'Puente de glúteo']);
+    expect(list.find((e) => e.name === 'Peso muerto').category).toBe('fuerza');
+  });
+
   it('el endpoint responde con la lista y la ruta exige sesión', async () => {
+    vi.spyOn(User, 'distinct').mockResolvedValue([]);
+    vi.spyOn(TrainingPlan, 'aggregate').mockResolvedValue([]);
     vi.spyOn(ExerciseProgress, 'aggregate').mockResolvedValue([group('Remo', [a, b])]);
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
     await getExerciseLibrary({}, res);

@@ -1,4 +1,6 @@
 import ExerciseProgress from '../models/Exercise.js';
+import TrainingPlan from '../models/TrainingPlan.js';
+import User from '../models/User.js';
 import { exerciseKey } from '../utils/exerciseKey.js';
 
 /**
@@ -65,35 +67,44 @@ export async function exerciseSummary(patientId) {
   return [...groups.values()];
 }
 
-// Biblioteca de ejercicios: los ejercicios que registran TODAS las personas se cruzan para ofrecerlos en la lista al elegir uno.
-// Privacidad: solo viaja el nombre y la categoría (nunca quién ni cuántas veces), y un nombre entra a la biblioteca solo si lo
-// usan al menos LIBRARY_MIN_PATIENTS personas distintas: así un nombre escrito a mano que identifique a alguien («rehab de Juan»)
-// nunca llega a otra persona. La identidad es la misma de siempre (sin tildes ni mayúsculas); gana la escritura más usada.
+// Biblioteca de ejercicios: los ejercicios que registran TODAS las personas se cruzan para ofrecerlos al elegir uno (kinesiólogos
+// y pacientes). Privacidad: solo viaja el nombre y la categoría (nunca quién ni cuántas veces). Entra todo lo que ingresa el EQUIPO
+// de Prime (profesionales y administradores: sus registros y lo que preparan para un paciente) y, de lo que escriben los pacientes,
+// solo lo que usan al menos LIBRARY_MIN_PATIENTS personas distintas: así un nombre escrito a mano que identifique a alguien
+// («rehab de Juan») nunca llega a otra persona. La identidad es la misma de siempre (sin tildes ni mayúsculas); gana la escritura más usada.
 export const LIBRARY_MIN_PATIENTS = 2;
 const LIBRARY_LIMIT = 500;
 
 export async function exerciseLibrary({ minPatients = LIBRARY_MIN_PATIENTS } = {}) {
-  const rows = await ExerciseProgress.aggregate([
-    { $match: { exerciseName: { $type: 'string' } } },
-    { $group: { _id: '$exerciseName', patients: { $addToSet: '$patient' }, category: { $first: '$category' } } }
+  const staffIds = await User.distinct('_id', { role: { $in: ['professional', 'admin'] } });
+  const [rows, planned] = await Promise.all([
+    ExerciseProgress.aggregate([
+      { $match: { exerciseName: { $type: 'string' } } },
+      { $group: { _id: '$exerciseName', patients: { $addToSet: '$patient' }, category: { $first: '$category' }, staff: { $max: { $in: ['$recordedBy', staffIds] } } } }
+    ]),
+    // Los ejercicios que el equipo deja preparados para un paciente también son del equipo
+    TrainingPlan.aggregate([{ $unwind: '$blocks' }, { $unwind: '$blocks.slots' }, { $group: { _id: '$blocks.slots.exerciseName' } }])
   ]);
   const groups = new Map();
-  for (const r of rows) {
+  const add = (r) => {
     const key = exerciseKey(r._id);
-    if (!key) continue;
+    if (!key) return;
     let g = groups.get(key);
     if (!g) {
-      g = { key, patients: new Set(), best: null };
+      g = { key, patients: new Set(), staff: false, best: null };
       groups.set(key, g);
     }
     const ids = (r.patients ?? []).map(String);
     ids.forEach((p) => g.patients.add(p));
+    if (r.staff) g.staff = true;
     if (!g.best || ids.length > g.best.n || (ids.length === g.best.n && String(r._id) < g.best.name)) {
       g.best = { name: String(r._id).replace(/\s+/g, ' ').trim(), category: r.category ?? 'otro', n: ids.length };
     }
-  }
+  };
+  rows.forEach(add);
+  (planned ?? []).forEach((p) => add({ _id: p._id, patients: [], category: 'otro', staff: true }));
   return [...groups.values()]
-    .filter((g) => g.patients.size >= minPatients && cleanExerciseName(g.best.name))
+    .filter((g) => (g.staff || g.patients.size >= minPatients) && cleanExerciseName(g.best.name))
     .sort((a, b) => b.patients.size - a.patients.size || a.best.name.localeCompare(b.best.name, 'es'))
     .slice(0, LIBRARY_LIMIT)
     .map((g) => ({ key: g.key, name: cleanExerciseName(g.best.name), category: g.best.category }));

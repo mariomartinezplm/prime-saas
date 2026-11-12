@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dumbbell, History, Plus, Search, Star } from 'lucide-react';
+import { BookOpen, Dumbbell, History, Plus, Search, Star } from 'lucide-react';
 import BottomSheet from '@/components/premium/BottomSheet';
 import { workoutService, type ExerciseSearch, type ExerciseSuggestion, type Modality } from '@/services/workoutService';
 import type { Reference } from '@/lib/workoutPlan';
 import { loadText } from '@/lib/exerciseAttributes';
+import { exerciseService, type LibraryExercise } from '@/services/exerciseService';
+import { filterLibrary } from '@/lib/exercisePicker';
+import { exerciseKeyOf } from '@/lib/exerciseKey';
 
 export interface PickedExercise {
   name: string;
@@ -37,6 +40,17 @@ const ExercisePickSheet = ({ open, onOpenChange, title, taken, onPick }: Exercis
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  // Biblioteca de Prime: los ejercicios que ya usa el equipo y otros pacientes (solo nombre y categoría), para elegir sin crearlos
+  const [library, setLibrary] = useState<LibraryExercise[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    exerciseService.getLibrary().then((l) => !cancelled && setLibrary(l)).catch(() => !cancelled && setLibrary([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,6 +90,29 @@ const ExercisePickSheet = ({ open, onOpenChange, title, taken, onPick }: Exercis
     reference: s.refDate ? { reps: s.last.reps, weight: s.last.weight, durationSec: s.last.durationSec, weightUnit: s.last.weightUnit, execution: s.last.execution ?? null, eccentricSec: s.last.eccentricSec ?? null, implement: s.last.implement ?? null, date: s.refDate } : null,
   });
 
+  // De la biblioteca solo lo que la persona todavía no tiene en su historial
+  const ownKeys = results ? [...results.recent, ...results.frequent, ...results.matches].map((x) => ({ key: exerciseKeyOf(x.name) })) : [];
+  const fromLibrary = filterLibrary(library, ownKeys, clean, 40);
+  const pickLibrary = (l: LibraryExercise) => onPick({ name: l.name, modality: 'weight', existing: false, reference: null });
+  const libraryList = fromLibrary.length > 0 && (
+    <div className="mt-4">
+      <p className="mb-1 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.12em] text-[#a8a295]"><BookOpen className="h-3.5 w-3.5" aria-hidden="true" />Biblioteca de Prime</p>
+      <ul>
+        {fromLibrary.map((l) => {
+          const isTaken = takenKeys.has(l.name.toLowerCase());
+          return (
+            <li key={l.key} className="border-t border-[#fff8e4]/10 first:border-t-0">
+              <button type="button" disabled={isTaken} onClick={() => pickLibrary(l)} className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-1 py-2 text-left transition-colors active:bg-[#62b8cf]/10 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fff8e4]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#fff8e4]/15 text-[#a8a295]"><BookOpen className="h-4 w-4" aria-hidden="true" /></span>
+                <span className="block min-w-0 truncate text-[15.5px] font-semibold text-[#fff8e4]">{l.name}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+
   const list = (heading: string, icon: React.ReactNode, items: ExerciseSuggestion[]) =>
     items.length > 0 && (
       <div className="mt-4">
@@ -100,7 +137,7 @@ const ExercisePickSheet = ({ open, onOpenChange, title, taken, onPick }: Exercis
     );
 
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} description="Busca en tu historial o escribe uno nuevo. Los ejercicios distintos nunca se mezclan.">
+    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} description="Elige de tu historial o de la biblioteca de Prime, o escribe uno nuevo. Los ejercicios distintos nunca se mezclan.">
       <div className="pb-2 pt-1">
         <div className="flex items-center gap-2.5 rounded-2xl border border-[#62b8cf] bg-[#181619] px-3.5">
           <Search className="h-5 w-5 shrink-0 text-[#8fd0e0]" aria-hidden="true" />
@@ -126,13 +163,15 @@ const ExercisePickSheet = ({ open, onOpenChange, title, taken, onPick }: Exercis
           clean ? (
             <>
               {list('Coincidencias', <Search className="h-3.5 w-3.5" aria-hidden="true" />, results.matches)}
-              {results.matches.length === 0 && !loading && <p className="mt-4 text-sm text-[#a8a295]">No hay ejercicios con ese nombre en tu historial. Puedes crearlo arriba.</p>}
+              {libraryList}
+              {results.matches.length === 0 && fromLibrary.length === 0 && !loading && <p className="mt-4 text-sm text-[#a8a295]">No hay ejercicios con ese nombre. Puedes crearlo arriba.</p>}
             </>
           ) : (
             <>
               {list('Recientes', <History className="h-3.5 w-3.5" aria-hidden="true" />, results.recent)}
               {list('Frecuentes', <Star className="h-3.5 w-3.5" aria-hidden="true" />, results.frequent.filter((f) => !results.recent.some((r) => r.name === f.name)))}
-              {results.recent.length === 0 && (
+              {libraryList}
+              {results.recent.length === 0 && fromLibrary.length === 0 && (
                 <div className="mt-6 rounded-2xl border border-[#fff8e4]/10 bg-[#181619]/60 p-4 text-center">
                   <p className="font-bold text-[#fff8e4]">Aún no tienes ejercicios guardados</p>
                   <p className="mt-1 text-sm text-[#a8a295]">Escribe el nombre del ejercicio que te indicaron y créalo. Quedará disponible para tus próximas sesiones.</p>

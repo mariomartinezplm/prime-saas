@@ -15,7 +15,7 @@ export function filterExercises(options: ExerciseSummary[], typed: string, max =
 }
 
 // Ejercicios de la biblioteca compartida que la persona todavía NO tiene (los suyos ya salen arriba), filtrados igual que los suyos
-export function filterLibrary(library: LibraryExercise[], own: ExerciseSummary[], typed: string, max = 30): LibraryExercise[] {
+export function filterLibrary(library: LibraryExercise[], own: { key: string }[], typed: string, max = 30): LibraryExercise[] {
   const ownKeys = new Set(own.map((o) => o.key));
   const text = exerciseKeyOf(typed);
   const tokens = text ? text.split(' ') : [];
