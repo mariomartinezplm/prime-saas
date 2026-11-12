@@ -27,8 +27,9 @@ describe('las mismas reglas en pantalla y en servidor', () => {
   it('y lo que NO ofrece, el servidor lo rechaza', () => {
     expect(A.executionOptionsFor('weight')).not.toContain('isometric');
     expect(A.executionOptionsFor('time')).not.toContain('eccentric');
-    expect(A.implementOptionsFor('bodyweight')).toEqual(['none']);
-    expect(A.implementOptionsFor('time')).toEqual(['none']);
+    // sin kg: sin implemento o una banda (nunca barra ni mancuernas)
+    expect(A.implementOptionsFor('bodyweight')).toEqual(['none', ...A.BANDS]);
+    expect(A.implementOptionsFor('time')).toEqual(['none', ...A.BANDS]);
   });
 });
 

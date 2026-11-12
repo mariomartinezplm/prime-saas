@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { IMPLEMENTS } from '../services/exerciseAttributes.js';
 import { escapeRegex } from '../middleware/sanitize.js';
 import { exerciseKey } from '../utils/exerciseKey.js';
 
@@ -107,7 +108,7 @@ const exerciseProgressSchema = new mongoose.Schema({
   execution: { type: String, enum: ['normal', 'eccentric', 'isometric'] },
   // Segundos de la fase excéntrica (solo con execution = eccentric)
   eccentricSec: { type: Number, min: 1, max: 30 },
-  implement: { type: String, enum: ['barbell', 'one_dumbbell', 'two_dumbbells', 'none'] },
+  implement: { type: String, enum: IMPLEMENTS },
   // Segundos de un ejercicio por tiempo (`duration` sigue siendo minutos, como siempre)
   durationSec: { type: Number, min: 1, max: 7200 },
   // Clave de idempotencia de esta serie: reintentar el mismo envío nunca la duplica

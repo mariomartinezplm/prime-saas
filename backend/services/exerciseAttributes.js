@@ -2,13 +2,20 @@
  * Las tres dimensiones de un ejercicio — reglas puras (sin base de datos), compartidas por el profesional y el paciente:
  *  - modalidad (cómo se mide): weight | bodyweight | time | weight_time        → ya existía (ver workoutSets.js)
  *  - ejecución (cómo se hace): normal | eccentric | isometric (+ segundos de la fase excéntrica, opcional)
- *  - implemento (con qué):     barbell | one_dumbbell | two_dumbbells | none
+ *  - implemento (con qué):     barbell | one_dumbbell | two_dumbbells | none | banda (power_* · mini_*: sin kg)
  * Son independientes entre sí y de la categoría (fuerza, cardio…). Los registros antiguos no los tienen y se conservan tal cual.
  * La carga SIEMPRE se guarda tal como se anotó: con dos mancuernas es el peso de CADA mancuerna (nunca se suma en silencio).
  */
 
 export const EXECUTIONS = ['normal', 'eccentric', 'isometric'];
-export const IMPLEMENTS = ['barbell', 'one_dumbbell', 'two_dumbbells', 'none'];
+// Bandas elásticas: la «carga» es la banda (color o nivel), no un peso en kg. Cada color/nivel es su propio implemento, así los registros
+// con una banda roja y con una negra nunca se mezclan (igual que barra y mancuernas).
+export const POWER_BANDS = ['power_red', 'power_black', 'power_purple', 'power_green', 'power_blue']; // de más liviana a más pesada
+export const MINI_BANDS = ['mini_xlight', 'mini_light', 'mini_medium', 'mini_heavy'];
+export const BANDS = [...POWER_BANDS, ...MINI_BANDS];
+export const WEIGHT_IMPLEMENTS = ['barbell', 'one_dumbbell', 'two_dumbbells'];
+export const IMPLEMENTS = [...WEIGHT_IMPLEMENTS, 'none', ...BANDS];
+export const isBand = (implement) => BANDS.includes(implement);
 export const ECCENTRIC_SEC_MAX = 30;
 
 const usesWeight = (modality) => modality === 'weight' || modality === 'weight_time';
@@ -27,7 +34,7 @@ export function validateAttributes(input, modality) {
   const eccentricSec = absent(input?.eccentricSec) ? undefined : input.eccentricSec;
 
   if (execution !== undefined && !EXECUTIONS.includes(execution)) return { error: 'La ejecución debe ser normal, excéntrica o isométrica' };
-  if (implement !== undefined && !IMPLEMENTS.includes(implement)) return { error: 'El implemento debe ser barra, una mancuerna, dos mancuernas o sin implemento' };
+  if (implement !== undefined && !IMPLEMENTS.includes(implement)) return { error: 'El implemento debe ser barra, una mancuerna, dos mancuernas, una banda o sin implemento' };
 
   if (execution === 'isometric' && (modality === undefined || !usesTime(modality))) {
     return { error: 'Un ejercicio isométrico se mide por tiempo, o por peso y tiempo' };
@@ -39,8 +46,11 @@ export function validateAttributes(input, modality) {
     if (!Number.isInteger(eccentricSec) || eccentricSec < 1 || eccentricSec > ECCENTRIC_SEC_MAX) return { error: `La fase excéntrica debe durar entre 1 y ${ECCENTRIC_SEC_MAX} segundos` };
   }
 
-  if (implement !== undefined && implement !== 'none' && modality !== undefined && !usesWeight(modality)) {
-    return { error: 'Este ejercicio no usa carga externa: el implemento es «sin implemento»' };
+  if (isBand(implement) && modality !== undefined && usesWeight(modality)) {
+    return { error: 'Con banda no se anota peso en kg: mide el ejercicio por repeticiones o por tiempo' };
+  }
+  if (implement !== undefined && implement !== 'none' && !isBand(implement) && modality !== undefined && !usesWeight(modality)) {
+    return { error: 'Este ejercicio no usa carga externa: el implemento es «sin implemento» o una banda' };
   }
 
   const value = {};

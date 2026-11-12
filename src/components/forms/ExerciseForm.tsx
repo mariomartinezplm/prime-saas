@@ -284,7 +284,7 @@ const ExerciseForm = ({ patientId, onSuccess, embedded = false, record, prefill 
         </div>
       </div>
 
-      <ExerciseAttributeFields tone="form" modality={form.modality} value={attrs} onChange={setAttrs} />
+      <ExerciseAttributeFields tone="form" modality={form.modality} value={attrs} onChange={(a, m) => { if (m) setForm((prev) => ({ ...prev, modality: m })); setAttrs(a); }} />
 
         </div>
         <div className="space-y-4">

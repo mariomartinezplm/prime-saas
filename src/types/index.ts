@@ -1,3 +1,5 @@
+import type { Implement } from '@/lib/exerciseAttributes';
+
 // Tipos de Usuario
 export interface User {
   id: string;
@@ -347,7 +349,7 @@ export interface ExerciseProgress {
   durationSec?: number;
   execution?: 'normal' | 'eccentric' | 'isometric';
   eccentricSec?: number;
-  implement?: 'barbell' | 'one_dumbbell' | 'two_dumbbells' | 'none';
+  implement?: Implement;
   createdAt: string;
   updatedAt: string;
 }
@@ -371,7 +373,7 @@ export interface CreateExerciseData {
   durationSec?: number;
   execution?: 'normal' | 'eccentric' | 'isometric';
   eccentricSec?: number;
-  implement?: 'barbell' | 'one_dumbbell' | 'two_dumbbells' | 'none';
+  implement?: Implement;
 }
 
 // Tipos de EVA (Escala del Dolor)

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { IMPLEMENTS } from '../services/exerciseAttributes.js';
 
 // «Preparar entrenamiento»: lo que el profesional PLANIFICA para la próxima sesión de un paciente. Es una colección aparte de
 // ExerciseProgress a propósito: una preparación NO es una sesión realizada. No marca asistencia, no descuenta sesiones, no toca pagos
@@ -21,7 +22,7 @@ const slotSchema = new mongoose.Schema(
     modality: { type: String, enum: ['weight', 'bodyweight', 'time', 'weight_time'], default: 'weight' },
     execution: { type: String, enum: ['normal', 'eccentric', 'isometric'] },
     eccentricSec: { type: Number, min: 1, max: 30 },
-    implement: { type: String, enum: ['barbell', 'one_dumbbell', 'two_dumbbells', 'none'] },
+    implement: { type: String, enum: IMPLEMENTS },
     // Indicación para el paciente (se ve junto al ejercicio si la preparación es visible)
     note: { type: String, trim: true, maxlength: 200 },
     groups: { type: [groupSchema], default: [] }

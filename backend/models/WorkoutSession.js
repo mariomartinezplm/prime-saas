@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { IMPLEMENTS } from '../services/exerciseAttributes.js';
 
 // Entrenamiento en curso (Workout Experience 1.0). Es un registro PERSONAL del paciente: NO modifica la cita, no descuenta
 // sesiones, no ocupa cupos y no otorga logros de asistencia.
@@ -31,7 +32,7 @@ const slotSchema = new mongoose.Schema(
     // Ejecución e implemento del ejercicio dentro del bloque (opcionales; ver services/exerciseAttributes.js)
     execution: { type: String, enum: ['normal', 'eccentric', 'isometric'] },
     eccentricSec: { type: Number, min: 1, max: 30 },
-    implement: { type: String, enum: ['barbell', 'one_dumbbell', 'two_dumbbells', 'none'] }
+    implement: { type: String, enum: IMPLEMENTS }
   },
   { _id: false }
 );

@@ -72,7 +72,7 @@ const SlotEditor = ({ slot, badge, showErrors, hint, locked, onChange, onPick, n
 
           {!locked && (
             <div className="mt-3">
-              <ExerciseAttributeFields tone="workout" modality={slot.modality} value={slot} onChange={(a) => onChange({ ...slot, execution: a.execution ?? undefined, eccentricSec: a.eccentricSec ?? undefined, implement: a.implement ?? undefined })} />
+              <ExerciseAttributeFields tone="workout" modality={slot.modality} value={slot} onChange={(a, m) => onChange({ ...(m && m !== slot.modality ? changeModality(slot, m) : slot), execution: a.execution ?? undefined, eccentricSec: a.eccentricSec ?? undefined, implement: a.implement ?? undefined })} />
             </div>
           )}
 

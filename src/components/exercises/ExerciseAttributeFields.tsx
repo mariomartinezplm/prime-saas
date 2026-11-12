@@ -2,10 +2,16 @@ import { Ban, Dumbbell, Weight } from 'lucide-react';
 import {
   ECCENTRIC_SEC_MAX,
   EXECUTION_LABEL,
+  IMPLEMENT_LABEL,
   IMPLEMENT_SHORT,
+  MINI_BANDS,
+  POWER_BANDS,
+  POWER_BAND_COLOR,
   coerceAttributes,
   executionOptionsFor,
   implementOptionsFor,
+  isBand,
+  modalityForBand,
   type Attributes,
   type Execution,
   type Implement,
@@ -16,7 +22,8 @@ import { cn } from '@/lib/utils';
 interface ExerciseAttributeFieldsProps {
   modality: Modality;
   value: Attributes;
-  onChange: (next: Attributes) => void;
+  // Si al elegir una banda cambia también la forma de medir (con kg → sin kg), se avisa en el 2.º parámetro y quien lo usa aplica los dos cambios
+  onChange: (next: Attributes, modality?: Modality) => void;
   // 'workout' = tarjetas oscuras del entrenamiento · 'form' = formularios con los colores del tema
   tone?: 'workout' | 'form';
   // Un ejercicio ya guardado no cambia de forma de medirse: solo se muestra
@@ -61,8 +68,14 @@ const ExerciseAttributeFields = ({ modality, value, onChange, tone = 'form', dis
   const t = TONES[tone];
   const executions = executionOptionsFor(modality);
   const implements_ = implementOptionsFor(modality);
-  const showImplement = implements_.length > 1;
+  const showWeightImplements = implements_.includes('barbell'); // barra y mancuernas solo existen con carga en kg
   const set = (patch: Attributes) => onChange(coerceAttributes(modality, { ...value, ...patch }));
+  // Una banda reemplaza al peso: si el ejercicio se medía con kg, pasa a medirse por repeticiones (o por tiempo)
+  const pickBand = (band: Implement) => {
+    if (value.implement === band) return set({ implement: null });
+    const next = modalityForBand(modality);
+    onChange(coerceAttributes(next, { ...value, implement: band }), next === modality ? undefined : next);
+  };
 
   const segment = (selected: boolean, label: React.ReactNode, onClick: () => void, key: string, pressedLabel: string) => (
     <button
@@ -108,7 +121,7 @@ const ExerciseAttributeFields = ({ modality, value, onChange, tone = 'form', dis
         )}
       </div>
 
-      {showImplement && (
+      {showWeightImplements && (
         <div>
           <p className={cn('mb-1', t.label)}>Implemento</p>
           <div role="group" aria-label="Con qué implemento se realiza" className={cn('grid grid-cols-4', t.group)}>
@@ -125,6 +138,32 @@ const ExerciseAttributeFields = ({ modality, value, onChange, tone = 'form', dis
           {value.implement === 'two_dumbbells' && <p className={cn('mt-1', t.hint)}>Anota el peso de UNA mancuerna: no se suma.</p>}
         </div>
       )}
+
+      <div>
+        <p className={cn('mb-1', t.label)}>Banda elástica</p>
+        <p className={cn('mb-1.5', t.hint)}>Power Band</p>
+        <div role="group" aria-label="Power Band, por color" className={cn('grid grid-cols-5', t.group)}>
+          {POWER_BANDS.map((b) =>
+            segment(
+              value.implement === b,
+              <span className="flex flex-col items-center gap-1">
+                <span aria-hidden="true" className="h-3.5 w-3.5 rounded-full border border-[#fff8e4]/60" style={{ backgroundColor: POWER_BAND_COLOR[b] }} />
+                <span>{IMPLEMENT_SHORT[b]}</span>
+              </span>,
+              () => pickBand(b),
+              b,
+              `${IMPLEMENT_LABEL[b]}${value.implement === b ? ' (elegida)' : ''}`
+            )
+          )}
+        </div>
+        <p className={cn('mb-1.5 mt-2', t.hint)}>Mini Band</p>
+        <div role="group" aria-label="Mini Band, por nivel" className={cn('grid grid-cols-4', t.group)}>
+          {MINI_BANDS.map((b) => segment(value.implement === b, IMPLEMENT_SHORT[b], () => pickBand(b), b, `${IMPLEMENT_LABEL[b]}${value.implement === b ? ' (elegida)' : ''}`))}
+        </div>
+        {(isBand(value.implement) || modality === 'weight' || modality === 'weight_time') && (
+          <p className={cn('mt-1', t.hint)}>Con banda no se anota peso en kg: se mide por repeticiones o por tiempo.</p>
+        )}
+      </div>
     </div>
   );
 };

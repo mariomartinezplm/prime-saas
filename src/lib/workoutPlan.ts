@@ -2,7 +2,7 @@
 // con «series × repeticiones × carga». Si en alguna serie cambió el valor, agrega otro cuadro. Todo esto es lógica pura: no toca la
 // red ni el reloj. Lo que se guarda en el servidor son las series ya expandidas (una fila por serie).
 import type { BlockKind, Modality, SavedSet, SlotDef, WorkoutBlock } from '@/services/workoutService';
-import { coerceAttributes, loadFieldLabel, loadText, type Attributes } from './exerciseAttributes';
+import { IMPLEMENT_LABEL, coerceAttributes, isBand, loadFieldLabel, loadText, type Attributes } from './exerciseAttributes';
 
 // Un cuadro de valores: «4 series de 10 repeticiones con 20 kg». Varios cuadros = valores distintos entre series.
 export interface Group {
@@ -228,6 +228,7 @@ export function groupText(modality: Modality, g: Group, implement?: Attributes['
   if (usesReps(modality) && g.reps) parts.push(`${g.reps} rep`);
   if (usesTime(modality) && g.durationSec) parts.push(`${g.durationSec} s`);
   if (usesWeight(modality) && g.weight) parts.push(loadText(g.weight, implement));
+  if (isBand(implement)) parts.push(IMPLEMENT_LABEL[implement]); // con banda la «carga» es la banda
   return parts.join(' · ');
 }
 
