@@ -90,6 +90,7 @@ const AgendaList = ({ appointments, date, onNavigate, onSelect, coverage = null 
                     onClick={() => onSelect(apt)}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-lg border border-l-4 border-border bg-card p-3 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      apt.fromTeam && 'border-dashed bg-muted/40',
                       barClass[apt.status]
                     )}
                   >
@@ -101,7 +102,10 @@ const AgendaList = ({ appointments, date, onNavigate, onSelect, coverage = null 
                       <span className={cn('block truncate text-sm font-medium', apt.status === 'cancelled' && 'line-through opacity-70')}>
                         {personName(apt.patient, 'Paciente')}
                       </span>
-                      <span className="block text-xs text-muted-foreground">{appointmentTypeLabels[apt.type]}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {appointmentTypeLabels[apt.type]}
+                        {apt.fromTeam && <span> · con {personName(apt.professional, 'otro profesional')} (solo lectura)</span>}
+                      </span>
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1">
                       {apt.status !== 'scheduled' && <AppointmentStatusBadge status={apt.status} />}

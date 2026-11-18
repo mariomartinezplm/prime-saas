@@ -109,6 +109,17 @@
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
 }
+.apt-calendar .rbc-event.apt-team {
+  /* Cita de un colega (solo lectura): sin relleno fuerte y con borde punteado, para no confundirla con las propias */
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  border: 1px dashed hsl(var(--muted-foreground) / 0.8);
+  cursor: default;
+}
+.apt-calendar .rbc-event.apt-team .rbc-event-label {
+  /* La hora ya se lee por su posición en la grilla; el espacio se usa para el colega y el paciente */
+  display: none;
+}
 .apt-calendar .rbc-event.apt-completed {
   background: hsl(var(--success));
   color: hsl(var(--success-foreground));
@@ -126,11 +137,12 @@
   container-type: inline-size;
 }
 @container (max-width: 64px) {
-  .apt-event-name,
-  .apt-event-type {
+  .apt-calendar .apt-event-name,
+  .apt-calendar .apt-event-type {
     display: none;
   }
-  .apt-event-initials {
+  /* Con más especificidad que la clase «hidden» de Tailwind: antes las iniciales nunca llegaban a verse */
+  .apt-calendar .apt-event-initials {
     display: block;
   }
 }

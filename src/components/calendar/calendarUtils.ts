@@ -15,13 +15,13 @@ export interface CalendarEvent {
 export const toEvents = (appointments: Appointment[]): CalendarEvent[] =>
   appointments.map((apt) => ({
     id: apt._id,
-    title: `${personName(apt.patient, 'Paciente')} · ${appointmentTypeLabels[apt.type]}`,
+    title: `${apt.fromTeam ? `${personName(apt.professional, '')} · ` : ''}${personName(apt.patient, 'Paciente')} · ${appointmentTypeLabels[apt.type]}`,
     start: appointmentStart(apt),
     end: appointmentEnd(apt),
     resource: apt,
   }));
 
-export const statusClass = (status: Appointment['status']) => `apt-${status}`;
+export const statusClass = (status: Appointment['status'], fromTeam = false) => (fromTeam ? 'apt-team' : `apt-${status}`);
 
 // El calendario muestra de 07:00 a 21:00, y se amplía si hay citas fuera de ese rango
 // (antes una cita a las 21:00 o más tarde quedaba oculta).

@@ -1,6 +1,6 @@
 import api from '../lib/api';
 import { todayLocal } from '../lib/evolutionDate';
-import type { Appointment, CreateAppointmentData, BulkBookingData, APIResponse } from '../types';
+import type { Appointment, CreateAppointmentData, BulkBookingData, APIResponse, TeamCalendar } from '../types';
 
 export const appointmentService = {
   // Crear nueva cita
@@ -19,6 +19,18 @@ export const appointmentService = {
   }): Promise<Appointment[]> => {
     const response = await api.get<APIResponse<{ appointments: Appointment[] }>>('/appointments', { params });
     return response.data.data.appointments;
+  },
+
+  // «Cambiar hora»: el paciente mueve su cita a otra hora, a tiempo. La cita anterior queda liberada.
+  reschedule: async (id: string, data: { date: string; startTime: string }): Promise<Appointment> => {
+    const response = await api.put<APIResponse<{ appointment: Appointment }>>(`/appointments/${id}/reschedule`, data);
+    return response.data.data.appointment;
+  },
+
+  // Agenda de los DEMÁS profesionales (solo lectura, solo el equipo)
+  getTeam: async (params?: { from?: string; to?: string }): Promise<TeamCalendar> => {
+    const response = await api.get<APIResponse<TeamCalendar>>('/appointments/team', { params });
+    return response.data.data;
   },
 
   // Obtener una cita por ID

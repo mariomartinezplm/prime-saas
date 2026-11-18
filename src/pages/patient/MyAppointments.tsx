@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { addHours, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarClock, CalendarPlus, Info, TriangleAlert, X } from 'lucide-react';
+import { CalendarClock, CalendarPlus, Info, Repeat2, TriangleAlert, X } from 'lucide-react';
 import { appointmentService } from '@/services/appointmentService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import CancelScopeChoice, { type CancelScope } from '@/components/booking/CancelScopeChoice';
+import RescheduleDialog from '@/components/booking/RescheduleDialog';
 import DateBadge from '@/components/shared/DateBadge';
 import EmptyGuide from '@/components/premium/EmptyGuide';
 import SegmentedTabs from '@/components/premium/SegmentedTabs';
@@ -27,16 +28,20 @@ import type { Appointment } from '@/types';
 const AppointmentCard = ({
   apt,
   onCancel,
+  onReschedule,
   highlight,
 }: {
   apt: Appointment;
   onCancel: (apt: Appointment) => void;
+  onReschedule: (apt: Appointment) => void;
   // La próxima sesión se destaca para encontrarla sin leer la lista
   highlight?: boolean;
 }) => {
   // Se puede cancelar mientras la cita no haya empezado. Con menos de 4 horas la sesión se pierde
   // (lo decide el servidor); aquí solo se avisa en la confirmación.
   const canCancel = apt.status === 'scheduled' && appointmentStart(apt) > new Date();
+  // «Cambiar hora» solo mientras falten al menos las mismas horas que para cancelar sin perder la sesión (el servidor lo vuelve a verificar)
+  const canReschedule = apt.status === 'scheduled' && appointmentStart(apt) > addHours(new Date(), PATIENT_CANCEL_AHEAD_HOURS);
   const [downloading, setDownloading] = useState(false);
 
   const addToCalendar = async () => {
@@ -83,6 +88,12 @@ const AppointmentCard = ({
             <CalendarPlus aria-hidden="true" />
             Agregar a mi calendario
           </Button>
+          {canReschedule && (
+            <Button variant="outline" onClick={() => onReschedule(apt)} className="min-h-[44px] border-[#62b8cf]/50 text-[#8fd0e0] hover:bg-[#62b8cf]/10 hover:text-[#8fd0e0]">
+              <Repeat2 aria-hidden="true" />
+              Cambiar hora
+            </Button>
+          )}
           {canCancel && (
             <Button variant="outline" onClick={() => onCancel(apt)} className="min-h-[44px] border-[#fff8e4]/20 text-[#fff8e4]/85 hover:bg-[#fff8e4]/[0.06] hover:text-[#fff8e4]">
               <X aria-hidden="true" />
@@ -100,6 +111,7 @@ const MyAppointments = () => {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
   const [scope, setScope] = useState<CancelScope>('this');
   const [tab, setTab] = useState('upcoming');
   const [reason, setReason] = useState('');
@@ -162,7 +174,7 @@ const MyAppointments = () => {
     ) : (
       <ul className="space-y-3">
         {items.map((apt, index) => (
-          <AppointmentCard key={apt._id} apt={apt} onCancel={setCancelling} highlight={highlightFirst && index === 0} />
+          <AppointmentCard key={apt._id} apt={apt} onCancel={setCancelling} onReschedule={setRescheduling} highlight={highlightFirst && index === 0} />
         ))}
       </ul>
     );
@@ -185,7 +197,7 @@ const MyAppointments = () => {
 
       <p className="flex items-start gap-2 rounded-2xl border border-[#fff8e4]/10 bg-[#fff8e4]/[0.04] px-4 py-3 text-[13.5px] leading-snug text-[#fff8e4]/80">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#62b8cf]" aria-hidden="true" />
-        <span>Todas las sesiones agendadas se pueden cancelar hasta <strong className="text-[#fff8e4]">{PATIENT_CANCEL_AHEAD_HOURS} horas antes</strong> de la hora. Si cancelas con menos tiempo, esa sesión se pierde.</span>
+        <span>Puedes <strong className="text-[#fff8e4]">cambiar la hora o cancelar</strong> hasta <strong className="text-[#fff8e4]">{PATIENT_CANCEL_AHEAD_HOURS} horas antes</strong>. Si cambias a tiempo, no pierdes tu sesión. Si cancelas con menos tiempo, esa sesión se pierde.</span>
       </p>
 
       {failed && (
@@ -229,6 +241,8 @@ const MyAppointments = () => {
           renderList(cancelled, <p className="rounded-2xl border border-dashed border-[#fff8e4]/20 px-4 py-8 text-center text-sm text-[#fff8e4]/72">No tienes citas canceladas.</p>),
         ]}
       </SegmentedTabs>
+
+      <RescheduleDialog appointment={rescheduling} onClose={() => setRescheduling(null)} onChanged={load} />
 
       <ConfirmDialog
         open={!!cancelling}

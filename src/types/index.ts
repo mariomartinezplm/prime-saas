@@ -102,6 +102,8 @@ export interface Appointment {
   outsideCapacity?: boolean;
   // Si la generó un horario fijo del paciente
   recurringSlot?: string;
+  // Cita de OTRO profesional que el equipo ve en modo solo lectura (agenda del equipo): sin ficha ni detalle
+  fromTeam?: boolean;
   cancellationReason?: string;
   cancelledBy?: User | string;
   cancelledAt?: string;
@@ -628,4 +630,20 @@ export interface RecurringSlotResult {
   skipped: Array<{ date: string; code: string; label: string }>;
   // Fechas que esperan a que se registre el pago de la renovación
   pendingPayment: number;
+}
+
+// Agenda del equipo (solo lectura): lo único que un profesional ve de las citas de sus colegas
+export interface TeamAppointment {
+  id: string;
+  professional: { id: string; firstName: string; lastName: string };
+  patientName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  type: Appointment['type'];
+  status: Appointment['status'];
+}
+export interface TeamCalendar {
+  professionals: Array<{ id: string; firstName: string; lastName: string }>;
+  appointments: TeamAppointment[];
 }

@@ -76,7 +76,10 @@ const EventCell = ({ event }: { event: CalendarEvent }) => (
   <div className="flex flex-col overflow-hidden leading-tight" title={personName(event.resource.patient, 'Paciente')}>
     <span className="apt-event-name truncate font-medium">{shortName(event.resource.patient)}</span>
     <span className="apt-event-initials hidden font-semibold">{initials(event.resource.patient)}</span>
-    <span className="apt-event-type truncate opacity-80">{appointmentTypeLabels[event.resource.type]}</span>
+    <span className="apt-event-type truncate opacity-80">
+      {event.resource.fromTeam && typeof event.resource.professional === 'object' ? `${event.resource.professional.firstName} · ` : ''}
+      {appointmentTypeLabels[event.resource.type]}
+    </span>
   </div>
 );
 
@@ -119,7 +122,7 @@ const AppointmentCalendar = ({ events, date, view, onNavigate, onView, onSelectE
         formats={formats}
         dayLayoutAlgorithm="no-overlap"
         messages={messages}
-        eventPropGetter={(event) => ({ className: statusClass(event.resource.status) })}
+        eventPropGetter={(event) => ({ className: statusClass(event.resource.status, event.resource.fromTeam) })}
         slotPropGetter={(slotDate) => {
           if (!coverage) return {};
           const kind = slotKind(coverage, slotDate);

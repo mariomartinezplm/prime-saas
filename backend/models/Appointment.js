@@ -111,6 +111,10 @@ const appointmentSchema = new mongoose.Schema({
     ref: 'RecurringSlot',
     default: undefined
   },
+  // «Cambiar hora»: el paciente movió su cita a otra hora a tiempo. La cita de origen queda cancelada y apunta a la nueva (`rescheduledTo`),
+  // y la nueva apunta a la de origen (`rescheduledFrom`). La sesión se devolvió y se descontó de nuevo: no se pierde nada.
+  rescheduledTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', default: undefined },
+  rescheduledFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', default: undefined },
   // Id del evento en el Google Calendar del profesional, si sincronizó esta
   // cita (Paso 28 de BLUEPRINT.md). Permite actualizar el mismo evento en vez
   // de duplicarlo si se sincroniza de nuevo.

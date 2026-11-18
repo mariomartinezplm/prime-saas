@@ -285,6 +285,8 @@ export const getAppointments = async (req, res) => {
     // Si es paciente, solo ver sus propias citas
     if (req.user.role === 'patient') {
       query.patient = req.user._id;
+      // Las citas que el propio paciente cambió de hora desaparecen de su lista (la cita nueva ya está en su lugar)
+      query.rescheduledTo = { $exists: false };
     }
 
     // Si es professional, ver sus citas asignadas

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { addDays, endOfMonth, format, startOfMonth } from 'date-fns';
 import { Views, type View } from 'react-big-calendar';
-import { Lock, TriangleAlert } from 'lucide-react';
+import { Lock, TriangleAlert, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService } from '@/services/appointmentService';
 import { userService } from '@/services/userService';
@@ -23,7 +24,27 @@ import { BlockSkeleton, SkeletonRegion } from '@/components/shared/Skeletons';
 import PageHeader from '@/components/shared/PageHeader';
 import { notify } from '@/lib/notify';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import type { Appointment, SlotClosure, User } from '@/types';
+import type { Appointment, SlotClosure, TeamAppointment, TeamCalendar, User } from '@/types';
+
+// Una cita de un colega, con la forma de una cita para dibujarla en el calendario (solo lectura: sin detalle ni ficha)
+const teamToAppointment = (t: TeamAppointment): Appointment => {
+  const [first, ...rest] = t.patientName.split(' ');
+  return {
+    _id: `team-${t.id}`,
+    patient: { firstName: first, lastName: rest.join(' ') } as User,
+    professional: { _id: t.professional.id, firstName: t.professional.firstName, lastName: t.professional.lastName } as unknown as User,
+    date: t.date,
+    startTime: t.startTime,
+    endTime: t.endTime,
+    status: t.status,
+    type: t.type,
+    fromTeam: true,
+    createdAt: '',
+    updatedAt: '',
+  };
+};
+
+const TEAM_ALL = 'team-all';
 
 const AdminCalendar = () => {
   const { user } = useAuth();
@@ -86,6 +107,30 @@ const AdminCalendar = () => {
     loadClosures();
   }, [loadClosures]);
 
+  // Agenda del equipo (solo para profesionales): ver cuándo y con quién atienden los colegas, solo lectura.
+  // 'mine' = solo la propia · TEAM_ALL = la propia y la de todos · un id = solo la de ese colega
+  const [teamMode, setTeamMode] = useState<string>('mine');
+  const [team, setTeam] = useState<TeamCalendar | null>(null);
+  const [teamFailed, setTeamFailed] = useState(false);
+  const monthKey = format(date, 'yyyy-MM');
+  useEffect(() => {
+    // También con «Mi agenda»: así la lista de colegas del selector ya está lista al abrirlo
+    if (isAdmin) return;
+    let active = true;
+    setTeamFailed(false);
+    const from = format(addDays(startOfMonth(date), -7), 'yyyy-MM-dd');
+    const to = format(addDays(endOfMonth(date), 7), 'yyyy-MM-dd');
+    appointmentService
+      .getTeam({ from, to })
+      .then((t) => active && setTeam(t))
+      .catch(() => active && setTeamFailed(true));
+    return () => {
+      active = false;
+    };
+    // Se vuelve a pedir al cambiar de mes, no en cada día
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, monthKey]);
+
   // El filtro por profesional solo lo respeta el servidor para el admin
   useEffect(() => {
     if (!isAdmin) return;
@@ -114,6 +159,13 @@ const AdminCalendar = () => {
     load();
   }, [load]);
 
+  // Lo que se dibuja: las propias y, si se pidió, las de los colegas (solo lectura)
+  const teamRows = !isAdmin && teamMode !== 'mine' && team ? team.appointments.filter((t) => teamMode === TEAM_ALL || t.professional.id === teamMode).map(teamToAppointment) : [];
+  const shown = teamMode === 'mine' || isAdmin ? appointments : teamMode === TEAM_ALL ? [...appointments, ...teamRows] : teamRows;
+  const pick = (a: Appointment) => {
+    if (!a.fromTeam) openDetail(a);
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -125,6 +177,21 @@ const AdminCalendar = () => {
               <Lock className="mr-2 h-4 w-4" aria-hidden="true" />
               Cerrar horario
             </Button>
+            {!isAdmin && (
+              <Select value={teamMode} onValueChange={setTeamMode}>
+                <SelectTrigger className="w-[220px]" aria-label="Qué agenda ver">
+                  <Users className="mr-2 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mine">Mi agenda</SelectItem>
+                  <SelectItem value={TEAM_ALL}>Yo y el equipo</SelectItem>
+                  {(team?.professionals ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>Solo {p.firstName} {p.lastName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {isAdmin && (
             <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
               <SelectTrigger className="w-[220px]" aria-label="Filtrar por profesional">
@@ -143,6 +210,19 @@ const AdminCalendar = () => {
           </div>
         }
       />
+
+      {!isAdmin && teamMode !== 'mine' && (
+        <p className="flex items-start gap-2 rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <Users className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>Las citas con borde punteado son de tus colegas: solo puedes verlas, no abrirlas ni cambiarlas.</span>
+        </p>
+      )}
+      {teamFailed && !isAdmin && teamMode !== 'mine' && (
+        <Alert variant="warning">
+          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertDescription>No se pudo cargar la agenda del equipo. Se muestra solo la tuya.</AlertDescription>
+        </Alert>
+      )}
 
       <ClosedSlotsList closures={closures} onChanged={loadClosures} />
 
@@ -166,17 +246,17 @@ const AdminCalendar = () => {
           <BlockSkeleton className="h-[520px]" />
         </SkeletonRegion>
       ) : isMobile ? (
-        <AgendaList appointments={appointments} date={date} onNavigate={setDate} onSelect={openDetail} coverage={coverage} />
+        <AgendaList appointments={shown} date={date} onNavigate={setDate} onSelect={pick} coverage={coverage} />
       ) : (
         <Card>
           <CardContent className="p-4">
             <AppointmentCalendar
-              events={toEvents(appointments)}
+              events={toEvents(shown)}
               date={date}
               view={view}
               onNavigate={setDate}
               onView={setView}
-              onSelectEvent={(event) => openDetail(event.resource)}
+              onSelectEvent={(event) => pick(event.resource)}
               coverage={coverage}
             />
           </CardContent>
